@@ -1,5 +1,5 @@
-import type { Content } from './content';
-import { skillLevel, type GameState } from './state';
+import type { ActionDef, Content } from './content';
+import { bankCount, skillLevel, type GameState } from './state';
 
 export type StartResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
@@ -20,11 +20,33 @@ export function startAction(state: GameState, actionId: string, content: Content
   if (state.action?.id === actionId) {
     return { ok: true, state };
   }
+  const short = missingInput(state, action);
+  if (short) {
+    const item = content.items[short.item]?.name ?? short.item;
+    return { ok: false, reason: `Needs ${short.qty} ${item}.` };
+  }
   return { ok: true, state: { ...state, action: { id: actionId, progressMs: 0 } } };
 }
 
 export function stopAction(state: GameState): GameState {
   return state.action ? { ...state, action: null } : state;
+}
+
+/** How many completions the bank can pay for. Infinity for an action that uses nothing. */
+export function affordable(state: GameState, action: ActionDef): number {
+  let most = Infinity;
+  for (const { item, qty } of action.uses ?? []) {
+    most = Math.min(most, Math.floor(bankCount(state, item) / qty));
+  }
+  return most;
+}
+
+/** The first thing an action uses that the bank cannot cover once, if any. */
+export function missingInput(
+  state: GameState,
+  action: ActionDef,
+): { item: string; qty: number } | null {
+  return (action.uses ?? []).find(({ item, qty }) => bankCount(state, item) < qty) ?? null;
 }
 
 /**
@@ -44,12 +66,26 @@ export function advance(state: GameState, ms: number, content: Content): GameSta
     return { ...state, action: null };
   }
   const total = state.action.progressMs + ms;
-  const completions = Math.floor(total / action.durationMs);
-  const progressMs = total - completions * action.durationMs;
+  const byTime = Math.floor(total / action.durationMs);
+  const canPay = affordable(state, action);
+  const completions = Math.min(byTime, canPay);
+  // Out of materials: the action ends on the completion that used the last of
+  // them, and whatever time is left over is simply not spent. Ending there,
+  // and not when the next bar fills, is what keeps this independent of how
+  // the time was cut up.
+  const ranOut = canPay <= byTime;
   if (completions === 0) {
-    return { ...state, action: { id: action.id, progressMs } };
+    return {
+      ...state,
+      action: ranOut ? null : { id: action.id, progressMs: total },
+    };
   }
   const bank = { ...state.bank };
+  for (const { item, qty } of action.uses ?? []) {
+    const left = (bank[item] ?? 0) - qty * completions;
+    if (left > 0) bank[item] = left;
+    else delete bank[item];
+  }
   for (const { item, qty } of action.gives) {
     bank[item] = (bank[item] ?? 0) + qty * completions;
   }
@@ -60,6 +96,6 @@ export function advance(state: GameState, ms: number, content: Content): GameSta
       ...state.skills,
       [action.skill]: (state.skills[action.skill] ?? 0) + action.xp * completions,
     },
-    action: { id: action.id, progressMs },
+    action: ranOut ? null : { id: action.id, progressMs: total - completions * action.durationMs },
   };
 }

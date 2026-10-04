@@ -6,10 +6,10 @@ town, a house to fill and short action dungeons). Cody's personal project; it re
 
 ## Where the plan lives
 
-The design, the session-by-session plan and its **status line** are in the claude.ai Project
-("Fantasy AFK/ARPG"): `claude/START-HERE.md`, `claude/plan.md`, `claude/design.md`. Read
-START-HERE, then the status line, then only your session's brief. Update the status line when a
-session ends. In this repo: `docs/style-guide.md` (art direction, read before drawing or styling
+The design, the session-by-session plan and the status are in the claude.ai Project ("Fantasy
+AFK/ARPG"): `claude/START-HERE.md`, `claude/status.md`, `claude/plan.md`, `claude/design.md`. Read
+START-HERE, then the status, then only your session's brief. Update `status.md` when a session
+ends. In this repo: `docs/style-guide.md` (art direction, read before drawing or styling
 anything) and `docs/art-reference/town-mockup.html` (the approved mock-up, with the pixel engine to
 harvest in S7).
 
@@ -22,8 +22,8 @@ npm run format   # prettier --write
 npm run icons    # redraw the home-screen icons from scripts/make-icons.mjs
 ```
 
-Run `npm run check` before every push. Work on a branch and open a PR; merging to `main` deploys to
-Vercel (only `main` deploys).
+Run `npm run check` before every push. Work on a branch and open a PR; once CI passes, merge it
+(Cody's standing rule). Merging to `main` deploys to Vercel (only `main` deploys).
 
 ## Layers
 
@@ -46,6 +46,10 @@ ESLint enforces the arrows (`eslint.config.js`). Do not weaken those rules to ma
   catch-up and tests run the same code. `advance(state, ms, content)` in `src/core/actions.ts` is
   the only way time passes. It works in whole completions by arithmetic, never a loop of ticks, and
   `advance(a)` then `advance(b)` must equal `advance(a + b)`: keep that test passing.
+- **Time away is `catchUp(state, awayMs, content)`** (`src/core/away.ts`): `advance` with a 24-hour
+  cap and a report of the difference. A closed game is measured from `savedAt`; a page left in the
+  background is the same rule, triggered by a gap of a minute between ticks. `savedAt` therefore
+  means "the game has been paid up to here": every save stamps it, and nothing else may.
 - **Core never imports the tables.** It defines their shapes (`src/core/content.ts`) and its rules
   take a `Content` argument; `src/data/` fills them in. New content is a row, not code.
 - **State is immutable.** Every rule returns a new `GameState`; nothing edits one in place.

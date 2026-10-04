@@ -183,6 +183,7 @@ describe('the app shell', () => {
       // One long tick, as a page coming back from the background gets.
       clock += 30 * 60 * 1000;
       app.tick();
+      press('Carry on');
       expect(card('chop_oak').tagName).toBe('BUTTON');
       card('chop_oak').click();
       wait(app, 4000);
@@ -196,6 +197,110 @@ describe('the app shell', () => {
       expect(card('chop_oak').textContent).toContain('Oak logs: 1');
       wait(again, 4000);
       expect(card('chop_oak').textContent).toContain('Oak logs: 2');
+    });
+  });
+
+  describe('time away', () => {
+    const HOUR = 60 * 60 * 1000;
+    const startChopping = (): void => {
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      q<HTMLButtonElement>('[data-action="chop_pine"]').click();
+    };
+    const report = (): HTMLElement => q('[role="dialog"]');
+
+    it('pays for a closed game when it is opened again, and says what happened', () => {
+      const app = mount();
+      create('Cody');
+      startChopping();
+      app.save();
+
+      root.replaceChildren();
+      clock += 2 * HOUR;
+      mount();
+      expect(report().textContent).toContain('2h, chopping Pine');
+      expect(report().textContent).toContain('Pine logs+2,400');
+      expect(report().textContent).toContain('Woodcutting XP+24,000');
+      expect(report().textContent).toContain('Woodcutting level 1 → 13');
+      expect(new LocalStorageSaveService().load()).toMatchObject({
+        bank: { pine_logs: 2400 },
+        savedAt: clock,
+      });
+
+      press('Carry on');
+      expect(root.querySelector('[role="dialog"]')).toBeNull();
+      expect(q('[data-skill="woodcutting"]').textContent).toContain('Level 13');
+    });
+
+    it('does not pay the same night twice', () => {
+      const app = mount();
+      create('Cody');
+      startChopping();
+      app.save();
+      clock += 2 * HOUR;
+      root.replaceChildren();
+      mount();
+      root.replaceChildren();
+      mount();
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 2400 });
+    });
+
+    it('counts a day at most and says so', () => {
+      const app = mount();
+      create('Cody');
+      startChopping();
+      app.save();
+      root.replaceChildren();
+      clock += 31 * HOUR;
+      mount();
+      expect(report().textContent).toContain('1d 7h');
+      expect(report().textContent).toContain('Only the first 1d count.');
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 28_800 });
+    });
+
+    it('treats a page left in the background the same way', () => {
+      const app = mount();
+      create('Cody');
+      startChopping();
+      clock += 3 * HOUR;
+      app.tick();
+      expect(report().textContent).toContain('3h, chopping Pine');
+      expect(report().textContent).toContain('Pine logs+3,600');
+    });
+
+    it('pays a quick reload without making a report of it', () => {
+      const app = mount();
+      create('Cody');
+      startChopping();
+      app.save();
+      root.replaceChildren();
+      clock += 9000;
+      mount();
+      expect(root.querySelector('[role="dialog"]')).toBeNull();
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 3 });
+    });
+
+    it('says nothing to a character who was doing nothing', () => {
+      const app = mount();
+      create('Cody');
+      app.save();
+      root.replaceChildren();
+      clock += 5 * HOUR;
+      mount();
+      expect(root.querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    it('does not pay a loaded save file for the time since it was written', () => {
+      const old = { ...newGame('Meg', 1), action: { id: 'chop_pine', progressMs: 0 } };
+      clock = 50 * HOUR;
+      mount();
+      press('I have a save');
+      q<HTMLTextAreaElement>('textarea[aria-label="Save code"]').value = writeSaveExport(
+        'code',
+        old,
+      ).text;
+      press('Load code');
+      expect(root.querySelector('[role="dialog"]')).toBeNull();
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({});
     });
   });
 });

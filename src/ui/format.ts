@@ -6,3 +6,15 @@ export function formatNumber(value: number): string {
 export function formatSeconds(ms: number): string {
   return `${Number((ms / 1000).toFixed(1))}s`;
 }
+
+/** "45s", "12m", "2h 14m", "1d 7h": the two largest units, rounded down. */
+export function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return hours % 24 ? `${days}d ${hours % 24}h` : `${days}d`;
+  if (hours > 0) return minutes % 60 ? `${hours}h ${minutes % 60}m` : `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+}

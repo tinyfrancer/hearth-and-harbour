@@ -27,6 +27,11 @@ export interface ActionDef {
   durationMs: number;
   /** Skill XP per completion. */
   xp: number;
+  /**
+   * What each completion takes from the bank. An action that cannot pay for
+   * its next completion stops, live or away.
+   */
+  uses?: readonly { item: string; qty: number }[];
   /** What each completion puts in the bank. */
   gives: readonly { item: string; qty: number }[];
 }
