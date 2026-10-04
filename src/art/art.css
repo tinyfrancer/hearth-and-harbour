@@ -1,0 +1,5 @@
+/* Styles for drawn things (icons, portraits, the gallery). Owned by the art lane. */
+.icon {
+  flex: none;
+  image-rendering: pixelated;
+}

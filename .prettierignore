@@ -4,3 +4,5 @@
 # a diff.
 package-lock.json
 docs/art-reference
+docs/design.md
+docs/plan.md

@@ -9,8 +9,9 @@ import {
   type GameState,
 } from '../core/state';
 import { MAX_LEVEL, levelProgress, xpForLevel } from '../core/xp';
+import { itemIcon, skillIcon } from '../art/icons';
 import { bar } from './bar';
-import { button, h } from './dom';
+import { button, h, titled } from './dom';
 import { formatNumber, formatSeconds } from './format';
 import type { View } from './view';
 
@@ -43,7 +44,7 @@ export function skillListView(
       },
       [
         h('div', { class: 'card-head' }, [
-          h('h2', { text: skill.name }),
+          titled(skillIcon(skill.id), skill.name),
           h('span', { class: 'level', text: `Level ${skillLevel(state, skill.id)}` }),
         ]),
         xp.el,
@@ -122,7 +123,10 @@ export function skillPageView(
         on: { click: () => (active ? actions.stop() : actions.start(action.id)) },
       },
       [
-        h('div', { class: 'card-head' }, [h('h2', { text: action.name }), rate]),
+        h('div', { class: 'card-head' }, [
+          titled(itemIcon(action.gives[0]?.item ?? ''), action.name),
+          rate,
+        ]),
         progress.el,
         h('div', { class: 'card-head' }, [
           owned,
@@ -145,7 +149,7 @@ export function skillPageView(
       button('‹ All skills', actions.back, 'back'),
       h('section', { class: 'panel stack tight' }, [
         h('div', { class: 'card-head' }, [
-          h('h2', { text: skill.name }),
+          titled(skillIcon(skill.id), skill.name),
           h('span', { class: 'level', text: `Level ${level}` }),
         ]),
         xp.el,

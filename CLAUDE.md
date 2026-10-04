@@ -6,12 +6,14 @@ town, a house to fill and short action dungeons). Cody's personal project; it re
 
 ## Where the plan lives
 
-The design, the session-by-session plan and the status are in the claude.ai Project ("Fantasy
-AFK/ARPG"): `claude/START-HERE.md`, `claude/status.md`, `claude/plan.md`, `claude/design.md`. Read
-START-HERE, then the status, then only your session's brief. Update `status.md` when a session
-ends. In this repo: `docs/style-guide.md` (art direction, read before drawing or styling
-anything) and `docs/art-reference/town-mockup.html` (the approved mock-up, with the pixel engine to
-harvest in S7).
+Everything a session needs is in this repo:
+
+- `docs/lanes.md`: how the parallel lanes work, who owns which files, and the full briefs. **Read
+  it next.**
+- `docs/status/lane-a.md`, `lane-b.md`, `lane-c.md`: what each lane has done and does next.
+- `docs/plan.md`: every session still to build. `docs/design.md`: what the game is.
+- `docs/style-guide.md`: the art direction; read before drawing or styling anything.
+- `docs/art-reference/town-mockup.html`: the approved mock-up, with the pixel engine to harvest.
 
 ## Commands
 
@@ -37,6 +39,22 @@ src/scene/        canvas town and dungeons (from S11). May import everything abo
 ```
 
 ESLint enforces the arrows (`eslint.config.js`). Do not weaken those rules to make an import work.
+
+## Lanes
+
+Up to three sessions build at once, each in its own lane (`docs/lanes.md` has the rules and
+briefs). A lane changes only what it owns:
+
+| Lane          | Owns                                                                      | Its door into the app                                         |
+| ------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| A: idle rules | `src/core`, `src/data`, `src/persistence`, `src/ui`, and the save version | n/a                                                           |
+| B: art        | `src/art` (and `tests/art`)                                               | `icons.ts` (`itemIcon`, `skillIcon`), `gallery.ts`, `art.css` |
+| C: scenes     | `src/scene` (and `tests/scene`)                                           | `townView.ts`, `scene.css`                                    |
+
+Lanes B and C do not edit `src/ui/app.ts`, `src/ui/styles.css`, `src/main.ts`, `package.json` or
+anything under `src/core`, `src/data` or `src/persistence`. If a lane needs a change outside what
+it owns, it says so in its PR and its status file and lane A (or the orchestrator) makes it. Before
+merging, rebase on `main` and run `npm run check` again.
 
 ## Rules
 

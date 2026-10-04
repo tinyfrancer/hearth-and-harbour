@@ -1,6 +1,8 @@
 import '@fontsource/pixelify-sans/latin-400.css';
 import '@fontsource/pixelify-sans/latin-700.css';
 import './ui/styles.css';
+import './art/art.css';
+import './scene/scene.css';
 import { CONTENT } from './data';
 import { LocalStorageSaveService } from './persistence/LocalStorageSaveService';
 import { mountApp } from './ui/app';

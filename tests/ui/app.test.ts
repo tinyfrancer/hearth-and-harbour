@@ -407,4 +407,25 @@ describe('the app shell', () => {
       expect(coins()).toBe('15');
     });
   });
+
+  describe("the lanes' doors", () => {
+    it('opens the art gallery from Menu and comes back', () => {
+      mount();
+      create('Cody');
+      tab('menu');
+      press('Art gallery');
+      expect(q('#screen').textContent).toContain('Nothing drawn yet.');
+      press('‹ Menu');
+      expect(q('#screen').textContent).toContain('Save now');
+    });
+
+    it('shows the town and the character through their own views', () => {
+      mount();
+      create('Cody');
+      tab('town');
+      expect(q('#screen').textContent).toContain('The road into town is not open yet.');
+      tab('character');
+      expect(q('#screen h2').textContent).toBe('Cody');
+    });
+  });
 });

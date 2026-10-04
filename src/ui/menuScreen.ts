@@ -8,6 +8,7 @@ export interface MenuActions {
   /** Whether the save was written. */
   saveNow(): boolean;
   importSave(state: GameState): void;
+  showGallery(): void;
   deleteCharacter(): void;
 }
 
@@ -77,6 +78,11 @@ export function menuScreen(current: () => GameState, actions: MenuActions): HTML
     save,
     importPanel({ replacing: name, onImport: actions.importSave }),
     remove,
+    h('section', { class: 'panel stack' }, [
+      h('h2', { text: 'Workshop' }),
+      h('p', { class: 'muted', text: 'Art as it is drawn, before the game has a place for it.' }),
+      button('Art gallery', actions.showGallery),
+    ]),
     h('p', { class: 'muted version', text: `Hearth & Harbour v${__APP_VERSION__}` }),
   ]);
 }
