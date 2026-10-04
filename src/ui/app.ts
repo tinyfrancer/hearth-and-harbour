@@ -2,6 +2,7 @@ import { TAB_ICONS } from '../art/tabIcons';
 import { pixelSvg } from '../art/pixelSvg';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
+import { sell } from '../core/bank';
 import type { Content } from '../core/content';
 import { newGame, skillLevel, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
@@ -43,6 +44,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let tab: TabId = 'skills';
   /** The skill whose page is open on the Skills tab, or null for the list. */
   let openSkill: string | null = null;
+  /** The item whose card is open on the Bank tab, if any. */
+  let openItem: string | null = null;
   let view: View | null = null;
   let lastTick = now();
   let lastSave = now();
@@ -76,6 +79,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   const adopt = (next: GameState): void => {
     state = next;
     away = null;
+    openItem = null;
     tab = 'skills';
     openSkill = null;
     lastTick = now();
@@ -132,7 +136,18 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       });
     }
     if (tab === 'bank') {
-      return bankView(game, content);
+      return bankView(game, content, openItem, {
+        open: (itemId) => {
+          openItem = itemId;
+          render();
+        },
+        sell: (itemId, qty) => {
+          const sold = sell(state ?? game, itemId, qty, content);
+          // A card for a stack that is gone would reopen by itself the next time one is gathered.
+          if (!sold.bank[itemId]) openItem = null;
+          act(sold);
+        },
+      });
     }
     if (tab === 'character') {
       return {
@@ -190,7 +205,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
               on: {
                 click: () => {
                   // Tapping the tab you are on goes back to its front page.
-                  if (id === tab) openSkill = null;
+                  if (id === tab) {
+                    openSkill = null;
+                    openItem = null;
+                  }
                   tab = id;
                   render();
                 },

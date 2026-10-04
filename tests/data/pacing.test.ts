@@ -38,9 +38,12 @@ describe('pacing', () => {
     expect(skillLevel(state, 'woodcutting')).toBeGreaterThanOrEqual(2);
   });
 
-  it('takes woodcutting through tier 1 (level 20) in about three hours', () => {
-    const hours = hoursToLevel('woodcutting', 20);
-    expect(hours).toBeGreaterThan(2.5);
-    expect(hours).toBeLessThan(3.5);
-  });
+  it.each(['woodcutting', 'fishing', 'mining', 'foraging'])(
+    'takes %s through tier 1 (level 20) in about three hours',
+    (skill) => {
+      const hours = hoursToLevel(skill, 20);
+      expect(hours).toBeGreaterThan(2.5);
+      expect(hours).toBeLessThan(3.5);
+    },
+  );
 });

@@ -21,6 +21,19 @@ describe('migrateGameState', () => {
     expect(migrateGameState(v1)).toEqual({ ...newGame('Cody', 5), savedAt: 9 });
   });
 
+  it('brings a version 2 save (S2 and S3) up to date without touching what it holds', () => {
+    const v2 = {
+      version: 2,
+      name: 'Cody',
+      createdAt: 5,
+      savedAt: 9,
+      skills: { woodcutting: 500 },
+      bank: { pine_logs: 50 },
+      action: { id: 'chop_pine', progressMs: 100 },
+    };
+    expect(migrateGameState(v2)).toEqual({ ...v2, version: 3, coins: 0, mastery: {} });
+  });
+
   it('walks every step in order and stamps the version as it goes', () => {
     const steps = {
       1: (state: Record<string, unknown>) => ({ ...state, coins: 0 }),

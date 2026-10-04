@@ -14,6 +14,8 @@ export interface ItemDef {
   id: string;
   name: string;
   description: string;
+  /** Coins for selling one. */
+  value: number;
 }
 
 /** One repeatable thing to do: the row format every idle skill is written in. */

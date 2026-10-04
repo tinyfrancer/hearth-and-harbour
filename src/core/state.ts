@@ -7,7 +7,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 2;
+export const GAME_STATE_VERSION = 3;
 
 export interface ActiveAction {
   /** An ActionDef id. */
@@ -27,6 +27,9 @@ export interface GameState {
   skills: Record<string, number>;
   /** How many of each item, by item id. Nothing is stored at zero. */
   bank: Record<string, number>;
+  coins: number;
+  /** Mastery XP by action id: practice at one particular thing. Unpractised reads as 0. */
+  mastery: Record<string, number>;
   /** The one thing the character is doing, or null when idle. */
   action: ActiveAction | null;
 }
@@ -58,6 +61,8 @@ export function newGame(name: string, now: number): GameState {
     savedAt: now,
     skills: {},
     bank: {},
+    coins: 0,
+    mastery: {},
     action: null,
   };
 }
@@ -72,4 +77,13 @@ export function skillLevel(state: GameState, skill: string): number {
 
 export function bankCount(state: GameState, item: string): number {
   return state.bank[item] ?? 0;
+}
+
+export function masteryXp(state: GameState, action: string): number {
+  return state.mastery[action] ?? 0;
+}
+
+/** Mastery runs 1-99 on the same curve as skills. */
+export function masteryLevel(state: GameState, action: string): number {
+  return levelForXp(masteryXp(state, action));
 }

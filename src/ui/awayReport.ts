@@ -31,6 +31,20 @@ export function awayReportOverlay(
     h('p', { class: 'level-up', text: `${content.skills[id]?.name ?? id} level ${from} → ${to}` }),
   );
 
+  // What the new levels opened up: the reason to go and look at the skill.
+  const unlocked = Object.entries(report.levels).flatMap(([id, { from, to }]) =>
+    Object.values(content.actions)
+      .filter((entry) => entry.skill === id && entry.level > from && entry.level <= to)
+      .sort((a, b) => a.level - b.level)
+      .map((entry) => h('p', { class: 'unlock', text: `New: ${entry.name}` })),
+  );
+  const mastery = Object.entries(report.mastery).map(([id, { from, to }]) =>
+    h('p', {
+      class: 'mastery-level',
+      text: `${content.actions[id]?.name ?? id} mastery ${from} → ${to}`,
+    }),
+  );
+
   let stopped = '';
   if (report.stopped?.reason === 'ran_out') {
     stopped = `Stopped: you ran out of ${itemName(report.stopped.item)}.`;
@@ -59,6 +73,8 @@ export function awayReportOverlay(
           ? h('ul', { class: 'gains' }, gains)
           : h('p', { class: 'muted', text: 'Nothing finished in that time.' }),
         ...levels,
+        ...unlocked,
+        ...mastery,
         stopped && h('p', { class: 'problem', text: stopped }),
         button('Carry on', dismiss, 'primary'),
       ]),

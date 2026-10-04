@@ -8,6 +8,7 @@
   --gold: #c9a24a;
   --gold-bright: #ffd34d;
   --green: #74c256;
+  --blue: #3fb2e2;
   --danger: #d85a50;
   --line: #3b3350;
   --scrim: rgb(21 17 31 / 85%);
@@ -442,4 +443,71 @@ button.card:active {
 .level-up {
   color: var(--gold-bright);
   font-weight: 700;
+}
+
+.bar.mastery {
+  flex: 1;
+  height: 8px;
+}
+
+.bar.mastery .bar-fill {
+  background: var(--blue);
+}
+
+.mastery-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mastery-level {
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+.unlock {
+  color: var(--green);
+}
+
+.purse {
+  display: flex;
+}
+
+.purse .qty {
+  color: var(--gold-bright);
+}
+
+.item-card {
+  border-color: var(--gold-bright);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.btn.choice {
+  min-height: 44px;
+  padding: 6px;
+  border-color: var(--line);
+}
+
+.btn.choice[aria-pressed='true'] {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

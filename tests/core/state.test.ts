@@ -23,6 +23,8 @@ describe('newGame', () => {
       savedAt: 1000,
       skills: {},
       bank: {},
+      coins: 0,
+      mastery: {},
       action: null,
     });
   });

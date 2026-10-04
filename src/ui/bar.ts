@@ -6,8 +6,8 @@ export interface Bar {
   set(fraction: number): void;
 }
 
-/** A flat progress bar on a dark track: gold for XP, green for the action under way. */
-export function bar(kind: 'xp' | 'action', label: string): Bar {
+/** A flat progress bar on a dark track: gold for XP, green for the action under way, blue for mastery. */
+export function bar(kind: 'xp' | 'action' | 'mastery', label: string): Bar {
   const fill = h('div', { class: 'bar-fill' });
   const el = h(
     'div',

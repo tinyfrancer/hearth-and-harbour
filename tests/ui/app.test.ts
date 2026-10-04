@@ -218,17 +218,20 @@ describe('the app shell', () => {
       clock += 2 * HOUR;
       mount();
       expect(report().textContent).toContain('2h, chopping Pine');
-      expect(report().textContent).toContain('Pine logs+2,400');
-      expect(report().textContent).toContain('Woodcutting XP+24,000');
-      expect(report().textContent).toContain('Woodcutting level 1 → 13');
+      expect(report().textContent).toContain('Pine logs+2,474');
+      expect(report().textContent).toContain('Woodcutting XP+24,740');
+      expect(report().textContent).toContain('Woodcutting level 1 → 14');
+      expect(report().textContent).toContain('New: Oak');
+      expect(report().textContent).not.toContain('New: Willow');
+      expect(report().textContent).toContain('Pine mastery 1 → 22');
       expect(new LocalStorageSaveService().load()).toMatchObject({
-        bank: { pine_logs: 2400 },
+        bank: { pine_logs: 2474 },
         savedAt: clock,
       });
 
       press('Carry on');
       expect(root.querySelector('[role="dialog"]')).toBeNull();
-      expect(q('[data-skill="woodcutting"]').textContent).toContain('Level 13');
+      expect(q('[data-skill="woodcutting"]').textContent).toContain('Level 14');
     });
 
     it('does not pay the same night twice', () => {
@@ -241,7 +244,7 @@ describe('the app shell', () => {
       mount();
       root.replaceChildren();
       mount();
-      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 2400 });
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 2474 });
     });
 
     it('counts a day at most and says so', () => {
@@ -254,7 +257,7 @@ describe('the app shell', () => {
       mount();
       expect(report().textContent).toContain('1d 7h');
       expect(report().textContent).toContain('Only the first 1d count.');
-      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 28_800 });
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ pine_logs: 31_484 });
     });
 
     it('treats a page left in the background the same way', () => {
@@ -264,7 +267,7 @@ describe('the app shell', () => {
       clock += 3 * HOUR;
       app.tick();
       expect(report().textContent).toContain('3h, chopping Pine');
-      expect(report().textContent).toContain('Pine logs+3,600');
+      expect(report().textContent).toContain('Pine logs+3,733');
     });
 
     it('pays a quick reload without making a report of it', () => {
@@ -301,6 +304,107 @@ describe('the app shell', () => {
       press('Load code');
       expect(root.querySelector('[role="dialog"]')).toBeNull();
       expect(new LocalStorageSaveService().load()?.bank).toEqual({});
+    });
+  });
+
+  describe('the other gathering skills', () => {
+    it('lists all four and lets each be trained', () => {
+      const app = mount();
+      create('Cody');
+      const names = [...root.querySelectorAll('[data-skill] h2')].map((el) => el.textContent);
+      expect(names).toEqual(['Woodcutting', 'Fishing', 'Mining', 'Foraging']);
+
+      q<HTMLButtonElement>('[data-skill="fishing"]').click();
+      q<HTMLButtonElement>('[data-action="fish_shrimp"]').click();
+      clock += 4000;
+      app.tick();
+      expect(q('[data-action="fish_shrimp"]').textContent).toContain('Raw shrimp: 1');
+    });
+
+    it('does one thing at a time: starting to mine stops the fishing', () => {
+      const app = mount();
+      create('Cody');
+      q<HTMLButtonElement>('[data-skill="fishing"]').click();
+      q<HTMLButtonElement>('[data-action="fish_shrimp"]').click();
+      press('‹ All skills');
+      q<HTMLButtonElement>('[data-skill="mining"]').click();
+      q<HTMLButtonElement>('[data-action="mine_copper"]').click();
+      clock += 5000;
+      app.tick();
+      press('‹ All skills');
+      expect(q('[data-skill="mining"]').textContent).toContain('Mining Copper');
+      expect(q('[data-skill="fishing"]').textContent).not.toContain('Catching');
+      app.save();
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ copper_ore: 1 });
+    });
+  });
+
+  describe('mastery', () => {
+    it('shows on the action card and shortens the time as it grows', () => {
+      const app = mount();
+      create('Cody');
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      const pine = q<HTMLButtonElement>('[data-action="chop_pine"]');
+      expect(pine.textContent).toContain('Mastery 1');
+      expect(pine.textContent).toContain('3s · 10 XP');
+      pine.click();
+      clock += 40_000;
+      app.tick();
+      expect(q('[data-action="chop_pine"]').textContent).toContain('Mastery 3');
+      expect(q('[data-action="chop_pine"]').textContent).toContain('2.99s · 10 XP');
+    });
+  });
+
+  describe('the bank', () => {
+    const stock = (): { tick(): void } => {
+      const app = mount();
+      create('Cody');
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      q<HTMLButtonElement>('[data-action="chop_pine"]').click();
+      clock += 45_000;
+      app.tick();
+      q<HTMLButtonElement>('[data-action="chop_pine"]').click();
+      tab('bank');
+      return app;
+    };
+    const coins = (): string => q('.purse .qty').textContent ?? '';
+
+    it('opens an item card that says where a thing comes from and what it is worth', () => {
+      stock();
+      expect(coins()).toBe('0');
+      q<HTMLButtonElement>('[data-item="pine_logs"]').click();
+      const card = q('[data-card="pine_logs"]');
+      expect(card.textContent).toContain('15');
+      expect(card.textContent).toContain('FromWoodcutting (Pine)');
+      expect(card.textContent).toContain('Used inNothing yet');
+      expect(card.textContent).toContain('Worth1 coin each');
+      press('Close');
+      expect(root.querySelector('[data-card]')).toBeNull();
+    });
+
+    it('sells one, ten, and then all that is left', () => {
+      stock();
+      q<HTMLButtonElement>('[data-item="pine_logs"]').click();
+      press('Sell 1 for 1 coin');
+      expect(coins()).toBe('1');
+      q<HTMLButtonElement>('[data-sell="10"]').click();
+      press('Sell 10 for 10 coins');
+      expect(coins()).toBe('11');
+      // Only four left: a hundred is offered as what there is.
+      q<HTMLButtonElement>('[data-sell="100"]').click();
+      press('Sell 4 for 4 coins');
+      expect(coins()).toBe('15');
+      expect(root.querySelector('[data-card]')).toBeNull();
+      expect(root.textContent).toContain('Your bank is empty');
+      expect(new LocalStorageSaveService().load()).toMatchObject({ coins: 15, bank: {} });
+    });
+
+    it('sells everything held with All', () => {
+      stock();
+      q<HTMLButtonElement>('[data-item="pine_logs"]').click();
+      q<HTMLButtonElement>('[data-sell="all"]').click();
+      press('Sell 15 for 15 coins');
+      expect(coins()).toBe('15');
     });
   });
 });

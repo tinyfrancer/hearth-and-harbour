@@ -1,5 +1,13 @@
 import type { ActionDef, Content, SkillDef } from '../core/content';
-import { bankCount, skillLevel, skillXp, type GameState } from '../core/state';
+import { MASTERY_SPEED_PER_LEVEL, actionDuration } from '../core/actions';
+import {
+  bankCount,
+  masteryLevel,
+  masteryXp,
+  skillLevel,
+  skillXp,
+  type GameState,
+} from '../core/state';
 import { MAX_LEVEL, levelProgress, xpForLevel } from '../core/xp';
 import { bar } from './bar';
 import { button, h } from './dom';
@@ -86,9 +94,19 @@ export function skillPageView(
     }
     const active = state.action?.id === action.id;
     const progress = bar('action', `${action.name} progress`);
+    const mastery = bar('mastery', `${action.name} mastery`);
+    const rate = h('span', { class: 'muted' });
     const owned = h('p', { class: 'muted small' });
+    const masteryText = h('span', { class: 'small mastery-level' });
     updates.push((now) => {
-      progress.set(now.action?.id === action.id ? now.action.progressMs / action.durationMs : 0);
+      const duration = actionDuration(now, action);
+      progress.set(now.action?.id === action.id ? now.action.progressMs / duration : 0);
+      mastery.set(levelProgress(masteryXp(now, action.id)));
+      rate.textContent = `${formatSeconds(duration)} · ${action.xp} XP`;
+      const level = masteryLevel(now, action.id);
+      const quicker = Number(((level - 1) * MASTERY_SPEED_PER_LEVEL * 100).toFixed(1));
+      masteryText.textContent =
+        level > 1 ? `Mastery ${level} · ${quicker}% quicker` : `Mastery ${level}`;
       owned.textContent = action.gives
         .map(
           ({ item }) =>
@@ -104,18 +122,13 @@ export function skillPageView(
         on: { click: () => (active ? actions.stop() : actions.start(action.id)) },
       },
       [
-        h('div', { class: 'card-head' }, [
-          h('h2', { text: action.name }),
-          h('span', {
-            class: 'muted',
-            text: `${formatSeconds(action.durationMs)} · ${action.xp} XP`,
-          }),
-        ]),
+        h('div', { class: 'card-head' }, [h('h2', { text: action.name }), rate]),
         progress.el,
         h('div', { class: 'card-head' }, [
           owned,
           h('span', { class: 'small hint', text: active ? 'Tap to stop' : 'Tap to start' }),
         ]),
+        h('div', { class: 'mastery-row' }, [masteryText, mastery.el]),
       ],
     );
   };
