@@ -7,9 +7,12 @@ import type { Content } from '../core/content';
 import { newGame, skillLevel, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
 import { awayReportOverlay } from './awayReport';
+import { artGallery } from '../art/gallery';
+import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
+import { characterView } from './characterScreen';
 import { createScreen } from './createScreen';
-import { h } from './dom';
+import { button, h } from './dom';
 import { menuScreen } from './menuScreen';
 import { skillListView, skillPageView } from './skillsScreen';
 import { TABS, type TabId } from './tabs';
@@ -46,6 +49,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let openSkill: string | null = null;
   /** The item whose card is open on the Bank tab, if any. */
   let openItem: string | null = null;
+  /** Whether Menu is showing the art gallery. */
+  let galleryOpen = false;
   let view: View | null = null;
   let lastTick = now();
   let lastSave = now();
@@ -101,11 +106,30 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   };
 
   const buildView = (game: GameState): View => {
+    if (tab === 'menu' && galleryOpen) {
+      return {
+        el: h('div', { class: 'stack' }, [
+          button(
+            '‹ Menu',
+            () => {
+              galleryOpen = false;
+              render();
+            },
+            'back',
+          ),
+          artGallery(),
+        ]),
+      };
+    }
     if (tab === 'menu') {
       return {
         el: menuScreen(() => state ?? game, {
           saveNow: save,
           importSave: adopt,
+          showGallery: () => {
+            galleryOpen = true;
+            render();
+          },
           deleteCharacter: () => {
             saves.clear();
             state = null;
@@ -150,18 +174,9 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       });
     }
     if (tab === 'character') {
-      return {
-        el: h('section', { class: 'panel stack' }, [
-          h('h2', { text: game.name }),
-          h('p', { class: 'muted', text: 'Gear and stats will show here.' }),
-        ]),
-      };
+      return characterView(game, content);
     }
-    return {
-      el: h('section', { class: 'panel empty' }, [
-        h('p', { class: 'muted', text: 'The road into town is not open yet.' }),
-      ]),
-    };
+    return townView(game, content);
   };
 
   const render = (): void => {
@@ -208,6 +223,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                   if (id === tab) {
                     openSkill = null;
                     openItem = null;
+                    galleryOpen = false;
                   }
                   tab = id;
                   render();

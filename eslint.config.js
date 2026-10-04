@@ -33,6 +33,12 @@ export default tseslint.config(
     'art knows nothing about the game.',
   ),
   {
+    // A leading underscore marks a parameter kept for the signature's sake.
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     files: ['tests/**/*.ts'],
     plugins: { 'no-only-tests': noOnlyTests },
     rules: { 'no-only-tests/no-only-tests': 'error' },

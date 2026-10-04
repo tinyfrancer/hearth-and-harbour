@@ -1,6 +1,7 @@
 import type { Content, ItemDef } from '../core/content';
 import { bankCount, type GameState } from '../core/state';
-import { button, h } from './dom';
+import { itemIcon } from '../art/icons';
+import { button, h, titled } from './dom';
 import { formatNumber } from './format';
 import type { View } from './view';
 
@@ -73,7 +74,7 @@ function itemCard(
   updates.push(refresh);
 
   return h('section', { class: 'panel stack item-card', attrs: { 'data-card': item.id } }, [
-    h('div', { class: 'card-head' }, [h('h2', { text: item.name }), held]),
+    h('div', { class: 'card-head' }, [titled(itemIcon(item.id), item.name), held]),
     h('p', { class: 'muted', text: item.description }),
     h('dl', { class: 'facts small' }, [
       h('dt', { text: 'From' }),
@@ -124,7 +125,7 @@ export function bankView(
         attrs: { type: 'button', 'data-item': item.id },
         on: { click: () => actions.open(item.id) },
       },
-      [h('div', { class: 'card-head' }, [h('h2', { text: item.name }), qty])],
+      [h('div', { class: 'card-head' }, [titled(itemIcon(item.id), item.name), qty])],
     );
   });
 

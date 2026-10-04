@@ -36,3 +36,8 @@ export function button(label: string, onClick: () => void, variant = ''): HTMLBu
     on: { click: onClick },
   });
 }
+
+/** A heading with its icon in front, when art has drawn one. */
+export function titled(icon: Element | null, text: string): HTMLElement {
+  return h('h2', { class: icon ? 'titled' : '' }, [icon, text]);
+}
