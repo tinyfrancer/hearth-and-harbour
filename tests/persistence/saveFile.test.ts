@@ -6,6 +6,8 @@ const state: GameState = {
   ...newGame('Zoë the Bold', 1_700_000_000_000),
   skills: { woodcutting: 1234 },
   bank: { pine_logs: 40 },
+  coins: 77,
+  mastery: { chop_pine: 480 },
   action: { id: 'chop_pine', progressMs: 1500.5 },
 };
 
@@ -58,6 +60,9 @@ describe('save export and import', () => {
       { ...state, bank: { pine_logs: 1.5 } },
       { ...state, action: { id: 'chop_pine' } },
       { ...state, action: 'chop_pine' },
+      { ...state, coins: 1.5 },
+      { ...state, coins: -1 },
+      { ...state, mastery: { chop_pine: 'lots' } },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,

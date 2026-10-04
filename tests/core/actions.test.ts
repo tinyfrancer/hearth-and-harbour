@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { advance, startAction, stopAction } from '../../src/core/actions';
+import { advance, durationAt, masteryXpPer, startAction, stopAction } from '../../src/core/actions';
 import type { Content } from '../../src/core/content';
-import { newGame, type GameState } from '../../src/core/state';
+import { masteryLevel, newGame, type GameState } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 
 // Tables of the test's own: the rules are checked apart from the game's numbers.
 const content: Content = {
   skills: { digging: { id: 'digging', name: 'Digging', verb: 'Digging' } },
   items: {
-    brick: { id: 'brick', name: 'Brick', description: '' },
-    mud: { id: 'mud', name: 'Mud', description: '' },
-    worm: { id: 'worm', name: 'Worm', description: '' },
+    brick: { id: 'brick', name: 'Brick', description: '', value: 1 },
+    mud: { id: 'mud', name: 'Mud', description: '', value: 1 },
+    worm: { id: 'worm', name: 'Worm', description: '', value: 1 },
   },
   actions: {
     dig: {
@@ -119,7 +119,9 @@ describe('advance', () => {
 
   it('lands in the same place however the time is cut up', () => {
     const whole = advance(digging, 24 * 60 * 60 * 1000, content);
-    expect(whole.bank).toEqual({ mud: 172_800, worm: 86_400 });
+    // More than one a second: mastery has made the digging quicker.
+    expect(whole.bank.worm).toBeGreaterThan(86_400);
+    expect(whole.bank.mud).toBe(whole.bank.worm! * 2);
 
     // Frame-sized steps with whole-millisecond lengths, as a live session gives.
     let seed = 7;
@@ -138,6 +140,45 @@ describe('advance', () => {
   it('stops an action the tables no longer hold', () => {
     const orphan = { ...fresh, action: { id: 'gone', progressMs: 10 } };
     expect(advance(orphan, 1000, content).action).toBeNull();
+  });
+});
+
+describe('mastery', () => {
+  const dig = content.actions.dig!;
+
+  it('is earned by the second of base time, so longer actions teach more', () => {
+    expect(masteryXpPer(dig)).toBe(12);
+    expect(masteryXpPer(content.actions.dig_deep!)).toBe(36);
+    expect(advance(digging, 3000, content).mastery).toEqual({ dig: 36 });
+  });
+
+  it('makes its action a fifth of a percent quicker a level, in whole milliseconds', () => {
+    expect(durationAt(dig, 1)).toBe(1000);
+    expect(durationAt(dig, 2)).toBe(998);
+    expect(durationAt(dig, 99)).toBe(804);
+    expect(durationAt({ ...dig, durationMs: 3500 }, 2)).toBe(3493);
+  });
+
+  it('speeds up from the very completion that earns the level', () => {
+    // Four digs reach mastery 2 (48 XP against 40), so the fifth takes 998 ms.
+    const four = advance(digging, 4000, content);
+    expect(masteryLevel(four, 'dig')).toBe(2);
+    expect(advance(digging, 4997, content).bank.worm).toBe(4);
+    const five = advance(digging, 4998, content);
+    expect(five.bank.worm).toBe(5);
+    expect(five.action).toEqual({ id: 'dig', progressMs: 0 });
+  });
+
+  it('is kept per action', () => {
+    const skilled = { ...advance(digging, 60_000, content), skills: { digging: 1e6 } };
+    const deep = advance(start(skilled, 'dig_deep'), 3000, content);
+    expect(masteryLevel(deep, 'dig')).toBeGreaterThan(2);
+    expect(deep.mastery.dig_deep).toBe(36);
+  });
+
+  it('tops out at 99 and carries on paying', () => {
+    const master = start({ ...fresh, mastery: { dig: 1e9 } }, 'dig');
+    expect(advance(master, 804 * 10, content).bank.worm).toBe(10);
   });
 });
 
@@ -167,6 +208,7 @@ describe('an action that uses things', () => {
     const state = advance(baking, 60 * 60 * 1000, content);
     expect(state.bank).toEqual({ mud: 1, worm: 2, brick: 3 });
     expect(state.skills).toEqual({ digging: 21 });
+    expect(state.mastery).toEqual({ bake: 72 });
     expect(state.action).toBeNull();
     expect(advance(baking, 6000, content)).toEqual(state);
   });

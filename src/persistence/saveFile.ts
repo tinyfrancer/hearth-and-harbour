@@ -100,6 +100,12 @@ function saveProblem(state: Record<string, unknown>): string | null {
   if (!isRecord(state.bank) || !Object.values(state.bank).every(isWhole)) {
     return 'the bank should hold whole numbers of things';
   }
+  if (!isWhole(state.coins)) {
+    return 'coins should be a whole number';
+  }
+  if (!isRecord(state.mastery) || !Object.values(state.mastery).every(isCount)) {
+    return 'mastery should be amounts of XP';
+  }
   const { action } = state;
   if (
     action !== null &&

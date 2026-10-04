@@ -1,6 +1,6 @@
 import { advance, missingInput } from './actions';
 import type { Content } from './content';
-import { skillLevel, type GameState } from './state';
+import { masteryLevel, skillLevel, type GameState } from './state';
 
 /** The most time away that is ever paid for. */
 export const OFFLINE_CAP_MS = 24 * 60 * 60 * 1000;
@@ -19,6 +19,8 @@ export interface AwayReport {
   xp: Record<string, number>;
   /** Skills that gained levels. */
   levels: Record<string, { from: number; to: number }>;
+  /** Actions whose mastery level rose, by action id. */
+  mastery: Record<string, { from: number; to: number }>;
   /** Why the action is no longer running, or null if it still is. */
   stopped: null | { reason: 'ran_out'; item: string } | { reason: 'gone' };
 }
@@ -58,6 +60,13 @@ export function catchUp(
     if (to > from) levels[skill] = { from, to };
   }
 
+  const mastery: AwayReport['mastery'] = {};
+  for (const action of Object.keys(after.mastery)) {
+    const from = masteryLevel(state, action);
+    const to = masteryLevel(after, action);
+    if (to > from) mastery[action] = { from, to };
+  }
+
   let stopped: AwayReport['stopped'] = null;
   if (!after.action) {
     const action = content.actions[state.action.id];
@@ -67,6 +76,15 @@ export function catchUp(
 
   return {
     state: after,
-    report: { awayMs: away, countedMs, actionId: state.action.id, items, xp, levels, stopped },
+    report: {
+      awayMs: away,
+      countedMs,
+      actionId: state.action.id,
+      items,
+      xp,
+      levels,
+      mastery,
+      stopped,
+    },
   };
 }

@@ -2,9 +2,9 @@ export function formatNumber(value: number): string {
   return Math.floor(value).toLocaleString('en-GB');
 }
 
-/** "3s", "4.5s". */
+/** "3s", "4.5s", "2.98s": mastery shaves hundredths, and they should show. */
 export function formatSeconds(ms: number): string {
-  return `${Number((ms / 1000).toFixed(1))}s`;
+  return `${Number((ms / 1000).toFixed(2))}s`;
 }
 
 /** "45s", "12m", "2h 14m", "1d 7h": the two largest units, rounded down. */

@@ -45,7 +45,9 @@ ESLint enforces the arrows (`eslint.config.js`). Do not weaken those rules to ma
 - **Time is passed in, never read.** Core takes `now` or `ms` as an argument, so live play, offline
   catch-up and tests run the same code. `advance(state, ms, content)` in `src/core/actions.ts` is
   the only way time passes. It works in whole completions by arithmetic, never a loop of ticks, and
-  `advance(a)` then `advance(b)` must equal `advance(a + b)`: keep that test passing.
+  `advance(a)` then `advance(b)` must equal `advance(a + b)`: keep that test passing. Anything that
+  changes an action as it runs (mastery does: it shortens the time) must change it only on a
+  completion and in whole milliseconds, and `advance` spends the time in stretches between changes.
 - **Time away is `catchUp(state, awayMs, content)`** (`src/core/away.ts`): `advance` with a 24-hour
   cap and a report of the difference. A closed game is measured from `savedAt`; a page left in the
   background is the same rule, triggered by a gap of a minute between ticks. `savedAt` therefore

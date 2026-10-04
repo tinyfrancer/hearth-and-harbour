@@ -41,12 +41,14 @@ describe('catchUp', () => {
       awayMs: 2 * HOUR,
       countedMs: 2 * HOUR,
       actionId: 'chop_pine',
-      items: { pine_logs: 2400 },
-      xp: { woodcutting: 24_000 },
-      levels: { woodcutting: { from: 1, to: 13 } },
+      // 2,400 at the base three seconds; the rest is mastery quickening the axe.
+      items: { pine_logs: 2474 },
+      xp: { woodcutting: 24_740 },
+      levels: { woodcutting: { from: 1, to: 14 } },
+      mastery: { chop_pine: { from: 1, to: 22 } },
       stopped: null,
     });
-    expect(state.bank).toEqual({ pine_logs: 2400 });
+    expect(state.bank).toEqual({ pine_logs: 2474 });
     expect(state.action?.id).toBe('chop_pine');
   });
 
@@ -61,8 +63,8 @@ describe('catchUp', () => {
     const content: Content = {
       skills: { cooking: { id: 'cooking', name: 'Cooking', verb: 'Cooking' } },
       items: {
-        raw: { id: 'raw', name: 'Raw fish', description: '' },
-        cooked: { id: 'cooked', name: 'Cooked fish', description: '' },
+        raw: { id: 'raw', name: 'Raw fish', description: '', value: 1 },
+        cooked: { id: 'cooked', name: 'Cooked fish', description: '', value: 1 },
       },
       actions: {
         cook: {
