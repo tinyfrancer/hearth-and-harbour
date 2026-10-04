@@ -1,9 +1,20 @@
+import { levelForXp } from './xp';
+
 /**
  * The whole saved game. Everything the rules know lives here and nothing here
- * knows how it is shown. S2 grows it (skills, bank, the current action); a
- * change of shape bumps `GAME_STATE_VERSION` and adds a migration step.
+ * knows how it is shown. A change of shape or meaning bumps
+ * `GAME_STATE_VERSION` and adds a migration step.
+ *
+ * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 1;
+export const GAME_STATE_VERSION = 2;
+
+export interface ActiveAction {
+  /** An ActionDef id. */
+  id: string;
+  /** Time already put into the completion under way. */
+  progressMs: number;
+}
 
 export interface GameState {
   version: number;
@@ -12,6 +23,12 @@ export interface GameState {
   createdAt: number;
   /** Epoch ms of the last save: what offline progress (S3) measures from. */
   savedAt: number;
+  /** Total XP by skill id. A skill never trained has no entry and reads as 0. */
+  skills: Record<string, number>;
+  /** How many of each item, by item id. Nothing is stored at zero. */
+  bank: Record<string, number>;
+  /** The one thing the character is doing, or null when idle. */
+  action: ActiveAction | null;
 }
 
 export const NAME_MAX_LENGTH = 16;
@@ -34,5 +51,25 @@ export function nameProblem(raw: string): string | null {
 }
 
 export function newGame(name: string, now: number): GameState {
-  return { version: GAME_STATE_VERSION, name: cleanName(name), createdAt: now, savedAt: now };
+  return {
+    version: GAME_STATE_VERSION,
+    name: cleanName(name),
+    createdAt: now,
+    savedAt: now,
+    skills: {},
+    bank: {},
+    action: null,
+  };
+}
+
+export function skillXp(state: GameState, skill: string): number {
+  return state.skills[skill] ?? 0;
+}
+
+export function skillLevel(state: GameState, skill: string): number {
+  return levelForXp(skillXp(state, skill));
+}
+
+export function bankCount(state: GameState, item: string): number {
+  return state.bank[item] ?? 0;
 }

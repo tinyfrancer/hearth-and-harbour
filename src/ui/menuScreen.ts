@@ -11,7 +11,12 @@ export interface MenuActions {
   deleteCharacter(): void;
 }
 
-export function menuScreen(state: GameState, actions: MenuActions): HTMLElement {
+/**
+ * `current` is asked each time a save is written out: the state moves on while
+ * this screen is open, and an export must hold the game as it is at the tap.
+ */
+export function menuScreen(current: () => GameState, actions: MenuActions): HTMLElement {
+  const { name } = current();
   const status = h('p', { class: 'muted', attrs: { role: 'status' } });
   const codeOut = h('textarea', {
     class: 'field code',
@@ -31,13 +36,13 @@ export function menuScreen(state: GameState, actions: MenuActions): HTMLElement 
     }),
     button('Download save file', () => {
       actions.saveNow();
-      const out = writeSaveExport('file', state);
+      const out = writeSaveExport('file', current());
       if (out.kind === 'file') downloadFile(out.fileName, out.text);
       status.textContent = 'Save file sent to your downloads.';
     }),
     button('Copy save code', () => {
       actions.saveNow();
-      const out = writeSaveExport('code', state);
+      const out = writeSaveExport('code', current());
       // On screen as well, since the clipboard is refused over plain http.
       codeOut.value = out.text;
       codeOut.hidden = false;
@@ -56,9 +61,9 @@ export function menuScreen(state: GameState, actions: MenuActions): HTMLElement 
       'Delete character',
       () => {
         confirmHolder.replaceChildren(
-          h('p', { text: `Delete ${state.name} for good? This cannot be undone.` }),
+          h('p', { text: `Delete ${name} for good? This cannot be undone.` }),
           h('div', { class: 'row' }, [
-            button(`Delete ${state.name}`, actions.deleteCharacter, 'danger'),
+            button(`Delete ${name}`, actions.deleteCharacter, 'danger'),
             button('Cancel', () => confirmHolder.replaceChildren()),
           ]),
         );
@@ -70,7 +75,7 @@ export function menuScreen(state: GameState, actions: MenuActions): HTMLElement 
 
   return h('div', { class: 'stack' }, [
     save,
-    importPanel({ replacing: state.name, onImport: actions.importSave }),
+    importPanel({ replacing: name, onImport: actions.importSave }),
     remove,
     h('p', { class: 'muted version', text: `Hearth & Harbour v${__APP_VERSION__}` }),
   ]);

@@ -94,7 +94,28 @@ function saveProblem(state: Record<string, unknown>): string | null {
       return `${field} should be a time`;
     }
   }
+  if (!isRecord(state.skills) || !Object.values(state.skills).every(isCount)) {
+    return 'skills should be amounts of XP';
+  }
+  if (!isRecord(state.bank) || !Object.values(state.bank).every(isWhole)) {
+    return 'the bank should hold whole numbers of things';
+  }
+  const { action } = state;
+  if (
+    action !== null &&
+    !(isRecord(action) && typeof action.id === 'string' && isCount(action.progressMs))
+  ) {
+    return 'the current action is not one';
+  }
   return null;
+}
+
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isWhole(value: unknown): value is number {
+  return isCount(value) && Number.isInteger(value);
 }
 
 function damaged(problem: string): string {

@@ -21,6 +21,9 @@ describe('newGame', () => {
       name: 'Cody',
       createdAt: 1000,
       savedAt: 1000,
+      skills: {},
+      bank: {},
+      action: null,
     });
   });
 });

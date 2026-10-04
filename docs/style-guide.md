@@ -93,7 +93,8 @@ These rules exist because the first drafts broke them.
 ## Menus
 
 - Dark panel (#1e1a2a), cream text (#f0e6d0), gold border (#c9a24a), square corners.
-- Pixel typeface (Pixelify Sans for body, a blockier face for headings is fine).
+- Pixel typeface (Pixelify Sans for body, a blockier face for headings is fine). Digits come from
+  VT323 instead: Pixelify's 2, 5, 7 and 9 are too stylised to read at a glance (25 reads as "2S").
 - Progress bars are flat with a dark track; gold for XP, green for the current action.
 
 In code: the menu colours are the custom properties at the top of `src/ui/styles.css`, and nothing

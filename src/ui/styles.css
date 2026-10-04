@@ -15,6 +15,20 @@
   color-scheme: dark;
 }
 
+/*
+ * Pixelify Sans draws 2, 5, 7 and 9 so stylised that 5 reads as S and 25 as
+ * 2S, which will not do in a game made of numbers. Digits alone come from
+ * VT323, a pixel face of the same weight; everything else stays Pixelify.
+ */
+@font-face {
+  font-family: 'HH Digits';
+  src: url('../../node_modules/@fontsource/vt323/files/vt323-latin-400-normal.woff2')
+    format('woff2');
+  unicode-range: U+30-39;
+  size-adjust: 112%;
+  font-display: block;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -28,7 +42,7 @@ body {
 body {
   background: var(--backdrop);
   color: var(--text);
-  font-family: 'Pixelify Sans', ui-monospace, monospace;
+  font-family: 'HH Digits', 'Pixelify Sans', ui-monospace, monospace;
   font-size: 18px;
   line-height: 1.3;
   /* The face joins f and i into one glyph that reads as an A. */
@@ -264,4 +278,121 @@ h2 {
 .version {
   text-align: center;
   font-size: 14px;
+}
+
+.small {
+  font-size: 15px;
+}
+
+.stack.tight {
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-radius: 0;
+}
+
+button.card {
+  cursor: pointer;
+}
+
+button.card:active {
+  background: var(--panel);
+}
+
+.card:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.card.active {
+  border-color: var(--green);
+}
+
+.card.active h2,
+.card.active .hint,
+.doing {
+  color: var(--green);
+}
+
+.card.locked {
+  border-color: var(--line);
+}
+
+.card.locked h2 {
+  color: var(--text-muted);
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.doing:empty {
+  display: none;
+}
+
+.hint {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.level,
+.qty {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.bar {
+  height: 12px;
+  background: var(--backdrop);
+  border: var(--px) solid var(--line);
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0;
+}
+
+.bar.xp .bar-fill {
+  background: var(--gold);
+}
+
+.bar.action .bar-fill {
+  background: var(--green);
+}
+
+.btn.back {
+  width: auto;
+  align-self: flex-start;
+  min-height: 40px;
+  border-color: var(--line);
+  color: var(--text-muted);
+}
+
+.toasts {
+  position: relative;
+  height: 0;
+}
+
+.toast {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  padding: 10px 14px;
+  background: var(--gold);
+  color: var(--panel);
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
 }

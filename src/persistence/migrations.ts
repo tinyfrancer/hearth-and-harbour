@@ -6,7 +6,10 @@ import { GAME_STATE_VERSION, type GameState } from '../core/state';
 // a case to tests/persistence/migrations.test.ts.
 type MigrationStep = (state: Record<string, unknown>) => Record<string, unknown>;
 
-const MIGRATIONS: Record<number, MigrationStep> = {};
+const MIGRATIONS: Record<number, MigrationStep> = {
+  // The idle engine (S2): nobody made before it has trained, banked or begun anything.
+  1: (state) => ({ ...state, skills: {}, bank: {}, action: null }),
+};
 
 /**
  * Bring a parsed save up to GAME_STATE_VERSION, or return null if it can't be
