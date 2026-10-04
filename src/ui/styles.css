@@ -10,6 +10,7 @@
   --green: #74c256;
   --danger: #d85a50;
   --line: #3b3350;
+  --scrim: rgb(21 17 31 / 85%);
   --px: 2px;
   --tabbar-height: 60px;
   color-scheme: dark;
@@ -395,4 +396,50 @@ button.card:active {
   font-weight: 700;
   text-align: center;
   pointer-events: none;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--scrim);
+}
+
+.overlay > .panel {
+  width: 100%;
+  max-width: 400px;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.gains {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: var(--px) solid var(--line);
+}
+
+.gains li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: var(--px) solid var(--line);
+}
+
+.gains .qty {
+  color: var(--green);
+}
+
+.gains .loss .qty {
+  color: var(--danger);
+}
+
+.level-up {
+  color: var(--gold-bright);
+  font-weight: 700;
 }

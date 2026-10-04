@@ -1,9 +1,11 @@
 import { TAB_ICONS } from '../art/tabIcons';
 import { pixelSvg } from '../art/pixelSvg';
-import { advance, startAction, stopAction } from '../core/actions';
+import { advance, missingInput, startAction, stopAction } from '../core/actions';
+import { catchUp, type AwayReport } from '../core/away';
 import type { Content } from '../core/content';
 import { newGame, skillLevel, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
+import { awayReportOverlay } from './awayReport';
 import { bankView } from './bankScreen';
 import { createScreen } from './createScreen';
 import { h } from './dom';
@@ -28,11 +30,11 @@ export interface App {
 /** While something is under way, the game is written this often as well as on closing. */
 const AUTOSAVE_MS = 10_000;
 /**
- * The most one tick may grant. A page left in the background stops ticking and
- * then gets the whole gap at once; this holds that to the offline cap until S3
- * gives time away its proper rules and report.
+ * A gap this long between ticks is time away, not a slow frame: the page was
+ * in the background or the phone asleep. It is paid by the same rule as a
+ * closed game, and reported.
  */
-const MAX_TICK_MS = 24 * 60 * 60 * 1000;
+const AWAY_MS = 60_000;
 const TOAST_MS = 3000;
 
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
@@ -44,6 +46,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let view: View | null = null;
   let lastTick = now();
   let lastSave = now();
+  /** The away report on screen, until it is dismissed. */
+  let away: AwayReport | null = null;
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
 
   const save = (): boolean => {
@@ -53,8 +57,25 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     return saves.save(state);
   };
 
+  /**
+   * Pay for `ms` away and keep the report to show. Used for a game that was
+   * closed (measured from its last save) and for a page that was only hidden.
+   */
+  const returnFrom = (ms: number): void => {
+    if (!state) return;
+    const result = catchUp(state, ms, content);
+    state = result.state;
+    // A quick reload is paid like any other gap but is not worth a report.
+    // Coming back twice before reading the first report keeps the newer one.
+    if (ms >= AWAY_MS) away = result.report ?? away;
+    save();
+  };
+
+  // A loaded or imported file is not paid for the time since it was written:
+  // the same file can be loaded any number of times.
   const adopt = (next: GameState): void => {
     state = next;
+    away = null;
     tab = 'skills';
     openSkill = null;
     lastTick = now();
@@ -145,6 +166,14 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       ]),
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
       toasts,
+      ...(away
+        ? [
+            awayReportOverlay(away, content, () => {
+              away = null;
+              render();
+            }),
+          ]
+        : []),
       h(
         'nav',
         { class: 'tabbar', attrs: { 'aria-label': 'Sections' } },
@@ -176,9 +205,14 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
 
   const tick = (): void => {
     const time = now();
-    const elapsed = Math.min(Math.max(time - lastTick, 0), MAX_TICK_MS);
+    const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
     if (!state?.action) return;
+    if (elapsed >= AWAY_MS) {
+      returnFrom(elapsed);
+      render();
+      return;
+    }
 
     const before = state;
     state = advance(state, elapsed, content);
@@ -191,6 +225,12 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         redraw = true;
       }
     }
+    if (!state.action) {
+      const short = missingInput(state, content.actions[before.action!.id]!);
+      toast(short ? `Out of ${content.items[short.item]?.name ?? short.item}.` : 'Stopped.');
+      save();
+      redraw = true;
+    }
     // The bank lists only what is held, so a first log needs its row built.
     const firstOfSomething = Object.keys(state.bank).length !== Object.keys(before.bank).length;
     if (time - lastSave >= AUTOSAVE_MS) save();
@@ -198,6 +238,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     else view?.update?.(state);
   };
 
+  // A game that was closed: everything since its last save is time away.
+  if (state) returnFrom(now() - state.savedAt);
   render();
   return { save, tick };
 }

@@ -8,6 +8,7 @@ import { xpForLevel } from '../../src/core/xp';
 const content: Content = {
   skills: { digging: { id: 'digging', name: 'Digging', verb: 'Digging' } },
   items: {
+    brick: { id: 'brick', name: 'Brick', description: '' },
     mud: { id: 'mud', name: 'Mud', description: '' },
     worm: { id: 'worm', name: 'Worm', description: '' },
   },
@@ -23,6 +24,19 @@ const content: Content = {
         { item: 'mud', qty: 2 },
         { item: 'worm', qty: 1 },
       ],
+    },
+    bake: {
+      id: 'bake',
+      skill: 'digging',
+      name: 'Bake bricks',
+      level: 1,
+      durationMs: 2000,
+      xp: 7,
+      uses: [
+        { item: 'mud', qty: 3 },
+        { item: 'worm', qty: 1 },
+      ],
+      gives: [{ item: 'brick', qty: 1 }],
     },
     dig_deep: {
       id: 'dig_deep',
@@ -124,5 +138,49 @@ describe('advance', () => {
   it('stops an action the tables no longer hold', () => {
     const orphan = { ...fresh, action: { id: 'gone', progressMs: 10 } };
     expect(advance(orphan, 1000, content).action).toBeNull();
+  });
+});
+
+describe('an action that uses things', () => {
+  const stocked = { ...fresh, bank: { mud: 10, worm: 5 } };
+  const baking = start(stocked, 'bake');
+
+  it('will not start without enough for one, and says what is short', () => {
+    expect(startAction({ ...fresh, bank: { mud: 2, worm: 5 } }, 'bake', content)).toEqual({
+      ok: false,
+      reason: 'Needs 3 Mud.',
+    });
+    expect(startAction({ ...fresh, bank: { mud: 9 } }, 'bake', content)).toEqual({
+      ok: false,
+      reason: 'Needs 1 Worm.',
+    });
+  });
+
+  it('takes its materials on each completion', () => {
+    const state = advance(baking, 4500, content);
+    expect(state.bank).toEqual({ mud: 4, worm: 3, brick: 2 });
+    expect(state.action).toEqual({ id: 'bake', progressMs: 500 });
+  });
+
+  it('stops on the completion that uses the last of them, however long is left', () => {
+    // Ten mud is three bricks; the worms would have stretched to five.
+    const state = advance(baking, 60 * 60 * 1000, content);
+    expect(state.bank).toEqual({ mud: 1, worm: 2, brick: 3 });
+    expect(state.skills).toEqual({ digging: 21 });
+    expect(state.action).toBeNull();
+    expect(advance(baking, 6000, content)).toEqual(state);
+  });
+
+  it('removes a stack it empties rather than leaving a zero', () => {
+    const state = advance(start({ ...fresh, bank: { mud: 3, worm: 1 } }, 'bake'), 2000, content);
+    expect(state.bank).toEqual({ brick: 1 });
+  });
+
+  it('runs out in the same place however the time is cut up', () => {
+    let stepped = baking;
+    for (let spent = 0; spent < 20_000; spent += 7) {
+      stepped = advance(stepped, 7, content);
+    }
+    expect(stepped).toEqual(advance(baking, 20_000, content));
   });
 });
