@@ -29,7 +29,7 @@ Vercel (only `main` deploys).
 
 ```
 src/core/         pure game state and rules. Imports nothing outside itself. Fully unit-tested.
-src/data/         skills, items, monsters as tables (from S2). Imports core only.
+src/data/         skills, items, actions as tables. Imports core only.
 src/persistence/  save service, migrations, export/import. Imports core only.
 src/art/          all drawing. Knows nothing about the game.
 src/ui/           HTML/CSS idle menus. May import everything above.
@@ -43,7 +43,17 @@ ESLint enforces the arrows (`eslint.config.js`). Do not weaken those rules to ma
 - **No runtime dependencies, no framework, no game engine.** Menus are plain DOM through
   `src/ui/dom.ts`; scenes are Canvas 2D.
 - **Time is passed in, never read.** Core takes `now` or `ms` as an argument, so live play, offline
-  catch-up and tests run the same code. One `advance(state, ms)` serves both (S2/S3).
+  catch-up and tests run the same code. `advance(state, ms, content)` in `src/core/actions.ts` is
+  the only way time passes. It works in whole completions by arithmetic, never a loop of ticks, and
+  `advance(a)` then `advance(b)` must equal `advance(a + b)`: keep that test passing.
+- **Core never imports the tables.** It defines their shapes (`src/core/content.ts`) and its rules
+  take a `Content` argument; `src/data/` fills them in. New content is a row, not code.
+- **State is immutable.** Every rule returns a new `GameState`; nothing edits one in place.
+- **Screens are built once and updated in place.** A `View` (`src/ui/view.ts`) builds its DOM when
+  shown and `update(state)` moves only bars and counts each frame. Rebuild (`render`) only when the
+  structure changes: navigation, start/stop, a level-up.
+- **Balance is held by simulation** (`tests/data/pacing.test.ts`). A new skill or tier adds a case
+  there; changing a number that breaks one is a decision, not a fix-the-test.
 - **A change to the save's shape or meaning** bumps `GAME_STATE_VERSION`, adds a step to
   `src/persistence/migrations.ts`, a check to `saveProblem` in `saveFile.ts`, and a test for each.
   A save the game cannot read is set aside, never deleted.

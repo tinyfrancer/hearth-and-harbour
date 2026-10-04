@@ -3,11 +3,13 @@ import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveS
 import { writeSaveExport } from '../../src/persistence/saveFile';
 import { newGame } from '../../src/core/state';
 import { mountApp } from '../../src/ui/app';
+import { CONTENT } from '../../src/data';
 
 // The whole shell, driven the way a thumb would, against real storage.
 let root: HTMLElement;
 let clock: number;
-const mount = () => mountApp(root, { saves: new LocalStorageSaveService(), now: () => clock });
+const mount = () =>
+  mountApp(root, { saves: new LocalStorageSaveService(), content: CONTENT, now: () => clock });
 
 const q = <T extends HTMLElement>(selector: string): T => {
   const found = root.querySelector<T>(selector);
@@ -122,5 +124,78 @@ describe('the app shell', () => {
     press('Delete Cody');
     expect(new LocalStorageSaveService().load()).toBeNull();
     expect(root.querySelector('input[name="character-name"]')).not.toBeNull();
+  });
+
+  describe('woodcutting', () => {
+    const openWoodcutting = (): void => q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+    const card = (id: string): HTMLElement => q(`[data-action="${id}"]`);
+    /** Let `ms` pass in frames, the way a running page would. */
+    const wait = (app: { tick(): void }, ms: number): void => {
+      for (let passed = 0; passed < ms; passed += 16) {
+        clock += Math.min(16, ms - passed);
+        app.tick();
+      }
+    };
+
+    it('chops pine: the bar fills, logs reach the bank, XP is paid', () => {
+      const app = mount();
+      create('Cody');
+      openWoodcutting();
+      expect(card('chop_oak').tagName).toBe('DIV');
+      expect(card('chop_oak').textContent).toContain('Level 8');
+
+      card('chop_pine').click();
+      expect(card('chop_pine').getAttribute('aria-pressed')).toBe('true');
+      wait(app, 1500);
+      expect(q('.bar.action').getAttribute('aria-valuenow')).toBe('50');
+      expect(card('chop_pine').textContent).toContain('Pine logs: 0');
+
+      wait(app, 1500 + 6000);
+      expect(card('chop_pine').textContent).toContain('Pine logs: 3');
+      expect(root.textContent).toContain('30 / 40 XP');
+
+      tab('bank');
+      expect(q('[data-item="pine_logs"] .qty').textContent).toBe('3');
+      wait(app, 3000);
+      expect(q('[data-item="pine_logs"] .qty').textContent).toBe('4');
+    });
+
+    it('announces a level and stops when tapped again', () => {
+      const app = mount();
+      create('Cody');
+      openWoodcutting();
+      card('chop_pine').click();
+      wait(app, 12_000);
+      expect(q('.toast').textContent).toBe('Woodcutting level 2!');
+      expect(q('.level').textContent).toBe('Level 2');
+
+      card('chop_pine').click();
+      expect(card('chop_pine').getAttribute('aria-pressed')).toBe('false');
+      wait(app, 9000);
+      expect(card('chop_pine').textContent).toContain('Pine logs: 4');
+    });
+
+    it('unlocks oak at level 8 and keeps everything through a reload', () => {
+      const app = mount();
+      create('Cody');
+      openWoodcutting();
+      card('chop_pine').click();
+      // One long tick, as a page coming back from the background gets.
+      clock += 30 * 60 * 1000;
+      app.tick();
+      expect(card('chop_oak').tagName).toBe('BUTTON');
+      card('chop_oak').click();
+      wait(app, 4000);
+      app.save();
+
+      root.replaceChildren();
+      const again = mount();
+      expect(q('[data-skill="woodcutting"]').textContent).toContain('Level 8');
+      expect(q('[data-skill="woodcutting"]').textContent).toContain('Chopping Oak');
+      openWoodcutting();
+      expect(card('chop_oak').textContent).toContain('Oak logs: 1');
+      wait(again, 4000);
+      expect(card('chop_oak').textContent).toContain('Oak logs: 2');
+    });
   });
 });

@@ -16,6 +16,11 @@ describe('migrateGameState', () => {
     expect(migrateGameState({ ...newGame('Cody', 5), version: GAME_STATE_VERSION + 1 })).toBeNull();
   });
 
+  it('brings a version 1 save (S1: a name and nothing else) up to date', () => {
+    const v1 = { version: 1, name: 'Cody', createdAt: 5, savedAt: 9 };
+    expect(migrateGameState(v1)).toEqual({ ...newGame('Cody', 5), savedAt: 9 });
+  });
+
   it('walks every step in order and stamps the version as it goes', () => {
     const steps = {
       1: (state: Record<string, unknown>) => ({ ...state, coins: 0 }),
