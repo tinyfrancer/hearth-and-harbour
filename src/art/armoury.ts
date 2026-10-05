@@ -314,7 +314,11 @@ export const ARMOURY: readonly GearDef[] = [
         ],
       },
       // Leather strips hanging from its lower edge, over the tunic.
-      { at: [14, 26], depth: ARMOUR, rows: ['oOoOoOoOoO', 'oOoOoOoOoO', 'oOoOoOoOoO', 'o.o.o.o.o.'] },
+      {
+        at: [14, 26],
+        depth: ARMOUR,
+        rows: ['oOoOoOoOoO', 'oOoOoOoOoO', 'oOoOoOoOoO', 'o.o.o.o.o.'],
+      },
     ],
   },
   {
@@ -421,20 +425,21 @@ export const ARMOURY: readonly GearDef[] = [
     // Shells on a cord at the left wrist, above the fist.
     id: 'shell_bracelet',
     slot: 'wrist',
-    parts: [{ at: [11, 25], depth: JEWELLERY, rows: ['bObP'] }],
+    parts: [{ at: [10, 25], depth: JEWELLERY, rows: ['bPbPb'] }],
   },
   bow('pine_shortbow', 'J', 'K'),
   bow('oak_shortbow', 'W', 'o'),
   bow('willow_shortbow', 'Q', 'S'),
   {
-    // A quiver on the back: only the fletchings show, over the right shoulder.
+    // A quiver slung on the back: its mouth and fletchings rise behind the
+    // left shoulder, beside the head.
     id: 'arrow_quiver',
     slot: 'back',
     parts: [
       {
-        at: [24, 9],
+        at: [25, 6],
         depth: QUIVER,
-        rows: ['.e.r.e', '.ererr', 'eerrer', '.o.o.o', 'fffOOO', 'fffOOO'],
+        rows: ['..e.r', '.erre', '.eerr', '..ooo', 'oOOOO', 'fffO', 'fffO', 'fffO', 'fffO'],
       },
     ],
   },

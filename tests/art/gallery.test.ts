@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { LOOK_CHOICES } from '../../src/art/character';
 import { artGallery, shotScale } from '../../src/art/gallery';
 import { RAMPS } from '../../src/art/palette';
 
 describe('artGallery', () => {
-  it('shows the town, the townsfolk, the hero, the tavern, the props, the layers and the palette', () => {
+  it('shows the wardrobe, the town, the townsfolk, the hero, the tavern, the props, the layers and the palette', () => {
     const page = artGallery();
     const titles = [...page.querySelectorAll('h2')].map((h) => h.textContent);
     expect(titles).toEqual([
+      'Wardrobe',
       'The town',
       'Townsfolk',
       'The hero',
@@ -19,6 +21,16 @@ describe('artGallery', () => {
     const labels = [...page.querySelectorAll('canvas')].map((c) => c.getAttribute('aria-label'));
     expect(labels.filter((l) => l === 'Day').length).toBeGreaterThanOrEqual(7);
     expect(labels.filter((l) => l === 'Dusk').length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('shows every look choice and every set in the wardrobe, one of them at dusk', () => {
+    const wardrobe = artGallery().querySelector('.gallery-part')!;
+    const labels = [...wardrobe.querySelectorAll('figcaption')].map((f) => f.textContent);
+    for (const part of ['skin', 'hair', 'hairColour'] as const)
+      expect(labels).toContain(LOOK_CHOICES[part].map((c) => c.name).join(' · '));
+    expect(labels).toContain('Bronze · Iron · Linen');
+    expect(labels).toContain('Pine shortbow · Oak shortbow · Willow shortbow');
+    expect(labels).toContain('Dusk');
   });
 
   it('draws every picture at a whole number of device pixels', () => {

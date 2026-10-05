@@ -98,7 +98,12 @@ export const ITEM_LAYERS: Readonly<Record<string, string>> = {
  * replaces it, the trousers unless a legs item does, and always boots and a
  * belt (until the game has boots).
  */
-const EVERYDAY: readonly string[] = ['teal_tunic', 'grey_trousers', 'leather_boots', 'leather_belt'];
+const EVERYDAY: readonly string[] = [
+  'teal_tunic',
+  'grey_trousers',
+  'leather_boots',
+  'leather_belt',
+];
 
 const find = <T extends LookChoice>(list: readonly T[], id: string): T =>
   list.find((choice) => choice.id === id) ?? list[0]!;

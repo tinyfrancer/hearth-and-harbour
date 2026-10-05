@@ -10,10 +10,16 @@
  * and its caption says so.
  */
 import { gameScale, pixelCanvas, repaint, wholeScale, type PixelCanvasOptions } from './canvas';
+import { DEFAULT_LOOK, LOOK_CHOICES, characterPicture, type Look } from './character';
 import {
   DRESSING,
+  WARDROBE_BOWS,
+  WARDROBE_ITEMS,
+  WARDROBE_SETS,
   dressingPlate,
   figurePlate,
+  lineupPlate,
+  outfitPicture,
   propsPlate,
   tavernPlate,
   townsfolkPlate,
@@ -139,6 +145,60 @@ export function artGallery(): HTMLElement {
     ),
   );
 
+  const lookRow = (which: keyof Look, base: Look) => {
+    const choices = LOOK_CHOICES[which];
+    const pic = lineupPlate(
+      choices.map((choice) => characterPicture({ ...base, [which]: choice.id }, [])),
+    );
+    return row([{ pic, palette: DAY, label: choices.map((c) => c.name).join(' · ') }], 'game');
+  };
+  const sets = lineupPlate(WARDROBE_SETS.map(outfitPicture));
+  const bows = lineupPlate(WARDROBE_BOWS.map(outfitPicture));
+  const iron = lineupPlate([outfitPicture(WARDROBE_SETS[1]!)]);
+  const itemRows: HTMLElement[] = [];
+  for (let i = 0; i < WARDROBE_ITEMS.length; i += 5) {
+    const ids = WARDROBE_ITEMS.slice(i, i + 5);
+    const pic = lineupPlate(ids.map((id) => characterPicture(DEFAULT_LOOK, [id])));
+    const label = ids.map((id) => id.replace(/_/g, ' ')).join(' · ');
+    itemRows.push(...row([{ pic, palette: DAY, label }], 'game'));
+  }
+  part(
+    'Wardrobe',
+    'New art, not yet approved: the looks a character can choose and every wearable item drawn on the standard body. Under a helmet or hood only the hair that hangs below it shows.',
+    el('h3', 'gallery-subhead', 'Skin'),
+    ...lookRow('skin', DEFAULT_LOOK),
+    el('h3', 'gallery-subhead', 'Hairstyle'),
+    ...lookRow('hair', DEFAULT_LOOK),
+    el('h3', 'gallery-subhead', 'Hair colour'),
+    ...lookRow('hairColour', { ...DEFAULT_LOOK, hair: 'long' }),
+    el('h3', 'gallery-subhead', 'Full sets'),
+    ...row(
+      [
+        { pic: sets, palette: DAY, label: WARDROBE_SETS.map((o) => o.name).join(' · ') },
+        { pic: sets, palette: DUSK, label: 'Dusk' },
+      ],
+      'close',
+      1,
+    ),
+    ...row([{ pic: sets, palette: DAY, label: 'Day' }], 'game'),
+    el('h3', 'gallery-subhead', 'Bows'),
+    ...row(
+      [{ pic: bows, palette: DAY, label: WARDROBE_BOWS.map((o) => o.name).join(' · ') }],
+      'close',
+      1,
+    ),
+    el('h3', 'gallery-subhead', 'Iron, day and dusk'),
+    ...row(
+      [
+        { pic: iron, palette: DAY, label: 'Day' },
+        { pic: iron, palette: DUSK, label: 'Dusk' },
+      ],
+      'close',
+    ),
+    el('h3', 'gallery-subhead', 'Each item alone'),
+    ...itemRows,
+  );
+
   const town = townPicture();
   part(
     'The town',
@@ -233,10 +293,7 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  part(
-    'Still to come',
-    'Item and skill icons, gear for new equipment, and portraits. Nothing drawn yet.',
-  );
+  part('Still to come', 'Item and skill icons, and portraits. Nothing drawn yet.');
 
   const draw = () => {
     const screen = measure(page);
