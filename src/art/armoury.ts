@@ -1,8 +1,13 @@
 /**
  * Gear for the game's wearable items, drawn to fit the standard body's pose
- * (wardrobe.ts): the left fist closed at the hip, holding a weapon whose
- * blade or limb rises behind the shoulder along the approved sword's line;
+ * (wardrobe.ts): the left fist closed below the hip, holding a weapon whose
+ * blade or limb rises past the shoulder along the approved sword's line;
  * the right forearm angled in to the hip, where a shield's straps go.
+ *
+ * Every held thing follows the hand rule (docs/style-guide.md): its grip at
+ * `GRIP` runs down through the fist's columns and is hidden by the fingers,
+ * everything else of it is `HELD_FRONT`, with something directly above the
+ * fist and something directly below, and only a bowstring goes behind.
  *
  * Gear climbs a ladder (docs/style-guide.md, "Gear ladder"): linen is a
  * villager's, bronze a militia volunteer's (leather with a little metal),
@@ -18,13 +23,27 @@
 import { DEPTH } from './depth';
 import type { GearDef } from './figure';
 
-const { HELD_BEHIND, HELD_FRONT, LEGS, SHIRT, ARMOUR, JEWELLERY, HELMET, SHIELD, QUIVER } = DEPTH;
+const {
+  HELD_BEHIND,
+  GRIP,
+  HELD_FRONT,
+  LEGS,
+  SHIRT,
+  ARMOUR,
+  WRIST,
+  JEWELLERY,
+  HELMET,
+  SHIELD,
+  QUIVER,
+} = DEPTH;
 
 /**
- * A shortbow held at the grip in the left fist, string outward: the stave
- * curves in to the hand and out to the tips, and the string runs straight
- * between them. Drawn once with `<` for the wood's light step and `>` for its
- * dark step; each bow is this drawing in its own wood.
+ * A shortbow held at the middle of its stave in the left fist, string
+ * outward: the stave curves in to the hand and out to the tips, and the string
+ * runs straight between them. Drawn once with `<` for the wood's light step
+ * and `>` for its dark step; each bow is this drawing in its own wood. Rows
+ * 14 to 16 are the grip, inside the fist; rows 13 and 17 are the leather
+ * binding showing just above and below it.
  */
 const BOW_STAVE: readonly string[] = [
   '.<',
@@ -60,18 +79,36 @@ const BOW_STAVE: readonly string[] = [
   '.<',
 ];
 
+/** Where the bow sits: its grip (rows 14 to 16) in the fist's middle columns. */
+const BOW_AT: readonly [number, number] = [5, 13];
+const BOW_GRIP = [14, 15, 16];
+const BOW_BINDING = [13, 17];
+
 function bow(id: string, light: string, dark: string): GearDef {
+  const wood = BOW_STAVE.map((row) => row.replace(/</g, light).replace(/>/g, dark));
+  // The stave without its string, and only the given rows of it.
+  const stave = (keep: (i: number) => boolean, paint = (row: string) => row) =>
+    wood.map((row, i) => (keep(i) ? paint('.' + row.slice(1)) : ''));
   return {
     id,
     slot: 'weapon',
     parts: [
+      // The string is the one thing held that passes behind the body.
+      { at: BOW_AT, depth: HELD_BEHIND, rows: wood.map((row) => (row[0] === 'e' ? 'e' : '')) },
       {
-        at: [5, 12],
-        depth: HELD_BEHIND,
-        rows: BOW_STAVE.map((row) => row.replace(/</g, light).replace(/>/g, dark)),
+        at: BOW_AT,
+        depth: HELD_FRONT,
+        rows: stave((i) => !BOW_GRIP.includes(i) && !BOW_BINDING.includes(i)),
       },
-      // The grip's leather binding shows above and below the fist.
-      { at: [10, 25], depth: HELD_FRONT, rows: ['f', '', '', '.fO'] },
+      {
+        at: BOW_AT,
+        depth: HELD_FRONT,
+        rows: stave(
+          (i) => BOW_BINDING.includes(i),
+          (row) => row.replace(light, 'f').replace(dark, 'O'),
+        ),
+      },
+      { at: BOW_AT, depth: GRIP, rows: stave((i) => BOW_GRIP.includes(i)) },
     ],
   };
 }
@@ -82,13 +119,14 @@ const BRONZE: readonly GearDef[] = [
     // A short leaf blade, straight along its centre line: a bright midrib
     // (the polished step, `5`) between two olive faces, a dark edge on the
     // shadow side, widest a little below the point. A small cast guard, a
-    // hide-bound grip and a bronze pommel. It rises only to the shoulder.
+    // hide-bound grip and a bronze pommel. It rises only to the shoulder,
+    // in front of the arm; the guard sits above the fist, the grip in it.
     id: 'bronze_shortsword',
     slot: 'weapon',
     parts: [
       {
         at: [6, 13],
-        depth: HELD_BEHIND,
+        depth: HELD_FRONT,
         rows: [
           '5',
           '53',
@@ -105,11 +143,9 @@ const BRONZE: readonly GearDef[] = [
           '...253',
         ],
       },
-      {
-        at: [8, 26],
-        depth: HELD_FRONT,
-        rows: ['412234', '...FXX#', '...FXX#', '....13'],
-      },
+      { at: [8, 26], depth: HELD_FRONT, rows: ['412234'] },
+      { at: [11, 27], depth: GRIP, rows: ['X#', 'X#', 'X#'] },
+      { at: [11, 30], depth: HELD_FRONT, rows: ['13'] },
     ],
   },
   {
@@ -124,7 +160,7 @@ const BRONZE: readonly GearDef[] = [
     parts: [
       {
         at: [0, 10],
-        depth: HELD_BEHIND,
+        depth: HELD_FRONT,
         rows: [
           '......Wo',
           '.5111233',
@@ -142,13 +178,11 @@ const BRONZE: readonly GearDef[] = [
           '.........Wo',
           '.........Wo',
           '.........Wo',
+          '..........Wo',
         ],
       },
-      {
-        at: [11, 26],
-        depth: HELD_FRONT,
-        rows: ['oooO', 'oooO', 'oooO', 'oooO', '.oO'],
-      },
+      { at: [10, 27], depth: GRIP, rows: ['Wo', 'Wo', '.Wo'] },
+      { at: [11, 30], depth: HELD_FRONT, rows: ['oO'] },
     ],
   },
   {
@@ -234,7 +268,7 @@ const IRON: readonly GearDef[] = [
     parts: [
       {
         at: [4, 5],
-        depth: HELD_BEHIND,
+        depth: HELD_FRONT,
         rows: [
           'M',
           'mn',
@@ -259,11 +293,9 @@ const IRON: readonly GearDef[] = [
           '......mn',
         ],
       },
-      {
-        at: [8, 26],
-        depth: HELD_FRONT,
-        rows: ['Mmmmmmn', '...oooO', '...oooO', '...oooO', '....mn'],
-      },
+      { at: [8, 26], depth: HELD_FRONT, rows: ['Mmmmmmn'] },
+      { at: [11, 27], depth: GRIP, rows: ['oO', 'oO', 'oO'] },
+      { at: [11, 30], depth: HELD_FRONT, rows: ['mn'] },
     ],
   },
   {
@@ -273,7 +305,7 @@ const IRON: readonly GearDef[] = [
     parts: [
       {
         at: [0, 6],
-        depth: HELD_BEHIND,
+        depth: HELD_FRONT,
         rows: [
           '.MMmmnn',
           'MMmmmnn',
@@ -295,13 +327,11 @@ const IRON: readonly GearDef[] = [
           '.........Wo',
           '..........Wo',
           '..........Wo',
+          '..........Wo',
         ],
       },
-      {
-        at: [11, 26],
-        depth: HELD_FRONT,
-        rows: ['oooO', 'oooO', 'oooO', 'oooO', '.oO'],
-      },
+      { at: [11, 27], depth: GRIP, rows: ['Wo', 'Wo', 'Wo'] },
+      { at: [11, 30], depth: HELD_FRONT, rows: ['oO'] },
     ],
   },
   {
@@ -485,6 +515,159 @@ const LINEN: readonly GearDef[] = [
   },
 ];
 
+/**
+ * Leather: the hunter's or woodsman's rung, between linen and bronze. Tanned
+ * leather in the `tan` ramp, laced with linen cord, and no metal at all.
+ */
+const LEATHER: readonly GearDef[] = [
+  {
+    // A sleeveless tan jerkin over the tunic, laced up the front with linen
+    // cord, its skirt cut in tabs below the belt.
+    id: 'leather_jerkin',
+    slot: 'body',
+    parts: [
+      {
+        at: [13, 15],
+        depth: ARMOUR,
+        rows: [
+          '6677....7778',
+          '66677..77778',
+          '666667l77778',
+          '..667l7778',
+          '..66l7l778',
+          '..667l7778',
+          '..66l7l778',
+          '..667l7778',
+          '..66677778',
+          '..66677778',
+          '',
+          '..66677778',
+          '.6667777788',
+          '.67867867878',
+        ],
+      },
+    ],
+  },
+  {
+    // A snug cap a pixel proud of the skull, with a stitched seam over the
+    // crown, a dark band and ear flaps down beside the face.
+    id: 'leather_cap',
+    slot: 'head',
+    parts: [
+      {
+        at: [12, 0],
+        depth: HELMET,
+        rows: [
+          '....66l778',
+          '..6666l7778',
+          '.66666l77778',
+          '.66666l77778',
+          '.666666777778',
+          '.888888888888',
+          '.67........78',
+          '.67........78',
+          '.68........88',
+        ],
+      },
+    ],
+  },
+  {
+    // Laced cuffs on both forearms: the weapon arm's over the sleeve above the
+    // wrist, under anything held; the other arm's is hidden by a shield.
+    id: 'leather_bracers',
+    slot: 'wrist',
+    parts: [
+      { at: [10, 22], depth: WRIST, rows: ['6678', '6l78', '.6678', '.6l78'] },
+      { at: [24, 22], depth: WRIST, rows: ['6678', '6l78', '6678'] },
+    ],
+  },
+];
+
+/** What monsters drop that can be worn. */
+const DROPS: readonly GearDef[] = [
+  {
+    // The footpad's oak club, by the hand rule: thick and knotted at the top,
+    // narrowing to a grip in the fist, its butt below.
+    id: 'cudgel',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [3, 11],
+        depth: HELD_FRONT,
+        rows: [
+          '...%&=',
+          '..%&&&=',
+          '..%%&&=',
+          '.%%&&&=',
+          '%%&=&&=',
+          '..%&&&=',
+          '...%&&=',
+          '....%&&=',
+          '....%&&=',
+          '.....%&=',
+          '.....%&=',
+          '.....%&=',
+          '......&=',
+          '......&=',
+          '......&=',
+          '.......&=',
+        ],
+      },
+      { at: [10, 27], depth: GRIP, rows: ['&=', '&=', '.&='] },
+      { at: [11, 30], depth: HELD_FRONT, rows: ['%='] },
+    ],
+  },
+  {
+    // The smuggler's cutlass: a wide blade that bends further out towards
+    // its point, bright along its edge; a dark cup guard on the wrist and a
+    // knuckle bow round the outside of the fist down to the pommel. A shade
+    // finer than its tier, by its polish and its bow, and never gold.
+    id: 'smugglers_cutlass',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [0, 7],
+        depth: HELD_FRONT,
+        rows: [
+          '.w',
+          '.wM',
+          '.wMn',
+          '..wMn',
+          '..wMmn',
+          '...wMmn',
+          '...wMmn',
+          '....wMmn',
+          '....wMmn',
+          '.....wMmn',
+          '.....wMmn',
+          '......wMmn',
+          '......wMmn',
+          '.......wMmn',
+          '........wMn',
+          '........wMn',
+          '........wMn',
+          '.........wMn',
+          '.........wMn',
+        ],
+      },
+      { at: [8, 26], depth: HELD_FRONT, rows: ['nnmmnx', '.n', '.n', '..n', '...nx'] },
+      { at: [11, 27], depth: GRIP, rows: ['ff', 'ff', 'ff'] },
+    ],
+  },
+  {
+    // A smooth grey pebble on a thong round the neck, over clothes and armour.
+    id: 'trollstone',
+    slot: 'neck',
+    parts: [
+      {
+        at: [16, 14],
+        depth: JEWELLERY,
+        rows: ['#....#', '.#..#', '..##', '.990q', '.900q', '..qq'],
+      },
+    ],
+  },
+];
+
 /** Things worn by anyone, on any rung. */
 const TRINKETS: readonly GearDef[] = [
   {
@@ -496,10 +679,13 @@ const TRINKETS: readonly GearDef[] = [
   {
     // A dark cord round the left wrist, a pixel proud of the arm, with two
     // shells of different sizes hanging from it: a string of found things,
-    // not a band. The cord keeps the shells apart from skin of any tone.
+    // not a band. The cord keeps the shells apart from skin of any tone. It
+    // sits at the cuff with the shells on the side towards the body, clear
+    // of the line a held blade or haft takes in front of the forearm (the
+    // hand rule), which would otherwise hide them.
     id: 'shell_bracelet',
     slot: 'wrist',
-    parts: [{ at: [9, 24], depth: JEWELLERY, rows: ['OOOOOO', '.bb.P', '.bP'] }],
+    parts: [{ at: [9, 23], depth: WRIST, rows: ['OOOOOO', '...b.P', '...bb'] }],
   },
   {
     // A quiver slung on the back: its mouth and a fan of fletchings rise
@@ -603,9 +789,17 @@ const AT_EASE: readonly GearDef[] = [
     ],
   },
   {
+    id: 'leather_bracers_at_ease',
+    slot: 'wrist',
+    parts: [
+      { at: [11, 22], depth: WRIST, rows: ['6678', '.6l78', '..6678'] },
+      { at: [24, 22], depth: WRIST, rows: ['6678', '6l78', '6678'] },
+    ],
+  },
+  {
     id: 'shell_bracelet_at_ease',
     slot: 'wrist',
-    parts: [{ at: [10, 23], depth: JEWELLERY, rows: ['..OOOOO', '.OObb.P', '...bP'] }],
+    parts: [{ at: [10, 23], depth: WRIST, rows: ['..OOOOO', '.OObb.P', '...bP'] }],
   },
 ];
 
@@ -613,6 +807,8 @@ export const ARMOURY: readonly GearDef[] = [
   ...BRONZE,
   ...IRON,
   ...LINEN,
+  ...LEATHER,
+  ...DROPS,
   ...TRINKETS,
   bow('pine_shortbow', 'J', 'K'),
   bow('oak_shortbow', 'W', 'o'),
@@ -625,4 +821,5 @@ export const AT_EASE_GEAR: Readonly<Record<string, string>> = {
   teal_tunic: 'teal_tunic_at_ease',
   linen_tunic: 'linen_tunic_at_ease',
   shell_bracelet: 'shell_bracelet_at_ease',
+  leather_bracers: 'leather_bracers_at_ease',
 };

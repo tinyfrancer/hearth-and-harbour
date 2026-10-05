@@ -64,6 +64,18 @@ const ITEMS = [
   'steady_draught',
   'glowcap_tincture',
   'midnight_oil',
+  // S8's drops and the leather set, drawn in B5.
+  'hide',
+  'feathers',
+  'pearl',
+  'cudgel',
+  'smuggled_tea',
+  'smugglers_cutlass',
+  'trollstone',
+  'leather',
+  'leather_bracers',
+  'leather_cap',
+  'leather_jerkin',
 ];
 
 const SKILLS = [
@@ -123,7 +135,7 @@ describe('item and skill icons', () => {
   });
 
   it('answers null, and never throws, for an id it does not know', () => {
-    for (const id of ['leather', 'wolf_pelt', '', 'toString', '__proto__', 'constructor']) {
+    for (const id of ['bounty_charm', 'wolf_pelt', '', 'toString', '__proto__', 'constructor']) {
       expect(itemIcon(id), id).toBeNull();
       expect(skillIcon(id), id).toBeNull();
     }

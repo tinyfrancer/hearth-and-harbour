@@ -29,6 +29,7 @@ import {
 import { DAY, DUSK, GUIDE_RAMPS, RAMPS, type Palette, type RampName } from './palette';
 import type { Picture } from './raster';
 import { ICON_FAMILIES, itemIcon, skillIcon } from './icons';
+import { PORTRAIT_IDS, portrait } from './portraits';
 import { townPicture } from './town';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
@@ -148,7 +149,23 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  // Icons come first: they are the newest art and the most seen.
+  // Portraits first: the newest art. Framed as the fight screen frames them.
+  const faces = el('div', 'portrait-grid');
+  for (const id of PORTRAIT_IDS) {
+    const cell = el('figure', 'portrait-cell');
+    const frame = el('div', 'gallery-portrait');
+    const face = portrait(id);
+    if (face) frame.append(face);
+    cell.append(frame, el('figcaption', 'muted', id.replace(/_/g, ' ')));
+    faces.append(cell);
+  }
+  part(
+    'Portraits',
+    'New art, not yet approved. Each monster’s face, then the townsfolk’s, as the fight screen frames them (three times art size). One expression each, on a dark disc.',
+    faces,
+  );
+
+  // Icons next: they are the most seen.
   const families = ICON_FAMILIES.flatMap((family) => {
     const grid = el('div', 'icon-grid');
     for (const id of family.ids) {
@@ -195,7 +212,7 @@ export function artGallery(): HTMLElement {
   }
   part(
     'Wardrobe',
-    'New art, not yet approved. Gear climbs a ladder: tier 1 runs from a villager in linen to a militia volunteer in bronze to a town guard in iron. The approved hero stands where tier 2’s knight will be; no item is drawn with his gear yet. With nothing in hand, the character rests that hand at the belt.',
+    'New art, not yet approved. Gear climbs a ladder: tier 1 runs from a villager in linen to a hunter in leather to a militia volunteer in bronze to a town guard in iron. The approved hero stands where tier 2’s knight will be; no item is drawn with his gear yet. With nothing in hand, the character rests that hand at the belt.',
     el('h3', 'gallery-subhead', 'The gear ladder'),
     ...row(
       [
@@ -327,7 +344,7 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  part('Still to come', 'Portraits. Nothing drawn yet.');
+  part('Still to come', 'The hero’s own portrait; dungeon tiles and monster sprites.');
 
   const draw = () => {
     const screen = measure(page);

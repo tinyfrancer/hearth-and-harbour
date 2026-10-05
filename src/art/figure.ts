@@ -77,6 +77,15 @@ export const FIGURE_LEGEND: Legend = {
   F: 'hide1',
   X: 'hide2',
   '#': 'hide3',
+  // Added for leather, the trollstone and the cudgel (armoury.ts, B5).
+  '6': 'tan1',
+  '7': 'tan2',
+  '8': 'tan3',
+  '9': 'stone1',
+  '0': 'stone2',
+  '%': 'oakbark1',
+  '&': 'oakbark2',
+  '=': 'oakbark3',
 };
 
 /** Part of a figure: rows of legend characters placed at `at` on the figure canvas. */

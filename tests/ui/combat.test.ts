@@ -74,8 +74,9 @@ describe('the Combat section', () => {
     const rat = q('[data-monster="dock_rat"]');
     expect(rat.textContent).toContain('Level 1');
     expect(rat.querySelector('.drops')!.textContent).toBe('Drops: ?, ?, ?');
-    // No face drawn yet: a framed initial stands in.
-    expect(rat.querySelector('.portrait.blank')!.textContent).toBe('D');
+    // A drawn face shows; a monster with none yet gets a framed initial.
+    expect(rat.querySelector('.portrait:not(.blank) .portrait-art')).not.toBeNull();
+    expect(q('[data-monster="goblin_poacher"] .portrait.blank').textContent).toBe('G');
   });
 
   it('fills the food slot and moves the line to eat at', () => {

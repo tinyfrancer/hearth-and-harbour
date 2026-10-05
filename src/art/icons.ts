@@ -10,12 +10,17 @@ import { pixelCanvas } from './canvas';
 import { GEAR_ICON_DEFS } from './gearIcons';
 import { ICON_SIZE, iconGrid, type IconDef } from './iconKit';
 import { ITEM_ICON_DEFS } from './itemIcons';
+import { LOOT_ICON_DEFS } from './lootIcons';
 import { DAY } from './palette';
 import { picture, type Picture } from './raster';
 import { SKILL_ICON_DEFS } from './skillIcons';
 
 /** Every item art has an icon for, by the game's item id. */
-const ITEMS: Readonly<Record<string, IconDef>> = { ...ITEM_ICON_DEFS, ...GEAR_ICON_DEFS };
+const ITEMS: Readonly<Record<string, IconDef>> = {
+  ...ITEM_ICON_DEFS,
+  ...GEAR_ICON_DEFS,
+  ...LOOT_ICON_DEFS,
+};
 
 export const ITEM_ICON_IDS: readonly string[] = Object.keys(ITEMS);
 export const SKILL_ICON_IDS: readonly string[] = Object.keys(SKILL_ICON_DEFS);
@@ -63,6 +68,16 @@ export const ICON_FAMILIES: readonly {
     ids: ['linen_hood', 'linen_tunic', 'linen_trousers', 'shell_necklace', 'shell_bracelet'],
   },
   { name: 'Bows', kind: 'item', ids: ['pine_shortbow', 'oak_shortbow', 'willow_shortbow'] },
+  {
+    name: 'What monsters drop',
+    kind: 'item',
+    ids: ['hide', 'feathers', 'pearl', 'smuggled_tea', 'trollstone', 'cudgel', 'smugglers_cutlass'],
+  },
+  {
+    name: 'Leather',
+    kind: 'item',
+    ids: ['leather', 'leather_cap', 'leather_jerkin', 'leather_bracers'],
+  },
   {
     name: 'The vial and potions',
     kind: 'item',

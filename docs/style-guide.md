@@ -84,8 +84,8 @@ These rules exist because the first drafts broke them.
 6. Villains get attitude from silhouette (hat, coat, hook), not from gore.
 
 In code (`src/art/figure.ts`, `src/art/wardrobe.ts`): a figure is a posed body plus gear layers
-chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a depth (cloak and a
-held blade behind the body, clothes and armour on it, shield in front), and the outline goes round
+chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a depth (cloak behind
+the body, clothes and armour on it, what is held and the shield in front), and the outline goes round
 the dressed figure. The standard body stands in linen smallclothes, left fist at the hip where a
 weapon goes and right hand on the hip where a shield goes; every new piece of gear is drawn to fit
 that pose. Its hero outfit is the mock-up's hero, pixel for pixel. Townsfolk whose pose differs
@@ -122,9 +122,9 @@ drawn to.
   skull in a skin-like colour reads as a scalp; one in a hair-like colour reads as a haircut. A
   close cap reads as metal by its shine: a bright ridge over the crown and a riveted rim on a dark
   liner. A wide flat brim reads as a sun hat (B3b's bronze cap leaned to a pith helmet).
-- **Held things sit in the left fist**, along the approved sword's line: a blade or haft rises
-  behind the shoulder and the grip shows where the fist is. A bow is held at its grip, string
-  outward, so the whole stave shows beside the body; the three bows are one drawing in three woods.
+- **Held things sit in the left fist**, by the hand rule below. A bow is held at the middle of its
+  stave, string outward, so the whole stave shows beside the body; the three bows are one drawing
+  in three woods.
 - **A weapon reads by its shape before its colour.** A sword is straight along its centre line,
   even in its steps (a one-pixel step between longer ones reads as a bend), symmetric about a
   midrib, with a point, a guard wider than the blade and a grip in the fist. An axe's head sits at
@@ -145,6 +145,51 @@ drawn to.
   orange of skin. They are few, larger than one pixel and of uneven sizes, hanging from the cord:
   a string of found things. Many regular ones read as a beaded cuff.
 
+### How things are held
+
+Written in B5, after Cody played wave 4: "weapons seem to be appearing behind the character's
+hand". They were: the sleeve ran down to the wrist, the blade was one layer behind the arm, and
+the guard and a grip as wide as a fist filled the rows where the hand should have been, so no hand
+showed at all, and the weapon seemed to hang from the cuff with its blade tucked behind the arm.
+
+A held thing reads as held when the grip passes **through** a fist, the fingers wrap **over** the
+grip, and the rest of the weapon is clear of the fist and in front of the arm. So every held thing,
+on every body and in every outfit, is layered round the hand in this order, back to front:
+
+1. **Behind the body** (`HELD_BEHIND`): only what really passes behind it, a bowstring. Never a
+   blade, a haft or a limb of the bow.
+2. The body, clothes, armour, belt and a bracelet (`WRIST`).
+3. **The grip** (`GRIP`): the part of the weapon the hand closes on. It runs down through the
+   fist's columns and the fingers cover all of it.
+4. **The fist** (`FIST`): four pixels wide and three deep, lit from the upper left, below the cuff
+   and the wrist (`FIST_PART` in `wardrobe.ts`). It is part of the standard body, so every weapon
+   and the hero share one hand; the hand at rest (`standard_at_ease`) has none. It covers the grip
+   and nothing else of the weapon.
+5. **Everything else of the weapon** (`HELD_FRONT`), in front of forearm and body: the blade,
+   guard or head above the fist, and the pommel or butt below it. A guard sits on the wrist row,
+   directly above the fist; a haft or the bow's binding shows there instead. Something of the
+   weapon always shows directly above the fist and directly below it.
+
+The weapon keeps one line through the hand: blade or haft, grip and pommel lie on one straight
+line that passes through the middle of the fist and leans out towards the top, as the approved
+sword does. The fist is never wider than the line by more than the fingers' wrap, and a grip is
+two pixels wide, never the width of a hand (a fist-wide grip reads as a wooden hand).
+
+A shield is strapped to the forearm: the hand it is strapped to is wholly hidden behind it, with
+or without something in the other hand.
+
+Small things on the weapon arm keep clear of the line: the bracelet's shells hang on the side of
+the cuff towards the body, where a blade passing in front of the forearm does not cover them.
+
+`tests/art/hands.test.ts` holds all of this for every held thing, in every outfit, with and
+without each shield, and holds that the hand shows in every look. The approved hero's sword hand
+changed for it, by 20 pixels (the blade's dark edge in front of the sleeve, a fist where the
+grip block was), at Cody's request; `tests/art/mockup.ts` lists them.
+
+The townsfolk keep their own approved poses: the pirate's hand rests on top of his cutlass's
+guard with the blade point down in front of his coat, and the trader's hand is over her basket.
+Both read as held at game scale, so they were left as approved.
+
 ### Gear ladder
 
 Gear starts simple and climbs with the player's power, so how strong someone is reads at a glance
@@ -153,6 +198,7 @@ from across the town. One rung per stage of the game:
 | Rung                                   | Who                     | What it is                                                                                                                                                                                |
 | -------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Linen (start of tier 1)                | A villager              | Undyed linen tunic, trousers and hood. No metal. Nothing held: the hand rests at the belt.                                                                                                |
+| Leather (tier 1, a side rung)          | A hunter or woodsman    | A snug tan cap with ear flaps and a stitched seam; a tan jerkin laced with linen cord, its skirt in tabs; laced cuffs on both forearms; a bow. No metal.                                  |
 | Bronze (tier 1, early)                 | A militia volunteer     | A close bronze skullcap with a ridge and a riveted rim; a hide jerkin over the tunic with one bronze disc; a small round wooden shield with a bronze boss; a short leaf blade; a hatchet. |
 | Iron (tier 1, late)                    | A town guard            | A conical helm with a nasal; a mail shirt to the thigh, sleeves to the elbow, no pauldrons; a plain iron heater; a straight arming sword; a bearded axe. One metal, no gold.              |
 | Tier 2 (opened by Brinebeard's Grotto) | The knight              | The approved hero: plate with pauldrons and knee cops, the kite shield with its cross, the long raised sword with a gilt guard, the red cloak. Drawn; waiting for tier 2's items.         |
@@ -179,6 +225,14 @@ What grows from rung to rung, and the rules that hold it:
   specular on every plate; tier 4 adds glows at dusk.
 - **A rung never borrows the next one's signature.** Pauldrons, a cloak and gold trim belong to
   tier 2 and above; plumes and devices to tier 3 and above; glows to tier 4.
+- **Leather** (B5) sits beside linen and below bronze: the archer's rung, no metal at all, so it
+  is not on the metal count; it covers more of the body than bronze covers in metal. It is the
+  `tan` ramp, a yellow-leaning tan kept more than 12 (CIE76) from every skin step by day and
+  dusk, with its dusk steps set by hand like bronze (shifted, it goes the plum-brown of brown and
+  deep skin). It is laced with linen cord, which is how it reads as leather and not cloth.
+- **Drops a shade finer than their tier** (B5): the smuggler's cutlass is iron's rung by its
+  steel, finer by its polish (a white edge) and a knuckle bow, never by gold. The footpad's
+  cudgel is a knotted length of oak in the `oakbark` ramp, its icon and worn layer alike.
 
 ## Icons
 
@@ -220,6 +274,13 @@ every action card), so they follow the same hand as the town and the figures.
 - New ramps for icons only: `oakbark`, `willowbark`, `scales`, `herring`, `cod`, `shrimpraw`,
   `shrimp`, `cooked`, `verdigris`, `copper`, `rust`, `sage`, `glowcap`, `shelldark`, and the four
   potion liquids. No existing colour changed.
+- **What monsters drop, and leather** (B5, `lootIcons.ts`): a raw pelt with four legs and a
+  tail in the cool `hide` ramp, fur in strokes (raw, so not tan); two feathers, white over grey,
+  each with a shaft; a pearl in an open oyster (a pearl alone reads as an egg or a ball); a tea
+  tin with a red label and a leaf; a grey pebble on a thong; the cudgel; the cutlass. Leather is
+  a tan roll tied with a thong; the cap, jerkin and laced cuffs are the worn ones as objects.
+  Bracers were the hardest: a flat guard read as a pine cone and plain cuffs as barrels; a pair
+  of cuffs laced up the front with the lace ends hanging is what read.
 
 ## Portraits
 
@@ -228,6 +289,28 @@ every action card), so they follow the same hand as the town and the figures.
 - One clear expression per portrait (a smirk, a glare, a raised eyebrow).
 - Portraits were a first pass at approval time and are expected to improve; the hero's and
   Brinebeard's faces need another round.
+
+In code (B5, `src/art/faces.ts` and `portraits.ts`): each face is rows of characters with a
+legend of its own on the 48 × 48 square, the bust outlined automatically and cut by the bottom
+edge, in front of a disc of radius 21.5 in a dark step of a ramp chosen per face, its upper-left
+rim one step lighter. Discs are darker than the face on them and never a step that lights at
+dusk (`glass` and `lamp` switch on). Faces are drawn for daylight; the menus have no dusk.
+
+- **Monsters** keep to the silhouette that names them at true size (round ears and a snout, eyes
+  on stalks and a raised claw, a hooked beak, tusks and a snout disc, pricked ears and a long
+  muzzle, a hood, a knitted cap, a vast jaw with tusks). Expression is in the brows and the
+  mouth: brows slanting in for menace, one raised for cheek. Animal eyes may be small and beady;
+  people's mirror each other with the iris centred.
+- **Funny, not cute**: the gull's stolen chip, the crab's furious stalks. Cute came from big
+  round eyes and round heads; they were made smaller and harder.
+- **People** are the town's own figures, recognisable from their sprites: the smith bald and
+  bearded in his apron, the trader's auburn hair and purple dress, the pirate's tricorn and patch
+  on the same eye as in town.
+- **How they are shown.** The fight screen frames a portrait at 3 CSS pixels per art pixel and
+  its lists at 2, and never resizes it. `portrait(id)` is told only the id, so it returns both
+  canvases, each a whole number of device pixels per art pixel (rounded down, so a face never
+  outgrows its frame at a fractional ratio), and a container query in `art.css` shows the one
+  that fits the frame.
 
 ## Scenery
 

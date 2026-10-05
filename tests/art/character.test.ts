@@ -69,6 +69,13 @@ const WEARABLES = [
   'willow_shortbow',
   'bronze_arrows',
   'iron_arrows',
+  // S8's leather set and the drops that can be worn (drawn in B5).
+  'leather_jerkin',
+  'leather_cap',
+  'leather_bracers',
+  'cudgel',
+  'smugglers_cutlass',
+  'trollstone',
 ];
 
 const cells = (g: Grid): readonly (Shade | null)[] => g.d;
@@ -209,7 +216,7 @@ describe('looks', () => {
   it('keeps both eyes open and mirrored in every look, with or without a helmet or hood', () => {
     const open = eyes(characterPicture(DEFAULT_LOOK, []).grid);
     expect(open).toEqual(['white1', 'ink1', 'ink1', 'white1']);
-    for (const head of [[], ['bronze_helmet'], ['iron_helmet'], ['linen_hood']])
+    for (const head of [[], ['bronze_helmet'], ['iron_helmet'], ['linen_hood'], ['leather_cap']])
       for (const look of all) {
         const g = characterPicture(look, head).grid;
         expect(eyes(g), JSON.stringify([look, head])).toEqual(open);
@@ -217,7 +224,7 @@ describe('looks', () => {
   });
 
   it('never lets hair show through a helmet or hood', () => {
-    for (const head of ['bronze_helmet', 'iron_helmet', 'linen_hood'])
+    for (const head of ['bronze_helmet', 'iron_helmet', 'linen_hood', 'leather_cap'])
       for (const look of all) {
         const g = characterPicture(look, [head]).grid;
         // Above the eyes (rows 0 to 7 of the outlined figure), only the head gear and face.

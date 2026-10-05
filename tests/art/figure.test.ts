@@ -9,10 +9,11 @@ import {
 } from '../../src/art/figure';
 import { get, parseSprite, type Grid } from '../../src/art/grid';
 import { BODIES, GEAR } from '../../src/art/wardrobe';
+import { B5_HAND, withB5Hand } from './mockup';
 
 /**
- * heroFig from the approved mock-up (docs/art-reference/town-mockup.html),
- * outline included, written in FIGURE_LEGEND characters by running the
+ * heroFig from the approved mock-up (docs/art-reference/town-mockup.html) as
+ * approved, before B5 changed his hand (`B5_HAND`), outline included, written in FIGURE_LEGEND characters by running the
  * mock-up's own drawing code.
  */
 const MOCKUP_HERO = [
@@ -68,14 +69,35 @@ const MOCKUP_HERO = [
   '........................................',
 ];
 
+/** The approved hero as he now stands: the mock-up's, with B5's hand. */
+function approvedHero(): Grid {
+  return withB5Hand(parseSprite(MOCKUP_HERO, FIGURE_LEGEND));
+}
+
 const sameGrid = (a: Grid, b: Grid) => {
   expect([a.w, a.h]).toEqual([b.w, b.h]);
   expect(a.d).toEqual(b.d);
 };
 
 describe('figure', () => {
-  it('dresses the standard body as the approved hero, pixel for pixel', () => {
-    sameGrid(figure('standard', HERO_OUTFIT), parseSprite(MOCKUP_HERO, FIGURE_LEGEND));
+  it('dresses the standard body as the approved hero, pixel for pixel, with B5’s hand', () => {
+    sameGrid(figure('standard', HERO_OUTFIT), approvedHero());
+  });
+
+  it('changed the approved hero only in his sword hand, and by twenty pixels', () => {
+    const mockup = parseSprite(MOCKUP_HERO, FIGURE_LEGEND);
+    const ours = figure('standard', HERO_OUTFIT);
+    const changed = ours.d.flatMap((c, i) =>
+      c === mockup.d[i] ? [] : [[i % ours.w, (i / ours.w) | 0] as const],
+    );
+    expect(changed).toHaveLength(B5_HAND.length);
+    expect(B5_HAND).toHaveLength(20);
+    for (const [x, y] of changed) {
+      expect(x, `${x},${y}`).toBeGreaterThanOrEqual(11);
+      expect(x, `${x},${y}`).toBeLessThanOrEqual(15);
+      expect(y, `${x},${y}`).toBeGreaterThanOrEqual(21);
+      expect(y, `${x},${y}`).toBeLessThanOrEqual(30);
+    }
   });
 
   it('lets depth decide what covers what, whatever order the gear is listed in', () => {
