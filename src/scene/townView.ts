@@ -3,6 +3,8 @@ import type { GameState } from '../core/state';
 import { h } from '../ui/dom';
 import type { Shell, View } from '../ui/view';
 import { other, timeOfDayAt, type TimeOfDay } from './daylight';
+import { seedFrom } from '../core/rng';
+import { fighterOf, spoilsOf } from './battle';
 import { buildDungeon, startRun, type Dungeon, type Run } from './dungeon';
 import { dungeonView } from './dungeonView';
 import { GROTTO } from './grotto';
@@ -29,6 +31,9 @@ let hero: Hero | null = null;
 /** A dungeon run under way, kept like `play` so a rebuilt tab carries on with it. */
 let run: Run | null = null;
 
+/** Whether the run's spoils have gone home: once a run, however it ends. */
+let settled = false;
+
 /**
  * What this scene last asked of the shell. The shell lets go of both when
  * the Town tab is left; a rebuilt tab checks these so the town is never shown
@@ -54,8 +59,10 @@ const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
  * knows nothing else about scenes, so everything behind it can change without
  * touching the shell.
  */
-export function townView(state: GameState, _content: Content, shell?: Shell): View {
+export function townView(state: GameState, content: Content, shell?: Shell): View {
   const { scene, art } = town();
+  /** The state as of the last frame: what a run starts from. */
+  let latest = state;
   hero ??= new Hero(dressOf(state), art.lights);
   hero.wear(state);
   const me = hero;
@@ -106,29 +113,51 @@ export function townView(state: GameState, _content: Content, shell?: Shell): Vi
   const showDungeon = (dungeon: Dungeon): void => {
     current = dungeonView({
       dungeon,
+      content,
       run: () => run!,
       keep: (next) => {
         run = next;
       },
       hero: me,
       leave,
-      // The run is over: the idle task carries on while the results are read.
-      finished: () => tell(false, true),
+      // The run is over: its spoils go home, and the idle task carries on while the results are read.
+      finished: () => {
+        settle();
+        tell(false, true);
+      },
     });
     host.replaceChildren(current.el);
+  };
+
+  /**
+   * The run's spoils paid in through the shell: XP, loot and coins in, food
+   * and arrows out, saved. Exactly once a run, by whichever way it ends.
+   */
+  const settle = (): void => {
+    if (!run?.battle || settled) return;
+    settled = true;
+    shell?.settleRun(spoilsOf(run.battle));
   };
 
   /** Rows out: the idle task waits and the scene takes the whole screen until the run ends. */
   const enter = (id: string): void => {
     const dungeon = dungeons(id);
     if (!dungeon) return;
-    run = startRun(dungeon);
+    // A run reads the character as they row out, and rolls its own dice, never the save's.
+    run = startRun(dungeon, {
+      fighter: fighterOf(latest, content),
+      monsters: content.monsters ?? {},
+      seed: seedFrom(Date.now()),
+    });
+    settled = false;
     tell(true, true);
     showDungeon(dungeon);
   };
 
   /** Back to town by any way out of a run: the clock and the bars come back, the hero by the boat. */
   const leave = (): void => {
+    // What was picked up comes home with you, before the clock starts again.
+    settle();
     // The shell first: starting the clock again draws a frame, and that frame is still the run's.
     tell(false, false);
     run = null;
@@ -161,6 +190,7 @@ export function townView(state: GameState, _content: Content, shell?: Shell): Vi
           if (run) tell(!run.finished, true);
           else if (asked.paused || asked.full) tell(false, false);
         }
+        latest = next;
         me.wear(next);
         current.update?.(next);
       } finally {
@@ -176,6 +206,7 @@ export function resetTown(): void {
   chosen = null;
   hero = null;
   run = null;
+  settled = false;
   asked.paused = false;
   asked.full = false;
 }

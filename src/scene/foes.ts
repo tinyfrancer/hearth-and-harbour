@@ -60,8 +60,8 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
     look: 'rat',
     speed: 52,
     notice: 72,
-    reach: 16,
-    keep: 14,
+    reach: 22,
+    keep: 20,
     heavy: null,
     box: { w: 22, h: 14 },
   },
@@ -69,16 +69,16 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
     look: 'crab',
     speed: 30,
     notice: 64,
-    reach: 18,
-    keep: 16,
+    reach: 30,
+    keep: 26,
     // A two-claw slam round itself: punishes standing beside it too long.
     heavy: {
       aim: 'self',
-      radius: 30,
-      warnMs: 1200,
+      radius: 40,
+      warnMs: 1300,
       everyMs: 6000,
       firstMs: 2500,
-      range: 26,
+      range: 32,
       times: 2,
     },
     box: { w: 26, h: 16 },
@@ -87,7 +87,7 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
     look: 'smuggler',
     speed: 40,
     notice: 120,
-    reach: 18,
+    reach: 22,
     keep: 72,
     // Something heavy and corked, lobbed at where the hero is standing.
     heavy: {
@@ -206,3 +206,61 @@ export const LOOT_PILE: FoeFigure = (() => {
   rect(g, 6, 5, 2, 2, 'gold1');
   return { picture: picture(outline(g)), feet: { x: 5, y: 8 } };
 })();
+
+/* ----- The ability buttons' pictures, 12 x 12 before the outline ----- */
+
+function sweepIcon(): Grid {
+  const g = grid(12, 12);
+  // A blade's path: a wide arc round to the right.
+  for (let a = -160; a <= 20; a += 4) {
+    const t = (a * Math.PI) / 180;
+    rect(g, Math.round(6 + Math.cos(t) * 5), Math.round(7 + Math.sin(t) * 5), 1, 1, 'metal1');
+    rect(g, Math.round(6 + Math.cos(t) * 4), Math.round(7 + Math.sin(t) * 4), 1, 1, 'metal2');
+  }
+  rect(g, 10, 8, 2, 2, 'gold2');
+  rect(g, 11, 10, 1, 2, 'wood3');
+  return g;
+}
+
+function braceIcon(): Grid {
+  const g = grid(12, 12);
+  rect(g, 2, 1, 8, 7, 'metal2');
+  rect(g, 3, 8, 6, 2, 'metal2');
+  rect(g, 4, 10, 4, 1, 'metal2');
+  rect(g, 2, 1, 2, 7, 'metal1');
+  rect(g, 5, 1, 2, 10, 'gold2');
+  return g;
+}
+
+function doubleIcon(): Grid {
+  const g = grid(12, 12);
+  for (const dy of [0, 4]) {
+    line(g, 0, 4 + dy, 8, dy, 'wood1');
+    rect(g, 8, dy, 2, 2, 'metal1');
+    rect(g, 0, 3 + dy, 2, 2, 'red2');
+  }
+  return g;
+}
+
+function stepBackIcon(): Grid {
+  const g = grid(12, 12);
+  rect(g, 3, 5, 9, 2, 'sand1');
+  line(g, 0, 6, 4, 2, 'sand1');
+  line(g, 0, 6, 4, 10, 'sand1');
+  line(g, 1, 6, 4, 3, 'sand2');
+  line(g, 1, 6, 4, 9, 'sand2');
+  return g;
+}
+
+const ICONS: Readonly<Record<string, () => Grid>> = {
+  sweep: sweepIcon,
+  brace: braceIcon,
+  double: doubleIcon,
+  step_back: stepBackIcon,
+};
+
+/** An ability's picture for its button, by the ability's id; null for one not drawn. */
+export function abilityPicture(id: string): Picture | null {
+  const draw = ICONS[id];
+  return draw ? picture(outline(draw())) : null;
+}

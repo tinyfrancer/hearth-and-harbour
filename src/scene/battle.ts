@@ -38,7 +38,9 @@ import { TILE, cellAt, isSolid, type Point, type TileMap } from './tileMap';
 /** The rules act every this many ms of the run's clock. Every timer is a whole number of them. */
 export const TICK_MS = 100;
 /** How near, feet to feet, the hero must be to strike with a weapon in hand. */
-export const MELEE_REACH = 24;
+export const MELEE_REACH = 30;
+/** How far beside his target a hero with a blade stands to strike it. */
+export const MELEE_STAND = 24;
 /** How far a bow reaches, with nothing solid but water between. */
 export const RANGED_REACH = 120;
 /** A monster arriving within reach waits at least this long before its first blow. */
@@ -53,7 +55,7 @@ export const EFFECT_MS = 900;
 export const FOOD_MS = 3000;
 
 /** Wide swing: reaches everything this near. */
-export const SWEEP_REACH = 32;
+export const SWEEP_REACH = 40;
 /** Brace: how long it waits for a heavy blow before it lapses. */
 export const BRACE_MS = 6000;
 /** Step back: how far, and how many times walking pace. */
@@ -533,9 +535,10 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     if (reachable(target)) {
       if (next.walker.path.length > 0) next = { ...next, walker: { at: hero, path: [] } };
     } else {
+      const slot = chaseTo(w, place.map, hero, target.at);
       const end = next.walker.path.at(-1);
-      if (!end || distance(end, target.at) > TILE / 2)
-        next = { ...next, walker: { at: hero, path: route(place.map, hero, target.at) } };
+      if (!end || distance(end, slot) > TILE / 2)
+        next = { ...next, walker: { at: hero, path: walkPath(place.map, hero, slot) } };
     }
   }
 
@@ -577,17 +580,16 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       foe.facing = facingToward(foe.facing, foe.at, hero.x);
       continue;
     }
-    // Walk up to the hero, as near as it likes to be, without pushing past one already closer.
+    // Walk up beside the hero, as near as it likes to be, without pushing past one already closer.
     const crowded = here.some(
       (o) => o !== foe && alive(o) && distance(o.at, hero) < d && distance(o.at, foe.at) < 12,
     );
-    if (d <= kind.keep || crowded) {
+    if (arrived(foe.at, hero, kind.keep) || crowded) {
       foe.path = [];
     } else {
+      const slot = kind.keep > BESIDE_MOST ? hero : besideOf(place.map, foe.at, hero, kind.keep);
       const end = foe.path.at(-1);
-      const there = cellAt(hero);
-      if (!end || cellAt(end).col !== there.col || cellAt(end).row !== there.row)
-        foe.path = route(place.map, foe.at, hero);
+      if (!end || distance(end, slot) > TILE / 2) foe.path = walkPath(place.map, foe.at, slot);
     }
     if (d <= kind.reach) {
       foe.facing = facingToward(foe.facing, foe.at, hero.x);
@@ -621,6 +623,45 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     }
   }
   return next;
+}
+
+/** Someone keeping `keep` from another stands beside them this far off, level with their feet. */
+const BESIDE_MOST = 40;
+
+/**
+ * Where to stand to fight someone at `other`, coming from `from`: beside
+ * them, level with their feet, on the side already nearest, so two figures
+ * never stand one over the other; the far side if the near one is rock or
+ * water; their own spot if neither is open.
+ */
+export function besideOf(map: TileMap, from: Point, other: Point, gap: number): Point {
+  const side = from.x < other.x ? -1 : 1;
+  for (const s of [side, -side]) {
+    const p = { x: other.x + s * gap, y: other.y };
+    if (!isSolid(map, cellAt(p)) && clearLine(map, other, p)) return p;
+  }
+  return other;
+}
+
+/** Whether someone at `at` keeping `keep` from `other` has got there: beside it, or nearer than that. */
+export function arrived(at: Point, other: Point, keep: number): boolean {
+  if (keep > BESIDE_MOST) return distance(at, other) <= keep;
+  const dx = Math.abs(at.x - other.x);
+  const dy = Math.abs(at.y - other.y);
+  return (dy <= 6 && dx <= keep + 3) || distance(at, other) <= keep * 0.6;
+}
+
+/** Where the hero walks to strike his target: beside it for a blade; straight at it for a bow. */
+function chaseTo(battle: Battle, map: TileMap, hero: Point, target: Point): Point {
+  return battle.fighter.style === 'ranged' ? target : besideOf(map, hero, target, MELEE_STAND);
+}
+
+/** A walk to exactly `to`: the grid's route, then the last step to the point if nothing is in the way. */
+function walkPath(map: TileMap, from: Point, to: Point): Point[] {
+  const path = route(map, from, to);
+  const last = path.at(-1) ?? from;
+  if ((last.x !== to.x || last.y !== to.y) && clearLine(map, last, to)) path.push(to);
+  return path;
 }
 
 /** The hero walking for `ms`: at a step back's pace while one is under way. */
@@ -696,7 +737,10 @@ export function targetFoe(
     battle: { ...battle, target: key, chase: true, dash: null },
     play: {
       ...play,
-      walker: { at: hero, path: there ? [] : route(place.map, hero, foe.at) },
+      walker: {
+        at: hero,
+        path: there ? [] : walkPath(place.map, hero, chaseTo(battle, place.map, hero, foe.at)),
+      },
       heading: null,
       open: null,
       facing: there ? facingToward(play.facing, hero, foe.at.x) : play.facing,

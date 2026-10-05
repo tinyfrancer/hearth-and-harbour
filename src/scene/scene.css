@@ -313,3 +313,337 @@
 .dungeon-time {
   font-size: 20px;
 }
+
+/* ----- A fight in a dungeon: health at the top, the buttons under the left thumb. ----- */
+
+/* Laid over the room; only the panels and buttons themselves take taps, never the floor beside them. */
+.fight-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fight-hud[hidden],
+.fight-target[hidden],
+.fight-face[hidden] {
+  display: none;
+}
+
+.fight-hero,
+.fight-target {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 200px;
+  padding: 5px 8px;
+  background: var(--panel);
+  border: var(--px) solid var(--gold);
+}
+
+.fight-hero {
+  left: calc(8px + env(safe-area-inset-left));
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
+/* In the middle of the top edge, between the hero's health and Leave. */
+.fight-target {
+  left: 50%;
+  transform: translateX(-50%);
+  border-color: var(--danger);
+}
+
+/* A heart, drawn in 3px squares. */
+.fight-heart {
+  position: relative;
+  flex: none;
+  width: 21px;
+  height: 18px;
+}
+
+.fight-heart::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  box-shadow:
+    3px 0 var(--danger),
+    6px 0 var(--danger),
+    12px 0 var(--danger),
+    15px 0 var(--danger),
+    0 3px var(--danger),
+    3px 3px var(--text),
+    6px 3px var(--danger),
+    9px 3px var(--danger),
+    12px 3px var(--danger),
+    15px 3px var(--danger),
+    18px 3px var(--danger),
+    0 6px var(--danger),
+    3px 6px var(--danger),
+    6px 6px var(--danger),
+    9px 6px var(--danger),
+    12px 6px var(--danger),
+    15px 6px var(--danger),
+    18px 6px var(--danger),
+    3px 9px var(--danger),
+    6px 9px var(--danger),
+    9px 9px var(--danger),
+    12px 9px var(--danger),
+    15px 9px var(--danger),
+    6px 12px var(--danger),
+    9px 12px var(--danger),
+    12px 12px var(--danger),
+    9px 15px var(--danger);
+}
+
+.fight-track {
+  position: relative;
+  flex: 1;
+  height: 20px;
+  background: var(--backdrop);
+  border: var(--px) solid var(--line);
+}
+
+.fight-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--green);
+}
+
+.fight-target .fight-fill {
+  background: var(--danger);
+}
+
+.fight-hero.low .fight-fill {
+  background: var(--danger);
+  animation: fight-low 0.6s steps(2, end) infinite;
+}
+
+@keyframes fight-low {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.fight-numbers {
+  position: relative;
+  display: block;
+  padding: 0 6px;
+  font-size: 18px;
+  line-height: 16px;
+  color: var(--text);
+  text-shadow:
+    2px 0 var(--backdrop),
+    -2px 0 var(--backdrop),
+    0 2px var(--backdrop),
+    0 -2px var(--backdrop);
+}
+
+/* The hero's next blow, filling under his health. */
+.fight-swing {
+  flex-basis: 100%;
+  height: 4px;
+  margin-left: 29px;
+  background: var(--backdrop);
+}
+
+.fight-swing-fill {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+.fight-face {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+}
+
+.fight-face > * {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.fight-target-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fight-target-name {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.1;
+  color: var(--gold-bright);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Bottom left, where the other thumb rests while one hand taps the floor. */
+.fight-bar {
+  position: absolute;
+  left: calc(8px + env(safe-area-inset-left));
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 10px;
+}
+
+.fight-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 76px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--panel);
+  color: var(--text);
+  border: 3px solid var(--line);
+  border-radius: 0;
+  font: inherit;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+.fight-button > canvas,
+.fight-button > .icon {
+  position: relative;
+}
+
+.fight-name {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Ready: bright edge and full colour. Cooling: a dark shade that drains away, and the seconds left. */
+.fight-button[data-state='ready'] {
+  border-color: var(--gold-bright);
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.fight-button[data-state='ready']:active {
+  background: var(--gold);
+}
+
+.fight-button[data-state='idle'] {
+  border-color: var(--gold);
+}
+
+.fight-button[data-state='idle'] > canvas,
+.fight-button[data-state='idle'] .fight-name {
+  opacity: 0.6;
+}
+
+.fight-button[data-state='empty'] {
+  opacity: 0.4;
+}
+
+.fight-shade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 0;
+  background: var(--scrim);
+}
+
+.fight-count {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: var(--text);
+  text-shadow:
+    2px 0 var(--backdrop),
+    -2px 0 var(--backdrop),
+    0 2px var(--backdrop),
+    0 -2px var(--backdrop);
+}
+
+.fight-count:empty {
+  display: none;
+}
+
+/* The food's count sits in the corner; its cooldown is shown by the shade alone. */
+.fight-food .fight-count {
+  inset: auto 4px 1px auto;
+  font-size: 18px;
+}
+
+/* The results of a fight: what happened on the left, what was earned on the right. */
+.dungeon-card.run-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  max-width: 600px;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.run-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.run-head p {
+  margin: 0;
+}
+
+.run-card .muted {
+  font-size: 15px;
+}
+
+.run-earned {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run-earned li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+
+.run-icon {
+  display: flex;
+  flex: none;
+  width: 32px;
+  justify-content: center;
+}
+
+.run-what {
+  flex: 1;
+}
+
+.run-amount {
+  color: var(--gold-bright);
+}
+
+.run-head > .btn {
+  margin-top: auto;
+}

@@ -175,6 +175,7 @@ function drawEffect(
   clock: number,
   hero: Point,
   p: Palette,
+  nudge = 0,
 ): void {
   const c = p.colours;
   const age = clock - e.from;
@@ -184,13 +185,13 @@ function drawEffect(
   switch (e.kind) {
     case 'hit': {
       const top = e.on === 'hero' ? hero.y - 50 : e.at.y - 10;
-      const x = e.on === 'hero' ? hero.x : e.at.x;
-      label(ctx, String(e.amount), x, top - rise, 11, e.on === 'hero' ? c.red1 : c.white1, c.ink1);
+      const x = (e.on === 'hero' ? hero.x : e.at.x) + nudge;
+      label(ctx, String(e.amount), x, top - rise, 12, e.on === 'hero' ? c.red1 : c.white1, c.ink1);
       break;
     }
     case 'miss': {
       const top = e.on === 'hero' ? hero.y - 50 : e.at.y - 10;
-      const x = e.on === 'hero' ? hero.x : e.at.x;
+      const x = (e.on === 'hero' ? hero.x : e.at.x) + nudge;
       label(ctx, 'miss', x, top - rise, 8, c.metal2, c.ink1);
       break;
     }
@@ -350,10 +351,13 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
           disc(ctx, e.at.x, e.at.y, e.radius);
           ctx.globalAlpha = 1;
         }
-        if (e.kind === 'swing' && age < 250) {
-          ctx.globalAlpha = 1 - age / 250;
-          ctx.fillStyle = c.metal1;
-          ring(ctx, e.at.x, e.at.y - 4, e.radius, 2);
+        if (e.kind === 'swing' && age < 300) {
+          // The blade's sweep, out to its full reach, fading.
+          ctx.globalAlpha = 1 - age / 300;
+          ctx.fillStyle = c.ink1;
+          ring(ctx, e.at.x, e.at.y, e.radius + 1, 4);
+          ctx.fillStyle = c.white1;
+          ring(ctx, e.at.x, e.at.y, e.radius, 2);
           ctx.globalAlpha = 1;
         }
       }
@@ -389,7 +393,17 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
         ctx.fillStyle = c.gold1;
         ctx.fillRect(x, y, 1, 6);
       }
-      for (const e of battle.effects) drawEffect(ctx, e, clock, hero, palette);
+      // Numbers landing together on one spot (a double shot) stand side by side.
+      const together = new Map<string, number>();
+      for (const e of battle.effects) {
+        let nudge = 0;
+        if (e.kind === 'hit' || e.kind === 'miss') {
+          const key = `${e.from} ${e.on} ${Math.round(e.at.x)}`;
+          nudge = together.get(key) ?? 0;
+          together.set(key, nudge + 1);
+        }
+        drawEffect(ctx, e, clock, hero, palette, nudge * 9);
+      }
     },
   };
 }

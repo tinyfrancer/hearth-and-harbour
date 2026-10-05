@@ -203,10 +203,11 @@ export interface Doorway {
 }
 
 /**
- * How a run ended: the last room cleared (or, in a dungeon with nothing to
- * fight, its end reached), the hero knocked down, or the player rowing back.
+ * How a run ended by itself: the last room cleared (or, in a dungeon with
+ * nothing to fight, its end reached), or the hero knocked down. Rowing back
+ * early is the player's, and ends it from outside.
  */
-export type RunEnding = 'cleared' | 'fell' | 'left';
+export type RunEnding = 'cleared' | 'fell';
 
 /** A run through a dungeon. Not saved; a run lasts as long as the page. */
 export interface Run {
@@ -264,11 +265,6 @@ export function runLocked(run: Run): boolean {
 export function placeOf(dungeon: Dungeon, run: Run): Place {
   const room = dungeon.rooms[run.room]!;
   return { room: room.id, map: runLocked(run) ? room.shut : room.map, last: room.end !== null };
-}
-
-/** A run ended by the player rowing back: nothing more happens in it. */
-export function leaveRun(run: Run): Run {
-  return run.finished ? run : { ...run, finished: true, ending: 'left' };
 }
 
 /** Which way someone faces coming in through `door`: away from it. */
