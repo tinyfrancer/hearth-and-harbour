@@ -662,6 +662,8 @@ button.card:active {
 
 .totals dt {
   color: var(--text-muted);
+  font-size: 15px;
+  white-space: nowrap;
 }
 
 .totals dd {
@@ -740,7 +742,6 @@ button.card:active {
 
 .choice-card {
   gap: 4px;
-  border-color: var(--line);
 }
 
 /* Choosing a look: label, a step back, the choice, a step on. */
@@ -763,6 +764,10 @@ button.card:active {
 }
 
 /* With one choice there is nothing to step through: the choice just sits beside its label. */
+.look-row.single {
+  min-height: 0;
+}
+
 .look-row.single .look-choice {
   grid-column: 2 / -1;
   text-align: left;

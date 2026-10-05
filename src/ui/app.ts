@@ -102,7 +102,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
 
   const toast = (text: string): void => {
     const note = h('p', { class: 'toast', text });
-    toasts.append(note);
+    // Toasts sit in one spot, so a new one replaces the last rather than printing over it.
+    toasts.replaceChildren(note);
     setTimeout(() => note.remove(), TOAST_MS);
   };
 
