@@ -1,1 +1,28 @@
 /* Styles for the canvas scenes (town, dungeons). Owned by the scene lane. */
+
+/*
+ * A scene fills the screen area edge to edge: no padding, and nothing to
+ * scroll. The shell's screen is styled for menus, so the scene takes it over
+ * only while one is inside it.
+ */
+.screen:has(> .scene) {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Taps are walks: no scrolling, zooming or double-tap delay on the scene. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  image-rendering: pixelated;
+}
