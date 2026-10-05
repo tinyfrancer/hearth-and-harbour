@@ -74,7 +74,7 @@ export const RAMPS = {
   linen: ['#d8caa6', '#ad9d7a', '#7e705a'],
   shell: ['#fff2ea', '#e8aea4'],
   pinewood: ['#f0d08a', '#c4964e'],
-  willow: ['#d6cf98', '#a19a62'],
+  willow: ['#e4ddcc', '#aca390'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;
@@ -241,6 +241,7 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   gold2: '#d99a2b',
   metal1: '#e6dcf0',
   bronze1: '#f0a878',
+  bronze2: '#a85c38',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
 });
