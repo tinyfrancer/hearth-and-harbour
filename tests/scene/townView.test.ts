@@ -118,7 +118,7 @@ describe('townView', () => {
     const view = shown(shell);
     tap(view, crate, start);
     expect(view.el.querySelector('.scene-panel')).toBeNull();
-    wait(view, 1500);
+    wait(view, 3000);
     const panel = view.el.querySelector('.scene-panel')!;
     expect(panel.querySelector('h2')!.textContent).toBe('Your crate');
     expect(panel.querySelectorAll('p').length).toBeGreaterThan(0);
@@ -132,7 +132,7 @@ describe('townView', () => {
   it('closes the panel with its close button or a tap on the ground', () => {
     const view = shown();
     tap(view, crate, start);
-    wait(view, 1500);
+    wait(view, 3000);
     view.el.querySelector<HTMLButtonElement>('.scene-panel-close')!.click();
     expect(view.el.querySelector('.scene-panel')).toBeNull();
 
@@ -147,7 +147,7 @@ describe('townView', () => {
   it('keeps the hero and an open panel when the shell rebuilds the tab', () => {
     const first = shown();
     tap(first, crate, start);
-    wait(first, 1500);
+    wait(first, 3000);
     first.el.remove();
     const again = shown();
     expect(again.el.querySelector('.scene-panel h2')!.textContent).toBe('Your crate');

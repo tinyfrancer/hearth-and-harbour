@@ -96,10 +96,10 @@ export const TOWN_WIDTH = TOWN_GROUND.cols * TILE;
 export const TOWN_HEIGHT = TOWN_GROUND.rows * TILE;
 
 /**
- * Where the hero first stands: in the square below the well, near where the
+ * Where the hero first stands: in the square right of the well, near where the
  * mock-up has him, with the tavern and the smithy both in view.
  */
-export const TOWN_START: Cell = { col: 13, row: 17 };
+export const TOWN_START: Cell = { col: 14, row: 17 };
 
 /** The pier: its deck over columns 13 and 14, running out from the square to row 30. */
 const PIER_AT = { x: 13 * TILE - 6, y: 19 * TILE + 6, length: 192 };
@@ -324,7 +324,12 @@ export const TOWN_LAYOUT: readonly Placement[] = [
   lamp('lamp-east', 18, 16),
   lamp('lamp-corner', 2, 19),
   lamp('lamp-grove', 24, 14),
-  lamp('lamp-pier', 13, 30),
+  {
+    // On the pier's left edge near its end, as in the mock-up, so a tap on the end itself walks there.
+    ...lamp('lamp-pier', 13, 30),
+    at: { x: PIER_AT.x + 4, y: 31 * TILE - 29 },
+    tap: { x: PIER_AT.x + 4, y: 31 * TILE - 29, w: 9, h: 29 },
+  },
   prop('crate-cargo-1', 'crate', 16, 17, CARGO),
   prop('crate-cargo-2', 'crate', 16, 18, CARGO),
   prop('crate-cargo-3', 'crate', 17, 18, CARGO),

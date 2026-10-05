@@ -6,7 +6,7 @@ import { townPiece, TOWN_IDS } from '../../src/art/town';
 import { QUAY_H } from '../../src/art/ground';
 import { loopAt } from '../../src/scene/ambient';
 import { cheapest } from '../../src/scene/path';
-import { drawOrder, spotsBeside, usable } from '../../src/scene/things';
+import { drawOrder, spotsBeside, thingAt, usable } from '../../src/scene/things';
 import { TILE, centreOf, isSolid } from '../../src/scene/tileMap';
 import {
   GROUND_PLAN,
@@ -91,6 +91,8 @@ describe('the town', () => {
       { col: 5, row: 34 },
     ])
       expect(isSolid(scene.map, cell), `${cell.col},${cell.row}`).toBe(true);
+    // A tap on the end of the pier is a walk there, not a walk to the lamp beside it.
+    expect(thingAt(scene.things, centreOf({ col: 14, row: 30 }), 33)).toBeNull();
     // The quay wall either side of the pier's head.
     expect(isSolid(scene.map, { col: 12, row: 20 })).toBe(true);
     expect(isSolid(scene.map, { col: 13, row: 20 })).toBe(false);
