@@ -20,8 +20,9 @@ export interface AwayReport {
     /** A MonsterDef id. */
     monster: string;
     kills: number;
-    /** Food eaten from the food slot. */
+    /** Food eaten from the food slot, and what it was (null if the slot was empty). */
     eaten: number;
+    food: string | null;
     /** Arrows shot. */
     arrows: number;
   };
@@ -106,6 +107,7 @@ export function catchUp(
       monster,
       kills: (after.bestiary[monster]?.kills ?? 0) - (state.bestiary[monster]?.kills ?? 0),
       eaten: state.food ? state.food.qty - left(after.food, state.food.item) : 0,
+      food: state.food?.item ?? null,
       arrows: state.equipment.ammo
         ? state.equipment.ammo.qty - left(after.equipment.ammo, state.equipment.ammo.item)
         : 0,

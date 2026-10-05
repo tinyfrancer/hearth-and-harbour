@@ -3,16 +3,30 @@ import { pixelSvg } from '../art/pixelSvg';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
 import { sell } from '../core/bank';
+import {
+  DEFENCE,
+  MELEE,
+  RANGED,
+  VITALITY,
+  busy,
+  loadFood,
+  setEatAt,
+  startFight,
+  stopFight,
+  unloadFood,
+} from '../core/combat';
 import { equip, unequip } from '../core/equipment';
+import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
 import { SLOTS, type Content } from '../core/content';
-import { newGame, skillLevel, type GameState } from '../core/state';
+import { newGame, skillLevel, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
 import { awayReportOverlay } from './awayReport';
 import { artGallery } from '../art/gallery';
 import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
 import { characterView, type SheetPanel } from './characterScreen';
+import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
 import { createScreen } from './createScreen';
 import { button, h } from './dom';
 import { listed } from './format';
@@ -43,6 +57,33 @@ const AUTOSAVE_MS = 10_000;
  */
 const AWAY_MS = 60_000;
 const TOAST_MS = 3000;
+/** The skills trained by fighting, which have a Combat page instead of actions. */
+const COMBAT_SKILLS: readonly string[] = [MELEE, RANGED, DEFENCE, VITALITY];
+
+/**
+ * A fight's tally as it stood at the end of `after`, when the fight is over
+ * there: the last tally kept, plus what the final stretch of time changed.
+ * Only the fight changes these between the two, so the differences are its.
+ */
+function finalTally(before: GameState, after: GameState): Fight {
+  const fight = before.fight!;
+  const loot = { ...fight.loot };
+  for (const [item, qty] of Object.entries(after.bank)) {
+    const gained = qty - (before.bank[item] ?? 0);
+    if (gained > 0) loot[item] = (loot[item] ?? 0) + gained;
+  }
+  const left = (worn: { qty: number } | null | undefined): number => worn?.qty ?? 0;
+  const monster = fight.monster;
+  return {
+    ...fight,
+    kills:
+      fight.kills + (after.bestiary[monster]?.kills ?? 0) - (before.bestiary[monster]?.kills ?? 0),
+    coins: fight.coins + after.coins - before.coins,
+    loot,
+    eaten: fight.eaten + left(before.food) - left(after.food),
+    arrows: fight.arrows + left(before.equipment.ammo) - left(after.equipment.ammo),
+  };
+}
 
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
 export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): App {
@@ -50,6 +91,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let tab: TabId = 'skills';
   /** The skill whose page is open on the Skills tab, or null for the list. */
   let openSkill: string | null = null;
+  /** Which of the Combat pages is open on the Skills tab, if one is. */
+  let combatPage: 'areas' | 'fight' | null = null;
+  /** How the last fight ended, until the player moves on from it. */
+  let fightOver: FightOver | null = null;
   /** The item whose card is open on the Bank tab, if any. */
   let openItem: string | null = null;
   /** A scene has stopped the idle clock (a dungeon run is on). */
@@ -97,6 +142,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     sheetPanel = null;
     tab = 'skills';
     openSkill = null;
+    combatPage = null;
+    fightOver = null;
     lastTick = now();
     save();
     render();
@@ -159,6 +206,55 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     act(after);
   };
 
+  /** Show a different page of the same tab, from its top. */
+  const turnTo = (): void => {
+    render();
+    const screen = root.querySelector('#screen');
+    if (screen) screen.scrollTop = 0;
+  };
+
+  const combatActions = (game: GameState): CombatActions => ({
+    back: () => {
+      combatPage = null;
+      render();
+    },
+    areas: () => {
+      combatPage = 'areas';
+      fightOver = null;
+      turnTo();
+    },
+    showFight: () => {
+      combatPage = 'fight';
+      turnTo();
+    },
+    fight: (monsterId) => {
+      const result = startFight(state ?? game, monsterId, content);
+      if (!result.ok) {
+        toast(result.reason);
+        return;
+      }
+      fightOver = null;
+      combatPage = 'fight';
+      state = result.state;
+      save();
+      turnTo();
+    },
+    stop: () => {
+      const current = state ?? game;
+      if (current.fight) {
+        fightOver = { monster: current.fight.monster, reason: 'stopped', tally: current.fight };
+      }
+      act(stopFight(current));
+    },
+    loadFood: (itemId) => {
+      const result = loadFood(state ?? game, itemId, content);
+      if (result.ok) act(result.state);
+      else toast(result.reason);
+    },
+    unloadFood: () => act(unloadFood(state ?? game)),
+    setEatAt: (percent) => act(setEatAt(state ?? game, percent)),
+  });
+
   const buildView = (game: GameState): View => {
     if (tab === 'menu' && galleryOpen) {
       return {
@@ -193,12 +289,29 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       };
     }
     if (tab === 'skills') {
+      if (combatPage === 'fight') return fightView(game, content, fightOver, combatActions(game));
+      if (combatPage === 'areas') return areasView(game, content, combatActions(game));
       const skill = openSkill ? content.skills[openSkill] : undefined;
       if (!skill) {
-        return skillListView(game, content, (id) => {
-          openSkill = id;
-          render();
-        });
+        const openCombat = (): void => {
+          // Into the fight if there is one, otherwise to choose one.
+          combatPage = game.fight ? 'fight' : 'areas';
+          turnTo();
+        };
+        return skillListView(
+          game,
+          content,
+          (id) => {
+            // A combat skill has nothing to do on a page of its own: it is trained by fighting.
+            if (COMBAT_SKILLS.includes(id)) {
+              openCombat();
+              return;
+            }
+            openSkill = id;
+            render();
+          },
+          openCombat,
+        );
       }
       return skillPageView(
         game,
@@ -242,6 +355,18 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           act(result.state);
         },
         equip: wear,
+        feed: (itemId) => {
+          const result = loadFood(state ?? game, itemId, content);
+          if (!result.ok) {
+            toast(result.reason);
+            return;
+          }
+          openItem = null;
+          toast(
+            `Your food slot holds ${result.state.food!.qty} ${content.items[itemId]?.name ?? itemId}.`,
+          );
+          act(result.state);
+        },
       });
     }
     if (tab === 'character') {
@@ -338,6 +463,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                   // Tapping the tab you are on goes back to its front page.
                   if (id === tab) {
                     openSkill = null;
+                    combatPage = null;
+                    fightOver = null;
                     openItem = null;
                     galleryOpen = false;
                     sheetPanel = null;
@@ -366,7 +493,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       view?.update?.(state);
       return;
     }
-    if (!state.action) {
+    if (!busy(state)) {
       // Nothing is passing in the game, but a screen may still be moving (a
       // scene's walker): every view hears every frame.
       view?.update?.(state);
@@ -395,10 +522,29 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       // Its panel goes, and the action's numbers go back to plain.
       redraw = true;
     }
-    if (!state.action) {
-      const short = missingInput(state, content.actions[before.action!.id]!);
+    if (before.action && !state.action) {
+      const short = missingInput(state, content.actions[before.action.id]!);
       toast(short ? `Out of ${content.items[short.item]?.name ?? short.item}.` : 'Stopped.');
       save();
+      redraw = true;
+    }
+    if (before.fight && !state.fight) {
+      const reason = fightEnded(before, state, content) ?? 'gone';
+      const name = content.monsters?.[before.fight.monster]?.name ?? 'monster';
+      fightOver = { monster: before.fight.monster, reason, tally: finalTally(before, state) };
+      toast(
+        reason === 'died'
+          ? `Knocked out by the ${name}. You are back at full health, resting.`
+          : reason === 'no_arrows'
+            ? 'Out of arrows. The fight is over.'
+            : 'That fight is over.',
+      );
+      save();
+      redraw = true;
+    } else if (before.food && !state.food) {
+      toast(
+        `Out of ${content.items[before.food.item]?.name ?? 'food'}. Fighting on without eating.`,
+      );
       redraw = true;
     }
     // The bank lists only what is held, so a first log needs its row built.
