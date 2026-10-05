@@ -1,6 +1,6 @@
 # Lane C: scenes
 
-**Next session: S15: Brinebeard's Grotto** (brief in `docs/lanes.md`, wave 6).
+**Next session: S16: Dungeon progression and replay** (brief to come in `docs/lanes.md`).
 
 ## The town's map
 
@@ -26,21 +26,113 @@ and room round the stall to the west.
 
 ## The grotto's map
 
-Three grey-box rooms in `src/scene/grotto.ts`, read by `buildDungeon` (`src/scene/dungeon.ts`).
-Key: `#` rock, `.` floor, `~` water, `s` where the boat puts you ashore, `x` the end, and a lower-case
-letter a door joined to the door with the same letter in exactly one other room. Who waits in each
-room is `foes` in the plan: a monster id and a floor tile.
+Five rooms in `src/scene/grotto.ts` (each sketched in a comment above its rows), read by
+`buildDungeon` (`src/scene/dungeon.ts`) through `readGround` (`src/scene/ground.ts`, which has the
+key: `#` rock, `.` rock floor, `:` dry sand, `=` planks, `~` deep water, `,` shallows, `0`-`3` sand
+the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first and second wave,
+`K C T A R N` props, `L` a lantern on the rock, any other lower-case letter a door). The tide
+(`src/scene/tide.ts`) has four levels; one level over a tile is shallows, two is deep water.
 
-| Room      | Size (tiles) | Doors                  | Foes (col, row)                      | What                                    |
-| --------- | ------------ | ---------------------- | ------------------------------------ | --------------------------------------- |
-| `landing` | 24 × 12      | `a` east               | dock rat (17, 3), dock rat (20, 8)   | the sea along the west; the start       |
-| `pools`   | 40 × 12      | `a` west, `b` east (5) | sand crab (25, 5), sand crab (27, 9) | pools and rocks to walk round; scrolls  |
-| `cove`    | 22 × 13      | `b` south              | smuggler (10, 3), dock rat (4, 8)    | the last room: clearing it ends the run |
+| Room     | Tiles   | Doors              | Who (col, row)                                                           | The tide here                                                                                        |
+| -------- | ------- | ------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `pools`  | 38 x 14 | `a` east (37, 6)   | giant crab (28, 7), (33, 10)                                             | a sandbar over the channel: the short way at low water, wading at 1, gone at 2; the ledge goes round |
+| `store`  | 36 x 14 | `a` west, `b` east | deckhand (12, 4), (22, 6); powder monkey (31, 3)                         | the sand below the plank deck floods to shallows: kegs go out in water, but you wade                 |
+| `bridge` | 42 x 14 | `b` west, `c` east | deckhand (30, 6), (35, 7), (36, 4); parrot, perches (20, 3) and (22, 10) | the bridge never floods; sandbars below are a second way only at low water, and reach the low perch  |
+| `brig`   | 34 x 14 | `c` west, `d` east | two waves of two, behind bars `B` then `D`                               | stone floor; the sea wells up through the grating and pushes the fight out to the walls              |
+| `cove`   | 36 x 14 | `d` west           | Brinebeard (24, 5); help comes ashore at (7, 6) and (29, 6)              | his own tide: out until he calls it at two thirds, then up a level every 5 s to high water           |
 
-The pools' way on moved from the top-right corner to the east wall: at the corner it sat under the
-Leave button.
+- Every room keeps its doors' inside tiles and the start dry at every level; at low water each
+  room is one floor; ground only gets wetter as the water rises, so anywhere dry at a high tide
+  rejoins the floor when it falls (the cycle always comes back to low); the cove is one floor at
+  every level. `tests/scene/grotto.test.ts` holds all of it, and that every wash-off lands within
+  five tiles.
+- Lanterns hang only on rock with open floor below (north-facing walls).
 
 ## Done
+
+- **S15: Brinebeard's Grotto.** The grey box is gone; the first real dungeon is in.
+  - **The tide** (`tide.ts`, pure): a 60 s cycle on the run's own clock, 18 s low, a level every
+    6 s up, 18 s high, and down; the run starts 4 s into low water. Every rise is shown 3 s ahead:
+    the gauge's water creeps and it says "Rising" with a flashing arrow, sand about to be covered
+    turns to wet sand with foam ripples drifting over it, shallows about to go deep darken. The
+    cove's tide is the captain's (`surgeTide`). A room is a tile map per state of the tide, barred
+    doors and opened cells (`groundMap`, each made once and kept).
+  - **The water in a fight** (`battle.ts`): shallows slow anyone in them to 0.6 of their pace;
+    deep water is solid; anyone (hero or foe; fliers excepted) standing where the sea has just
+    gone deep is carried at three times walking pace to the nearest ground to stand on, reached
+    over water and never through rock (`shoreOf`). For the hero that costs a fourteenth of his
+    hit points, never the last one. A walk the water has since cut is planned again round it. All
+    of it is decided on ticks, so a run is the same however the frames fall (tested through a turn
+    of the tide at 20, 50 and 100 ms frames).
+  - **The cast** (`cast.ts` for numbers and drops, `foes.ts` for how they move); the idle game's
+    formulas decide every blow. Deckhands walk up and hit. The powder monkey keeps 92 px off,
+    backs away inside 60, and lobs a lit keg at where the hero stands; it stands still while the
+    fuse burns, and a keg that lands in shallows or deep water goes out. Giant crabs are slow and
+    slam all round them. The parrot sits on a perch out of a blade's reach (a bow reaches it),
+    comes down beside the hero after 6 s, stays 2.8 s and flies up to its other perch; while it
+    lives, any of the crew within 120 px of it strike half as fast again (green chevrons over
+    them, a green ring at their feet, a squawk spreading from the parrot).
+
+    | Id              | Level | HP  | Attack | Defence | Max hit | Blow every | Walks | Heavy attack                                             |
+    | --------------- | ----- | --- | ------ | ------- | ------- | ---------- | ----- | -------------------------------------------------------- |
+    | `deckhand`      | 16    | 30  | 54     | 36      | 8       | 2.4 s      | 44    | none                                                     |
+    | `powder_monkey` | 14    | 22  | 44     | 34      | 6       | 2.0 s      | 50    | keg, radius 28, marked 1.8 s, 18 damage, every 4.6 s     |
+    | `giant_crab`    | 18    | 52  | 50     | 50      | 8       | 3.0 s      | 22    | slam, radius 46, marked 1.7 s, 24 damage, every 5.6 s    |
+    | `ships_parrot`  | 15    | 18  | 58     | 56      | 3       | 2.0 s      | flies | none (rallies the crew)                                  |
+    | `brinebeard`    | 22    | 180 | 64     | 50      | 12      | 2.8 s      | 34    | anchor (phase 3), 210-degree sweep, radius 58, 1.6 s, 24 |
+
+  - **Brinebeard**, in three phases by his hit points. Phase 1: in person, with cannon volleys of
+    two lines straight down the cove every 7 s, marked 2 s, 18 damage, the first through the hero,
+    lines at least 48 px apart, each 20 px wide. Phase 2 (two thirds): he shouts, calls the sea in
+    (a 3 s warning, then a level every 5 s to high water, where it holds) and two deckhands come
+    ashore. Phase 3 (one third): he shouts again; volleys of three every 4.5 s, marked 1.6 s, and
+    the anchor every 7 s. One big thing at a time: no volley starts while the anchor is winding up
+    and no sweep while a volley is coming (tested over a minute of phase 3). When he falls his
+    crew run for it (no kill), the sea goes out, and the cove is cleared.
+  - **Readable at a glance**: circles in red with a fire edge (slams, kegs; a keg arcs over and
+    lies sparking where it fell), lines hatched in marching fire with the shots' shadows growing
+    (volleys), a pale steel wedge filling round as he swings (the anchor), and blue for the sea.
+    The fairness test now finds each mark's worst spot by search and holds every warning to the
+    walk out of it plus half a second, and to the wade out of it plus a quarter.
+  - **The brig**: the doors bar as you come in (every room's do while anything stands); its first
+    two cells open once the hero is 40 px inside, the other two when those are beaten.
+  - **Loot and spoils**: each of the cast drops doubloons and sometimes its own thing (deckhand:
+    cutlass 1 in 30, boarding axe 1 in 45; powder monkey: tricorn 1 in 20; crab: pearls 1 in 5;
+    parrot: feathers). The captain drops 8 to 14 doubloons, the coat or the spyglass one clear in
+    two, the anchor one in 30, the figurehead one in 20. Every roll is made whether or not the
+    tables know the item, and an item they do not know is left out, so the dungeon worked before
+    lane A's items landed and rolls the same after. Loot from something that falls over water
+    lands on the nearest shore. `spoilsOf` now gives `kills` by monster id and, for a clear,
+    `cleared: 'brinebeards_grotto'`. After rebasing onto lane A's items a clear paid doubloons and
+    a spyglass into the bank.
+  - **On screen**: dusk, lit by lanterns (the hero is lit by the room's lanterns, not the town's);
+    a tide gauge beside Leave; the captain's health in the target's place while he stands, with a
+    pip per phase; each room's name for a moment on the way in; what the captain shouts in a
+    bubble over him. The boat's panel says where it goes and what to bring. Art comes through
+    `dungeonTile`, `dungeonProp` and `foePicture`, each falling back to this lane's own drawing on
+    null; a sprite of any size drops in (its feet and height taken from the picture for drawing
+    only, its health bar above whichever is taller, picture or tap box), mirrored to face left.
+  - **The scripted hero** (`tests/scene/grottoBot.ts`): walks out of anything marked or about to
+    flood, eats below half health, goes for the nearest foe he can reach, never uses an ability,
+    and notices anything new 0.4 s late. `grottoRun.test.ts` plays twelve fixed seeds at each
+    strength. Over twenty seeds: at the end of tier 1 (levels 19, full iron, 20 cooked cod) 19
+    cleared, median 8.3 min (6.8 to 10.3), eating a median 19 of the 20 fish; median room times
+    pools 90 s, store 61, bridge 97, brig 84, cove 167; the one failure fell to the captain. With
+    no reaction delay: 17 of 20, median 8.2 min, the three failures all in the cove. At half
+    strength (levels 10, bronze, the same fish): 0 of 20, falling in the brig (12) or the cove (8).
+  - Found on the way: the room's ground is refreshed after each frame as well as before it, so a
+    tap in the instant after a room clears walks through its door; `mergeBoxes` leaves apart boxes
+    whose union would be mostly empty.
+  - Measured in headless Chromium at 844 x 390 (3x), CPU throttled 4x, on a production build: a
+    quiet room 60 fps (median 16.7 ms, p95 16.8); the bridge fight (three deckhands and the
+    parrot) median 16.7, p95 33.4, worst 50, about 48 fps; the captain's last phase with his crew,
+    volleys and the anchor, median 16.7, p95 33.4, worst 50, about 49 fps. The frame callbacks
+    take p95 4.6 ms (bridge) and 6.5 ms (cove). Most of each fight frame is the browser copying
+    the changed 2532 x 1170 canvas for the compositor, in software here (about 14 ms a frame);
+    `main`'s grey-box rat fight, measured the same way, pays about 12 and just holds 60.
+  - Checked in headless Chromium at 844 x 390 and 667 x 375 with a melee character of the
+    intended strength, a ranged one (willow bow) and a weak one; screenshots in
+    `/home/claude/lane-shots/wave6-c/`.
 
 - **S14b: Fighting in dungeons.** A run is now a fight, played with the thumbs.
   - **The rules** (`src/scene/battle.ts`, pure): a `Battle` inside the `Run`, advanced by
@@ -236,6 +328,14 @@ Leave button.
 
 ## Deferred
 
+- From S15: **a run is not saved while it lasts**: a reload, or a phone that drops the page while
+  locked, loses a seven-to-ten-minute run and what it picked up. Turning to portrait and the page
+  going to the background both pause it cleanly (the background is tested: ten minutes away
+  moves the run a quarter of a second). Saving a run needs a place in the save (lane A's).
+- From S15: fight frames run near 48 fps in headless software rendering at 4x; not checked on a
+  phone's GPU, where the canvas copy that costs most here is cheap. If it shows on a phone, the
+  next step is fewer, smaller patches a frame.
+- From S15: dungeons are always dusk; the waterline's foam moves only when the tide changes level.
 - From S14b, by choice: no eating by itself in a run (the food button is the player's); a run
   does not report kills by monster, so bounties do not count dungeon kills (lane A noted the
   same); no fall animation beyond a red blink; the foes' figures are placeholders (B6); a heavy
@@ -246,13 +346,30 @@ Leave button.
 
 ## Needs from another lane
 
-- Nothing blocking. For B6 (lane B): sprites for `dock_rat`, `sand_crab` and `smuggler` to
-  replace the placeholders. They are chosen by monster id in `foeFigure` (`src/scene/foes.ts`),
-  feet at the bottom middle; tap box, reach and where the health bar sits are data there and do
-  not come from the picture, so a sprite up to about 26 × 36 drops in. Facing right as drawn; the
-  scene mirrors them.
+- Nothing blocking. For lane B: the store asks `dungeonProp('grotto', 'crate')` and the bridge
+  `dungeonProp('grotto', 'perch')` (a mooring post the parrot sits on); neither id is in the
+  fixed list, so both show this lane's own drawing until lane B adds them. Every other tile and
+  prop id in `docs/lanes.md` is used. A foe sprite of any size drops in (`foeSprite` in
+  `foes.ts`); a prop stands on its tile with its `base` row two pixels above the tile's bottom.
+- For lane A, when wanted: the grotto's cast lives in `src/scene/cast.ts`, not the monster
+  tables, so `kills` by those ids count for nothing in the bestiary yet (as S10's brief says an
+  unknown id should). Saving a run in progress would need a place in the save.
 
 ## Notes for this lane's next session
+
+- **The grotto's pieces:** the tide in `tide.ts`, a room's ground in `ground.ts`, the rooms in
+  `grotto.ts`, the cast's numbers in `cast.ts`, how they move in `foes.ts`, the rules in
+  `battle.ts` (`tideOf`, `mapOf`, `shoreOf`, `bossTurn`, `fly`), drawing in `grottoArt.ts`
+  (rooms, tiles, props) and `fightArt.ts` (marks, foes, effects), words in `grottoWords.ts`.
+  `groundNow(dungeon, run)` is the map to walk on now.
+- A room's tide matters only if its rows use `0`-`3`; `stoneTide` draws that ground as a flooded
+  stone floor with a grating at height 0. A flier in a plan must start on one of its room's
+  `perches`.
+- `keepRun(run)` in `townView.ts` lets a screenshot script put a run in place (jump rooms, set
+  the clock or a foe's health). To time frames on a production build, build a scratch HTML entry
+  that also loads the screenshot helpers and exposes them on `window`.
+- Balance is held by `tests/scene/grottoRun.test.ts` (twelve fixed seeds a strength, 0.4 s
+  reactions). Changing a number in `cast.ts` or `foes.ts` that breaks it is a decision.
 
 - **The fight's pieces:** rules in `battle.ts` (pure: `advanceBattle`, `targetFoe`,
   `useAbility`, `eat`, `spoilsOf`), foes as data in `foes.ts`, a room's foes in the plan's

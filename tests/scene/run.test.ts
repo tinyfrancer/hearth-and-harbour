@@ -203,6 +203,26 @@ describe('the way into the grotto', () => {
     expect(shell.calls).toEqual(['full:true', 'pause:true']);
   });
 
+  it('comes back from the background where it was: a long gap is a moment, not a fight lost', () => {
+    character = veteran();
+    const shell = shellSpy();
+    const view = shown(shell);
+    rowOut(view);
+    resize(844, 390);
+    wait(view, 500);
+    const before = { ms: runNow()!.ms, clock: runNow()!.battle!.clock, hp: runNow()!.battle!.hp };
+    // The phone locked for ten minutes: no frames, then one.
+    clock += 10 * 60_000;
+    view.update?.(character);
+    const after = runNow()!;
+    expect(after.ms - before.ms).toBeLessThanOrEqual(250);
+    expect(after.battle!.clock - before.clock).toBeLessThanOrEqual(250);
+    expect(after.battle!.hp).toBe(before.hp);
+    expect(after.finished).toBe(false);
+    // Nothing more was asked of the shell: the idle task still waits for the run.
+    expect(shell.calls).toEqual(['full:true', 'pause:true']);
+  });
+
   it('asks once more before Leave acts, then gives the clock and the bars back', () => {
     const shell = shellSpy();
     const view = shown(shell);

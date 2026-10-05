@@ -853,18 +853,22 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
         if (!alive(foe) || held(battle, place, foe)) continue;
         const kind = foeKind(foe.monster);
         const rx = Math.round(kind.box.w / 2);
-        ctx.globalAlpha = 0.35;
-        ctx.fillStyle = c.ink1;
-        ctx.fillRect(Math.round(foe.at.x) - rx + 2, Math.round(foe.at.y) - 1, 2 * rx - 3, 3);
-        ctx.globalAlpha = 1;
+        // Up on a perch, its feet are on top of the post: its marks go there, and it casts no shadow below.
+        const feet = foe.at.y - riseOf(foe);
+        if (feet === foe.at.y) {
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = c.ink1;
+          ctx.fillRect(Math.round(foe.at.x) - rx + 2, Math.round(foe.at.y) - 1, 2 * rx - 3, 3);
+          ctx.globalAlpha = 1;
+        }
         if (foe.rallied) {
           // The parrot's work, at his feet too: a green ring, pulsing.
           ctx.fillStyle = Math.floor(clock / 200) % 2 === 0 ? c.grass1 : c.pine1;
-          oval(ctx, foe.at.x, foe.at.y, rx + 4, 5);
+          oval(ctx, foe.at.x, feet, rx + 4, 5);
         }
         if (foe.key === battle.target) {
           ctx.fillStyle = c.gold1;
-          oval(ctx, foe.at.x, foe.at.y, rx + 2, 4);
+          oval(ctx, foe.at.x, feet, rx + 2, 4);
         }
       }
       for (const foe of here)
