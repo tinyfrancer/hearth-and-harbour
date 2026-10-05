@@ -90,32 +90,42 @@ describe('the wardrobe', () => {
       expect(differs(characterPicture(DEFAULT_LOOK, [id]).grid, bare), id).toBe(true);
   });
 
-  it('draws the default character as before: the approved hero’s clothes and hair', () => {
-    const before = figure('standard', [
+  it('dresses the default character in the approved hero’s clothes and hair', () => {
+    const held = figure('standard', [
       'short_hair',
       'teal_tunic',
       'grey_trousers',
       'leather_boots',
       'leather_belt',
+      'iron_arming_sword',
     ]);
-    expect(cells(bare)).toEqual(cells(before));
+    expect(cells(characterPicture(DEFAULT_LOOK, ['iron_sword']).grid)).toEqual(cells(held));
+    const atEase = figure('standard_at_ease', [
+      'short_hair',
+      'teal_tunic_at_ease',
+      'grey_trousers',
+      'leather_boots',
+      'leather_belt',
+    ]);
+    expect(cells(bare)).toEqual(cells(atEase));
   });
 
   it('wears the everyday tunic and trousers unless something replaces them', () => {
-    expect(characterGear(DEFAULT_LOOK, [])).toEqual(
+    const held = characterGear(DEFAULT_LOOK, ['bronze_sword']);
+    expect(held).toEqual(
       expect.arrayContaining(['teal_tunic', 'grey_trousers', 'leather_boots', 'leather_belt']),
     );
     const linen = characterGear(DEFAULT_LOOK, ['linen_tunic', 'linen_trousers']);
-    expect(linen).not.toContain('teal_tunic');
+    expect(linen).not.toContain('teal_tunic_at_ease');
     expect(linen).not.toContain('grey_trousers');
     expect(linen).toContain('leather_boots');
     // Armour goes over the tunic.
-    expect(characterGear(DEFAULT_LOOK, ['bronze_breastplate'])).toContain('teal_tunic');
+    expect(characterGear(DEFAULT_LOOK, ['bronze_breastplate'])).toContain('teal_tunic_at_ease');
   });
 
   it('keeps the first of two items in one slot', () => {
     const gear = characterGear(DEFAULT_LOOK, ['bronze_sword', 'iron_axe']);
-    expect(gear).toContain('bronze_leaf_sword');
+    expect(gear).toContain('bronze_shortsword');
     expect(gear).not.toContain('iron_bearded_axe');
   });
 

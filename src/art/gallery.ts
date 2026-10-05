@@ -15,9 +15,11 @@ import {
   DRESSING,
   WARDROBE_BOWS,
   WARDROBE_ITEMS,
+  WARDROBE_LADDER,
   WARDROBE_SETS,
   dressingPlate,
   figurePlate,
+  ladderPlate,
   lineupPlate,
   outfitPicture,
   propsPlate,
@@ -152,51 +154,64 @@ export function artGallery(): HTMLElement {
     );
     return row([{ pic, palette: DAY, label: choices.map((c) => c.name).join(' · ') }], 'game');
   };
+  const ladder = ladderPlate();
+  const ladderLabel = [...WARDROBE_LADDER.map((o) => o.name), 'Tier 2 (the hero)'].join(' · ');
   const sets = lineupPlate(WARDROBE_SETS.map(outfitPicture));
   const bows = lineupPlate(WARDROBE_BOWS.map(outfitPicture));
-  const iron = lineupPlate([outfitPicture(WARDROBE_SETS[1]!)]);
   const itemRows: HTMLElement[] = [];
   for (let i = 0; i < WARDROBE_ITEMS.length; i += 5) {
     const ids = WARDROBE_ITEMS.slice(i, i + 5);
     const pic = lineupPlate(ids.map((id) => characterPicture(DEFAULT_LOOK, [id])));
     const label = ids.map((id) => id.replace(/_/g, ' ')).join(' · ');
-    itemRows.push(...row([{ pic, palette: DAY, label }], 'game'));
+    itemRows.push(
+      ...row(
+        [
+          { pic, palette: DAY, label },
+          { pic, palette: DUSK, label: 'Dusk' },
+        ],
+        'game',
+        1,
+      ),
+    );
   }
   part(
     'Wardrobe',
-    'New art, not yet approved: the looks a character can choose and every wearable item drawn on the standard body. Under a helmet or hood only the hair that hangs below it shows.',
+    'New art, not yet approved. Gear climbs a ladder: tier 1 runs from a villager in linen to a militia volunteer in bronze to a town guard in iron. The approved hero stands where tier 2’s knight will be; no item is drawn with his gear yet. With nothing in hand, the character rests that hand at the belt.',
+    el('h3', 'gallery-subhead', 'The gear ladder'),
+    ...row(
+      [
+        { pic: ladder, palette: DAY, label: ladderLabel },
+        { pic: ladder, palette: DUSK, label: 'Dusk' },
+      ],
+      'close',
+      1,
+    ),
+    ...row(
+      [
+        { pic: ladder, palette: DAY, label: 'Day' },
+        { pic: ladder, palette: DUSK, label: 'Dusk' },
+      ],
+      'game',
+      1,
+    ),
+    el('h3', 'gallery-subhead', 'Each item alone'),
+    ...itemRows,
+    el('h3', 'gallery-subhead', 'Each rung in another look'),
+    ...row(
+      [{ pic: sets, palette: DAY, label: WARDROBE_SETS.map((o) => o.name).join(' · ') }],
+      'game',
+    ),
+    el('h3', 'gallery-subhead', 'Bows'),
+    ...row(
+      [{ pic: bows, palette: DAY, label: WARDROBE_BOWS.map((o) => o.name).join(' · ') }],
+      'game',
+    ),
     el('h3', 'gallery-subhead', 'Skin'),
     ...lookRow('skin', DEFAULT_LOOK),
     el('h3', 'gallery-subhead', 'Hairstyle'),
     ...lookRow('hair', DEFAULT_LOOK),
     el('h3', 'gallery-subhead', 'Hair colour'),
     ...lookRow('hairColour', { ...DEFAULT_LOOK, hair: 'long' }),
-    el('h3', 'gallery-subhead', 'Full sets'),
-    ...row(
-      [
-        { pic: sets, palette: DAY, label: WARDROBE_SETS.map((o) => o.name).join(' · ') },
-        { pic: sets, palette: DUSK, label: 'Dusk' },
-      ],
-      'close',
-      1,
-    ),
-    ...row([{ pic: sets, palette: DAY, label: 'Day' }], 'game'),
-    el('h3', 'gallery-subhead', 'Bows'),
-    ...row(
-      [{ pic: bows, palette: DAY, label: WARDROBE_BOWS.map((o) => o.name).join(' · ') }],
-      'close',
-      1,
-    ),
-    el('h3', 'gallery-subhead', 'Iron, day and dusk'),
-    ...row(
-      [
-        { pic: iron, palette: DAY, label: 'Day' },
-        { pic: iron, palette: DUSK, label: 'Dusk' },
-      ],
-      'close',
-    ),
-    el('h3', 'gallery-subhead', 'Each item alone'),
-    ...itemRows,
   );
 
   const town = townPicture();

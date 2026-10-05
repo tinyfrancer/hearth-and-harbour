@@ -484,10 +484,11 @@ const TRINKETS: readonly GearDef[] = [
     parts: [{ at: [16, 14], depth: JEWELLERY, rows: ['.O..O', '.bOOb', '..bP', '..PP'] }],
   },
   {
-    // A band of shells round the left wrist, standing proud of the sleeve.
+    // White shells strung between dark beads round the left wrist, a pixel
+    // proud of the arm: the beads keep them apart from skin of any tone.
     id: 'shell_bracelet',
     slot: 'wrist',
-    parts: [{ at: [10, 24], depth: JEWELLERY, rows: ['ObPbPO', 'PbPbPb'] }],
+    parts: [{ at: [9, 24], depth: JEWELLERY, rows: ['.bObOb', 'bObObO'] }],
   },
   {
     // A quiver slung on the back: its mouth and a fan of fletchings rise
@@ -593,7 +594,7 @@ const AT_EASE: readonly GearDef[] = [
   {
     id: 'shell_bracelet_at_ease',
     slot: 'wrist',
-    parts: [{ at: [11, 23], depth: JEWELLERY, rows: ['.ObPbO', '.PbPbP'] }],
+    parts: [{ at: [10, 23], depth: JEWELLERY, rows: ['..bObOb', '.bObObO'] }],
   },
 ];
 

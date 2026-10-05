@@ -23,9 +23,14 @@ describe('artGallery', () => {
     expect(labels.filter((l) => l === 'Dusk').length).toBeGreaterThanOrEqual(6);
   });
 
-  it('shows every look choice and every set in the wardrobe, one of them at dusk', () => {
+  it('shows the gear ladder, every look choice and every set in the wardrobe, by day and dusk', () => {
     const wardrobe = artGallery().querySelector('.gallery-part')!;
+    const heads = [...wardrobe.querySelectorAll('h3')].map((h) => h.textContent);
+    expect(heads.slice(0, 2)).toEqual(['The gear ladder', 'Each item alone']);
+    expect(heads.indexOf('Skin')).toBeGreaterThan(heads.indexOf('Each item alone'));
     const labels = [...wardrobe.querySelectorAll('figcaption')].map((f) => f.textContent);
+    expect(labels[0]).toBe('Linen · Bronze · Iron · Tier 2 (the hero)');
+    expect(labels[1]).toBe('Dusk');
     for (const part of ['skin', 'hair', 'hairColour'] as const)
       expect(labels).toContain(LOOK_CHOICES[part].map((c) => c.name).join(' · '));
     expect(labels).toContain('Bronze · Iron · Linen');
