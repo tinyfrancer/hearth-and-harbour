@@ -22,13 +22,16 @@ import {
   abilityProblem,
   alive,
   arrowsLeft,
+  bossOf,
   cooldownLeft,
   eat,
   foeAt,
   foodLeft,
   foodProblem,
+  held,
   stopChasing,
   targetFoe,
+  tideOf,
   useAbility,
   type Battle,
   type Tally,
@@ -36,21 +39,24 @@ import {
 import {
   advanceRun,
   doorwayDark,
+  groundNow,
   placeOf,
-  roomScene,
-  runLocked,
   runTime,
   sideways,
   type Dungeon,
   type Run,
 } from './dungeon';
 import { fightExtra } from './fightArt';
-import { abilityPicture } from './foes';
+import { abilityPicture, foeKind } from './foes';
+import { canvasOf } from './draw';
+import { roomLook } from './grottoArt';
 import type { Hero } from './hero';
 import type { Play } from './play';
 import { dungeonScale } from './scale';
 import { stage, type Insets } from './stage';
+import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { HERO_FEET } from './townArt';
+import { DUSK } from '../art/palette';
 
 /**
  * Room kept at the screen's edges, in CSS pixels: the health bars and the
@@ -138,6 +144,15 @@ function fightButton(
   return { el, shade, count };
 }
 
+/** What the tide gauge says the water is doing. */
+export function tideWords(tide: TideNow, clock: number): string {
+  if (rising(tide, clock)) return 'Rising';
+  if (tide.next && tide.next.level < tide.level && tide.next.at - clock <= 3000) return 'Falling';
+  if (tide.level === 0) return 'Low tide';
+  if (tide.level === HIGH_WATER) return 'High tide';
+  return tide.next && tide.next.level > tide.level ? 'Flowing' : 'Ebbing';
+}
+
 /** One line of results: an icon if there is one, a name, and an amount. */
 function resultLine(icon: Element | null, name: string, amount: string): HTMLElement {
   return h('li', {}, [
@@ -213,6 +228,49 @@ export function dungeonView(options: DungeonViewOptions): View {
   targetPanel.hidden = true;
   let targetShown: string | null = null;
 
+  /* ----- A boss's health, in the target's place while he stands; the tide beside Leave ----- */
+
+  const bossName = h('span', { class: 'fight-target-name' });
+  const bossFill = h('span', { class: 'fight-fill' });
+  const bossNumbers = h('span', { class: 'fight-numbers' });
+  const bossPhases = h('span', { class: 'fight-phases', attrs: { 'aria-hidden': 'true' } }, [
+    h('i'),
+    h('i'),
+    h('i'),
+  ]);
+  const bossFace = h('span', { class: 'fight-face' });
+  const bossPanel = h(
+    'div',
+    { class: 'fight-target fight-boss', attrs: { 'aria-label': 'The captain' } },
+    [
+      bossFace,
+      h('span', { class: 'fight-target-body' }, [
+        h('span', { class: 'fight-boss-head' }, [bossName, bossPhases]),
+        h('span', { class: 'fight-track' }, [bossFill, bossNumbers]),
+      ]),
+    ],
+  );
+  bossPanel.hidden = true;
+  let bossShown: string | null = null;
+
+  const tideWater = h('span', { class: 'tide-water' });
+  const tideWord = h('span', { class: 'tide-word' });
+  const tideArrow = h('span', { class: 'tide-arrow', attrs: { 'aria-hidden': 'true' } });
+  const tidePanel = h('div', { class: 'tide-gauge', attrs: { role: 'img' } }, [
+    h('span', { class: 'tide-scale', attrs: { 'aria-hidden': 'true' } }, [
+      tideWater,
+      h('i'),
+      h('i'),
+      h('i'),
+    ]),
+    h('span', { class: 'tide-body' }, [h('span', { class: 'tide-label', text: 'Tide' }), tideWord]),
+    tideArrow,
+  ]);
+  tidePanel.hidden = true;
+
+  /** The room's name, shown for a moment as the hero comes in. */
+  const title = h('div', { class: 'dungeon-title', attrs: { 'aria-live': 'polite' } });
+
   /* ----- The buttons under the left thumb ----- */
 
   const battleOf = (): Battle | null => options.run().battle;
@@ -242,7 +300,14 @@ export function dungeonView(options: DungeonViewOptions): View {
     ...abilityButtons.map((b) => b.el),
     foodButton?.el ?? null,
   ]);
-  const hud = h('div', { class: 'fight-hud' }, [heroPanel, targetPanel, bar]);
+  const hud = h('div', { class: 'fight-hud' }, [
+    heroPanel,
+    targetPanel,
+    bossPanel,
+    tidePanel,
+    title,
+    bar,
+  ]);
   if (!battleOf()) hud.hidden = true;
 
   const root = h('div', { class: 'dungeon' }, [room, hud, fade, prompt, way]);
@@ -264,24 +329,38 @@ export function dungeonView(options: DungeonViewOptions): View {
   /** The walker as last handed to the stage: a different one back means a tap moved him. */
   let given: Play = options.run().play;
   let roomView: View | null = null;
-  let lock: { shut: boolean } = { shut: false };
+  let look = roomLook(dungeon.rooms[options.run().room]!);
+  /** Grounds of the room still to paint ahead of the tide: one a frame, so none is painted mid-fight. */
+  let unpainted: ReturnType<typeof look.grounds> = [];
   const playing = (): boolean => sideways(size) && !options.run().finished;
+
+  /** The room's ground as the tide has it now, darkening where it is about to come in. */
+  const groundFor = (run: Run) => {
+    if (!run.battle) return look.groundAt(0, false);
+    const tide = tideOf(run.battle, placeOf(dungeon, run));
+    return look.groundAt(tide.level, rising(tide, run.battle.clock));
+  };
 
   const showRoom = (): void => {
     const run = options.run();
-    const made = roomScene(dungeon.rooms[run.room]!);
-    lock = made.lock;
-    lock.shut = runLocked(run);
+    const here = dungeon.rooms[run.room]!;
+    look = roomLook(here);
+    look.lock.map = groundNow(dungeon, run);
+    unpainted = look.grounds();
     given = run.play;
     roomShown = run.room;
+    const walkerAt = hero.atIn(look.lights);
     roomView = stage({
-      scene: made.scene,
+      scene: look.scene,
       art: {
-        ground: made.art.ground,
+        ground: look.groundAt(0, false),
+        groundNow: () => groundFor(options.run()),
         heroFeet: HERO_FEET,
-        walkerAt: (feet, facing, palette) => hero.at(feet, facing, palette.lightsOn),
-        shadowAt: made.art.shadowAt,
+        walkerAt: (feet, facing, palette) => walkerAt(feet, facing, palette.lightsOn),
+        shadowAt: look.shadowAt,
       },
+      // A sea cave at dusk, lit by its lanterns.
+      time: 'dusk',
       play: run.play,
       keep: () => {},
       press: () => {},
@@ -299,8 +378,10 @@ export function dungeonView(options: DungeonViewOptions): View {
         const run = options.run();
         if (!run.battle || run.finished || run.doorway) return null;
         const from = play === given ? run.play : play;
+        // Being carried by the sea, a tap does nothing until he is on his feet.
+        if (run.battle.wash) return from;
         const foe = foeAt(run.battle, run.room, point, min);
-        if (!foe) {
+        if (!foe || held(run.battle, placeOf(dungeon, run), foe)) {
           options.keep({ ...run, battle: stopChasing(run.battle), play: from });
           return null;
         }
@@ -310,10 +391,17 @@ export function dungeonView(options: DungeonViewOptions): View {
         return aimed.play;
       },
       extra: (_now, palette) => fightExtra(dungeon, options.run(), palette),
-      label: 'A cave. Tap the ground to walk there, or something to fight it.',
+      label: 'A sea cave. Tap the ground to walk there, or something to fight it.',
       fallback: 'The grotto needs a browser that can draw on a canvas.',
     });
     room.replaceChildren(roomView.el);
+    if (here.title) {
+      title.textContent = here.title;
+      // Played again from the start for each room.
+      title.classList.remove('shown');
+      void title.offsetWidth;
+      title.classList.add('shown');
+    }
   };
 
   let results: HTMLElement | null = null;
@@ -334,7 +422,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       ? 'Nothing down here yet but a damp floor and a good echo. Someone will be along to fill it.'
       : fell
         ? 'The tide put you back on the quay, damp but whole. Everything you picked up came with you.'
-        : 'Everything down there has been firmly discouraged. Their belongings have come with you.';
+        : 'The captain has been seen off, and his crew with him. Their belongings have come with you.';
     const facts: HTMLElement[] = [
       h('p', { class: 'dungeon-time', text: `Time taken: ${runTime(run.ms)}` }),
     ];
@@ -379,9 +467,32 @@ export function dungeonView(options: DungeonViewOptions): View {
     heroPanel.classList.toggle('low', battle.hp * 4 <= me.maxHp);
     fill(heroSwing, 'X', fraction(PLAYER_ATTACK_MS - battle.blowMs, PLAYER_ATTACK_MS));
 
+    // A boss in the room: his health holds the middle while he stands, whoever is the target.
+    const boss = bossOf(battle, run.room);
+    const bossUp = !!boss && alive(boss) && boss.aware;
+    bossPanel.hidden = !bossUp;
+    if (boss && bossUp) {
+      const def = battle.monsters[boss.monster]!;
+      if (bossShown !== boss.monster) {
+        bossShown = boss.monster;
+        setText(bossName, def.name);
+        const face = portrait(boss.monster);
+        bossFace.replaceChildren(...(face ? [face] : []));
+        bossFace.hidden = !face;
+      }
+      fill(bossFill, 'X', fraction(boss.hp, def.hp));
+      setText(bossNumbers, `${boss.hp}/${def.hp}`);
+      const phases = foeKind(boss.monster).boss?.phases.length ?? 0;
+      [...bossPhases.children].forEach((pip, i) => {
+        (pip as HTMLElement).hidden = i > phases;
+        pip.classList.toggle('done', i < boss.phase - 1);
+        pip.classList.toggle('now', i === boss.phase - 1);
+      });
+    }
+
     const target = battle.foes.find((f) => f.key === battle.target && alive(f)) ?? null;
-    targetPanel.hidden = !target;
-    if (target) {
+    targetPanel.hidden = !target || bossUp;
+    if (target && !bossUp) {
       const def = battle.monsters[target.monster]!;
       if (targetShown !== target.monster) {
         targetShown = target.monster;
@@ -395,6 +506,25 @@ export function dungeonView(options: DungeonViewOptions): View {
     }
 
     const place = placeOf(dungeon, run);
+    const tidal = place.ground.tidal || place.ground.ownTide;
+    tidePanel.hidden = !tidal;
+    if (tidal) {
+      const tide = tideOf(battle, place);
+      // The water creeps up the gauge through each warning, so what is coming shows before it comes.
+      fill(tideWater, 'Y', Math.round((100 * gaugeLevel(tide, battle.clock)) / HIGH_WATER) / 100);
+      const words = tideWords(tide, battle.clock);
+      setText(tideWord, words);
+      const dir =
+        tide.next && tide.next.at - battle.clock <= 3000
+          ? tide.next.level > tide.level
+            ? 'up'
+            : 'down'
+          : '';
+      if (tideArrow.dataset.dir !== dir) tideArrow.dataset.dir = dir;
+      tidePanel.classList.toggle('warn', dir === 'up');
+      if (tidePanel.getAttribute('aria-label') !== `Tide: ${words}`)
+        tidePanel.setAttribute('aria-label', `Tide: ${words}`);
+    }
     abilityButtons.forEach((b, i) => {
       const slot = i as 0 | 1;
       const left = cooldownLeft(battle, slot === 0 ? 'first' : 'second');
@@ -431,8 +561,11 @@ export function dungeonView(options: DungeonViewOptions): View {
         before.ms > 0
           ? 'The grotto will wait. Nothing in it is going anywhere.'
           : 'The grotto is wide and low. So, to be fair, is the boat.';
-      lock.shut = runLocked(before);
+      look.lock.map = groundNow(dungeon, before);
       roomView?.update?.(state);
+      // Paint one of the room's tides ahead of time each frame, so the sea never stops a frame to be drawn.
+      const next = unpainted.pop();
+      if (next) canvasOf(next, DUSK);
       const after = options.run();
       if (after.room !== roomShown) showRoom();
       if (after.finished && !before.finished) {

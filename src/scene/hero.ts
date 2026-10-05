@@ -58,7 +58,25 @@ export class Hero {
   private dressIn(dress: Dress): WalkerAt {
     this.key = dressKey(dress);
     this.drawn += 1;
-    return litWalker(characterPicture(dress.look, dress.worn), HERO_FEET, this.lights);
+    this.base = characterPicture(dress.look, dress.worn);
+    this.elsewhere = new WeakMap();
+    return litWalker(this.base, HERO_FEET, this.lights);
+  }
+
+  private base: Picture | null = null;
+  /** The same hero lit by another place's lights (a dungeon room's lanterns), kept per set of lights. */
+  private elsewhere = new WeakMap<readonly Glow[], WalkerAt>();
+
+  /** The hero as `at` draws him, but lit by `lights` instead of the town's. */
+  atIn(lights: readonly Glow[]): WalkerAt {
+    return (feet, facing, lightsOn) => {
+      let walker = this.elsewhere.get(lights);
+      if (!walker) {
+        walker = litWalker(this.base!, HERO_FEET, lights);
+        this.elsewhere.set(lights, walker);
+      }
+      return walker(feet, facing, lightsOn);
+    };
   }
 
   /** Takes the state's look and gear; true if the hero now looks different. */

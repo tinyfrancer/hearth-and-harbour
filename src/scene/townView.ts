@@ -5,6 +5,7 @@ import type { Shell, View } from '../ui/view';
 import { other, timeOfDayAt, type TimeOfDay } from './daylight';
 import { seedFrom } from '../core/rng';
 import { fighterOf, spoilsOf } from './battle';
+import { GROTTO_CAST } from './cast';
 import { buildDungeon, startRun, type Dungeon, type Run } from './dungeon';
 import { dungeonView } from './dungeonView';
 import { GROTTO } from './grotto';
@@ -136,7 +137,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   const settle = (): void => {
     if (!run?.battle || settled) return;
     settled = true;
-    shell?.settleRun(spoilsOf(run.battle));
+    // A clear is the boss down and the end reached: the run ended by itself, cleared.
+    shell?.settleRun(spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined));
   };
 
   /** Rows out: the idle task waits and the scene takes the whole screen until the run ends. */
@@ -146,8 +148,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     // A run reads the character as they row out, and rolls its own dice, never the save's.
     run = startRun(dungeon, {
       fighter: fighterOf(latest, content),
-      monsters: content.monsters ?? {},
+      // The grotto's own cast fights by its rows here; the tables' monsters by theirs.
+      monsters: { ...(content.monsters ?? {}), ...GROTTO_CAST },
       seed: seedFrom(Date.now()),
+      // Loot the game's tables do not know yet is not dropped.
+      known: Object.keys(content.items),
     });
     settled = false;
     tell(true, true);
