@@ -46,7 +46,7 @@ describe('portrait', () => {
       for (const [x, y] of [
         [0, 0],
         [47, 0],
-      ])
+      ] as const)
         expect(get(g, x, y), `${id} ${x},${y}`).toBeNull();
       const disc = FACES[id]!.disc;
       expect(g.d, id).toContain(disc[0]);
