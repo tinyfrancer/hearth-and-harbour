@@ -135,12 +135,87 @@ interface SkillPageActions {
   stop(): void;
 }
 
-/** One skill: its level and XP, and everything it can do. */
+/** A skill with more actions than this lists them under collapsible headings, if its rows say which. */
+const GROUP_OVER = 8;
+
+/**
+ * The groups open when a skill's page is first shown: the first, where the
+ * skill starts (Smithing's bars feed everything after), and the one doing
+ * something, or else the one holding the newest thing unlocked.
+ */
+function firstOpen(
+  state: GameState,
+  table: ActionDef[],
+  byLevel: ActionDef[],
+  level: number,
+): Set<string> {
+  const running = byLevel.find((action) => action.id === state.action?.id);
+  const newest = byLevel.filter((action) => action.level <= level).at(-1);
+  return new Set([table[0]?.group ?? '', (running ?? newest)?.group ?? '']);
+}
+
+/**
+ * The cards under one heading each, which a tap folds away. Only the heading
+ * and the cards' visibility change, in place, so nothing is rebuilt.
+ */
+function groupedCards(
+  actions: ActionDef[],
+  card: (action: ActionDef) => HTMLElement,
+  open: Set<string>,
+  running: string | undefined,
+): HTMLElement[] {
+  // Headings in the order the tables first name them; cards under each by level.
+  const groups = new Map<string, ActionDef[]>();
+  for (const action of actions) {
+    const group = action.group ?? '';
+    groups.set(group, [...(groups.get(group) ?? []), action]);
+  }
+  for (const rows of groups.values()) rows.sort((a, b) => a.level - b.level);
+  // The running action is never folded out of sight.
+  if (running !== undefined) open.add(running);
+  return [...groups].map(([group, rows]) => {
+    const body = h('div', { class: 'stack' }, rows.map(card));
+    const toggle = h(
+      'button',
+      {
+        class: 'group-toggle',
+        attrs: { type: 'button', 'data-group-toggle': group },
+        on: {
+          click: () => {
+            if (open.has(group)) open.delete(group);
+            else open.add(group);
+            show();
+          },
+        },
+      },
+      [
+        h('span', { class: 'group-heading', text: group }),
+        h('span', { class: 'muted small', text: String(rows.length) }),
+      ],
+    );
+    const show = (): void => {
+      toggle.setAttribute('aria-expanded', String(open.has(group)));
+      body.hidden = !open.has(group);
+    };
+    show();
+    return h('section', { class: 'stack action-group', attrs: { 'data-group': group } }, [
+      toggle,
+      body,
+    ]);
+  });
+}
+
+/**
+ * One skill: its level and XP, and everything it can do. `openGroups` keeps,
+ * by skill id, which headings the player left open, for as long as the app
+ * keeps the map.
+ */
 export function skillPageView(
   state: GameState,
   content: Content,
   skill: SkillDef,
   actions: SkillPageActions,
+  openGroups: Map<string, Set<string>> = new Map(),
 ): View {
   const level = skillLevel(state, skill.id);
   const updates: ((state: GameState) => void)[] = [];
@@ -224,10 +299,20 @@ export function skillPageView(
     return el;
   };
 
-  const cards = Object.values(content.actions)
-    .filter((action) => action.skill === skill.id)
-    .sort((a, b) => a.level - b.level)
-    .map(card);
+  const table = Object.values(content.actions).filter((action) => action.skill === skill.id);
+  const rows = [...table].sort((a, b) => a.level - b.level);
+  let cards: HTMLElement[];
+  if (rows.length > GROUP_OVER && rows.some((action) => action.group)) {
+    let open = openGroups.get(skill.id);
+    if (!open) {
+      open = firstOpen(state, table, rows, level);
+      openGroups.set(skill.id, open);
+    }
+    const running = rows.find((action) => action.id === state.action?.id);
+    cards = groupedCards(table, card, open, running && (running.group ?? ''));
+  } else {
+    cards = rows.map(card);
+  }
 
   const potion = potionPanel(state, content, skill.id);
   if (potion?.update) updates.push(potion.update);

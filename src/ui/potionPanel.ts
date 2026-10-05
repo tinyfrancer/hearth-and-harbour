@@ -4,19 +4,13 @@ import type { GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
 import { bar } from './bar';
 import { h, titled } from './dom';
-import { formatNumber } from './format';
+import { formatNumber, listed } from './format';
 import type { View } from './view';
 
 function ordinal(n: number): string {
   const tens = n % 100;
   if (tens >= 11 && tens <= 13) return `${n}th`;
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-}
-
-function listed(words: string[]): string {
-  return words.length < 2
-    ? (words[0] ?? '')
-    : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
 }
 
 /** What a potion does to each completion, in a few words: "10% quicker". */

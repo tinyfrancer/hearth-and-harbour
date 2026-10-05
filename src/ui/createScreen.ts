@@ -1,15 +1,23 @@
+import { characterCanvas, type Look } from '../art/character';
 import { NAME_MAX_LENGTH, nameProblem } from '../core/state';
 import { button, h } from './dom';
 import { importPanel } from './importPanel';
+import { fullLook, lookPicker } from './look';
 import type { GameState } from '../core/state';
 
 interface CreateScreenOptions {
-  onCreate(name: string): void;
+  onCreate(name: string, look: Look): void;
   onImport(state: GameState): void;
 }
 
-/** The first thing a new player sees: name a character, or bring a save in. */
+/** The first thing a new player sees: name and dress a character, or bring a save in. */
 export function createScreen({ onCreate, onImport }: CreateScreenOptions): HTMLElement {
+  let look = fullLook({});
+  const figure = h('div', { class: 'figure' }, [characterCanvas(look, [])]);
+  const picker = lookPicker(look, (next) => {
+    look = next;
+    figure.replaceChildren(characterCanvas(look, []));
+  });
   const input = h('input', {
     class: 'field',
     attrs: {
@@ -33,14 +41,16 @@ export function createScreen({ onCreate, onImport }: CreateScreenOptions): HTMLE
           event.preventDefault();
           const issue = nameProblem(input.value);
           problem.textContent = issue ?? '';
-          if (!issue) onCreate(input.value);
+          if (!issue) onCreate(input.value, look);
         },
       },
     },
     [
       h('h2', { text: 'Who are you?' }),
+      figure,
       input,
       problem,
+      picker,
       h('button', { class: 'btn primary', text: 'Begin', attrs: { type: 'submit' } }),
     ],
   );
