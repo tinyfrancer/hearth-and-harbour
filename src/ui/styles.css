@@ -517,3 +517,50 @@ button.card:active {
   align-items: center;
   gap: 8px;
 }
+
+.stack.groups {
+  gap: 24px;
+}
+
+.group-heading {
+  color: var(--text-muted);
+  font-size: 15px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.inputs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.inputs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  border-bottom: var(--px) solid var(--line);
+}
+
+.inputs li.short .qty {
+  color: var(--danger);
+}
+
+.afford {
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.afford.problem {
+  color: var(--danger);
+}
+
+.card.short {
+  border-color: var(--line);
+}
+
+.card.short h2 {
+  color: var(--text-muted);
+}
