@@ -110,6 +110,27 @@ describe('save export and import', () => {
     });
   });
 
+  it('loads a version 6 save, from before thieving, unrobbed, with no bounty and at full health', () => {
+    const v6: Record<string, unknown> = { ...fighting, version: 6 };
+    for (const field of ['marks', 'bounty', 'bountyPoints', 'health']) delete v6[field];
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v6 }))).toEqual({
+      ok: true,
+      state: { ...fighting, marks: {}, bounty: null, bountyPoints: 0, health: null },
+    });
+  });
+
+  it('round-trips a stunned thief, hurt, holding a bounty and points', () => {
+    const thief: GameState = {
+      ...state,
+      action: { id: 'steal_fisherman', progressMs: 0, stunMs: 1800 },
+      marks: { steal_fisherman: { picked: 40, caught: 22, seen: ['raw_shrimp'] } },
+      bounty: { monster: 'footpad', count: 24, done: 24 },
+      bountyPoints: 31,
+      health: { hp: 17, regenMs: 2500 },
+    };
+    expect(readSave(writeSaveExport('code', thief).text)).toEqual({ ok: true, state: thief });
+  });
+
   it('says so when the text is not a save', () => {
     for (const text of ['', 'hello', '{"game":"other","save":{}}', '[]']) {
       expect(readSave(text)).toEqual({ ok: false, reason: "That isn't a Hearth & Harbour save." });
@@ -175,6 +196,27 @@ describe('save export and import', () => {
       { ...state, bestiary: undefined },
       { ...state, bestiary: { dock_rat: { kills: 1 } } },
       { ...state, bestiary: { dock_rat: { kills: 1, seen: [4] } } },
+      // A stun is time still to wait, with nothing in the bar.
+      { ...state, action: { id: 'steal_fisherman', progressMs: 0, stunMs: 0 } },
+      { ...state, action: { id: 'steal_fisherman', progressMs: 0, stunMs: -5 } },
+      { ...state, action: { id: 'steal_fisherman', progressMs: 900, stunMs: 2000 } },
+      { ...state, marks: undefined },
+      { ...state, marks: { steal_fisherman: { picked: 1, caught: 0 } } },
+      { ...state, marks: { steal_fisherman: { picked: -1, caught: 0, seen: [] } } },
+      { ...state, marks: { steal_fisherman: { picked: 1, caught: 0.5, seen: [] } } },
+      { ...state, bounty: undefined },
+      { ...state, bounty: 'dock_rat' },
+      { ...state, bounty: { monster: 'dock_rat', count: 0, done: 0 } },
+      { ...state, bounty: { monster: 'dock_rat', count: 10, done: 11 } },
+      { ...state, bounty: { monster: 3, count: 10, done: 1 } },
+      { ...state, bountyPoints: -2 },
+      { ...state, bountyPoints: undefined },
+      { ...state, health: undefined },
+      { ...state, health: { hp: 0, regenMs: 0 } },
+      { ...state, health: { hp: 5 } },
+      { ...state, health: { hp: 5.5, regenMs: 0 } },
+      // Hurt out of a fight while in one.
+      { ...fighting, health: { hp: 5, regenMs: 0 } },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,

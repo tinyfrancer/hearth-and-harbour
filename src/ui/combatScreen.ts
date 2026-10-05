@@ -1,5 +1,4 @@
 import { itemIcon } from '../art/icons';
-import { portrait } from '../art/portraits';
 import {
   EAT_AT_MAX,
   EAT_AT_MIN,
@@ -7,6 +6,7 @@ import {
   PLAYER_ATTACK_MS,
   RESPAWN_MS,
   hitChance,
+  mayFight,
   monsterDef,
   monstersIn,
   playerCombat,
@@ -15,7 +15,9 @@ import type { Content, MonsterDef } from '../core/content';
 import type { FightEnd } from '../core/fight';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
+import { bountyEntry } from './bountyScreen';
 import { button, h, titled } from './dom';
+import { face } from './face';
 import { formatNumber } from './format';
 import type { View } from './view';
 
@@ -34,6 +36,8 @@ export interface CombatActions {
   areas(): void;
   /** From the areas to the fight under way. */
   showFight(): void;
+  /** To the bounties page. */
+  bounties(): void;
   fight(monsterId: string): void;
   stop(): void;
   loadFood(itemId: string): void;
@@ -43,19 +47,6 @@ export interface CombatActions {
 
 const percent = (chance: number): string => `${Math.round(chance * 100)}%`;
 const itemName = (content: Content, id: string): string => content.items[id]?.name ?? id;
-
-/**
- * A monster's face from the art, or a framed initial until it has one. The
- * frame is the same size either way, so a face arriving moves nothing.
- */
-function face(monster: MonsterDef, size: 'large' | 'small'): HTMLElement {
-  const art = portrait(monster.id);
-  return h(
-    'div',
-    { class: `portrait ${size}${art ? '' : ' blank'}`, attrs: { 'aria-hidden': 'true' } },
-    [art ?? h('span', { text: monster.name.charAt(0) })],
-  );
-}
 
 /**
  * What a monster drops, by name once it has been seen to and as "?" until
@@ -169,11 +160,13 @@ function foodPanel(
   ]);
 }
 
-/** The character's numbers for the style in hand, in one line. */
+/** The character's numbers for the style in hand, in one line, with their health as it stands. */
 function youLine(state: GameState, content: Content): string {
   const me = playerCombat(state, content);
   const style = me.style === 'ranged' ? 'Ranged' : 'Melee';
-  return `${style} · attack ${me.attack} · defence ${me.defence} · max hit ${me.maxHit} · ${me.maxHp} hit points`;
+  const health =
+    me.hp < me.maxHp ? `${me.hp} / ${me.maxHp} hit points, healing` : `${me.maxHp} hit points`;
+  return `${style} · attack ${me.attack} · defence ${me.defence} · max hit ${me.maxHit} · ${health}`;
 }
 
 /** The Combat section's front page: the fight under way, food, and every area's monsters. */
@@ -207,10 +200,13 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
   const monsterCard = (monster: MonsterDef): HTMLElement => {
     const active = state.fight?.monster === monster.id;
     const kills = state.bestiary[monster.id]?.kills ?? 0;
+    // Only a bounty leads to some: they are listed, but plainly out of reach without one.
+    const locked = !mayFight(state, monster);
+    const wanted = state.bounty?.monster === monster.id ? state.bounty : null;
     return h(
       'button',
       {
-        class: `panel card monster${active ? ' active' : ''}`,
+        class: `panel card monster${active ? ' active' : ''}${locked ? ' locked' : ''}`,
         attrs: { type: 'button', 'data-monster': monster.id },
         on: { click: () => actions.fight(monster.id) },
       },
@@ -227,6 +223,12 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
           }),
           h('p', { class: 'small drops', text: `Drops: ${dropsText(monster, state, content)}` }),
           kills > 0 && h('p', { class: 'small muted', text: `Killed ${formatNumber(kills)}` }),
+          locked && h('p', { class: 'small muted', text: 'Only with a bounty on it.' }),
+          wanted &&
+            h('p', {
+              class: 'small wanted',
+              text: `Bounty: ${formatNumber(wanted.done)} / ${formatNumber(wanted.count)}`,
+            }),
         ]),
       ],
     );
@@ -244,12 +246,21 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
 
   const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
   const food = foodPanel(state, content, actions, updates);
+  const bounty = bountyEntry(state, content, actions.bounties);
+  // Health comes back as the page is watched, so the line is kept current.
+  const you = h('p', { class: 'small muted', attrs: { 'data-you': '' } });
+  updates.push((latest) => {
+    const text = youLine(latest, content);
+    if (you.textContent !== text) you.textContent = text;
+  });
+  if (bounty.update) updates.push(bounty.update);
   update(state);
   return {
     el: h('div', { class: 'stack groups' }, [
       button('‹ All skills', actions.back, 'back'),
       now,
-      h('p', { class: 'small muted', attrs: { 'data-you': '' }, text: youLine(state, content) }),
+      bounty.el,
+      you,
       food,
       ...areas,
     ]),
@@ -267,7 +278,7 @@ function overText(
     case 'died':
       return {
         title: 'Knocked out',
-        text: `The ${name} got the better of you. No harm done: you are back at full health, resting.`,
+        text: `The ${name} got the better of you. No harm done: you come round sore, and heal as you rest.`,
       };
     case 'no_arrows':
       return { title: 'Out of arrows', text: 'Your last arrow is gone, and the fight with it.' };
@@ -360,6 +371,21 @@ export function fightView(
   });
   // The eating line, marked on the health bar.
   line.style.left = `${state.eatAt}%`;
+  // Kills towards a bounty on this monster, counted in place.
+  let wanted: HTMLElement | null = null;
+  if (state.bounty?.monster === monster.id) {
+    const line = h('p', { class: 'small wanted', attrs: { 'data-wanted': '' } });
+    updates.push((now) => {
+      const held = now.bounty;
+      if (!held || held.monster !== monster.id) return;
+      const text =
+        held.done >= held.count
+          ? `Bounty done: ${formatNumber(held.count)} / ${formatNumber(held.count)}. Hand it in.`
+          : `Bounty: ${formatNumber(held.done)} / ${formatNumber(held.count)}`;
+      if (line.textContent !== text) line.textContent = text;
+    });
+    wanted = line;
+  }
   const chances = `You hit ${percent(hitChance(me.attack, monster.defence))} of the time, up to ${me.maxHit}. It hits ${percent(hitChance(monster.attack, me.defence))}, up to ${monster.maxHit}.`;
 
   const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
@@ -380,6 +406,7 @@ export function fightView(
       foeHealth.el,
       foeWait,
       foeSwing.el,
+      wanted,
     ]),
     h('section', { class: 'panel stack tight you', attrs: { 'data-you': '' } }, [
       h('div', { class: 'card-head' }, [

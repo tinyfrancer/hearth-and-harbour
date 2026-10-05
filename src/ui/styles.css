@@ -910,3 +910,35 @@ button.card:active {
 .fight-text {
   color: var(--text);
 }
+
+/* Thieving: the bar runs down in red while the thief lies low after being caught. */
+.bar.action.stun .bar-fill {
+  background: var(--danger);
+}
+
+.chance {
+  color: var(--gold-bright);
+}
+
+.chance.problem {
+  color: var(--danger);
+}
+
+/* Bounties: a monster wanted, and a bounty ready to hand in. */
+.wanted,
+.bounty-text {
+  color: var(--gold-bright);
+}
+
+.panel.ready {
+  border-color: var(--gold-bright);
+}
+
+.card.monster.locked {
+  border-color: var(--line);
+}
+
+.card.monster.locked .portrait {
+  border-color: var(--line);
+  opacity: 0.6;
+}

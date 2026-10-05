@@ -64,13 +64,13 @@ describe('the Combat section', () => {
     press('‹ All skills');
     // A combat skill's card leads to the fighting too: it has nothing else to do.
     q<HTMLButtonElement>('[data-skill="defence"]').click();
-    expect(root.querySelectorAll('[data-area]')).toHaveLength(3);
+    expect(root.querySelectorAll('[data-area]')).toHaveLength(4);
   });
 
   it('lists every monster with its level, and its drops as "?" until they are seen', () => {
     playing();
     q<HTMLButtonElement>('[data-combat]').click();
-    expect(root.querySelectorAll('[data-monster]')).toHaveLength(8);
+    expect(root.querySelectorAll('[data-monster]')).toHaveLength(10);
     const rat = q('[data-monster="dock_rat"]');
     expect(rat.textContent).toContain('Level 1');
     expect(rat.querySelector('.drops')!.textContent).toBe('Drops: ?, ?, ?');
@@ -122,7 +122,7 @@ describe('a fight', () => {
     play(app, 120_000);
     expect(saved()).toMatchObject({ fight: null, action: null, coins: 10 });
     expect(q('[data-fight-over="died"]').textContent).toContain('Knocked out');
-    expect(q('[data-fight-over]').textContent).toContain('back at full health');
+    expect(q('[data-fight-over]').textContent).toContain('heal as you rest');
     // The food slot says what is left of it, and it is not lost.
     expect(q('[data-food] .qty').textContent).toMatch(/^(Cooked shrimp ×\d|Empty)/);
     press('Fight the Marsh troll again');

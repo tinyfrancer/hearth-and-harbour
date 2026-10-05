@@ -4,6 +4,14 @@ import { advance, missingInput, startAction, stopAction } from '../core/actions'
 import { catchUp, type AwayReport } from '../core/away';
 import { sell } from '../core/bank';
 import {
+  bountyReady,
+  bountyReward,
+  buyFromShop,
+  handInBounty,
+  swapBounty,
+  takeBounty,
+} from '../core/bounty';
+import {
   DEFENCE,
   MELEE,
   RANGED,
@@ -26,6 +34,7 @@ import { awayReportOverlay } from './awayReport';
 import { artGallery } from '../art/gallery';
 import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
+import { bountiesView, type BountyActions } from './bountyScreen';
 import { characterView, type SheetPanel } from './characterScreen';
 import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
 import { createScreen } from './createScreen';
@@ -93,7 +102,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   /** The skill whose page is open on the Skills tab, or null for the list. */
   let openSkill: string | null = null;
   /** Which of the Combat pages is open on the Skills tab, if one is. */
-  let combatPage: 'areas' | 'fight' | null = null;
+  let combatPage: 'areas' | 'fight' | 'bounties' | null = null;
   /** How the last fight ended, until the player moves on from it. */
   let fightOver: FightOver | null = null;
   /** The item whose card is open on the Bank tab, if any. */
@@ -228,6 +237,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       combatPage = 'fight';
       turnTo();
     },
+    bounties: () => {
+      combatPage = 'bounties';
+      turnTo();
+    },
     fight: (monsterId) => {
       const result = startFight(state ?? game, monsterId, content);
       if (!result.ok) {
@@ -254,6 +267,66 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     },
     unloadFood: () => act(unloadFood(state ?? game)),
     setEatAt: (percent) => act(setEatAt(state ?? game, percent)),
+  });
+
+  /** Take a bounty rule's result: keep it and redraw, or say why not. */
+  const bountyAct = (
+    result: { ok: true; state: GameState } | { ok: false; reason: string },
+    said?: (next: GameState) => string,
+  ): void => {
+    if (!result.ok) {
+      toast(result.reason);
+      return;
+    }
+    if (said) toast(said(result.state));
+    act(result.state);
+  };
+
+  const monsterName = (id: string | undefined): string =>
+    (id && content.monsters?.[id]?.name) ?? 'monster';
+
+  const bountyActions = (game: GameState): BountyActions => ({
+    back: () => {
+      combatPage = null;
+      turnTo();
+    },
+    take: () =>
+      bountyAct(
+        takeBounty(state ?? game, content),
+        (next) => `Wanted: ${next.bounty!.count} ${monsterName(next.bounty!.monster)}.`,
+      ),
+    handIn: () => {
+      const before = state ?? game;
+      const { points, coins } = bountyReward(before, content);
+      bountyAct(handInBounty(before, content), (next) => {
+        const stopped = before.fight && !next.fight ? ' The hunt is over.' : '';
+        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Next: ${next.bounty?.count ?? 0} ${monsterName(next.bounty?.monster)}.`;
+      });
+    },
+    swap: () =>
+      bountyAct(
+        swapBounty(state ?? game, content),
+        (next) =>
+          `Swapped. Wanted now: ${next.bounty!.count} ${monsterName(next.bounty!.monster)}.`,
+      ),
+    hunt: (monsterId) => {
+      const current = state ?? game;
+      if (current.fight?.monster === monsterId) {
+        combatPage = 'fight';
+        turnTo();
+        return;
+      }
+      combatActions(game).fight(monsterId);
+    },
+    buy: (entryId) => {
+      const entry = content.shop?.[entryId];
+      const name = entry ? (content.items[entry.item]?.name ?? entry.item) : '';
+      bountyAct(
+        buyFromShop(state ?? game, entryId, content),
+        () =>
+          `Bought: ${entry && entry.qty > 1 ? `${entry.qty} ${name}` : `the ${name}`}. It is in the bank.`,
+      );
+    },
   });
 
   const buildView = (game: GameState): View => {
@@ -292,6 +365,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     if (tab === 'skills') {
       if (combatPage === 'fight') return fightView(game, content, fightOver, combatActions(game));
       if (combatPage === 'areas') return areasView(game, content, combatActions(game));
+      if (combatPage === 'bounties') return bountiesView(game, content, bountyActions(game));
       const skill = openSkill ? content.skills[openSkill] : undefined;
       if (!skill) {
         const openCombat = (): void => {
@@ -312,6 +386,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             render();
           },
           openCombat,
+          () => {
+            combatPage = 'bounties';
+            turnTo();
+          },
         );
       }
       return skillPageView(
@@ -501,7 +579,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       view?.update?.(state);
       return;
     }
-    if (!busy(state)) {
+    if (!busy(state) && !state.health) {
       // Nothing is passing in the game, but a screen may still be moving (a
       // scene's walker): every view hears every frame.
       view?.update?.(state);
@@ -542,7 +620,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       fightOver = { monster: before.fight.monster, reason, tally: finalTally(before, state) };
       toast(
         reason === 'died'
-          ? `Knocked out by the ${name}. You are back at full health, resting.`
+          ? `Knocked out by the ${name}. You come round sore, and heal as you rest.`
           : reason === 'no_arrows'
             ? 'Out of arrows. The fight is over.'
             : 'That fight is over.',
@@ -553,6 +631,13 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       toast(
         `Out of ${content.items[before.food.item]?.name ?? 'food'}. Fighting on without eating.`,
       );
+      redraw = true;
+    }
+    if (bountyReady(state) && !bountyReady(before)) {
+      toast(
+        `Bounty done: ${state.bounty!.count} ${monsterName(state.bounty!.monster)}. Hand it in.`,
+      );
+      // Its page and cards change from hunting to handing in.
       redraw = true;
     }
     // The bank lists only what is held, so a first log needs its row built.
