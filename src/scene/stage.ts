@@ -66,40 +66,52 @@ export interface StageArt {
   readonly ambient?: readonly Ambient[];
 }
 
-/** The map with everything standing on it, composed once per scene and palette for the page. */
-const stills = new WeakMap<
-  Scene,
-  Map<Palette['name'], { still: HTMLCanvasElement; standing: Standing[] } | null>
->();
+type Still = { still: HTMLCanvasElement; standing: Standing[] } | null;
+
+/**
+ * How many ways of the map with its people turned are kept per scene. Only
+ * someone near the walker turns, and the town's people stand well apart, so
+ * the town as drawn and with each one turned, by day and dusk, fit.
+ */
+const STILLS_KEPT = 8;
+
+/**
+ * The map with everything standing on it, composed once per scene, palette
+ * and set of people turned, and kept for the page (the few most recent).
+ */
+const stills = new WeakMap<Scene, Map<string, Still>>();
 
 function stillOf(
   scene: Scene,
   ground: Picture,
   palette: Palette,
-): { still: HTMLCanvasElement; standing: Standing[] } | null {
-  let byPalette = stills.get(scene);
-  if (!byPalette) {
-    byPalette = new Map();
-    stills.set(scene, byPalette);
+  turned: ReadonlySet<string>,
+): Still {
+  let made = stills.get(scene);
+  if (!made) {
+    made = new Map();
+    stills.set(scene, made);
   }
-  if (byPalette.has(palette.name)) return byPalette.get(palette.name)!;
-  let made: { still: HTMLCanvasElement; standing: Standing[] } | null = null;
+  const key = `${palette.name} ${[...turned].join(' ')}`;
+  if (made.has(key)) return made.get(key)!;
+  let still: Still = null;
   const groundImage = canvasOf(ground, palette);
   if (groundImage) {
     const standing: Standing[] = [];
     for (const t of scene.things) {
-      // Someone who turns is drawn as they face, each frame, not baked in.
-      if (!t.sprite || t.sprite.turned) continue;
-      const image = canvasOf(t.sprite.picture, palette);
+      if (!t.sprite) continue;
+      const pic = turned.has(t.id) && t.sprite.turned ? t.sprite.turned : t.sprite.picture;
+      const image = canvasOf(pic, palette);
       if (image) standing.push({ image, x: t.sprite.at.x, y: t.sprite.at.y, base: t.base });
     }
     // A stable sort, as `drawOrder` has it: things level with each other keep their order.
     standing.sort((a, b) => a.base - b.base);
-    const still = compose(groundImage, standing);
-    if (still) made = { still, standing };
+    const canvas = compose(groundImage, standing);
+    if (canvas) still = { still: canvas, standing };
   }
-  byPalette.set(palette.name, made);
-  return made;
+  if (made.size >= STILLS_KEPT) made.delete(made.keys().next().value!);
+  made.set(key, still);
+  return still;
 }
 
 /** What moved since the last frame drew, by what it was: compared to find the patches to redraw. */
@@ -208,7 +220,7 @@ export function stage(options: StageOptions): View {
   const scaleOf = options.scaleOf ?? sceneScale;
   const insets = options.insets ?? NO_INSETS;
   const world = mapSize(scene.map);
-  // People who turn to look at the walker, drawn each frame as they face.
+  // People who turn to look at the walker.
   const turners = scene.things.filter((t) => t.sprite?.turned);
   const canvas = h(
     'canvas',
@@ -413,7 +425,13 @@ export function stage(options: StageOptions): View {
   const draw = (now: number): void => {
     if (device.width === 0 || device.height === 0) return;
     const palette = paletteFor(time);
-    const made = stillOf(scene, art.ground, palette);
+    // People near the walker turn to him: the map is composed with them turned, rarely and once.
+    const turned = new Set(
+      turners
+        .filter((t) => turnedTo({ x: footprintCentreX(t), y: t.base }, play.walker.at) === 'left')
+        .map((t) => t.id),
+    );
+    const made = stillOf(scene, art.ground, palette, turned);
     // Art that cannot be painted (jsdom) means no context is asked for either.
     if (!made) return;
     if (canvas.width !== device.width || canvas.height !== device.height) {
@@ -460,15 +478,6 @@ export function stage(options: StageOptions): View {
     }
     if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
     const actors: Standing[] = walker ? [walker] : [];
-    for (const t of turners) {
-      const sprite = t.sprite!;
-      const facing = turnedTo({ x: footprintCentreX(t), y: t.base }, play.walker.at);
-      const image = canvasOf(facing === 'left' ? sprite.turned! : sprite.picture, palette);
-      if (!image) continue;
-      const person: Standing = { image, x: sprite.at.x, y: sprite.at.y, base: t.base };
-      actors.push(person);
-      moving.set(`person ${t.id}`, { image, box: boxOf(person) });
-    }
     const target = play.heading === null ? (play.walker.path.at(-1) ?? null) : null;
     if (target) moving.set('target', { image: made.still, box: markerBox(target) });
 
@@ -491,7 +500,7 @@ export function stage(options: StageOptions): View {
       w: Math.ceil(view.width),
       h: Math.ceil(view.height),
     };
-    const shown = `${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height}`;
+    const shown = `${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height} ${[...turned].join(' ')}`;
     if (shown !== shownLast) {
       drawFrame(ctx, frame, whole);
     } else {

@@ -7,9 +7,9 @@
  * Everything that never moves (the ground and every thing standing on it) is
  * composed once per palette into one picture of the whole map. A frame copies
  * the part of it the camera sees, then draws over it only what moves (the
- * walker, his shadow, people who turn to look at him, smoke, gulls) and the
- * few standing things that must be drawn again because they stand in front of
- * someone who moves where they overlap. A patch of the frame can be redrawn the same way on its own, so a gull
+ * walker, his shadow, smoke, gulls) and the few standing things that must be
+ * drawn again because they stand in front of someone who moves where they
+ * overlap. A patch of the frame can be redrawn the same way on its own, so a gull
  * crossing the sky repaints a few pixels round the gull, not the screen.
  */
 import type { Palette } from '../art/palette';
@@ -105,8 +105,8 @@ export interface Frame {
   readonly target: Point | null;
   readonly marker: { readonly light: string; readonly ink: string };
   /**
-   * Whoever is not in `still` because they move or turn: the walker, people
-   * who face him. Each with the line their feet are on.
+   * Whoever is not in `still` because they move: the walker (and, in a
+   * dungeon, whatever comes for him). Each with the line their feet are on.
    */
   readonly actors: readonly Standing[];
   /** Over everything: smoke, gulls. */

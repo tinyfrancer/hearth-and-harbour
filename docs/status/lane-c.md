@@ -1,7 +1,8 @@
 # Lane C: scenes
 
-**Next session: S12c and S14a: your own character in town, and the dungeon's shell** (brief in
-`docs/lanes.md`, wave 4).
+**Next session: S14b: fighting in dungeons** (needs lane A's S8 combat on `main`; brief to be written
+in `docs/lanes.md`, wave 5). What it needs from the combat rules is under "Notes for this lane's
+next session".
 
 ## The town's map
 
@@ -25,7 +26,81 @@ and room round the stall to the west.
 - The net is painted with the ground and has a tap box but no footprint: people walk over it.
 - The hero starts at (14, 17), right of the well, with the tavern and smithy both in view.
 
+## The grotto's map
+
+Three grey-box rooms in `src/scene/grotto.ts`, read by `buildDungeon` (`src/scene/dungeon.ts`).
+Key: `#` rock, `.` floor, `~` water, `s` where the boat puts you ashore, `x` the end, and a lower-case
+letter a door joined to the door with the same letter in exactly one other room.
+
+| Room      | Size (tiles) | Doors                              | What                                    |
+| --------- | ------------ | ---------------------------------- | --------------------------------------- |
+| `landing` | 24 × 12      | `a` east                           | the sea along the west; the start       |
+| `pools`   | 40 × 12      | `a` west, `b` north (far east end) | pools and rocks to walk round; scrolls  |
+| `cove`    | 22 × 13      | `b` south                          | the marked spot at the top ends the run |
+
 ## Done
+
+- **S12c and S14a: your own character in town, and the way into a dungeon.**
+  - The hero is the player's character: `characterPicture(fullLook(state.look), wornItemIds(state))`
+    through `Hero` (`src/scene/hero.ts`). A new character is a villager in his everyday tunic.
+    Every frame's state is compared by the identity of `look` and `equipment` first, then by a key
+    of the look's parts and the worn ids; only a real change draws him again and drops his kept
+    dusk pictures. The `Hero` lives with the Town tab's module state, so a rebuilt tab does not
+    draw him again.
+  - The townsfolk turn to look at the hero: the smith, the trader and the captain each have a
+    mirrored picture (`Sprite.turned`); someone within 40 art pixels each way with the hero off to
+    their left turns (`turnedTo` in `play.ts`), otherwise they stand as drawn. The map's still
+    picture is composed with them turned (once, then kept: up to eight per scene, by palette and
+    who is turned), so turning costs one composition, not a frame's work.
+  - Hold and drag to steer: a press on the ground still walks there as a tap does; held 220 ms or
+    dragged 12 CSS pixels it becomes steering, and the hero heads for the finger, re-planning only
+    when the finger is over another tile (`steering` and `steer` in `play.ts`). The point under a
+    still finger moves as the camera follows him, so holding near an edge keeps him walking. A
+    press on a thing is only ever a tap.
+  - A person's panel shows `portrait(id)` beside their name if the art lane has drawn one
+    (`smith`, `trader`, `pirate`); null today, so nothing shows.
+  - The rowing boat's panel says plainly that the grotto is unfinished and offers to row out.
+  - A run (`dungeonView.ts`, rules in `dungeon.ts`): entering asks the shell for full screen, then
+    pauses the idle clock. A prompt to turn the phone covers the run until the view is wider than
+    tall; turning back puts it up again and stops the run's clock and the walker. A Leave button,
+    top right inside the safe area, asks once more ("Row back" or "Stay"). Rooms are tile maps
+    with doors; walking onto a door dims the screen (180 ms), loads the next room with the hero on
+    the tile inside the matching door facing in, and dims back in. The marked spot ends the run:
+    the results give the time taken (only time played sideways) and a button back to town.
+  - Landscape: the dungeon's scale is the town's scale for the screen's short side
+    (`dungeonScale`), so the hero is the same size on screen after the phone is turned. The camera
+    keeps the hero clear of insets (`DUNGEON_INSETS`: 56 CSS pixels top and sides, 72 bottom) where
+    the Leave button, the notches, and S14b's health (top) and ability bar (bottom) go; a room
+    smaller than what is left is centred in it.
+  - The clock and the bars, by every way out:
+    - Leaving (confirmed): full screen off, clock on, back in town on the quay by the boat.
+    - Finishing: the clock starts again the moment the end is reached, while the results show in
+      full screen; "Back to town" turns full screen off.
+    - Rotating back to portrait: neither changes; the run is paused behind the prompt.
+    - The tab being rebuilt: the run is module state like the hero's place, so the new tab shows it
+      as it was and, on its first frame, asks the shell again for full screen and (unless the run
+      is over) the pause, in case the shell let go. A rebuilt tab with no run gives back anything
+      this scene still holds, so the town is never shown paused or without its bars.
+    - Leaving the Town tab: the shell gives both back itself; the bars are hidden during a run, so
+      the player cannot do this.
+    - Shell calls made from inside a frame (finishing, a rebuilt tab) are guarded: pausing ticks
+      the game, which draws a frame, and that frame does not come back into the scene.
+  - Checked in headless Chromium: a woodcutting action left running made
+    no progress during a 25-second run (the save at 11 s and 25 s into it, and straight after
+    leaving, all at 10 XP and 1 log) and carried on afterwards (3 logs 6.5 s later). The same is a
+    jsdom test against the real app, with half an hour's gap inside the run.
+  - Measured on the dev server at 390 × 844 (3x) with the CPU throttled 4x, walking to the smith:
+    median frame 16.7 ms, p95 16.8 ms once the dusk pictures and the turned still are made (the
+    first pass has one hitch of up to 83 ms when the smith turns and the still is composed); main
+    measured the same way gave p95 16.8 to 33 ms. Walking the grotto in landscape: every frame
+    16.7 ms.
+  - Tests: the hero in look and gear, drawn again only on a change, lit at dusk; door links (every
+    door leads somewhere and back, onto open floor), every door and the end reachable, a bad plan
+    refused; a door's dark and the next room; the end stopping the clock; the rotate prompt's rule
+    and the dungeon's scale; steering and re-aiming, tap versus hold; who turns which way; in
+    jsdom, rowing out, the prompt, rotating mid-run, Leave asking once more, three rooms walked to
+    the results and back, a rebuilt tab mid-run and after, and the idle task paused in the real
+    app.
 
 - **S12b: The whole town.** The Town tab is the approved mock-up, walkable, with its people.
   - Every piece from lane B's index in its place: the smithy (forge glowing by day, brighter at
@@ -80,9 +155,9 @@ and room round the stall to the west.
 
 ## Deferred
 
-- Walk cycle; hold-and-drag to steer.
-- The townsfolk do not turn to face the hero (their pictures face one way).
+- Walk cycle.
 - Ship, boat and buoys do not bob; the waterline foam on the ship and rock does not move.
+- The grotto's rooms are flat placeholder colours until lane B draws dungeon tiles (B5).
 
 ## Needs from another lane
 
@@ -90,16 +165,29 @@ and room round the stall to the west.
 
 ## Notes for this lane's next session
 
-- The hero is still drawn in the fixed outfit (`heroPicture()` in `townArt.ts`). S12c swaps it for
-  `characterPicture(look, worn)` from `src/art/character.ts` once lane A's equipment lands; the lit
-  pictures (`litWalker`) take any picture, so the swap is one line plus rebuilding when the look or
-  gear changes.
-- `heroAt()` in `townView.ts` reports where the hero is and what is open, for tests and screenshot
-  scripts.
-- Taps near a thin thing pick it: a 12-pixel lamp's tap box grows to a thumb. The pier-end lamp
-  stands on the deck's edge so the end itself can be tapped.
-- Where the hero is, what is open and how many times each person has been visited live in module
-  variables in `townView.ts`, not the save; the lines start again from the first when the page is
+- **What S14b needs from lane A's combat (S8):** the player's side as numbers a scene can read
+  without running the idle fight: hit points and their maximum, attack, strength, armour and attack
+  speed for the weapon in hand (`equipmentTotals` and the combat skills), and a pure function for
+  one blow (hit chance and damage range) that takes its dice from a caller-supplied generator, so a
+  dungeon can roll its own dice without touching the save's seeded generator. Monsters by id with
+  their numbers and loot tables (`dock_rat` and friends, plus the grotto's own). Food: which cooked
+  fish heal how much, and a rule to take items from the bank and give loot back at the end of a
+  run, as one state change, so failing a run can keep what was picked up. Nothing of the run
+  itself needs saving.
+- The run never reads `state.action`; it only pauses the clock. The look and worn ids are the only
+  things a scene reads from the state.
+- A new room's stage is told its size by its own `ResizeObserver`; jsdom tests must call the
+  observers again after a door (see `tests/scene/run.test.ts`).
+- `runNow()`, `heroAt()` and `heroNow()` in `townView.ts` report the run, the hero's place and his
+  pictures, for tests and screenshot scripts. A screenshot script on the dev server can import
+  them (`await import('/src/scene/townView.ts')`) to find where things are.
+- Taps near a thin thing pick it: a 12-pixel lamp's tap box grows to a thumb. A hold that starts
+  on or near a thing is a tap on it, not steering.
+- Where the hero is, what is open, how many times each person has been visited and any run under
+  way live in module variables in `townView.ts`, not the save; they start again when the page is
   reloaded.
-- Checked in headless Chromium at 390 × 844 (3x), 320 × 568 (2x; shows the whole mock-up's width),
-  430 × 932 (3x) and 844 × 390 landscape. Not checked on a real phone or in Safari.
+- The smith's bald head catches the forge's glow at dusk so strongly it reads orange; that was so
+  before this session (the glow is lane B's).
+- Checked in headless Chromium at 390 × 844 (3x) and 844 × 390. Not checked on a real phone or in
+  Safari: notably not the safe-area insets on a notched phone held sideways, or iOS's own handling
+  of rotation in a home-screen app.

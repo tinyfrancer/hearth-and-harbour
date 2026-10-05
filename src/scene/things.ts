@@ -46,11 +46,7 @@ export interface Use {
 export interface Sprite {
   readonly picture: Picture;
   readonly at: Point;
-  /**
-   * The picture facing the other way, for someone who turns to look at the
-   * walker when he comes near. Such a thing is drawn as it faces each frame,
-   * not composed into the still picture of the map.
-   */
+  /** The picture facing the other way, for someone who turns to look at the walker when he comes near. */
   readonly turned?: Picture;
 }
 
