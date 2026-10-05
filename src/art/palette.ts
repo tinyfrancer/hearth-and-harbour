@@ -113,6 +113,14 @@ export const RAMPS = {
   draught: ['#ffd88a', '#e09a3a', '#a85e26'],
   tincture: ['#e4fffa', '#88e8e0', '#3aa8b8'],
   midnight: ['#8a7ad8', '#4a3c98', '#271f58'],
+
+  // Brinebeard's Grotto (B6). Cave sand is greyer and cooler than the
+  // road's, so a cave floor stays calm under warm lantern light and a red
+  // warning circle or a loot sack stands out on it; its darkest steps are
+  // the wet sand the tide leaves. Shoal water is the shallows, green-teal
+  // over sand, plainly lighter than the deep sea.
+  cavesand: ['#eee2c4', '#d4c4a0', '#ae9c7e', '#857664'],
+  shoal: ['#a6eadc', '#62c4bc', '#3a98a2'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;

@@ -1,4 +1,6 @@
-import type { Picture } from './raster';
+import { FOES, foeGrid } from './grottoCast';
+import { GROTTO_TILES, isGrottoTileKind, wearOf } from './grottoTiles';
+import { picture, type Picture } from './raster';
 
 /**
  * Art for dungeons, asked for by plain id. Like the other doors, anything art
@@ -13,10 +15,21 @@ export interface FoePicture {
   feet: { x: number; y: number };
 }
 
+const foes = new Map<string, FoePicture>();
+
 /** A monster's sprite by its id (`dock_rat`, `deckhand`, `brinebeard`), or null. */
-export function foePicture(_monsterId: string): FoePicture | null {
-  return null;
+export function foePicture(monsterId: string): FoePicture | null {
+  if (!Object.hasOwn(FOES, monsterId)) return null;
+  let made = foes.get(monsterId);
+  if (!made) {
+    const { grid, feet, glows } = foeGrid(FOES[monsterId]!);
+    made = { picture: picture(grid, glows), feet };
+    foes.set(monsterId, made);
+  }
+  return made;
 }
+
+const tiles = new Map<string, Picture>();
 
 /**
  * A 16 x 16 floor or wall tile for a dungeon, by the dungeon's theme and the
@@ -24,8 +37,17 @@ export function foePicture(_monsterId: string): FoePicture | null {
  * `variant` asks for a different wear of the same kind, so a floor is not one
  * tile repeated; any whole number works and the same number gives the same tile.
  */
-export function dungeonTile(_theme: string, _kind: string, _variant = 0): Picture | null {
-  return null;
+export function dungeonTile(theme: string, kind: string, variant = 0): Picture | null {
+  if (theme !== 'grotto' || !isGrottoTileKind(kind)) return null;
+  const def = GROTTO_TILES[kind];
+  const wear = wearOf(variant, def.wears);
+  const key = `${kind} ${wear}`;
+  let made = tiles.get(key);
+  if (!made) {
+    made = picture(def.draw(wear));
+    tiles.set(key, made);
+  }
+  return made;
 }
 
 /** Something standing in a dungeon room, with the row it meets the ground on. */
