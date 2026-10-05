@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next session: S6: Artisan skills, part 2 (Crafting, Fletching, Alchemy)** (brief to be written in
-`docs/lanes.md` by Cody's orchestrating session).
+**Next session: S6: Artisan skills, part 2 (Crafting, Fletching, Alchemy)** (brief in
+`docs/lanes.md`, wave 2).
 
 ## Done
 
