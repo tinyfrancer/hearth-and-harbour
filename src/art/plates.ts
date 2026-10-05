@@ -3,7 +3,14 @@
  * so it can be judged as it will look in the world rather than floating on a
  * menu panel. Pure, like the rest of the engine.
  */
-import { FIGURE_H, HERO_OUTFIT, figure } from './figure';
+import {
+  FIGURE_H,
+  HERO_OUTFIT,
+  PIRATE_OUTFIT,
+  SMITH_OUTFIT,
+  TRADER_OUTFIT,
+  figure,
+} from './figure';
 import { blit, grid, groundShadow, type Grid } from './grid';
 import type { Shade } from './palette';
 import { picture, type Glow, type Picture } from './raster';
@@ -20,6 +27,7 @@ import {
   well,
   type Box,
 } from './scenery';
+import { townPiece, type TownId } from './town';
 
 /** A plate being drawn: its grid and the glows of what has been placed on it. */
 class Plate {
@@ -131,5 +139,31 @@ export function propsPlate(): Picture {
   put(barrel(), 116, 7);
   put(crate(), 134, 8);
   put(crate(), 152, 8);
+  return p.done();
+}
+
+/** The people of the town, each as the mock-up dressed them. */
+export const TOWNSFOLK: readonly {
+  readonly id: TownId;
+  readonly body: string;
+  readonly gear: readonly string[];
+}[] = [
+  { id: 'hero', body: 'standard', gear: HERO_OUTFIT },
+  { id: 'pirate', body: 'pirate', gear: PIRATE_OUTFIT },
+  { id: 'smith', body: 'smith', gear: SMITH_OUTFIT },
+  { id: 'trader', body: 'trader', gear: TRADER_OUTFIT },
+];
+
+/** The hero and the three townsfolk side by side on grass, each on their mock-up shadow. */
+export function townsfolkPlate(): Picture {
+  const step = 42;
+  const p = new Plate(TOWNSFOLK.length * step + 4, 56);
+  grass(p.g, seeded(11), whole(p.g.w, p.g.h));
+  TOWNSFOLK.forEach(({ id, body, gear }, i) => {
+    const x = 3 + i * step;
+    const shadow = townPiece(id).shadow;
+    if (shadow) groundShadow(p.g, x + shadow.cx, 3 + shadow.cy, 'grass3', shadow.rx, shadow.ry);
+    p.place(figure(body, gear), x, 3);
+  });
   return p.done();
 }

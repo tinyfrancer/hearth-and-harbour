@@ -42,6 +42,22 @@ export const FIGURE_LEGEND: Legend = {
   U: 'blue2',
   e: 'plaster1',
   E: 'plaster2',
+  // Added for the townsfolk.
+  r: 'red2',
+  R: 'red3',
+  z: 'navy2',
+  Z: 'navy1',
+  B: 'beard2',
+  W: 'wood2',
+  j: 'wood1',
+  q: 'stone3',
+  a: 'apron1',
+  A: 'apron2',
+  v: 'dress1',
+  V: 'dress2',
+  y: 'auburn1',
+  Y: 'auburn2',
+  N: 'auburn3',
 };
 
 /** Part of a figure: rows of legend characters placed at `at` on the figure canvas. */
@@ -78,6 +94,13 @@ export const HERO_OUTFIT: readonly string[] = [
   'leather_belt',
   'kite_shield',
 ];
+
+/** The pirate captain as the mock-up drew him: his own posed body, cutlass in hand. */
+export const PIRATE_OUTFIT: readonly string[] = ['pirate_cutlass'];
+/** The smith as the mock-up drew him: his own posed body, arms folded; nothing held. */
+export const SMITH_OUTFIT: readonly string[] = [];
+/** The trader as the mock-up drew her: her own posed body, a basket on her arm. */
+export const TRADER_OUTFIT: readonly string[] = ['trader_basket'];
 
 /** Bodies and gear to dress from: the game's own wardrobe unless a test brings its own. */
 export interface Wardrobe {

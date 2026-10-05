@@ -88,7 +88,9 @@ chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a
 held blade behind the body, clothes and armour on it, shield in front), and the outline goes round
 the dressed figure. The standard body stands in linen smallclothes, left fist at the hip where a
 weapon goes and right hand on the hip where a shield goes; every new piece of gear is drawn to fit
-that pose. Its hero outfit is the mock-up's hero, pixel for pixel.
+that pose. Its hero outfit is the mock-up's hero, pixel for pixel. Townsfolk whose pose differs
+(the pirate captain, the smith, the trader) each have a posed body of their own
+(`src/art/townsfolk.ts`), drawn only where it shows, with what they hold as gear.
 
 ## Portraits
 
@@ -105,6 +107,11 @@ that pose. Its hero outfit is the mock-up's hero, pixel for pixel.
 - Roofs are shingled in staggered rows; walls show their beams or their blocks.
 - Ground is textured (grass flecks, cobbles in offset rows, wheel ruts on roads), never flat fill.
 - A little menace in the background is welcome: a black flag, a wreck, a rock with a face.
+
+In code: buildings and props are in `src/art/scenery.ts` and `src/art/harbour.ts`, grounds (road,
+sand, cobbled square, quay wall, sea) are painters in `src/art/ground.ts`, and `src/art/town.ts`
+indexes every piece by id with its size, base line and walk-up spots, and assembles the mock-up's
+town from them, pixel for pixel.
 
 ## Menus
 
