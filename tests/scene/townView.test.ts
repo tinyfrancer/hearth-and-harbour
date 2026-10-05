@@ -91,8 +91,8 @@ function wait(view: View, ms: number): void {
 }
 
 const start = centreOf(TOWN_START);
-/** The crate beside the tavern that opens the bank. */
-const crate = { x: 136, y: 168 };
+/** The crate beside the tavern's door that opens the bank. */
+const crate = { x: 168, y: 184 };
 
 describe('townView', () => {
   it('is a canvas scene that says what it is, with a sun-and-moon button', () => {
@@ -136,10 +136,11 @@ describe('townView', () => {
     view.el.querySelector<HTMLButtonElement>('.scene-panel-close')!.click();
     expect(view.el.querySelector('.scene-panel')).toBeNull();
 
-    tap(view, crate, centreOf({ col: 8, row: 11 }));
+    const there = centreOf({ col: 11, row: 11 });
+    tap(view, crate, there);
     wait(view, 200);
     expect(view.el.querySelector('.scene-panel')).not.toBeNull();
-    tap(view, centreOf({ col: 12, row: 18 }), centreOf({ col: 8, row: 11 }));
+    tap(view, centreOf({ col: 12, row: 18 }), there);
     expect(view.el.querySelector('.scene-panel')).toBeNull();
   });
 
@@ -188,9 +189,10 @@ describe('townView', () => {
     vi.setSystemTime(new Date(2026, 9, 4, 12, 0));
     const view = shown();
     // The tavern door, from the step in front of it.
-    tap(view, centreOf({ col: 5, row: 11 }), start);
-    wait(view, 2000);
-    tap(view, { x: 94, y: 145 }, centreOf({ col: 5, row: 11 }));
+    const step = centreOf({ col: 8, row: 11 });
+    tap(view, step, start);
+    wait(view, 3000);
+    tap(view, { x: 148, y: 160 }, step);
     wait(view, 600);
     const day = view.el.querySelector('.scene-panel p')!.textContent;
     view.el.querySelector<HTMLButtonElement>('.scene-light')!.click();
@@ -198,5 +200,56 @@ describe('townView', () => {
     expect(view.el.querySelector('.scene-panel h2')!.textContent).toBe('The Gull & Anchor');
     expect(dusk).not.toBe(day);
     vi.useRealTimers();
+  });
+
+  it('walks up to the smith, who says something new each visit and offers Smithing', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 4, 12, 0));
+    const shell = shellSpy();
+    const view = shown(shell);
+    const smith = { x: 328, y: 150 };
+    const away = centreOf({ col: 18, row: 13 });
+    tap(view, away, start);
+    wait(view, 4000);
+    tap(view, smith, away);
+    wait(view, 2000);
+    const panel = () => view.el.querySelector('.scene-panel')!;
+    expect(panel().querySelector('h2')!.textContent).toMatch(/smith/);
+    const first = panel().querySelector('.scene-say')!.textContent;
+    view.el.querySelector<HTMLButtonElement>('.scene-panel-close')!.click();
+    const beside = centreOf({ col: 19, row: 10 });
+    tap(view, smith, beside);
+    wait(view, 200);
+    const second = panel().querySelector('.scene-say')!.textContent;
+    expect(second).not.toBe(first);
+    // After dark, the round starts with an evening line, which is not one of the day's.
+    view.el.querySelector<HTMLButtonElement>('.scene-light')!.click();
+    expect(panel().querySelector('.scene-say')!.textContent).not.toBe(second);
+    [...panel().querySelectorAll('button')]
+      .find((b) => b.textContent === 'Go to Smithing')!
+      .click();
+    expect(shell.calls).toEqual(['skill:smithing']);
+    vi.useRealTimers();
+  });
+
+  it('opens the trader from her stall’s counter, with the bank behind her button', () => {
+    const shell = shellSpy();
+    const view = shown(shell);
+    tap(view, { x: 70, y: 250 }, start);
+    wait(view, 4000);
+    const panel = view.el.querySelector('.scene-panel')!;
+    expect(panel.querySelector('h2')!.textContent).toMatch(/trader/);
+    [...panel.querySelectorAll('button')].find((b) => b.textContent === 'Open the bank')!.click();
+    expect(shell.calls).toEqual(['tab:bank']);
+  });
+
+  it('walks out along the pier to the captain', () => {
+    const view = shown();
+    tap(view, { x: 216, y: 345 }, start);
+    wait(view, 4000);
+    expect(view.el.querySelector('.scene-panel h2')!.textContent).toMatch(/Captain/);
+    expect(view.el.querySelector('.scene-panel .scene-say')!.textContent!.length).toBeGreaterThan(
+      0,
+    );
   });
 });

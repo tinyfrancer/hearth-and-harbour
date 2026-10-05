@@ -42,7 +42,7 @@ describe('step', () => {
 describe('walkTo', () => {
   it('walks across the town to where it was sent, at walking speed', () => {
     let walker: Walker = { at: centreOf(TOWN_START), path: [] };
-    const target = centreOf({ col: 2, row: 21 });
+    const target = centreOf({ col: 2, row: 18 });
     walker = walkTo(town().scene.map, walker, target);
     expect(walker.path.at(-1)).toEqual(target);
     const length = walker.path.reduce((sum, p, i) => {

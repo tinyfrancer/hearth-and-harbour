@@ -1,97 +1,124 @@
 /*
- * The town's pictures, put together from the art lane's pieces the way
- * `src/art/plates.ts` puts its small scenes together: ground painted with
- * grass and cobbles, standing things on it with their shadows. Nothing here
- * draws a building or a prop; plots for pieces the art lane has not drawn yet
- * are a flat base-ramp colour. Pure, so it can be tested without a canvas.
+ * The town's pictures, put together from the art lane's pieces the way its
+ * townPicture() puts the approved mock-up together (src/art/town.ts): the
+ * grounds painted in the same order with the same painters, the pieces from
+ * its index, and a soft shadow on the ground under everything that stands.
+ * Nothing here draws a building or a prop. Pure, so it can be tested without
+ * a canvas.
  */
-import { FIGURE_H, HERO_OUTFIT, figure } from '../art/figure';
-import {
-  blit,
-  clear,
-  ellipse,
-  get,
-  grid,
-  groundShadow,
-  outline,
-  rect,
-  type Grid,
-} from '../art/grid';
+import { cobbledSquare, quayWall, QUAY_H, road, sea, wildflowers } from '../art/ground';
+import { blit, ellipse, get, grid, groundShadow, set, type Grid } from '../art/grid';
+import { net, pier, smoke } from '../art/harbour';
 import type { Shade } from '../art/palette';
 import { picture, type Glow, type Picture } from '../art/raster';
 import { seeded } from '../art/rng';
-import {
-  barrel,
-  cobbles,
-  crate,
-  grass,
-  lamp,
-  noticeBoard,
-  pine,
-  tavern,
-  well,
-} from '../art/scenery';
+import { grass } from '../art/scenery';
+import { townPiece, type TownId } from '../art/town';
+import { circling, cycling, risenPuffs, type Ambient, type Loop, type Puff } from './ambient';
+import type { Facing } from './play';
 import type { Box } from './things';
 import type { Point } from './tileMap';
 
-/** A picture and the soft shadow it casts, relative to its top-left (by default under its middle). */
+/** A piece as the town uses it: the art lane's picture, its base line, its shadow and its spots. */
 export interface Piece {
   readonly picture: Picture;
+  /** The row of the picture its feet or foundations stand on. */
+  readonly base: number;
+  /** Its ground shadow, from the picture's top-left. */
   readonly shadow?: {
-    readonly x?: number;
-    readonly y?: number;
+    readonly x: number;
+    readonly y: number;
     readonly rx: number;
     readonly ry: number;
   };
+  /** Where a person stands to use it, from the picture's top-left. */
+  readonly spots: Readonly<Record<string, Point>>;
 }
 
-export type PieceId =
-  | 'tavern'
-  | 'well'
-  | 'board'
-  | 'lamp'
-  | 'barrel'
-  | 'crate'
-  | 'pine1'
-  | 'pine2'
-  | 'pine3'
-  | 'smithyPlot'
-  | 'stallPlot';
+export type PieceId = TownId;
 
-/** A plot for a piece still to come: a flat block of one base-ramp step, outlined like everything else. */
-export function plot(w: number, h: number, shade: Shade): Picture {
-  const g = grid(w - 2, h - 2);
-  rect(g, 0, 0, w - 2, h - 2, shade);
-  return picture(outline(g));
-}
+/**
+ * Shadows for pieces the mock-up drew without one (it painted the whole town
+ * at once and could leave them out), sized to each piece's foot.
+ */
+const SMALL_SHADOWS: Partial<Record<PieceId, { rx: number; ry: number }>> = {
+  lamp: { rx: 5, ry: 2.2 },
+  barrel: { rx: 7, ry: 2.2 },
+  crate: { rx: 8, ry: 2.4 },
+  pine: { rx: 11, ry: 2.6 },
+  pine_2: { rx: 11, ry: 2.6 },
+  pine_3: { rx: 11, ry: 2.6 },
+  notice_board: { rx: 11, ry: 2.6 },
+  signpost: { rx: 6, ry: 2.2 },
+  anvil: { rx: 9, ry: 2.4 },
+  bucket: { rx: 6, ry: 2 },
+  crab: { rx: 6, ry: 1.8 },
+};
 
-/** The pieces the town is built from. The seeds fix where the wear and flecks land. */
-export function townPieces(): Record<PieceId, Piece> {
-  const trees = seeded(33);
-  return {
-    // The mock-up's long shadow along the tavern's front.
-    tavern: { picture: tavern(seeded(21)), shadow: { x: 66, y: 117, rx: 66, ry: 4 } },
-    well: { picture: picture(well()), shadow: { rx: 14, ry: 3.5 } },
-    board: { picture: picture(noticeBoard()), shadow: { rx: 11, ry: 2.6 } },
-    lamp: { picture: lamp(), shadow: { rx: 5, ry: 2.2 } },
-    barrel: { picture: picture(barrel()), shadow: { rx: 7, ry: 2.2 } },
-    crate: { picture: picture(crate()), shadow: { rx: 8, ry: 2.4 } },
-    pine1: { picture: picture(pine(trees)), shadow: { rx: 11, ry: 2.6 } },
-    pine2: { picture: picture(pine(trees)), shadow: { rx: 11, ry: 2.6 } },
-    pine3: { picture: picture(pine(trees)), shadow: { rx: 11, ry: 2.6 } },
-    // Roughly the mock-up's smithy (96 x 88) and stall (60 x 42), outlined.
-    smithyPlot: { picture: plot(98, 90, 'slate2') },
-    stallPlot: { picture: plot(62, 44, 'wood2') },
-  };
+const pieces = new Map<PieceId, Piece>();
+
+/** One of the art lane's pieces, with a shadow wherever it stands on ground. */
+export function townPieceFor(id: PieceId): Piece {
+  let piece = pieces.get(id);
+  if (!piece) {
+    const p = townPiece(id);
+    const small = SMALL_SHADOWS[id];
+    const shadow = p.shadow
+      ? { x: p.shadow.cx, y: p.shadow.cy, rx: p.shadow.rx, ry: p.shadow.ry }
+      : small && { x: p.w / 2, y: p.base, ...small };
+    piece = { picture: p.picture, base: p.base, spots: p.spots, ...(shadow ? { shadow } : {}) };
+    pieces.set(id, piece);
+  }
+  return piece;
 }
 
 /** The hero as approved: lane B's standard body in the hero's outfit, facing right. */
 export function heroPicture(): Picture {
-  return picture(figure('standard', HERO_OUTFIT));
+  return townPiece('hero').picture;
 }
 
-/** Where the hero's feet are in the hero's picture: the middle of the 40-wide canvas, its bottom row of boots. */
-export const HERO_FEET: Point = { x: 20, y: FIGURE_H - 1 };
+/** Where the hero's feet are in the hero's picture: the middle of the 40-wide canvas, its row of boots. */
+export const HERO_FEET: Point = { x: 20, y: townPiece('hero').base };
+
+/** A grid flipped left to right. */
+export function mirrored(g: Grid): Grid {
+  const out = grid(g.w, g.h);
+  for (let y = 0; y < g.h; y++)
+    for (let x = 0; x < g.w; x++) set(out, g.w - 1 - x, y, get(g, x, y));
+  return out;
+}
+
+/** How finely the hero's light follows him, in art pixels: one lit picture per step of this. */
+export const LIGHT_STEP = 4;
+
+/**
+ * The walker as he stands at `feet`, facing either way, lit at dusk by
+ * whichever lamps and windows reach him, as everything else in the town is.
+ * Each lit picture is made once for a place (to the nearest `LIGHT_STEP`) and
+ * kept, so walking about at dusk paints a few small pictures, never a frame.
+ */
+export function litWalker(
+  base: Picture,
+  feetIn: Point,
+  lights: readonly Glow[],
+): (feet: Point, facing: Facing, lightsOn: boolean) => Picture {
+  const plain: Record<Facing, Picture> = { right: base, left: picture(mirrored(base.grid)) };
+  const lit = new Map<string, Picture>();
+  return (feet, facing, lightsOn) => {
+    if (!lightsOn) return plain[facing];
+    const x = Math.round(feet.x / LIGHT_STEP) * LIGHT_STEP;
+    const y = Math.round(feet.y / LIGHT_STEP) * LIGHT_STEP;
+    const key = `${facing} ${x} ${y}`;
+    let pic = lit.get(key);
+    if (!pic) {
+      const fx = facing === 'left' ? base.grid.w - 1 - feetIn.x : feetIn.x;
+      pic = litBy(plain[facing], { x: x - fx, y: y - feetIn.y }, lights);
+      if (pic.glows.length === 0) pic = plain[facing];
+      lit.set(key, pic);
+    }
+    return pic;
+  };
+}
 
 /** Ground steps a shadow can fall on, and the dark step of each it is drawn in. */
 const SHADOW_OF: Readonly<Record<string, Shade>> = {
@@ -125,16 +152,25 @@ export function walkerShadow(shade: Shade): Picture {
 export interface GroundPlan {
   readonly width: number;
   readonly height: number;
-  /** How far down the forest along the top reaches. Its trees skip the road. */
+  /** How far down the forest along the top reaches. Its trees leave a gap for the road. */
   readonly forestDepth: number;
-  /** The road north: its middle, half its width, and where it stops. */
-  readonly road: { readonly centre: number; readonly half: number; readonly until: number };
+  /** The road north: its middle column, and the row it reaches down to (the square paints over its end). */
+  readonly road: { readonly x: number; readonly until: number };
+  /** Wild flowers in the grass: where, and how many. */
+  readonly flowers: readonly { readonly box: Box; readonly n: number }[];
   /** The cobbled square. Its top edge is ragged where it meets the grass. */
   readonly square: Box;
-  /** Plots painted flat until lane B's pieces arrive. */
-  readonly quay: Box;
-  readonly sea: Box;
-  readonly pier: Box;
+  /** The quay wall's top row, and the columns of its mooring rings. */
+  readonly quay: { readonly y: number; readonly rings: readonly number[] };
+  /** The pier's top-left and its length; it lies on the ground over the quay and the water. */
+  readonly pier: { readonly x: number; readonly y: number; readonly length: number };
+  /** A net drying on the cobbles, by its top-left. */
+  readonly net: Point;
+}
+
+/** Where the water starts: under the quay wall. */
+export function seaTop(plan: GroundPlan): number {
+  return plan.quay.y + QUAY_H;
 }
 
 /** A shadow to lay on the ground, in art pixels. */
@@ -146,40 +182,23 @@ export interface GroundShadow {
 }
 
 /**
- * The town's ground, one grid the size of the map: grass, the forest along
- * the top, the road, the square, the flat plots, and the shadows of
- * everything that stands, cast on whatever ground is under each.
+ * The town's ground, one grid the size of the map, painted in the mock-up's
+ * order: grass, flowers, the road, the square, the forest along the top, the
+ * quay wall, the sea, then what lies flat on it (the pier, the net), and last
+ * the shadows of everything that stands, each in the dark step of whatever
+ * ground is under it.
  */
-export function paintGround(
-  plan: GroundPlan,
-  pines: readonly Grid[],
-  shadows: readonly GroundShadow[],
-): Grid {
+export function paintGround(plan: GroundPlan, shadows: readonly GroundShadow[]): Grid {
   const rand = seeded(21);
   const g = grid(plan.width, plan.height);
-  grass(g, rand, { x: 0, y: 0, w: plan.width, h: plan.sea.y });
-
-  // The road, flat sand until lane B's road with its ruts arrives; it wanders a little as in the mock-up.
-  const { centre, half, until } = plan.road;
-  for (let y = 0; y < until; y++) {
-    const cx = centre + Math.round(5 * Math.sin(y / 20));
-    rect(g, cx - half, y, half * 2, 1, 'sand2');
-  }
-
-  // The square: cobbles, worn back to grass along the top in the mock-up's ragged steps.
-  const sq = plan.square;
-  const stones = grid(plan.width, plan.height);
-  cobbles(stones, rand, sq);
-  for (let y = sq.y; y < sq.y + sq.h; y++) {
-    const rag = Math.max(0, (sq.y + 6 - y) * 4);
-    const left = sq.x + rag + ((rand() * 2) | 0);
-    const right = sq.x + sq.w - rag - ((rand() * 2) | 0);
-    for (let x = sq.x; x < sq.x + sq.w; x++) if (x < left || x >= right) clear(stones, x, y);
-  }
-  blit(g, stones, 0, 0);
+  grass(g, rand, { x: 0, y: 0, w: plan.width, h: seaTop(plan) });
+  for (const f of plan.flowers) wildflowers(g, rand, f.box, f.n);
+  road(g, rand, plan.road.x, 0, plan.road.until);
+  cobbledSquare(g, rand, plan.square);
 
   // The forest along the top, in four staggered rows, leaving a gap for the road.
-  const gap = (x: number, w: number) => Math.abs(x + w / 2 - centre) < half + 14;
+  const pines = (['pine', 'pine_2', 'pine_3'] as const).map((id) => townPiece(id).picture.grid);
+  const gap = (x: number, w: number) => Math.abs(x + w / 2 - plan.road.x) < 30;
   const rows: [start: number, top: number, spread: number][] = [
     [-2, -26, 8],
     [-10, -12, 10],
@@ -194,9 +213,10 @@ export function paintGround(
     }
   });
 
-  rect(g, plan.quay.x, plan.quay.y, plan.quay.w, plan.quay.h, 'stone2');
-  rect(g, plan.sea.x, plan.sea.y, plan.sea.w, plan.sea.h, 'sea2');
-  rect(g, plan.pier.x, plan.pier.y, plan.pier.w, plan.pier.h, 'wood2');
+  quayWall(g, rand, 0, plan.quay.y, plan.width, plan.quay.rings);
+  sea(g, rand, { x: 0, y: seaTop(plan), w: plan.width, h: plan.height - seaTop(plan) });
+  blit(g, pier(rand, plan.pier.length), plan.pier.x, plan.pier.y);
+  blit(g, net(), plan.net.x, plan.net.y);
 
   for (const s of shadows) {
     const shade = shadowShadeAt(g, s);
@@ -225,4 +245,123 @@ export function litBy(pic: Picture, at: Point, lights: readonly Glow[]): Picture
       .filter((glow) => reaches(glow, box))
       .map((glow) => ({ ...glow, x: glow.x - at.x, y: glow.y - at.y })),
   );
+}
+
+/* ----- A little life ----- */
+
+/** The puffs the art lane's chimney smoke is drawn with (src/art/harbour.ts), and its size. */
+export const CHIMNEY_SMOKE: Readonly<
+  Record<'tavern_smoke' | 'smithy_smoke', { w: number; h: number; puffs: readonly Puff[] }>
+> = {
+  tavern_smoke: {
+    w: 18,
+    h: 18,
+    puffs: [
+      [5, 14, 4.5],
+      [9, 8, 3.6],
+      [14, 3, 3],
+    ],
+  },
+  smithy_smoke: {
+    w: 22,
+    h: 24,
+    puffs: [
+      [5, 20, 4.5],
+      [9, 13, 3.8],
+      [14, 7, 3.2],
+      [18, 2, 2.6],
+    ],
+  },
+};
+
+/** Room left round rising smoke for the top puff to thin away in. */
+export const SMOKE_PAD = 6;
+/** Frames in one rise of a plume, and how long each shows. */
+export const SMOKE_FRAMES = 6;
+export const SMOKE_FRAME_MS = 420;
+
+/**
+ * Chimney smoke rising: `SMOKE_FRAMES` pictures, each the art lane's puffs
+ * risen a little further (`risenPuffs`), drawn `SMOKE_PAD` pixels in from the
+ * top and right. The first is the art lane's own smoke, unmoved.
+ */
+export function smokeFrames(id: keyof typeof CHIMNEY_SMOKE): Picture[] {
+  const { w, h, puffs } = CHIMNEY_SMOKE[id];
+  return Array.from({ length: SMOKE_FRAMES }, (_, f) =>
+    picture(
+      smoke(
+        w + SMOKE_PAD,
+        h + SMOKE_PAD,
+        risenPuffs(puffs, f / SMOKE_FRAMES).map(([x, y, r]) => [x, y + SMOKE_PAD, r] as Puff),
+      ),
+    ),
+  );
+}
+
+/** Smoke from a chimney whose art-lane smoke would stand at `at`. */
+export function chimneySmoke(id: keyof typeof CHIMNEY_SMOKE, at: Point, phaseMs: number): Ambient {
+  return cycling(
+    'above',
+    smokeFrames(id),
+    { x: at.x, y: at.y - SMOKE_PAD },
+    SMOKE_FRAME_MS,
+    phaseMs,
+  );
+}
+
+/** Whether the foam is broken along the shore at column `x`, a little along at `shift`. */
+export function foamAt(x: number, shift: number): boolean {
+  const u = x + shift;
+  return Math.sin(u * 0.6) + Math.sin(u * 0.21) > 0.2;
+}
+
+/** A small, fixed scatter for the second row of foam, so the strip is the same every time it is made. */
+const speck = (x: number, shift: number): boolean => (x * 7 + shift * 13) % 10 < 4;
+
+/** How far along the shore the foam moves between its two states. */
+export const FOAM_SHIFT = 4;
+export const FOAM_FRAME_MS = 1100;
+
+/**
+ * The shore foam moved along a little: the two rows of water under the quay
+ * wall, copied from the painted ground with its foam washed off and laid
+ * again `FOAM_SHIFT` pixels along. Empty over the pier, which lies on top.
+ */
+export function shiftedFoam(ground: Grid, plan: GroundPlan, lights: readonly Glow[]): Picture {
+  const y0 = seaTop(plan);
+  const g = grid(plan.width, 2);
+  for (let x = 0; x < plan.width; x++) {
+    if (x >= plan.pier.x && x < plan.pier.x + 44) continue;
+    for (let row = 0; row < 2; row++) {
+      const was = get(ground, x, y0 + row);
+      set(g, x, row, was === 'foam1' ? 'sea2' : was);
+    }
+    if (foamAt(x, FOAM_SHIFT)) {
+      set(g, x, 0, 'foam1');
+      if (speck(x, FOAM_SHIFT)) set(g, x, 1, 'foam1');
+    }
+  }
+  return litBy(picture(g), { x: 0, y: y0 }, lights);
+}
+
+/** The shore foam: as painted, then shifted along, then back. */
+export function shoreFoam(ground: Grid, plan: GroundPlan, lights: readonly Glow[]): Ambient {
+  const y0 = seaTop(plan);
+  const asPainted = grid(plan.width, 2);
+  for (let x = 0; x < plan.width; x++) {
+    if (x >= plan.pier.x && x < plan.pier.x + 44) continue;
+    for (let row = 0; row < 2; row++) set(asPainted, x, row, get(ground, x, y0 + row));
+  }
+  return cycling(
+    'ground',
+    [litBy(picture(asPainted), { x: 0, y: y0 }, lights), shiftedFoam(ground, plan, lights)],
+    { x: 0, y: y0 },
+    FOAM_FRAME_MS,
+  );
+}
+
+/** Gulls over the harbour, each on a lazy loop. */
+export function gulls(loops: readonly Loop[]): Ambient[] {
+  const gull = townPiece('gull').picture;
+  return loops.map((loop) => circling(gull, { x: 4, y: 2 }, loop));
 }

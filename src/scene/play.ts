@@ -4,7 +4,7 @@
  * taps and time and shows the result, so all of it can be tested without a
  * canvas.
  */
-import { approach, footprintCentreX, thingAt, type Scene } from './things';
+import { approach, footprintCentreX, panelFor, thingAt, usable, type Scene } from './things';
 import { centreOf, type Point } from './tileMap';
 import { step, walkTo, type Walker } from './walker';
 
@@ -21,10 +21,29 @@ export interface Play {
   readonly heading: string | null;
   /** The thing whose panel is open. */
   readonly open: string | null;
+  /** How many times each thing's panel has opened: which of its lines it says next. */
+  readonly visits: Readonly<Record<string, number>>;
 }
 
 export function startPlay(at: Point): Play {
-  return { walker: { at, path: [] }, facing: 'right', walked: 0, heading: null, open: null };
+  return {
+    walker: { at, path: [] },
+    facing: 'right',
+    walked: 0,
+    heading: null,
+    open: null,
+    visits: {},
+  };
+}
+
+/** A panel opening for `id`: one more visit to it. */
+function opened(play: Play, id: string): Pick<Play, 'open' | 'visits'> {
+  return { open: id, visits: { ...play.visits, [id]: (play.visits[id] ?? 0) + 1 } };
+}
+
+/** How many times `id`'s panel has opened, this one included if it is open. */
+export function visitsTo(play: Play, id: string): number {
+  return play.visits[id] ?? 0;
 }
 
 /**
@@ -66,12 +85,17 @@ export function bob(play: Play): number {
  */
 export function tapAt(scene: Scene, play: Play, point: Point, min = 0): Play {
   const thing = thingAt(scene.things, point, min);
-  if (thing?.use) {
-    if (play.open === thing.id) return play;
+  if (thing && usable(thing)) {
+    if (play.open === panelFor(thing)) return play;
     const spot = approach(scene.map, play.walker.at, thing);
     // Somewhere it cannot be reached from still says what it is.
     if (!spot)
-      return { ...play, walker: { ...play.walker, path: [] }, heading: null, open: thing.id };
+      return {
+        ...play,
+        walker: { ...play.walker, path: [] },
+        heading: null,
+        ...opened(play, panelFor(thing)),
+      };
     return {
       ...play,
       walker: walkTo(scene.map, { at: play.walker.at, path: [] }, centreOf(spot)),
@@ -93,7 +117,8 @@ export function advancePlay(scene: Scene, play: Play, ms: number): Play {
   if (play.heading && moved.path.length === 0) {
     const thing = scene.things.find((t) => t.id === play.heading);
     if (thing) facing = facingToward(facing, moved.at, footprintCentreX(thing));
-    return { walker: moved, facing, walked, heading: null, open: play.heading };
+    const id = thing ? panelFor(thing) : play.heading;
+    return { ...play, walker: moved, facing, walked, heading: null, ...opened(play, id) };
   }
   if (moved === play.walker) return play;
   return { ...play, walker: moved, facing, walked };

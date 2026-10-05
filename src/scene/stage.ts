@@ -1,13 +1,25 @@
+import type { Palette } from '../art/palette';
 import type { Picture } from '../art/raster';
 import { h } from '../ui/dom';
 import type { View } from '../ui/view';
+import type { Ambient } from './ambient';
 import { cameraFor, type Size } from './camera';
 import { paletteFor, type TimeOfDay } from './daylight';
-import { canvasOf, drawFrame, mirrorOf, type Placed } from './draw';
+import {
+  boxOf,
+  canvasOf,
+  compose,
+  drawFrame,
+  markerBox,
+  overlaps,
+  type Frame,
+  type Placed,
+  type Standing,
+} from './draw';
 import { usePanel } from './panel';
-import { advancePlay, bob, closePanel, tapAt, type Play } from './play';
+import { advancePlay, bob, closePanel, tapAt, visitsTo, type Facing, type Play } from './play';
 import { canvasFit, cssToArt, sceneScale, tapToWorld, viewSize } from './scale';
-import { drawOrder, type Opens, type Scene } from './things';
+import type { Box, Opens, Scene } from './things';
 import { mapSize, type Point } from './tileMap';
 
 /**
@@ -33,12 +45,95 @@ const PANEL_MARGIN = 12;
 export interface StageArt {
   /** The whole map, one pixel per art pixel, with its lights. */
   readonly ground: Picture;
-  /** The walker, facing right. */
-  readonly hero: Picture;
-  /** Where the walker's feet are in that picture. */
+  /** Where the walker's feet are in their picture, facing right. */
   readonly heroFeet: Point;
+  /** The walker standing at `feet`, facing either way, in this palette's light. */
+  walkerAt(feet: Point, facing: Facing, palette: Palette): Picture;
   /** The walker's shadow on the ground at `feet`, and the point of it that goes under the feet. */
   shadowAt(feet: Point): { readonly picture: Picture; readonly middle: Point } | null;
+  /** Things that move by themselves: smoke, birds, water. */
+  readonly ambient?: readonly Ambient[];
+}
+
+/** The map with everything standing on it, composed once per scene and palette for the page. */
+const stills = new WeakMap<
+  Scene,
+  Map<Palette['name'], { still: HTMLCanvasElement; standing: Standing[] } | null>
+>();
+
+function stillOf(
+  scene: Scene,
+  ground: Picture,
+  palette: Palette,
+): { still: HTMLCanvasElement; standing: Standing[] } | null {
+  let byPalette = stills.get(scene);
+  if (!byPalette) {
+    byPalette = new Map();
+    stills.set(scene, byPalette);
+  }
+  if (byPalette.has(palette.name)) return byPalette.get(palette.name)!;
+  let made: { still: HTMLCanvasElement; standing: Standing[] } | null = null;
+  const groundImage = canvasOf(ground, palette);
+  if (groundImage) {
+    const standing: Standing[] = [];
+    for (const t of scene.things) {
+      if (!t.sprite) continue;
+      const image = canvasOf(t.sprite.picture, palette);
+      if (image) standing.push({ image, x: t.sprite.at.x, y: t.sprite.at.y, base: t.base });
+    }
+    // A stable sort, as `drawOrder` has it: things level with each other keep their order.
+    standing.sort((a, b) => a.base - b.base);
+    const still = compose(groundImage, standing);
+    if (still) made = { still, standing };
+  }
+  byPalette.set(palette.name, made);
+  return made;
+}
+
+/** What moved since the last frame drew, by what it was: compared to find the patches to redraw. */
+interface Drawn {
+  readonly image: HTMLCanvasElement;
+  readonly box: Box;
+}
+
+const same = (a: Drawn | undefined, b: Drawn | undefined): boolean =>
+  a === b ||
+  (!!a &&
+    !!b &&
+    a.image === b.image &&
+    a.box.x === b.box.x &&
+    a.box.y === b.box.y &&
+    a.box.w === b.box.w &&
+    a.box.h === b.box.h);
+
+/** The smallest box holding both. */
+function union(a: Box, b: Box): Box {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    w: Math.max(a.x + a.w, b.x + b.w) - x,
+    h: Math.max(a.y + a.h, b.y + b.h) - y,
+  };
+}
+
+/** Boxes that overlap or touch merged into one, so a patch is never drawn twice. */
+export function mergeBoxes(boxes: readonly Box[]): Box[] {
+  const out: Box[] = [];
+  for (const box of boxes) {
+    let merged = box;
+    for (let i = out.length - 1; i >= 0; i--) {
+      const grown = { x: merged.x - 1, y: merged.y - 1, w: merged.w + 2, h: merged.h + 2 };
+      if (overlaps(out[i]!, grown)) {
+        merged = union(merged, out[i]!);
+        out.splice(i, 1);
+        i = out.length;
+      }
+    }
+    out.push(merged);
+  }
+  return out;
 }
 
 /** The time of day a scene shows, and a way to flip it. */
@@ -104,7 +199,6 @@ export function stage(options: StageOptions): View {
   let device: Size = { width: 0, height: 0 };
   let css: Size = { width: 0, height: 0 };
   let ctx: CanvasRenderingContext2D | null = null;
-  let dirty = true;
   let last: number | null = null;
 
   const showTime = (): void => {
@@ -122,10 +216,15 @@ export function stage(options: StageOptions): View {
     panelFor = play.open;
     const use = scene.things.find((t) => t.id === play.open)?.use;
     if (!use) return;
-    panel = usePanel(use, time, {
-      press: options.press,
-      close: () => change(closePanel(play)),
-    });
+    panel = usePanel(
+      use,
+      time,
+      {
+        press: options.press,
+        close: () => change(closePanel(play)),
+      },
+      visitsTo(play, play.open!),
+    );
     el.append(panel);
   };
 
@@ -133,7 +232,6 @@ export function stage(options: StageOptions): View {
     if (next !== play) {
       play = next;
       options.keep(play);
-      dirty = true;
     }
     syncPanel();
   };
@@ -145,7 +243,6 @@ export function stage(options: StageOptions): View {
     // What is open may say something else after dark.
     panelFor = null;
     syncPanel();
-    dirty = true;
   };
 
   const camera = (scale: number): Point => {
@@ -164,7 +261,6 @@ export function stage(options: StageOptions): View {
     css = next.css;
     if (next.device.width === device.width && next.device.height === device.height) return;
     device = next.device;
-    dirty = true;
   };
 
   let observer: ResizeObserver | null = null;
@@ -203,56 +299,99 @@ export function stage(options: StageOptions): View {
     return cssToArt(panel.offsetHeight + PANEL_MARGIN, css, device, scale);
   };
 
-  const draw = (): void => {
+  /** What the last frame drew that can move, by name, to find what changed. */
+  let drawnLast = new Map<string, Drawn>();
+  /** Where the camera was and what palette the last frame used; a change means drawing it all. */
+  let shownLast = '';
+
+  const draw = (now: number): void => {
     if (device.width === 0 || device.height === 0) return;
+    const palette = paletteFor(time);
+    const made = stillOf(scene, art.ground, palette);
+    // Art that cannot be painted (jsdom) means no context is asked for either.
+    if (!made) return;
     if (canvas.width !== device.width || canvas.height !== device.height) {
       canvas.width = device.width;
       canvas.height = device.height;
+      shownLast = '';
     }
-    const palette = paletteFor(time);
-    const ground = canvasOf(art.ground, palette);
-    const hero = canvasOf(art.hero, palette);
-    // Art that cannot be painted (jsdom) means no context is asked for either.
-    if (!ground || !hero) return;
     ctx ??= canvas.getContext('2d');
     if (!ctx) return;
     const scale = sceneScale(device);
+    const cam = camera(scale);
     const feet = round(play.walker.at);
     const left = play.facing === 'left';
-    const walker: Placed = {
-      image: left ? mirrorOf(hero) : hero,
+    const walkerPicture = art.walkerAt(feet, play.facing, palette);
+    const walkerImage = canvasOf(walkerPicture, palette);
+    const walker: Standing | null = walkerImage && {
+      image: walkerImage,
       // Mirrored, the column under the feet moves to the other side of the picture.
-      x: feet.x - (left ? art.hero.grid.w - 1 - art.heroFeet.x : art.heroFeet.x),
+      x: feet.x - (left ? walkerPicture.grid.w - 1 - art.heroFeet.x : art.heroFeet.x),
       y: feet.y - art.heroFeet.y - bob(play),
+      base: feet.y,
     };
     const shadow = art.shadowAt(feet);
     const shadowImage = shadow && canvasOf(shadow.picture, palette);
-    const standing: Placed[] = [];
-    for (const d of drawOrder(
-      scene.things.filter((t) => t.sprite),
-      feet.y,
-    )) {
-      if (d === 'walker') {
-        standing.push(walker);
-        continue;
-      }
-      const image = canvasOf(d.sprite!.picture, palette);
-      if (image) standing.push({ image, x: d.sprite!.at.x, y: d.sprite!.at.y });
+    const underfoot: Placed[] = [];
+    const above: Placed[] = [];
+    const moving = new Map<string, Drawn>();
+    (art.ambient ?? []).forEach((a, i) => {
+      const sprite = a.at(now);
+      const image = sprite && canvasOf(sprite.picture, palette);
+      if (!sprite || !image) return;
+      const placed = { image, x: sprite.at.x, y: sprite.at.y };
+      (a.layer === 'ground' ? underfoot : above).push(placed);
+      moving.set(`ambient ${i}`, { image, box: boxOf(placed) });
+    });
+    if (shadow && shadowImage) {
+      const placed = {
+        image: shadowImage,
+        x: feet.x - shadow.middle.x,
+        y: feet.y - shadow.middle.y,
+      };
+      underfoot.push(placed);
+      moving.set('shadow', { image: shadowImage, box: boxOf(placed) });
     }
-    drawFrame(ctx, {
+    if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
+    const target = play.heading === null ? (play.walker.path.at(-1) ?? null) : null;
+    if (target) moving.set('target', { image: made.still, box: markerBox(target) });
+
+    const frame: Frame = {
       backdrop: palette.colours.navy2,
       scale,
-      camera: camera(scale),
-      ground,
-      underfoot:
-        shadow && shadowImage
-          ? [{ image: shadowImage, x: feet.x - shadow.middle.x, y: feet.y - shadow.middle.y }]
-          : [],
-      target: play.heading === null ? (play.walker.path.at(-1) ?? null) : null,
+      camera: cam,
+      still: made.still,
+      standing: made.standing,
+      underfoot,
+      target,
       marker: { light: palette.colours.gold1, ink: palette.colours.ink1 },
-      standing,
-    });
-    dirty = false;
+      walker,
+      above,
+    };
+    const view = viewSize(device, scale);
+    const whole: Box = {
+      x: cam.x,
+      y: cam.y,
+      w: Math.ceil(view.width),
+      h: Math.ceil(view.height),
+    };
+    const shown = `${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height}`;
+    if (shown !== shownLast) {
+      drawFrame(ctx, frame, whole);
+    } else {
+      const changed: Box[] = [];
+      for (const key of new Set([...drawnLast.keys(), ...moving.keys()])) {
+        const was = drawnLast.get(key);
+        const is = moving.get(key);
+        if (same(was, is)) continue;
+        if (was) changed.push(was.box);
+        if (is) changed.push(is.box);
+      }
+      for (const patch of mergeBoxes(changed.filter((b) => overlaps(b, whole))))
+        drawFrame(ctx, frame, patch);
+    }
+    shownLast = shown;
+    drawnLast = moving;
   };
 
   showTime();
@@ -270,9 +409,8 @@ export function stage(options: StageOptions): View {
       if (lift !== target) {
         const most = (LIFT_SPEED * ms) / 1000;
         lift = target > lift ? Math.min(target, lift + most) : Math.max(target, lift - most);
-        dirty = true;
       }
-      if (dirty) draw();
+      draw(now);
     },
   };
 }

@@ -56,3 +56,13 @@ export function resetTown(): void {
   play = startPlay(centreOf(TOWN_START));
   chosen = null;
 }
+
+/** Where the hero is, whether he is on his way somewhere, and what is open. For tests. */
+export function heroAt(): { x: number; y: number; walking: boolean; open: string | null } {
+  return {
+    x: play.walker.at.x,
+    y: play.walker.at.y,
+    walking: play.walker.path.length > 0 || play.heading !== null,
+    open: play.open,
+  };
+}
