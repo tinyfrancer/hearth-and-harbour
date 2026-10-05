@@ -1,3 +1,5 @@
+import type { StatId } from './state';
+
 /**
  * The shape of the game's tables. Core defines the shapes and the rules that
  * read them; `src/data/` fills them in. Rules take the tables as an argument,
@@ -203,6 +205,76 @@ export interface ShopEntry {
   once?: boolean;
 }
 
+/**
+ * Something the general store sells for coins: either `qty` of an item at a
+ * time, or a lasting `perk` that is bought once and kept.
+ */
+export type StoreEntry = { id: string; price: number } & (
+  | {
+      item: string;
+      qty: number;
+      /** Sold only to a character who holds none, in the bank or worn. */
+      once?: boolean;
+      perk?: undefined;
+    }
+  | { perk: PerkDef; item?: undefined; qty?: undefined; once?: undefined }
+);
+
+/** A lasting thing from the store: no item, just a difference the rules make from then on. */
+export interface PerkDef {
+  name: string;
+  description: string;
+  /** Every potion drunk gives this many percent more charges, rounded down. */
+  potionCharges?: number;
+}
+
+/**
+ * A dungeon, as far as the idle rules know it: played in a scene (src/scene),
+ * its clears kept in the save, and its loot listed in the collection log.
+ */
+export interface DungeonDef {
+  id: string;
+  name: string;
+  /** Item ids it can give up, in the order the collection log lists them. */
+  loot: readonly string[];
+}
+
+/**
+ * Something to have done. Earned the moment the state shows it (src/core/
+ * achievements.ts), live or on return, and kept for good.
+ */
+export interface AchievementDef {
+  id: string;
+  name: string;
+  /** What it asks, in a line. A hidden one shows it only once earned. */
+  text: string;
+  hidden?: boolean;
+  rule: AchievementRule;
+}
+
+/** What an achievement asks of the state, read the same way every time. */
+export type AchievementRule =
+  /** A skill at a level: the one named, or any of a group's, or any at all. */
+  | { kind: 'level'; level: number; skill?: string; group?: string }
+  /** Levels of every skill in the tables, added up. */
+  | { kind: 'total'; level: number }
+  /** Mastery of any one action at a level. */
+  | { kind: 'mastery'; level: number }
+  /** `count` of these items in the collection log (all of them if left out). */
+  | { kind: 'found'; items: readonly string[]; count?: number }
+  /** Kills of a monster, or of any monster at all, in the bestiary. */
+  | { kind: 'kills'; count: number; monster?: string }
+  /** Every one of these worn at once. */
+  | { kind: 'worn'; items: readonly string[] }
+  /** Clears of a dungeon. */
+  | { kind: 'cleared'; dungeon: string; count?: number }
+  /** Coins in hand at once. */
+  | { kind: 'coins'; amount: number }
+  /** Pockets picked, or times caught, at all marks together. */
+  | { kind: 'thefts'; count: number; caught?: boolean }
+  /** One of the running counts (`GameState.stats`) at least this high. */
+  | { kind: 'stat'; stat: StatId; count: number };
+
 export interface Content {
   skills: Readonly<Record<string, SkillDef>>;
   items: Readonly<Record<string, ItemDef>>;
@@ -213,4 +285,10 @@ export interface Content {
   monsters?: Readonly<Record<string, MonsterDef>>;
   /** What bounty points buy, in the order the shop lists it. */
   shop?: Readonly<Record<string, ShopEntry>>;
+  /** What the general store sells for coins, in the order it lists it. */
+  store?: Readonly<Record<string, StoreEntry>>;
+  /** The dungeons scenes run, as far as the rules need them. */
+  dungeons?: Readonly<Record<string, DungeonDef>>;
+  /** Things to have done, in the order the page lists them. */
+  achievements?: Readonly<Record<string, AchievementDef>>;
 }

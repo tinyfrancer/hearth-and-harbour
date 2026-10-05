@@ -1,5 +1,5 @@
 import type { ActionDef, Content, ItemDef, PotionDef } from './content';
-import { bankCount, type GameState } from './state';
+import { bankCount, stat, type GameState } from './state';
 
 export type DrinkResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
@@ -37,7 +37,28 @@ export function drinkPotion(state: GameState, itemId: string, content: Content):
   const bank = { ...state.bank };
   if (held > 1) bank[itemId] = held - 1;
   else delete bank[itemId];
-  return { ok: true, state: { ...state, bank, potion: { item: itemId, charges: potion.charges } } };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      bank,
+      potion: { item: itemId, charges: chargesFor(state, potion, content) },
+      stats: { ...state.stats, potions: stat(state, 'potions') + 1 },
+    },
+  };
+}
+
+/**
+ * How many charges a potion gives this character when drunk: its own, and a
+ * share more for each lasting thing from the store that stretches them,
+ * rounded down once.
+ */
+export function chargesFor(state: GameState, potion: PotionDef, content: Content): number {
+  const percent = state.perks.reduce(
+    (sum, id) => sum + (content.store?.[id]?.perk?.potionCharges ?? 0),
+    0,
+  );
+  return Math.floor((potion.charges * (100 + percent)) / 100);
 }
 
 /**

@@ -228,7 +228,51 @@ function saveProblem(state: Record<string, unknown>): string | null {
   if (health !== null && fight !== null) {
     return 'it has hit points in a fight and out of one at once';
   }
+  if (!isIdList(state.collection)) {
+    return 'the collection log should be a list of things found, each once';
+  }
+  if (!isIdList(state.achievements)) {
+    return 'achievements should be a list of those earned, each once';
+  }
+  const { dungeons } = state;
+  if (
+    !isRecord(dungeons) ||
+    !Object.values(dungeons).every(
+      (record) =>
+        isRecord(record) &&
+        isWhole(record.clears) &&
+        record.clears > 0 &&
+        (record.bestMs === undefined || (isWhole(record.bestMs) && record.bestMs > 0)),
+    )
+  ) {
+    return 'dungeons should be clears and a best time';
+  }
+  const { stats } = state;
+  if (
+    !isRecord(stats) ||
+    !Object.entries(stats).every(([id, count]) => STATS.includes(id) && isWhole(count))
+  ) {
+    return 'the running counts should be whole numbers of things done';
+  }
+  if (isRecord(stats) && (stats.streak ?? 0) > (stats.bestStreak ?? 0)) {
+    return 'the bounty streak should be no longer than the best';
+  }
+  if (!isIdList(state.perks)) {
+    return "the store's lasting things should be a list of those bought, each once";
+  }
   return null;
+}
+
+/** The running counts a save may hold (StatId in src/core/state.ts). */
+const STATS: readonly string[] = ['bounties', 'streak', 'bestStreak', 'potions', 'bought'];
+
+/** A list of ids, none twice. */
+function isIdList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.every((id) => typeof id === 'string') &&
+    new Set(value).size === value.length
+  );
 }
 
 /** A fight: a monster, both sides' hit points, both waits, and the tally so far. */

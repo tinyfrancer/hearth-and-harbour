@@ -32,7 +32,45 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   // has robbed anyone or held a bounty, and a character not in a fight was
   // always at full health between fights, which is what no `health` means.
   6: (state) => ({ ...state, marks: {}, bounty: null, bountyPoints: 0, health: null }),
+  // The collection log, achievements, dungeon clears, running counts and the
+  // store's lasting things (S10). The log starts with what the save already
+  // proves was held: the bank, what is worn, the food slot, the potion
+  // working, and every drop the bestiary and the marks have seen. Nothing
+  // older can be known; achievements are earned from this state on first
+  // load, like any other change.
+  7: (state) => ({
+    ...state,
+    collection: provenFinds(state),
+    achievements: [],
+    dungeons: {},
+    stats: {},
+    perks: [],
+  }),
 };
+
+/** Item ids a version 7 save shows the character has held, each once, in a fixed order. */
+function provenFinds(state: Record<string, unknown>): string[] {
+  const found = new Set<string>();
+  const record = (value: unknown): Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const note = (id: unknown): void => {
+    if (typeof id === 'string') found.add(id);
+  };
+  Object.keys(record(state.bank)).forEach(note);
+  for (const worn of Object.values(record(state.equipment))) note(record(worn).item);
+  note(record(state.food).item);
+  note(record(state.potion).item);
+  for (const known of [
+    ...Object.values(record(state.bestiary)),
+    ...Object.values(record(state.marks)),
+  ]) {
+    const seen = record(known).seen;
+    if (Array.isArray(seen)) seen.forEach(note);
+  }
+  return [...found];
+}
 
 /**
  * Bring a parsed save up to GAME_STATE_VERSION, or return null if it can't be

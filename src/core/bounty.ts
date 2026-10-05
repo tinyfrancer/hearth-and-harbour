@@ -1,7 +1,7 @@
 import { DEFENCE, MELEE, RANGED, VITALITY, leaveFight, monsterDef } from './combat';
 import type { Content, MonsterDef, ShopEntry } from './content';
 import { Dice } from './rng';
-import { bankCount, skillLevel, type GameState } from './state';
+import { bankCount, skillLevel, stat, type GameState } from './state';
 
 /**
  * Bounties: the notice board asks for so many kills of one monster. Each rule
@@ -108,10 +108,17 @@ export function handInBounty(state: GameState, content: Content): BountyResult {
     return { ok: false, reason: `Not yet: ${left} more to go.` };
   }
   const { points, coins } = bountyReward(state, content);
+  const streak = stat(state, 'streak') + 1;
   const paid: GameState = {
     ...state,
     bountyPoints: state.bountyPoints + points,
     coins: state.coins + coins,
+    stats: {
+      ...state.stats,
+      bounties: stat(state, 'bounties') + 1,
+      streak,
+      bestStreak: Math.max(stat(state, 'bestStreak'), streak),
+    },
   };
   return { ok: true, state: stillAllowed(post(paid, content, bounty.monster), content) };
 }
@@ -128,12 +135,17 @@ export function swapBounty(state: GameState, content: Content): BountyResult {
   if (bountyChoices(state, content).every((monster) => monster.id === bounty.monster)) {
     return { ok: false, reason: 'There is nothing else on the board for you yet.' };
   }
-  const paid = { ...state, bountyPoints: state.bountyPoints - swapCost(state) };
+  // A swap breaks the run of bounties seen through.
+  const paid = {
+    ...state,
+    bountyPoints: state.bountyPoints - swapCost(state),
+    stats: { ...state.stats, streak: 0 },
+  };
   return { ok: true, state: stillAllowed(post(paid, content, bounty.monster), content) };
 }
 
 /** How many of an item the character has, in the bank or worn. */
-function held(state: GameState, item: string): number {
+export function held(state: GameState, item: string): number {
   const worn = Object.values(state.equipment).filter((slot) => slot?.item === item);
   return bankCount(state, item) + worn.reduce((sum, slot) => sum + (slot?.qty ?? 0), 0);
 }

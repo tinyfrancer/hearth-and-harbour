@@ -6,6 +6,15 @@ import { migrateGameState } from '../../src/persistence/migrations';
 /** What version 7 adds: nothing robbed, no bounty, and full health. */
 const unrobbed = { marks: {}, bounty: null, bountyPoints: 0, health: null };
 
+/** What version 8 adds: a collection log of what the save proves was held, and nothing else yet. */
+const logged = (collection: string[]) => ({
+  collection,
+  achievements: [],
+  dungeons: {},
+  stats: {},
+  perks: [],
+});
+
 /** What versions 6 and 7 add to a save made at `createdAt`: no fight, no food, dice of its own. */
 const unfought = (createdAt: number) => ({
   fight: null,
@@ -54,6 +63,7 @@ describe('migrateGameState', () => {
       look: {},
       equipment: {},
       ...unfought(5),
+      ...logged(['pine_logs']),
     });
   });
 
@@ -76,6 +86,7 @@ describe('migrateGameState', () => {
       look: {},
       equipment: {},
       ...unfought(5),
+      ...logged(['raw_shrimp', 'sageleaf']),
     });
   });
 
@@ -99,6 +110,7 @@ describe('migrateGameState', () => {
       look: {},
       equipment: {},
       ...unfought(5),
+      ...logged(['bronze_sword', 'bronze_shield', 'bronze_arrows', 'steady_draught']),
     });
   });
 
@@ -119,7 +131,12 @@ describe('migrateGameState', () => {
     };
     // Gear stays worn and food stays in the bank: a migration feeds nobody.
     const v6 = migrateGameState(v5);
-    expect(v6).toEqual({ ...v5, version: GAME_STATE_VERSION, ...unfought(v5.createdAt) });
+    expect(v6).toEqual({
+      ...v5,
+      version: GAME_STATE_VERSION,
+      ...unfought(v5.createdAt),
+      ...logged(['cooked_shrimp', 'bronze_sword']),
+    });
     expect(Number.isInteger(v6!.rng) && v6!.rng >= 0 && v6!.rng < 2 ** 32).toBe(true);
     // Two characters made at different times roll different dice.
     expect(migrateGameState({ ...v5, createdAt: 1 })!.rng).not.toBe(v6!.rng);
@@ -146,9 +163,52 @@ describe('migrateGameState', () => {
       },
       bestiary: { dock_rat: { kills: 3, seen: ['hide'] } },
     } as Record<string, unknown>;
-    for (const key of Object.keys(unrobbed)) delete v6[key];
+    for (const key of Object.keys({ ...unrobbed, ...logged([]) })) delete v6[key];
     // The fight keeps its own hit points: health out of a fight is for after it.
-    expect(migrateGameState(v6)).toEqual({ ...v6, version: GAME_STATE_VERSION, ...unrobbed });
+    expect(migrateGameState(v6)).toEqual({
+      ...v6,
+      version: GAME_STATE_VERSION,
+      ...unrobbed,
+      ...logged(['hide', 'bronze_sword', 'cooked_shrimp']),
+    });
+  });
+
+  it('brings a version 7 save (S9) up to date with a log of everything it proves was held', () => {
+    const v7 = {
+      ...newGame('Cody', 5),
+      version: 7,
+      bank: { pine_logs: 4, hide: 2 },
+      equipment: {
+        main_hand: { item: 'iron_sword', qty: 1 },
+        ammo: { item: 'bronze_arrows', qty: 40 },
+      },
+      food: { item: 'cooked_cod', qty: 3 },
+      potion: { item: 'sage_tonic', charges: 20 },
+      bestiary: {
+        dock_rat: { kills: 9, seen: ['hide', 'raw_herring'] },
+        smuggler: { kills: 2, seen: ['smuggled_tea'] },
+      },
+      marks: { steal_sailor: { picked: 5, caught: 2, seen: ['pearl', 'smuggled_tea'] } },
+      bounty: { monster: 'dock_rat', count: 60, done: 9 },
+      bountyPoints: 4,
+    } as Record<string, unknown>;
+    for (const key of Object.keys(logged([]))) delete v7[key];
+    // Sold or eaten long ago leaves no trace, so is not in it; everything shown is, once.
+    expect(migrateGameState(structuredClone(v7))).toEqual({
+      ...v7,
+      version: GAME_STATE_VERSION,
+      ...logged([
+        'pine_logs',
+        'hide',
+        'iron_sword',
+        'bronze_arrows',
+        'cooked_cod',
+        'sage_tonic',
+        'raw_herring',
+        'smuggled_tea',
+        'pearl',
+      ]),
+    });
   });
 
   it('walks every step in order and stamps the version as it goes', () => {
