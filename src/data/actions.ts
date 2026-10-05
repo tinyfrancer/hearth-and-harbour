@@ -171,7 +171,15 @@ const ALL: ActionDef[] = [
       'bronze_arrows',
       10,
     ],
-    ['fletch_oak_shortbow', 'Oak shortbow', 10, 3.5, 30, { oak_logs: 2, bowstring: 1 }, 'oak_shortbow'],
+    [
+      'fletch_oak_shortbow',
+      'Oak shortbow',
+      10,
+      3.5,
+      30,
+      { oak_logs: 2, bowstring: 1 },
+      'oak_shortbow',
+    ],
     [
       'fletch_iron_arrows',
       'Iron arrows',

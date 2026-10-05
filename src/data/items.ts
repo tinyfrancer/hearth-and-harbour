@@ -204,7 +204,8 @@ export const ITEMS = {
   shell_necklace: {
     id: 'shell_necklace',
     name: 'Shell necklace',
-    description: 'Seashells on a string. Clacks pleasantly when you walk and alarmingly when you run.',
+    description:
+      'Seashells on a string. Clacks pleasantly when you walk and alarmingly when you run.',
     value: 12,
   },
   shell_bracelet: {
@@ -228,7 +229,8 @@ export const ITEMS = {
   linen_tunic: {
     id: 'linen_tunic',
     name: 'Linen tunic',
-    description: 'Plain, cool and neatly stitched. It has never stopped a blade and does not pretend to.',
+    description:
+      'Plain, cool and neatly stitched. It has never stopped a blade and does not pretend to.',
     value: 30,
   },
   arrow_shafts: {

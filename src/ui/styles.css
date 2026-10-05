@@ -9,6 +9,7 @@
   --gold-bright: #ffd34d;
   --green: #74c256;
   --blue: #3fb2e2;
+  --violet: #c08ae8;
   --danger: #d85a50;
   --line: #3b3350;
   --scrim: rgb(21 17 31 / 85%);
@@ -570,4 +571,19 @@ button.card:active {
 
 .card.short h2 {
   color: var(--text-muted);
+}
+
+/* A potion and every number it changes share one colour. */
+.panel.potion {
+  border-color: var(--violet);
+}
+
+.panel.potion h2,
+.potion-text,
+.muted.potion-helped {
+  color: var(--violet);
+}
+
+.bar.potion .bar-fill {
+  background: var(--violet);
 }

@@ -45,6 +45,15 @@ export function awayReportOverlay(
     }),
   );
 
+  // A potion's charges are spent by completions, so this is what it did.
+  let potion = '';
+  if (report.potion) {
+    const { used, ranOut } = report.potion;
+    potion = `${itemName(report.potion.item)}: ${formatNumber(used)} ${
+      used === 1 ? 'charge' : 'charges'
+    } used${ranOut ? ', and it has worn off.' : '.'}`;
+  }
+
   let stopped = '';
   if (report.stopped?.reason === 'ran_out') {
     stopped = `Stopped: you ran out of ${itemName(report.stopped.item)}.`;
@@ -75,6 +84,7 @@ export function awayReportOverlay(
         ...levels,
         ...unlocked,
         ...mastery,
+        potion && h('p', { class: 'potion-text', text: potion }),
         stopped && h('p', { class: 'problem', text: stopped }),
         button('Carry on', dismiss, 'primary'),
       ]),

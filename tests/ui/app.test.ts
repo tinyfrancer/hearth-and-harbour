@@ -349,7 +349,7 @@ describe('the app shell', () => {
     };
     const card = (id: string): HTMLElement => q(`[data-action="${id}"]`);
 
-    it('lists Cooking and Smithing under their own heading', () => {
+    it('lists the five artisan skills under their own heading', () => {
       mount();
       create('Cody');
       const headings = [...root.querySelectorAll('.group-heading')].map((el) => el.textContent);
@@ -357,7 +357,7 @@ describe('the app shell', () => {
       const artisan = [...root.querySelectorAll('[data-group="Artisan"] [data-skill] h2')].map(
         (el) => el.textContent,
       );
-      expect(artisan).toEqual(['Cooking', 'Smithing']);
+      expect(artisan).toEqual(['Cooking', 'Smithing', 'Crafting', 'Fletching', 'Alchemy']);
     });
 
     it('cooks shrimp until the raw ones run out, and says so', () => {
@@ -446,7 +446,7 @@ describe('the app shell', () => {
       q<HTMLButtonElement>('[data-item="bronze_bar"]').click();
       const bar = q('[data-card="bronze_bar"]').textContent;
       expect(bar).toContain('FromSmithing (Bronze bar)');
-      expect(bar).toContain('Smithing (Bronze axe), Smithing (Bronze sword)');
+      expect(bar).toContain('Smithing (Bronze axe), Smithing (Bronze arrowheads)');
     });
 
     it('keeps a recipe locked until its level, whatever is in the bank', () => {
@@ -454,6 +454,165 @@ describe('the app shell', () => {
       q<HTMLButtonElement>('[data-skill="cooking"]').click();
       expect(card('cook_cod').tagName).toBe('DIV');
       expect(card('cook_cod').textContent).toContain('Level 15');
+    });
+  });
+
+  describe('Crafting, Fletching and Alchemy', () => {
+    const card = (id: string): HTMLElement => q(`[data-action="${id}"]`);
+
+    it('makes ten arrow shafts from a log, and says ten on the card', () => {
+      new LocalStorageSaveService().save({ ...newGame('Cody', clock), bank: { pine_logs: 2 } });
+      const app = mount();
+      q<HTMLButtonElement>('[data-skill="fletching"]').click();
+      expect(card('fletch_arrow_shafts').querySelector('h2')?.textContent).toBe('Arrow shafts ×10');
+      card('fletch_arrow_shafts').click();
+      clock += 2000;
+      app.tick();
+      expect(card('fletch_arrow_shafts').textContent).toContain('Arrow shafts: 10');
+      expect(card('fletch_arrow_shafts').textContent).toContain('Enough for 1');
+    });
+
+    it('brews a potion from a herb and a vial crafted from a shell', () => {
+      new LocalStorageSaveService().save({
+        ...newGame('Cody', clock),
+        bank: { seashells: 1, sageleaf: 1 },
+      });
+      const app = mount();
+      q<HTMLButtonElement>('[data-skill="crafting"]').click();
+      card('craft_shell_vial').click();
+      clock += 2000;
+      app.tick();
+      press('‹ All skills');
+      q<HTMLButtonElement>('[data-skill="alchemy"]').click();
+      card('brew_sage_tonic').click();
+      clock += 3000;
+      app.tick();
+      app.save();
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ sage_tonic: 1 });
+    });
+  });
+
+  describe('potions', () => {
+    const card = (id: string): HTMLElement => q(`[data-action="${id}"]`);
+    const begin = (extra: Partial<ReturnType<typeof newGame>> = {}) => {
+      new LocalStorageSaveService().save({
+        ...newGame('Cody', clock),
+        bank: { sage_tonic: 2, steady_draught: 1 },
+        ...extra,
+      });
+      return mount();
+    };
+    const openCard = (item: string): void => {
+      tab('bank');
+      q<HTMLButtonElement>(`[data-item="${item}"]`).click();
+    };
+
+    it("says on the bank's card what a potion does, and drinks one", () => {
+      begin();
+      openCard('sage_tonic');
+      const text = q('[data-card="sage_tonic"]').textContent;
+      expect(text).toContain('Does10% quicker');
+      expect(text).toContain('ForGathering skills');
+      expect(text).toContain('Lasts150 actions');
+      press('Drink Sage tonic');
+      expect(q('.toast').textContent).toBe('You drink the Sage tonic.');
+      expect(q('[data-card="sage_tonic"] .card-head .qty').textContent).toBe('1');
+      expect(new LocalStorageSaveService().load()?.potion).toEqual({
+        item: 'sage_tonic',
+        charges: 150,
+      });
+    });
+
+    it('shows the potion on the Skills tab and on the pages of the skills it helps', () => {
+      begin({ potion: { item: 'sage_tonic', charges: 150 } });
+      const panel = q('[data-potion="sage_tonic"]');
+      expect(panel.textContent).toContain('Sage tonic');
+      expect(panel.textContent).toContain('150 left');
+      expect(panel.textContent).toContain('10% quicker · Gathering skills');
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      expect(q('[data-potion="sage_tonic"]').textContent).toContain('150 left');
+      press('‹ All skills');
+      q<HTMLButtonElement>('[data-skill="cooking"]').click();
+      expect(root.querySelector('[data-potion]')).toBeNull();
+    });
+
+    it('uses a charge a completion, and the action carries on unaided when it runs out', () => {
+      const app = begin({ potion: { item: 'sage_tonic', charges: 3 } });
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      const rate = (): HTMLElement => q('[data-action="chop_pine"] .card-head .muted');
+      expect(rate().textContent).toBe('2.7s · 10 XP');
+      expect(rate().classList).toContain('potion-helped');
+      card('chop_pine').click();
+      clock += 2700;
+      app.tick();
+      expect(q('[data-potion="sage_tonic"]').textContent).toContain('2 left');
+      expect(q('[data-potion] .bar').getAttribute('aria-valuenow')).toBe('1');
+
+      clock += 2 * 2700;
+      app.tick();
+      expect(q('.toast').textContent).toBe('Your Sage tonic has worn off.');
+      expect(root.querySelector('[data-potion]')).toBeNull();
+      // Back to plain, less the mastery three chops have earned.
+      expect(rate().textContent).toBe('2.99s · 10 XP');
+      expect(rate().classList).not.toContain('potion-helped');
+      expect(card('chop_pine').getAttribute('aria-pressed')).toBe('true');
+      clock += 3000;
+      app.tick();
+      expect(card('chop_pine').textContent).toContain('Pine logs: 4');
+    });
+
+    it('asks before pouring away charges, and does nothing on Cancel', () => {
+      begin({ potion: { item: 'steady_draught', charges: 40 } });
+      openCard('sage_tonic');
+      press('Drink Sage tonic');
+      expect(q('[data-card="sage_tonic"]').textContent).toContain(
+        'Your Steady-hand draught still has 40 charges left.',
+      );
+      press('Cancel');
+      expect(new LocalStorageSaveService().load()?.potion).toEqual({
+        item: 'steady_draught',
+        charges: 40,
+      });
+      press('Drink Sage tonic');
+      press('Replace Steady-hand draught');
+      expect(new LocalStorageSaveService().load()?.potion).toEqual({
+        item: 'sage_tonic',
+        charges: 150,
+      });
+    });
+
+    it('closes the card when the last of a potion is drunk', () => {
+      begin();
+      openCard('steady_draught');
+      press('Drink Steady-hand draught');
+      expect(root.querySelector('[data-card]')).toBeNull();
+      expect(root.querySelector('[data-item="steady_draught"]')).toBeNull();
+    });
+
+    it('says in the away report how many charges went, and that it wore off', () => {
+      const app = begin({ potion: { item: 'sage_tonic', charges: 150 } });
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      card('chop_pine').click();
+      app.save();
+      root.replaceChildren();
+      clock += 2 * 60 * 60 * 1000;
+      mount();
+      expect(q('[role="dialog"]').textContent).toContain(
+        'Sage tonic: 150 charges used, and it has worn off.',
+      );
+      press('Carry on');
+      expect(root.querySelector('[data-potion]')).toBeNull();
+    });
+
+    it('says how many were used when some are left', () => {
+      const app = begin({ potion: { item: 'sage_tonic', charges: 150 } });
+      q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
+      card('chop_pine').click();
+      clock += 2 * 60 * 1000;
+      app.tick();
+      expect(q('[role="dialog"]').textContent).toContain('Sage tonic: 44 charges used.');
+      press('Carry on');
+      expect(q('[data-potion]').textContent).toContain('106 left');
     });
   });
 
@@ -494,7 +653,9 @@ describe('the app shell', () => {
       const card = q('[data-card="pine_logs"]');
       expect(card.textContent).toContain('15');
       expect(card.textContent).toContain('FromWoodcutting (Pine)');
-      expect(card.textContent).toContain('Used inNothing yet');
+      expect(card.textContent).toContain(
+        'Used inFletching (Arrow shafts), Fletching (Pine shortbow)',
+      );
       expect(card.textContent).toContain('Worth1 coin each');
       press('Close');
       expect(root.querySelector('[data-card]')).toBeNull();

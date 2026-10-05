@@ -92,7 +92,7 @@ describe('catchUp', () => {
   });
 
   describe('with a potion', () => {
-    const tonic = { ...chopping, potion: { item: 'sage_tonic', charges: 150 } };
+    const tonic: GameState = { ...chopping, potion: { item: 'sage_tonic', charges: 150 } };
 
     it('gives a night away with a potion running out exactly what live frames give', () => {
       const night = 8 * HOUR + 1234;
@@ -105,7 +105,9 @@ describe('catchUp', () => {
       expect(away.state.potion).toBeNull();
       expect(away.report?.potion).toEqual({ item: 'sage_tonic', used: 150, ranOut: true });
       // The tonic was worth the logs its quicker chops left time for.
-      expect(away.state.bank.pine_logs).toBeGreaterThan(catchUp(chopping, night, CONTENT).state.bank.pine_logs!);
+      expect(away.state.bank.pine_logs).toBeGreaterThan(
+        catchUp(chopping, night, CONTENT).state.bank.pine_logs!,
+      );
     });
 
     it('says how many charges were used when some are left', () => {

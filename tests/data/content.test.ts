@@ -47,7 +47,9 @@ describe('the content tables', () => {
       const { charges, skills, effect } = item.potion!;
       expect(Number.isInteger(charges) && charges > 0, item.id).toBe(true);
       expect(skills.length, item.id).toBeGreaterThan(0);
-      for (const skill of skills) expect(CONTENT.skills[skill], `${item.id} helps ${skill}`).toBeDefined();
+      for (const skill of skills) {
+        expect(CONTENT.skills[skill], `${item.id} helps ${skill}`).toBeDefined();
+      }
       const amount = effect.kind === 'extra' ? effect.every : effect.percent;
       expect(Number.isInteger(amount) && amount > 0, item.id).toBe(true);
       if (effect.kind === 'speed') expect(effect.percent).toBeLessThan(100);

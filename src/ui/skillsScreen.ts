@@ -1,5 +1,11 @@
 import type { ActionDef, Content, SkillDef } from '../core/content';
-import { MASTERY_SPEED_PER_LEVEL, actionDuration, affordable } from '../core/actions';
+import {
+  MASTERY_SPEED_PER_LEVEL,
+  actionDuration,
+  affordable,
+  xpPerCompletion,
+} from '../core/actions';
+import { potionFor } from '../core/potions';
 import {
   bankCount,
   masteryLevel,
@@ -13,6 +19,7 @@ import { itemIcon, skillIcon } from '../art/icons';
 import { bar } from './bar';
 import { button, h, titled } from './dom';
 import { formatNumber, formatSeconds } from './format';
+import { potionPanel } from './potionPanel';
 import type { View } from './view';
 
 /** What the character is doing in this skill right now, or nothing. */
@@ -62,9 +69,11 @@ export function skillListView(
       ...skills.map(row),
     ]),
   );
+  const potion = potionPanel(state, content);
+  if (potion?.update) updates.push(potion.update);
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
-  return { el: h('div', { class: 'stack groups' }, sections), update };
+  return { el: h('div', { class: 'stack groups' }, [potion?.el, ...sections]), update };
 }
 
 /**
@@ -114,6 +123,12 @@ function recipeNeeds(
   };
 }
 
+/** A card's title: the thing made, and how many at once when it is more than one. */
+function makes(action: ActionDef): string {
+  const qty = action.gives[0]?.qty ?? 1;
+  return qty > 1 ? `${action.name} ×${qty}` : action.name;
+}
+
 interface SkillPageActions {
   back(): void;
   start(actionId: string): void;
@@ -159,10 +174,13 @@ export function skillPageView(
     const owned = h('p', { class: 'muted small' });
     const masteryText = h('span', { class: 'small mastery-level' });
     updates.push((now) => {
-      const duration = actionDuration(now, action);
+      const duration = actionDuration(now, action, content);
+      const potion = potionFor(now, action, content);
       progress.set(now.action?.id === action.id ? now.action.progressMs / duration : 0);
       mastery.set(levelProgress(masteryXp(now, action.id)));
-      rate.textContent = `${formatSeconds(duration)} · ${action.xp} XP`;
+      // The numbers a potion changes are shown changed, in its colour.
+      rate.textContent = `${formatSeconds(duration)} · ${xpPerCompletion(action, potion)} XP`;
+      rate.classList.toggle('potion-helped', potion !== null);
       const level = masteryLevel(now, action.id);
       const quicker = Number(((level - 1) * MASTERY_SPEED_PER_LEVEL * 100).toFixed(1));
       masteryText.textContent =
@@ -184,7 +202,7 @@ export function skillPageView(
       },
       [
         h('div', { class: 'card-head' }, [
-          titled(itemIcon(action.gives[0]?.item ?? ''), action.name),
+          titled(itemIcon(action.gives[0]?.item ?? ''), makes(action)),
           rate,
         ]),
         progress.el,
@@ -207,6 +225,8 @@ export function skillPageView(
     .sort((a, b) => a.level - b.level)
     .map(card);
 
+  const potion = potionPanel(state, content, skill.id);
+  if (potion?.update) updates.push(potion.update);
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
   return {
@@ -220,6 +240,7 @@ export function skillPageView(
         xp.el,
         xpText,
       ]),
+      potion?.el,
       ...cards,
     ]),
     update,

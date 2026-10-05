@@ -128,7 +128,9 @@ describe('extrasIn', () => {
 
   it('adds up the same however the charges are split', () => {
     for (let first = 0; first <= 23; first += 1) {
-      expect(extrasIn(23, first, 4) + extrasIn(23 - first, 23 - first, 4)).toBe(extrasIn(23, 23, 4));
+      expect(extrasIn(23, first, 4) + extrasIn(23 - first, 23 - first, 4)).toBe(
+        extrasIn(23, 23, 4),
+      );
     }
   });
 });

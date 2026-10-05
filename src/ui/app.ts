@@ -3,6 +3,7 @@ import { pixelSvg } from '../art/pixelSvg';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
 import { sell } from '../core/bank';
+import { drinkPotion } from '../core/potions';
 import type { Content } from '../core/content';
 import { newGame, skillLevel, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
@@ -171,6 +172,16 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           if (!sold.bank[itemId]) openItem = null;
           act(sold);
         },
+        drink: (itemId) => {
+          const result = drinkPotion(state ?? game, itemId, content);
+          if (!result.ok) {
+            toast(result.reason);
+            return;
+          }
+          if (!result.state.bank[itemId]) openItem = null;
+          toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
+          act(result.state);
+        },
       });
     }
     if (tab === 'character') {
@@ -274,6 +285,12 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         // A level can unlock an action, and what is on screen was built for the old one.
         redraw = true;
       }
+    }
+    if (before.potion && !state.potion) {
+      const name = content.items[before.potion.item]?.name ?? 'potion';
+      toast(`Your ${name} has worn off.`);
+      // Its panel goes, and the action's numbers go back to plain.
+      redraw = true;
     }
     if (!state.action) {
       const short = missingInput(state, content.actions[before.action!.id]!);

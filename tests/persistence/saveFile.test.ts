@@ -41,7 +41,8 @@ describe('save export and import', () => {
   });
 
   it('loads a version 3 save, from before potions, with none drunk', () => {
-    const { potion: _, ...v3 } = { ...state, version: 3 };
+    const v3: Record<string, unknown> = { ...state, version: 3 };
+    delete v3.potion;
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v3 }))).toEqual({
       ok: true,
       state: { ...state, potion: null },

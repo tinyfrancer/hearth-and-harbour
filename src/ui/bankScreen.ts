@@ -2,13 +2,16 @@ import type { Content, ItemDef } from '../core/content';
 import { bankCount, type GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
 import { button, h, titled } from './dom';
+import { activePotion } from '../core/potions';
 import { formatNumber } from './format';
+import { potionEffectText, potionSkillsText } from './potionPanel';
 import type { View } from './view';
 
 interface BankActions {
   /** Open an item's card, or close it with null. */
   open(itemId: string | null): void;
   sell(itemId: string, qty: number): void;
+  drink(itemId: string): void;
 }
 
 const coins = (amount: number): string =>
@@ -28,6 +31,55 @@ function provenance(item: ItemDef, content: Content): { from: string[]; usedIn: 
     }
   }
   return { from, usedIn };
+}
+
+/**
+ * What a potion does and a button to drink it. Drinking throws away whatever
+ * charges the potion already working has left, so then it asks first, with a
+ * second tap.
+ */
+function drinking(
+  item: ItemDef,
+  content: Content,
+  actions: BankActions,
+  latest: () => GameState,
+): HTMLElement {
+  const potion = item.potion!;
+  const confirm = h('div', { class: 'stack tight' });
+  const drink = button(
+    `Drink ${item.name}`,
+    () => {
+      const working = activePotion(latest(), content);
+      if (!working) {
+        actions.drink(item.id);
+        return;
+      }
+      const left = `${formatNumber(working.charges)} ${working.charges === 1 ? 'charge' : 'charges'}`;
+      confirm.replaceChildren(
+        h('p', {
+          class: 'small',
+          text: `Your ${working.item.name} still has ${left} left. Drinking this pours them away.`,
+        }),
+        h('div', { class: 'row' }, [
+          button(`Replace ${working.item.name}`, () => actions.drink(item.id), 'primary'),
+          button('Cancel', () => confirm.replaceChildren()),
+        ]),
+      );
+    },
+    'primary',
+  );
+  return h('div', { class: 'stack tight drink' }, [
+    h('dl', { class: 'facts small' }, [
+      h('dt', { text: 'Does' }),
+      h('dd', { class: 'potion-text', text: potionEffectText(potion) }),
+      h('dt', { text: 'For' }),
+      h('dd', { text: potionSkillsText(potion, content) }),
+      h('dt', { text: 'Lasts' }),
+      h('dd', { text: `${formatNumber(potion.charges)} actions` }),
+    ]),
+    drink,
+    confirm,
+  ]);
 }
 
 /** The item card: what a thing is, where it comes from, what it is for, and selling it. */
@@ -76,6 +128,7 @@ function itemCard(
   return h('section', { class: 'panel stack item-card', attrs: { 'data-card': item.id } }, [
     h('div', { class: 'card-head' }, [titled(itemIcon(item.id), item.name), held]),
     h('p', { class: 'muted', text: item.description }),
+    item.potion && drinking(item, content, actions, () => latest),
     h('dl', { class: 'facts small' }, [
       h('dt', { text: 'From' }),
       h('dd', { text: from.join(', ') || 'Nowhere yet' }),
