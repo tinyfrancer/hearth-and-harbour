@@ -314,7 +314,13 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
 
   return {
     actors,
-    walker: (image) => (flashing(battle.struckAt, clock) ? flashOf(image, c.white1) : image),
+    walker: (image) => {
+      if (flashing(battle.struckAt, clock)) return flashOf(image, c.white1);
+      // Down: he blinks red until the tide takes him.
+      if (battle.over?.why === 'fell' && Math.floor(clock / 150) % 2 === 1)
+        return flashOf(image, c.red2);
+      return image;
+    },
     ground(ctx) {
       // Barred doors, lifting when the room is clear.
       const lifted = locked ? 0 : openedAt === undefined ? 1 : (clock - openedAt) / DOOR_LIFT_MS;

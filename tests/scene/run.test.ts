@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { newGame } from '../../src/core/state';
+import { newGame, type GameState } from '../../src/core/state';
+import { alive } from '../../src/scene/battle';
 import { CONTENT } from '../../src/data';
 import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
 import { cameraFor } from '../../src/scene/camera';
@@ -25,7 +26,10 @@ beforeEach(() => {
   observers = [];
   clock = 1000;
   resetTown();
+  character = newGame('Cody', 0);
   localStorage.clear();
+  // A run's dice are seeded from the moment it starts: the same moment every test.
+  vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -65,18 +69,36 @@ function resize(width: number, height: number): void {
   for (const callback of [...observers]) callback([entry], {} as ResizeObserver);
 }
 
+/** The character the town is shown for: a new one unless a test says otherwise. */
+let character: GameState;
+
+const lvl = (n: number): number => Math.round(40 * (n - 1) ** 2.5);
+
+/** Strong enough to clear the grotto standing still, every heavy blow taken. */
+function veteran(): GameState {
+  return {
+    ...newGame('Cody', 0),
+    skills: { melee: lvl(60), defence: lvl(60), vitality: lvl(60) },
+    equipment: {
+      main_hand: { item: 'iron_sword', qty: 1 },
+      body: { item: 'iron_breastplate', qty: 1 },
+    },
+    food: { item: 'cooked_cod', qty: 4 },
+  };
+}
+
 function shown(shell?: Shell): View {
-  const view = townView(newGame('Cody', 0), CONTENT, shell);
+  const view = townView(character, CONTENT, shell);
   document.body.append(view.el);
   resize(390, 727);
-  view.update?.(newGame('Cody', 0));
+  view.update?.(character);
   return view;
 }
 
 function wait(view: View, ms: number): void {
   for (let t = 0; t < ms; t += 50) {
     clock += 50;
-    view.update?.(newGame('Cody', 0));
+    view.update?.(character);
   }
 }
 
@@ -191,7 +213,14 @@ describe('the way into the grotto', () => {
     expect(view.el.querySelector<HTMLElement>('.dungeon-leave')!.hidden).toBe(false);
     view.el.querySelector<HTMLButtonElement>('.dungeon-leave')!.click();
     click(view.el, 'Row back');
-    expect(shell.calls).toEqual(['full:true', 'pause:true', 'full:false', 'pause:false']);
+    // Nothing was picked up, and that is what comes home, before the clock starts again.
+    expect(shell.calls).toEqual([
+      'full:true',
+      'pause:true',
+      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0}',
+      'full:false',
+      'pause:false',
+    ]);
     expect(view.el.querySelector('.dungeon')).toBeNull();
     expect(view.el.querySelector('.scene-canvas')).not.toBeNull();
     expect(runNow()).toBeNull();
@@ -200,33 +229,137 @@ describe('the way into the grotto', () => {
     expect([hero.x, hero.y]).toEqual([centreOf(BOAT_LANDING).x, centreOf(BOAT_LANDING).y]);
   });
 
-  it('walks three rooms through their doors to the end, and back to town from the results', () => {
+  /** Goes after whatever is standing in the room, one tap at a time, until it is clear or the run is over. */
+  function fightRoom(view: View, limit = 300_000): void {
+    for (let t = 0; t < limit; t += 1000) {
+      const run = runNow()!;
+      if (run.finished || run.battle!.over) return;
+      const left = run.battle!.foes.filter((f) => f.room === run.room && alive(f));
+      if (left.length === 0) return;
+      if (!left.some((f) => f.key === run.battle!.target)) tap(view.el, left[0]!.at);
+      wait(view, 1000);
+    }
+  }
+
+  /** Walks through the door at `cell` to the next room. */
+  function through(view: View, col: number, row: number): void {
+    const from = runNow()!.room;
+    resize(844, 390);
+    tap(view.el, centreOf({ col, row }));
+    for (let t = 0; t < 15_000 && (runNow()!.room === from || runNow()!.doorway); t += 500)
+      wait(view, 500);
+    // A browser tells a new room's canvas its size as it goes on the page; jsdom is told here.
+    resize(844, 390);
+  }
+
+  it('fights through three rooms, their doors opening as each is cleared, and settles once at the end', () => {
+    character = veteran();
     const shell = shellSpy();
     const view = shown(shell);
     rowOut(view);
     resize(844, 390);
     wait(view, 100);
+    expect(view.el.querySelector('.fight-hud')).not.toBeNull();
+    expect(view.el.querySelectorAll('.fight-button')).toHaveLength(3);
     const rooms: string[] = [runNow()!.room];
-    const goTo = (col: number, row: number, ms: number) => {
-      // A browser tells a new room's canvas its size as it goes on the page; jsdom is told here.
-      resize(844, 390);
-      tap(view.el, centreOf({ col, row }));
-      wait(view, ms);
-      if (rooms.at(-1) !== runNow()!.room) rooms.push(runNow()!.room);
-    };
-    goTo(23, 4, 6000);
-    goTo(38, 0, 12_000);
-    goTo(10, 2, 4000);
+    fightRoom(view);
+    expect(runNow()!.battle!.opened.landing).toBeGreaterThan(0);
+    through(view, 23, 4);
+    rooms.push(runNow()!.room);
+    fightRoom(view);
+    through(view, 39, 5);
+    rooms.push(runNow()!.room);
+    fightRoom(view);
+    wait(view, 2000);
     expect(rooms).toEqual(['landing', 'pools', 'cove']);
+    const run = runNow()!;
+    expect(run.ending).toBe('cleared');
+    expect(run.battle!.tally.kills).toBe(6);
     const results = view.el.querySelector('.dungeon-results')!;
-    expect(results.textContent).toMatch(/You reached the end/);
-    expect(results.textContent).toMatch(/Time taken: 0:\d\d/);
-    // The run is over: the idle task carries on while the results are read, still full screen.
-    expect(shell.calls).toEqual(['full:true', 'pause:true', 'full:true', 'pause:false']);
+    expect(results.textContent).toMatch(/The grotto is cleared/);
+    expect(results.textContent).toMatch(/Time taken: \d:\d\d/);
+    expect(results.textContent).toMatch(/Melee\+\d+ XP/);
+    expect(results.textContent).toMatch(/Hide×\d/);
+    // Settled once, then the idle task carries on while the results are read, still full screen.
+    const settles = shell.calls.filter((c) => c.startsWith('settle:'));
+    expect(settles).toHaveLength(1);
+    const spoils = JSON.parse(settles[0]!.slice('settle:'.length));
+    expect(spoils.loot.hide).toBeGreaterThanOrEqual(3);
+    expect(spoils.xp.melee).toBe(5 * (2 * 10 + 2 * 16 + 64 + 10));
+    expect(shell.calls.slice(-3, -2)[0]).toMatch(/^settle:/);
+    expect(shell.calls.slice(-2)).toEqual(['full:true', 'pause:false']);
     expect(view.el.querySelector<HTMLElement>('.dungeon-leave')!.hidden).toBe(true);
     click(view.el, 'Back to town');
     expect(shell.calls.slice(-2)).toEqual(['full:false', 'pause:false']);
+    expect(shell.calls.filter((c) => c.startsWith('settle:'))).toHaveLength(1);
     expect(view.el.querySelector('.dungeon')).toBeNull();
+  });
+
+  it('washes a hero who falls back to town with what he picked up, settled once', () => {
+    // A new character, no weapon, no food: the rats are a fair fight and the crabs are not.
+    const shell = shellSpy();
+    const view = shown(shell);
+    rowOut(view);
+    resize(844, 390);
+    wait(view, 100);
+    expect(view.el.querySelectorAll('.fight-button')).toHaveLength(2);
+    fightRoom(view);
+    if (!runNow()!.battle!.over) {
+      through(view, 23, 4);
+      fightRoom(view);
+    }
+    wait(view, 2000);
+    const run = runNow()!;
+    expect(run.ending).toBe('fell');
+    const results = view.el.querySelector('.dungeon-results')!;
+    expect(results.textContent).toMatch(/Washed back to town/);
+    const settles = shell.calls.filter((c) => c.startsWith('settle:'));
+    expect(settles).toHaveLength(1);
+    expect(JSON.parse(settles[0]!.slice('settle:'.length)).loot).toEqual(run.battle!.tally.loot);
+    click(view.el, 'Back to town');
+    expect(shell.calls.filter((c) => c.startsWith('settle:'))).toHaveLength(1);
+  });
+
+  it('shows health, the target, and buttons that cool down when pressed', () => {
+    character = veteran();
+    const view = shown(shellSpy());
+    rowOut(view);
+    resize(844, 390);
+    wait(view, 100);
+    const hp = view.el.querySelector('.fight-hero .fight-numbers')!;
+    expect(hp.textContent).toBe('256/256');
+    const target = view.el.querySelector<HTMLElement>('.fight-target')!;
+    expect(target.hidden).toBe(true);
+    const [swing, brace, food] = [...view.el.querySelectorAll<HTMLButtonElement>('.fight-button')];
+    expect(swing!.getAttribute('aria-label')).toBe('Wide swing');
+    // Nobody near: ready in itself, but nothing to swing at, so it waits and costs nothing.
+    expect(swing!.dataset.state).toBe('idle');
+    swing!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(runNow()!.battle!.ready.first).toBe(0);
+    // Full health: the food waits too, and shows how many are left.
+    expect(food!.dataset.state).toBe('idle');
+    expect(food!.textContent).toMatch(/4/);
+    const rat = runNow()!.battle!.foes[0]!;
+    tap(view.el, rat.at);
+    wait(view, 100);
+    expect(target.hidden).toBe(false);
+    expect(target.textContent).toMatch(/Dock rat/);
+    // Walked up beside it.
+    for (
+      let i = 0;
+      i < 40 && swing!.dataset.state !== 'ready' && alive(runNow()!.battle!.foes[0]!);
+      i++
+    )
+      wait(view, 100);
+    expect(swing!.dataset.state).toBe('ready');
+    swing!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    wait(view, 50);
+    expect(swing!.dataset.state).toBe('cooling');
+    expect(swing!.querySelector('.fight-count')!.textContent).toBe('8');
+    brace!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    wait(view, 50);
+    expect(brace!.dataset.state).toBe('cooling');
+    expect(runNow()!.battle!.braceUntil).toBeGreaterThan(runNow()!.battle!.clock);
   });
 
   it('carries on with a run when the shell rebuilds the tab, and never shows the town paused', () => {
@@ -293,5 +426,58 @@ describe('the idle task during a run', () => {
     app.save();
     const logs = (state: typeof before) => state.bank.pine_logs ?? 0;
     expect(logs(saves.load()!)).toBe(logs(before) + 2);
+  });
+});
+
+describe('a run’s spoils in the real app', () => {
+  it('pays what was picked up into the save, and the bank and skills show it after rowing back', () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const saves = new LocalStorageSaveService();
+    const start = { ...veteran(), createdAt: clock, savedAt: clock };
+    saves.save(start);
+    const app = mountApp(root, { saves, content: CONTENT, now: () => clock });
+    root.querySelector<HTMLElement>('.tab[data-tab="town"]')!.click();
+    resize(390, 727);
+    const frames = (ms: number) => {
+      for (let t = 0; t < ms; t += 50) {
+        clock += 50;
+        app.tick();
+      }
+    };
+    frames(100);
+    tap(root, centreOf({ col: 11, row: 17 }));
+    frames(3000);
+    tap(root, { x: 130, y: 345 });
+    frames(3000);
+    click(root, 'Row out to the grotto (unfinished)');
+    resize(844, 390);
+    frames(100);
+    // Both rats, then whatever they left on the floor.
+    const standing = () => runNow()!.battle!.foes.filter((f) => f.room === 'landing' && alive(f));
+    for (let i = 0; i < 60 && standing().length > 0; i++) {
+      const rat = standing()[0]!;
+      if (runNow()!.battle!.target !== rat.key) tap(root, rat.at);
+      frames(1000);
+    }
+    for (const pile of runNow()!.battle!.piles) {
+      tap(root, pile.at);
+      frames(4000);
+    }
+    const tally = runNow()!.battle!.tally;
+    expect(runNow()!.battle!.piles).toEqual([]);
+    expect(tally.loot.hide).toBe(2);
+    root.querySelector<HTMLButtonElement>('.dungeon-leave')!.click();
+    click(root, 'Row back');
+    const saved = saves.load()!;
+    expect(saved.bank.hide).toBe(2);
+    expect(saved.coins).toBe(start.coins + tally.coins);
+    expect(saved.skills.melee).toBe(start.skills.melee! + tally.xp.melee!);
+    expect(saved.skills.vitality).toBe(start.skills.vitality! + tally.xp.vitality!);
+    expect(saved.food).toEqual({ item: 'cooked_cod', qty: 4 - tally.eaten });
+    root.querySelector<HTMLElement>('.tab[data-tab="bank"]')!.click();
+    expect(root.textContent).toMatch(/Hide/);
+    root.querySelector<HTMLElement>('.tab[data-tab="skills"]')!.click();
+    expect(root.textContent).toMatch(/Melee/);
   });
 });
