@@ -89,6 +89,34 @@ describe('drinking a potion', () => {
     drink(stocked, 'quick');
     expect(stocked).toEqual(before);
   });
+
+  it('counts the potions drunk', () => {
+    expect(drink(stocked, 'quick').stats).toEqual({ potions: 1 });
+    expect(drink(drink(stocked, 'quick'), 'clever').stats).toEqual({ potions: 2 });
+  });
+
+  it('gives more charges for each lasting thing from the store that stretches them, rounded down', () => {
+    const stretched: Content = {
+      ...content,
+      store: {
+        case: { id: 'case', price: 1, perk: { name: '', description: '', potionCharges: 50 } },
+        cork: { id: 'cork', price: 1, perk: { name: '', description: '', potionCharges: 15 } },
+        hat: { id: 'hat', price: 1, item: 'mud', qty: 1 },
+      },
+    };
+    const sip = (perks: string[], item: string) => {
+      const result = drinkPotion({ ...stocked, perks }, item, stretched);
+      if (!result.ok) throw new Error(result.reason);
+      return result.state.potion!.charges;
+    };
+    expect(sip([], 'quick')).toBe(30);
+    expect(sip(['case'], 'quick')).toBe(45);
+    // 30 x 1.65 is 49.5: rounded down once, never up.
+    expect(sip(['case', 'cork'], 'quick')).toBe(49);
+    expect(sip(['case'], 'clever')).toBe(75);
+    // A perk the store no longer sells, or an entry that is no perk, stretches nothing.
+    expect(sip(['gone', 'hat'], 'quick')).toBe(30);
+  });
 });
 
 describe('which actions a potion helps', () => {

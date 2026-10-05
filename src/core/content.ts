@@ -254,14 +254,19 @@ export interface AchievementDef {
 
 /** What an achievement asks of the state, read the same way every time. */
 export type AchievementRule =
-  /** A skill at a level: the one named, or any of a group's, or any at all. */
-  | { kind: 'level'; level: number; skill?: string; group?: string }
+  /**
+   * A skill at a level: the one named, or any of a group's, or any at all;
+   * with `all`, every one of them.
+   */
+  | { kind: 'level'; level: number; skill?: string; group?: string; all?: boolean }
   /** Levels of every skill in the tables, added up. */
   | { kind: 'total'; level: number }
   /** Mastery of any one action at a level. */
   | { kind: 'mastery'; level: number }
   /** `count` of these items in the collection log (all of them if left out). */
   | { kind: 'found'; items: readonly string[]; count?: number }
+  /** So many different things in the collection log, of those the tables hold. */
+  | { kind: 'collected'; count: number }
   /** Kills of a monster, or of any monster at all, in the bestiary. */
   | { kind: 'kills'; count: number; monster?: string }
   /** Every one of these worn at once. */

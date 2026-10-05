@@ -13,11 +13,13 @@ import { masteryLevel, skillLevel, stat, type GameState } from './state';
 /** Whether the state shows what a rule asks, now. */
 export function meets(state: GameState, rule: AchievementRule, content: Content): boolean {
   switch (rule.kind) {
-    case 'level':
-      return Object.values(content.skills)
+    case 'level': {
+      const skills = Object.values(content.skills)
         .filter((skill) => (rule.skill ? skill.id === rule.skill : true))
-        .filter((skill) => (rule.group ? skill.group === rule.group : true))
-        .some((skill) => skillLevel(state, skill.id) >= rule.level);
+        .filter((skill) => (rule.group ? skill.group === rule.group : true));
+      const reached = (skill: { id: string }) => skillLevel(state, skill.id) >= rule.level;
+      return rule.all ? skills.length > 0 && skills.every(reached) : skills.some(reached);
+    }
     case 'total':
       return totalLevel(state, content) >= rule.level;
     case 'mastery':
@@ -27,6 +29,8 @@ export function meets(state: GameState, rule: AchievementRule, content: Content)
       const have = rule.items.filter((item) => found.has(item)).length;
       return have >= (rule.count ?? rule.items.length);
     }
+    case 'collected':
+      return state.collection.filter((id) => Object.hasOwn(content.items, id)).length >= rule.count;
     case 'kills':
       return rule.monster
         ? (state.bestiary[rule.monster]?.kills ?? 0) >= rule.count

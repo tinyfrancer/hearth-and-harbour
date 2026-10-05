@@ -525,6 +525,15 @@ export const ITEMS = {
       'A carved lady with a chipped nose and a fierce stare. Worth little to a merchant; she belongs on a wall.',
     value: 50,
   },
+  // What only the general store sells (src/data/store.ts): something to save for.
+  velvet_cap: {
+    id: 'velvet_cap',
+    name: 'Velvet cap',
+    description:
+      'Plum velvet, a gold pin and the air of somebody who owns a boat. Stops nothing whatsoever.',
+    value: 2000,
+    equip: { slot: 'head', armour: 1 },
+  },
   leather: {
     id: 'leather',
     name: 'Leather',

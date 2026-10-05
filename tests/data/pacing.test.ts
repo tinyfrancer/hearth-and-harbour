@@ -298,6 +298,16 @@ describe('what an hour earns', () => {
     },
   );
 
+  it('prices the store’s dear things at a few hours’ earnings, mid-tier', () => {
+    const hour = bestGatheringHour(10);
+    const dear = Object.values(CONTENT.store!).filter((entry) => entry.price > hour);
+    expect(dear.map((entry) => entry.id)).toEqual(['potion_case', 'velvet_cap']);
+    for (const entry of dear) {
+      expect(entry.price / hour, entry.id).toBeGreaterThan(1.5);
+      expect(entry.price / hour, entry.id).toBeLessThan(5);
+    }
+  });
+
   it('makes the strongest monster at a level pay its way, unless it is an animal', () => {
     // Animals carry no purse: a boar or a wolf is fought for XP and hides.
     for (const level of [1, 20]) {
