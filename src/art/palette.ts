@@ -82,6 +82,33 @@ export const RAMPS = {
   shell: ['#f6f2ec', '#d8a2b4'],
   pinewood: ['#f0d08a', '#c4964e'],
   willow: ['#e4ddcc', '#aca390'],
+
+  // Icons (icons.ts). Bark tells the three logs apart: pine's is the warm
+  // `wood` ramp, oak's a grey-brown, willow's a grey-green.
+  oakbark: ['#a08c78', '#73624f', '#4c3f36'],
+  willowbark: ['#c2c49a', '#8e936c', '#5e6448'],
+  // Raw fish are cool and silvery; cooked food is warm and browned, so the
+  // two read apart at a glance whatever the fish.
+  scales: ['#f2f6f6', '#bccdd2', '#7d97a4', '#4e6577'],
+  herring: ['#6fa0b4', '#3f6a86'],
+  cod: ['#cdbd8a', '#9a8a5c', '#655a3c'],
+  shrimpraw: ['#dfe8e4', '#a2b8b6', '#64807e'],
+  shrimp: ['#ffc8a8', '#f4825e', '#c4503e'],
+  cooked: ['#f8d08a', '#e0974a', '#ab5d2f', '#6e3723'],
+  // What ore is: a green crust and a red-gold glint on copper, rust on iron.
+  verdigris: ['#8ee0b8', '#46a884'],
+  copper: ['#f8a868', '#c8683a'],
+  rust: ['#c87e58', '#9a5238', '#683226'],
+  // Forage and the shells' shadows.
+  sage: ['#c8d6b0', '#93ab84', '#60775c'],
+  glowcap: ['#f2fff6', '#b4ecd6', '#70b4ac'],
+  shelldark: ['#c4aeb0', '#8a6c74'],
+  // Potions, one hue each: a green tonic, an amber draught, a pale glowing
+  // tincture and a midnight-blue oil.
+  tonic: ['#a8f070', '#58b848', '#2e7a3a'],
+  draught: ['#ffd88a', '#e09a3a', '#a85e26'],
+  tincture: ['#e4fffa', '#88e8e0', '#3aa8b8'],
+  midnight: ['#8a7ad8', '#4a3c98', '#271f58'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;
