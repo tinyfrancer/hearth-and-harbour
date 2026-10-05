@@ -1,8 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { DEFENCE, MELEE, RANGED, VITALITY } from '../../src/core/combat';
 import { SLOTS } from '../../src/core/content';
-import { MAX_LEVEL } from '../../src/core/xp';
+import { equip } from '../../src/core/equipment';
+import { newGame, type GameState } from '../../src/core/state';
+import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
+
+// Fixed in docs/lanes.md (wave 6): the dungeon drops them, and art draws them, by these ids.
+const GROTTO_LOOT = [
+  'doubloon',
+  'pirate_cutlass',
+  'boarding_axe',
+  'tricorn',
+  'captains_coat',
+  'spyglass',
+  'brinebeards_anchor',
+  'ships_figurehead',
+];
 
 // The tables are typed, but a type cannot see a typo in an id.
 describe('the content tables', () => {
@@ -302,6 +316,82 @@ describe('the content tables', () => {
     expect(sum('hunters_charm')).toBeLessThanOrEqual(sum('shell_necklace') + 2);
     expect(CONTENT.items.barbed_arrows!.equip!.slot).toBe('ammo');
     expect(CONTENT.shop!.feathered_hat).toMatchObject({ once: true });
+  });
+
+  it("has the grotto's loot by the ids the dungeon drops it by, worn where the plan says", () => {
+    const worn = (id: string) => CONTENT.items[id]?.equip;
+    for (const id of GROTTO_LOOT) expect(CONTENT.items[id], id).toBeDefined();
+    expect(worn('doubloon')).toBeUndefined();
+    expect(worn('ships_figurehead')).toBeUndefined();
+    expect(worn('pirate_cutlass')).toMatchObject({ slot: 'main_hand', style: 'melee' });
+    expect(worn('boarding_axe')).toMatchObject({ slot: 'main_hand', style: 'melee' });
+    expect(worn('tricorn')).toMatchObject({ slot: 'head' });
+    expect(worn('captains_coat')).toMatchObject({ slot: 'body' });
+    expect(worn('spyglass')).toMatchObject({ slot: 'off_hand' });
+    expect(worn('brinebeards_anchor')).toMatchObject({
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'melee',
+    });
+    for (const id of GROTTO_LOOT) {
+      const needs = worn(id)?.requires;
+      if (!worn(id)) continue;
+      expect(needs?.level, id).toBeGreaterThanOrEqual(18);
+      expect(needs?.level, id).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it("sets the grotto's gear just above iron, with the anchor the strongest blow so far", () => {
+    const def = (id: string) => CONTENT.items[id]!.equip!;
+    const offence = (id: string) => (def(id).attack ?? 0) + (def(id).strength ?? 0);
+    // A clear step up from the iron weapon of the same kind.
+    expect(offence('pirate_cutlass')).toBeGreaterThanOrEqual(offence('iron_sword') * 1.2);
+    expect(offence('boarding_axe')).toBeGreaterThanOrEqual(offence('iron_axe') * 1.2);
+    // About iron's armour, with a little attack on top.
+    for (const [piece, iron] of [
+      ['tricorn', 'iron_helmet'],
+      ['captains_coat', 'iron_breastplate'],
+    ] as const) {
+      expect(def(piece).armour, piece).toBeGreaterThanOrEqual(def(iron).armour! - 2);
+      expect(def(piece).armour, piece).toBeLessThanOrEqual(def(iron).armour!);
+      expect(def(piece).attack, piece).toBeGreaterThan(0);
+      expect(def(piece).attack, piece).toBeLessThanOrEqual(3);
+    }
+    // An off hand for aiming: attack, and nothing to hide behind.
+    expect(def('spyglass').attack).toBeGreaterThan(0);
+    expect(def('spyglass').armour ?? 0).toBe(0);
+    // The anchor out-hits every melee weapon in the tables, and out-strengths
+    // any one-handed weapon even with the best shield's armour beside it.
+    const melee = Object.values(CONTENT.items).filter(
+      (item) => item.equip?.slot === 'main_hand' && item.equip.style === 'melee',
+    );
+    for (const weapon of melee) {
+      if (weapon.id === 'brinebeards_anchor') continue;
+      expect(def('brinebeards_anchor').strength!, weapon.id).toBeGreaterThan(
+        weapon.equip!.strength ?? 0,
+      );
+      expect(offence('brinebeards_anchor'), weapon.id).toBeGreaterThan(offence(weapon.id));
+    }
+    // Doubloons sell well; the figurehead hardly at all.
+    expect(CONTENT.items.doubloon!.value).toBeGreaterThan(CONTENT.items.smuggled_tea!.value);
+    expect(CONTENT.items.ships_figurehead!.value).toBeLessThan(CONTENT.items.doubloon!.value);
+  });
+
+  it("wields the anchor in both hands and keeps the grotto's gear from the unready", () => {
+    const at = (level: number): GameState => ({
+      ...newGame('Cody', 0),
+      skills: { melee: xpForLevel(level), defence: xpForLevel(level) },
+      bank: { brinebeards_anchor: 1, iron_shield: 1, pirate_cutlass: 1, captains_coat: 1 },
+    });
+    const shielded = equip(at(20), 'iron_shield', CONTENT);
+    if (!shielded.ok) throw new Error(shielded.reason);
+    const anchored = equip(shielded.state, 'brinebeards_anchor', CONTENT);
+    if (!anchored.ok) throw new Error(anchored.reason);
+    expect(anchored.state.equipment.off_hand).toBeUndefined();
+    expect(anchored.state.bank.iron_shield).toBe(1);
+    expect(equip(at(17), 'pirate_cutlass', CONTENT).ok).toBe(false);
+    expect(equip(at(19), 'captains_coat', CONTENT).ok).toBe(false);
+    expect(equip(at(20), 'captains_coat', CONTENT).ok).toBe(true);
   });
 
   it('feeds Crafting with hides, and gives leather a small set of armour', () => {

@@ -1,6 +1,8 @@
 # Lane A: idle rules
 
 **Next session: S10: Shop, collection log, achievements** (brief in `docs/lanes.md`, wave 6).
+In progress: the grotto's eight loot items are in `src/data/items.ts` by their fixed ids (landed
+first, on their own, so lanes B and C can build against them); the rest of S10 follows.
 
 ## Done
 
