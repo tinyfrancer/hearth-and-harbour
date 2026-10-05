@@ -11,9 +11,7 @@
  * grove to the east and room round the stall to the west.
  */
 import type { Glow, Picture } from '../art/raster';
-import type { Palette } from '../art/palette';
 import type { Ambient, Loop } from './ambient';
-import type { Facing } from './play';
 import { blockFootprints, type Box, type Scene, type Thing, type Use } from './things';
 import { parseMap, TILE, type Cell, type Point, type TileKind } from './tileMap';
 import {
@@ -21,9 +19,8 @@ import {
   SHADOW_MIDDLE,
   chimneySmoke,
   gulls,
-  heroPicture,
   litBy,
-  litWalker,
+  mirrored,
   paintGround,
   shadowShadeAt,
   shoreFoam,
@@ -171,6 +168,8 @@ interface Placement {
   readonly spots?: readonly Cell[];
   readonly use?: Use;
   readonly panelOf?: string;
+  /** Someone who turns to look at the hero when he comes near. */
+  readonly turns?: true;
 }
 
 const pine = (id: string, col: number, row: number, n: 1 | 2 | 3, use = true): Placement => ({
@@ -218,6 +217,7 @@ const person = (
   tap: { w: 24, h: 46 },
   spots: sides.map((d) => ({ col: col + d, row })),
   use,
+  turns: true,
 });
 
 export const TOWN_LAYOUT: readonly Placement[] = [
@@ -384,7 +384,11 @@ export const TOWN_LAYOUT: readonly Placement[] = [
     ],
     use: {
       name: 'Rowing boat',
-      lines: ['Tied up and bailed out, mostly. The name has worn off; it answers to “oi”.'],
+      lines: [
+        'Tied up and bailed out, mostly. The name has worn off; it answers to “oi”.',
+        'Unfinished: the grotto round the point has rooms to walk, and nobody in them yet.',
+      ],
+      button: { label: 'Row out to the grotto (unfinished)', opens: { dungeon: 'grotto' } },
     },
   },
   {
@@ -491,12 +495,9 @@ export interface TownArt {
   readonly groundGrid: Grid;
   /** The ground with every evening light in town on it. */
   readonly ground: Picture;
-  readonly hero: Picture;
   readonly heroFeet: Point;
-  /** Every lamp, window and fire in town, in art pixels. */
+  /** Every lamp, window and fire in town, in art pixels: what lights the hero at dusk (`Hero`). */
   readonly lights: readonly Glow[];
-  /** The hero at `feet` facing either way, lit by the lights near him when they are on. */
-  walkerAt(feet: Point, facing: Facing, palette: Palette): Picture;
   /** The hero's shadow on whatever ground is at `feet` and the point of it under the feet; null over water. */
   shadowAt(feet: Point): { readonly picture: Picture; readonly middle: Point } | null;
   /** Smoke, gulls and foam. */
@@ -545,21 +546,27 @@ export function buildTown(): Town {
     ...(p.spots ? { spots: p.spots } : {}),
     ...(p.use ? { use: p.use } : {}),
     ...(p.panelOf ? { panelOf: p.panelOf } : {}),
-    ...(p.piece === 'net' ? {} : { sprite: { picture: litBy(piece.picture, at, lights), at } }),
+    ...(p.piece === 'net'
+      ? {}
+      : {
+          sprite: {
+            picture: litBy(piece.picture, at, lights),
+            at,
+            ...(p.turns
+              ? { turned: litBy(picture(mirrored(piece.picture.grid)), at, lights) }
+              : {}),
+          },
+        }),
   }));
 
-  const hero = heroPicture();
-  const walker = litWalker(hero, HERO_FEET, lights);
   const shadowPictures = new Map<Shade, Picture>();
   return {
     scene: { map: blockFootprints(TOWN_GROUND, things), things },
     art: {
       groundGrid,
       ground: picture(groundGrid, lights),
-      hero,
       heroFeet: HERO_FEET,
       lights,
-      walkerAt: (feet, facing, palette) => walker(feet, facing, palette.lightsOn),
       shadowAt(feet) {
         const shade = shadowShadeAt(groundGrid, feet);
         if (!shade) return null;

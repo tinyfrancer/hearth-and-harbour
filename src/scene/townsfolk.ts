@@ -20,6 +20,7 @@ export const SMITH: Use = {
     'Mind the sparks. They don’t mind you.',
   ],
   button: { label: 'Go to Smithing', opens: { skill: 'smithing' } },
+  portrait: 'smith',
 };
 
 export const TRADER: Use = {
@@ -34,11 +35,13 @@ export const TRADER: Use = {
   ],
   duskSays: ['Packing up. Whatever’s left tonight is tomorrow’s bargain, at tonight’s price.'],
   button: { label: 'Open the bank', opens: { tab: 'bank' } },
+  portrait: 'trader',
 };
 
 export const CAPTAIN: Use = {
   name: 'Captain Corwin Lusk',
   lines: [],
+  portrait: 'pirate',
   says: [
     'Fine morning for it. For what, I couldn’t tell you. That’s half the fun.',
     'The ship? She’s resting. Ships need their rest. Don’t look at the hole.',

@@ -26,7 +26,7 @@ function frame(walker: Standing | null, underfoot: Standing[] = []): Frame {
     underfoot,
     target: null,
     marker: { light: '#fff', ink: '#000' },
-    walker,
+    actors: walker ? [walker] : [],
     above: [],
   };
 }
@@ -40,6 +40,15 @@ describe('redrawing a patch', () => {
     const { boxes, list } = redrawn(frame(hero), whole);
     expect(boxes).toEqual([{ x: 90, y: 70, w: 40, h: 50 }]);
     expect(list).toEqual([barrel, hero, crate]);
+  });
+
+  it('draws the walker and the people who turn to him each in depth order among the rest', () => {
+    // Someone standing behind the barrel, and the walker in front of everything.
+    const person = standing(95, 80, 40, 47, 110);
+    const hero = standing(100, 90, 40, 50, 130);
+    const f = { ...frame(hero), actors: [hero, person] };
+    const { list } = redrawn(f, whole);
+    expect(list).toEqual([person, barrel, crate, hero]);
   });
 
   it('draws nothing again where nothing moves', () => {

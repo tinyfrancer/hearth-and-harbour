@@ -78,3 +78,12 @@ export function tapToWorld(
     y: camera.y + (offset.y * device.height) / cssSize.height / scale,
   };
 }
+
+/**
+ * The scale for a dungeon, played with the phone on its side: the town's
+ * scale for the screen's short side, so the hero is the same size on screen
+ * after the phone is turned as he was in town before it.
+ */
+export function dungeonScale(device: Size): number {
+  return Math.max(1, Math.floor(Math.min(device.width, device.height) / SCENE_WIDTH));
+}

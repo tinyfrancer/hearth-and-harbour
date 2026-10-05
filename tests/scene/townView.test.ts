@@ -5,7 +5,7 @@ import { cameraFor } from '../../src/scene/camera';
 import { FOCUS_RISE } from '../../src/scene/stage';
 import { centreOf, type Point } from '../../src/scene/tileMap';
 import { TOWN_HEIGHT, TOWN_START, TOWN_WIDTH } from '../../src/scene/town';
-import { resetTown, townView } from '../../src/scene/townView';
+import { heroAt, heroNow, resetTown, townView } from '../../src/scene/townView';
 import type { Shell, View } from '../../src/ui/view';
 
 // jsdom has no canvas to draw on and lays nothing out, so these tell the
@@ -75,13 +75,9 @@ function tap(view: View, at: Point, hero: Point): void {
     { width: TOWN_WIDTH, height: TOWN_HEIGHT },
   );
   const canvas = view.el.querySelector('canvas')!;
-  canvas.dispatchEvent(
-    new MouseEvent('pointerdown', {
-      bubbles: true,
-      clientX: (at.x - camera.x) * K,
-      clientY: (at.y - camera.y) * K,
-    }),
-  );
+  const where = { bubbles: true, clientX: (at.x - camera.x) * K, clientY: (at.y - camera.y) * K };
+  canvas.dispatchEvent(new MouseEvent('pointerdown', where));
+  canvas.dispatchEvent(new MouseEvent('pointerup', where));
 }
 
 /** Lets `ms` pass a frame at a time. */
@@ -253,5 +249,41 @@ describe('townView', () => {
     expect(view.el.querySelector('.scene-panel .scene-say')!.textContent!.length).toBeGreaterThan(
       0,
     );
+  });
+  it('steers while a finger is held on the ground, re-aiming as it moves', () => {
+    const view = shown();
+    const canvas = view.el.querySelector('canvas')!;
+    const camera = cameraFor(
+      { x: start.x, y: start.y - FOCUS_RISE },
+      { width: (CSS.width * 3) / 4, height: (CSS.height * 3) / 4 },
+      { width: TOWN_WIDTH, height: TOWN_HEIGHT },
+    );
+    const at = (p: Point) => ({
+      bubbles: true,
+      clientX: (p.x - camera.x) * K,
+      clientY: (p.y - camera.y) * K,
+    });
+    // Held on the square to the east, then dragged round to the west.
+    canvas.dispatchEvent(new MouseEvent('pointerdown', at(centreOf({ col: 21, row: 17 }))));
+    wait(view, 400);
+    expect(heroAt().x).toBeGreaterThan(start.x);
+    canvas.dispatchEvent(new MouseEvent('pointermove', at(centreOf({ col: 7, row: 13 }))));
+    wait(view, 4000);
+    expect(heroAt().x).toBeLessThan(start.x - 16);
+    canvas.dispatchEvent(new MouseEvent('pointerup', at(centreOf({ col: 7, row: 13 }))));
+    wait(view, 2000);
+    expect(heroAt().walking).toBe(false);
+  });
+
+  it('dresses the hero in what the character wears, as soon as it changes', () => {
+    const view = shown();
+    const plain = heroNow()!.dressedAs;
+    const armed = {
+      ...newGame('Cody', 0),
+      equipment: { main_hand: { item: 'iron_sword', qty: 1 } },
+    };
+    view.update?.(armed);
+    expect(heroNow()!.dressedAs).not.toBe(plain);
+    expect(heroNow()!.dressedAs).toMatch(/iron_sword/);
   });
 });

@@ -141,3 +141,175 @@
   outline: var(--px) solid var(--gold-bright);
   outline-offset: -4px;
 }
+
+.scene-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ----- The Town tab's two scenes: the town, and a dungeon run reached from it. ----- */
+
+.scene-host {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * A dungeon run, played sideways with the bars hidden. Everything laid over
+ * the room keeps clear of the notches and the home bar.
+ */
+.dungeon {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--backdrop);
+}
+
+.dungeon-room {
+  position: absolute;
+  inset: 0;
+}
+
+/* Going through a door: the room dims out and the next dims in. */
+.dungeon-fade {
+  position: absolute;
+  inset: 0;
+  background: var(--backdrop);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Turn your phone: over the whole run while the screen is taller than it is wide. */
+.dungeon-prompt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: calc(72px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
+  background: var(--panel);
+  text-align: center;
+}
+
+.dungeon-prompt[hidden] {
+  display: none;
+}
+
+.dungeon-prompt h2 {
+  font-size: 22px;
+  color: var(--gold-bright);
+}
+
+.dungeon-prompt p {
+  max-width: 300px;
+  color: var(--text);
+}
+
+/* A phone, drawn as a box with a speaker slot, that turns onto its side and back. */
+.dungeon-phone {
+  position: relative;
+  width: 44px;
+  height: 72px;
+  margin-bottom: 16px;
+  border: 4px solid var(--gold);
+  animation: dungeon-turn 2.4s steps(6, end) infinite;
+}
+
+.dungeon-phone::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 12px;
+  height: 4px;
+  margin-left: -6px;
+  background: var(--gold);
+}
+
+@keyframes dungeon-turn {
+  0%,
+  30% {
+    transform: rotate(0deg);
+  }
+  55%,
+  100% {
+    transform: rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dungeon-phone {
+    animation: none;
+    transform: rotate(90deg);
+  }
+}
+
+/* The way out: top right, clear of the notch, always on screen. */
+.dungeon-way {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  right: calc(8px + env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.dungeon-leave {
+  width: auto;
+  min-width: 96px;
+}
+
+.dungeon-leave[hidden] {
+  display: none;
+}
+
+.dungeon-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 260px;
+  padding: 12px 14px 14px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+}
+
+.dungeon-confirm:empty {
+  display: none;
+}
+
+/* The end of a run: over the room, in the middle of what is left between the notches. */
+.dungeon-results {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  background: var(--scrim);
+}
+
+.dungeon-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  padding: 16px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+}
+
+.dungeon-card h2 {
+  font-size: 22px;
+  color: var(--gold-bright);
+}
+
+.dungeon-time {
+  font-size: 20px;
+}
