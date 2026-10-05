@@ -437,6 +437,94 @@ export const ITEMS = {
     value: 1,
     equip: { slot: 'head', armour: 1 },
   },
+  // What Brinebeard's Grotto gives up (the dungeon, src/scene, drops them by
+  // these ids). The grotto gates tier 2, so its gear sits just above iron: a
+  // step up for a character at the end of tier 1, needing 18 to 20 to wear.
+  doubloon: {
+    id: 'doubloon',
+    name: 'Doubloon',
+    description:
+      'Heavy, yellow and stamped with a king nobody remembers. Every merchant in Gullwick remembers what it is worth.',
+    value: 40,
+  },
+  pirate_cutlass: {
+    id: 'pirate_cutlass',
+    name: 'Pirate cutlass',
+    description:
+      'Nicked, salt-pitted and still wickedly sharp. It has been sharpened more often than it has been cleaned.',
+    value: 120,
+    equip: {
+      slot: 'main_hand',
+      style: 'melee',
+      attack: 13,
+      strength: 11,
+      requires: { skill: 'melee', level: 18 },
+    },
+  },
+  boarding_axe: {
+    id: 'boarding_axe',
+    name: 'Boarding axe',
+    description:
+      'A long haft, a broad bit and a spike for hooking rails. Built for arriving somewhere uninvited.',
+    value: 120,
+    equip: {
+      slot: 'main_hand',
+      style: 'melee',
+      attack: 9,
+      strength: 14,
+      requires: { skill: 'melee', level: 19 },
+    },
+  },
+  tricorn: {
+    id: 'tricorn',
+    name: 'Tricorn',
+    description:
+      'Three corners, one feather, no shame. Turns a blow almost as well as it turns heads.',
+    value: 90,
+    equip: { slot: 'head', attack: 2, armour: 6, requires: { skill: 'defence', level: 18 } },
+  },
+  captains_coat: {
+    id: 'captains_coat',
+    name: 'Captain’s coat',
+    description:
+      'Long, red and heavy with braid, with something hard sewn into the lining. Smells of powder and pride.',
+    value: 160,
+    equip: { slot: 'body', attack: 3, armour: 14, requires: { skill: 'defence', level: 20 } },
+  },
+  // An off hand that helps you aim instead of hiding: attack and no armour.
+  // It carries no style, so the attack counts whatever is in the main hand;
+  // with every bow two-handed today, that means a melee character's choice
+  // between a shield's armour and a surer blow.
+  spyglass: {
+    id: 'spyglass',
+    name: 'Spyglass',
+    description:
+      'Brass, dented, and good for spotting trouble a long way off. Also for hitting it, at a pinch.',
+    value: 100,
+    equip: { slot: 'off_hand', attack: 5, requires: { skill: 'melee', level: 18 } },
+  },
+  brinebeards_anchor: {
+    id: 'brinebeards_anchor',
+    name: 'Brinebeard’s anchor',
+    description:
+      'The captain’s own anchor, swung on a length of chain. Nobody else has ever lifted it twice.',
+    value: 400,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'melee',
+      attack: 15,
+      strength: 21,
+      requires: { skill: 'melee', level: 20 },
+    },
+  },
+  ships_figurehead: {
+    id: 'ships_figurehead',
+    name: 'Ship’s figurehead',
+    description:
+      'A carved lady with a chipped nose and a fierce stare. Worth little to a merchant; she belongs on a wall.',
+    value: 5,
+  },
   leather: {
     id: 'leather',
     name: 'Leather',
