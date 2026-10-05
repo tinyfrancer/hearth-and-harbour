@@ -386,9 +386,13 @@ export const TOWN_LAYOUT: readonly Placement[] = [
       name: 'Rowing boat',
       lines: [
         'Tied up and bailed out, mostly. The name has worn off; it answers to “oi”.',
-        'Unfinished: the grotto round the point has rooms to walk, and nobody in them yet.',
+        'Round the point is Brinebeard’s Grotto, where the tide comes and goes as it likes.',
+        'Take iron, at least, and a good stack of cooked fish. Mind the water: it moves.',
       ],
-      button: { label: 'Row out to the grotto (unfinished)', opens: { dungeon: 'grotto' } },
+      button: {
+        label: 'Row out to Brinebeard’s Grotto',
+        opens: { dungeon: 'brinebeards_grotto' },
+      },
     },
   },
   {

@@ -1,39 +1,34 @@
 /*
- * A dungeon as data and rules: rooms that are tile maps, doors that join
- * them, and a run through them from the boat to the marked spot at the end.
- * The rules are pure (a run is a value, and time and the walker's feet move
- * it on), so they are tested without a canvas; `dungeonView.ts` shows them.
+ * A dungeon as data and rules: rooms on ground the tide comes and goes over
+ * (`ground.ts`), doors that join them, and a run through them from the boat
+ * to the end. The rules are pure (a run is a value, and time and the
+ * walker's feet move it on), so they are tested without a canvas;
+ * `dungeonView.ts` shows them and `grottoArt.ts` draws the rooms.
  */
-import { grid, rect, ellipse, type Grid } from '../art/grid';
-import type { Shade } from '../art/palette';
-import { picture, type Picture } from '../art/raster';
+import type { MonsterDef } from '../core/content';
 import {
   advanceBattle,
   BEAT_MS,
+  mapOf,
   roomLocked,
   startBattle,
   type Battle,
   type Fighter,
   type Place,
 } from './battle';
-import type { MonsterDef } from '../core/content';
-import { advancePlay, startPlay, type Facing, type Play } from './play';
-import type { Scene } from './things';
+import { foeKind } from './foes';
 import {
-  TILE,
-  cellAt,
-  centreOf,
-  inMap,
-  isSolid,
-  parseMap,
-  type Cell,
-  type Point,
-  type TileKind,
-  type TileMap,
-} from './tileMap';
-import { SHADOW_MIDDLE, walkerShadow } from './townArt';
+  groundMap,
+  isDoorLetter,
+  readGround,
+  standable,
+  type Ground,
+  type RoomTile,
+} from './ground';
+import { advancePlay, startPlay, type Facing, type Play } from './play';
+import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
 
-/** A dungeon as written: each room's rows of characters (see `grotto.ts` for the key). */
+/** A dungeon as written: each room's rows of characters (see `ground.ts` for the key). */
 export interface DungeonPlan {
   readonly id: string;
   /** The room the boat lands in. */
@@ -41,37 +36,24 @@ export interface DungeonPlan {
   readonly rooms: Readonly<Record<string, readonly string[]>>;
   /** Who is waiting in each room, by monster id, and where they stand to begin with. */
   readonly foes?: Readonly<Record<string, readonly FoeSpot[]>>;
+  /** Where a flier in a room sits between visits; it starts on the first. */
+  readonly perches?: Readonly<Record<string, readonly Cell[]>>;
+  /** Where help a boss calls comes in. */
+  readonly spawns?: Readonly<Record<string, readonly Cell[]>>;
+  /** Rooms whose tide is their boss's, not the one the dungeon shares. */
+  readonly ownTide?: readonly string[];
+  /** Rooms where the tide comes up over a stone floor rather than a beach. */
+  readonly stoneTide?: readonly string[];
+  /** Each room's name, shown as the hero comes in. */
+  readonly titles?: Readonly<Record<string, string>>;
 }
 
-/** A monster placed in a room as written. */
+/** A monster placed in a room as written, and the wave of cells it waits in (a brig's). */
 export interface FoeSpot {
   readonly monster: string;
   readonly at: Cell;
+  readonly wave?: number;
 }
-
-export type RoomTile = 'rock' | 'floor' | 'water' | 'door' | 'end';
-
-export const ROOM_KINDS: Readonly<Record<RoomTile, TileKind>> = {
-  rock: { solid: true },
-  floor: { solid: false },
-  water: { solid: true },
-  // A door is walked into: stepping onto it takes you through.
-  door: { solid: false },
-  end: { solid: false },
-};
-
-/** A room's tiles while it is being fought in: the doors are barred. */
-const SHUT_KINDS: Readonly<Record<RoomTile, TileKind>> = { ...ROOM_KINDS, door: { solid: true } };
-
-const KEY: Readonly<Record<string, RoomTile>> = {
-  '#': 'rock',
-  '.': 'floor',
-  '~': 'water',
-  s: 'floor',
-  x: 'end',
-};
-
-const DOOR_LETTER = /^[a-z]$/;
 
 /** A door in a room: where it is, and the room and door on the other side. */
 export interface Door {
@@ -84,15 +66,20 @@ export interface Door {
 
 export interface Room {
   readonly id: string;
+  readonly ground: Ground;
+  /** The ground at low water, doors open, every cell open: the room as drawn. */
   readonly map: TileMap<RoomTile>;
+  /** The same with its doors barred and its cells shut, while something in the room stands. */
+  readonly shut: TileMap<RoomTile>;
   readonly doors: readonly Door[];
   /** Where the boat puts you ashore, in the first room. */
   readonly start: Cell | null;
   /** The marked spot that ends the run. */
   readonly end: Cell | null;
-  /** The same ground with its doors shut, while something in the room still stands. */
-  readonly shut: TileMap<RoomTile>;
   readonly foes: readonly FoeSpot[];
+  readonly perches: readonly Point[];
+  readonly spawns: readonly Point[];
+  readonly title: string | null;
 }
 
 export interface Dungeon {
@@ -121,14 +108,14 @@ function cellsOf(rows: readonly string[], ch: string): Cell[] {
 
 /**
  * Reads a plan into rooms, checking it as it goes: a typo in a room, a door
- * with nowhere to lead or no floor beside it, two starts, are errors here
- * rather than a hero stuck in a wall.
+ * with nowhere to lead or no floor beside it, two starts, someone standing in
+ * a wall, are errors here rather than a hero stuck in one.
  */
 export function buildDungeon(plan: DungeonPlan): Dungeon {
   const letters = new Map<string, string[]>();
   for (const [id, rows] of Object.entries(plan.rooms)) {
     for (const ch of new Set(rows.join(''))) {
-      if (!DOOR_LETTER.test(ch) || ch in KEY) continue;
+      if (!isDoorLetter(ch)) continue;
       if (cellsOf(rows, ch).length !== 1) throw new Error(`Room ${id} has door ${ch} twice.`);
       letters.set(ch, [...(letters.get(ch) ?? []), id]);
     }
@@ -139,9 +126,12 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
 
   const rooms: Record<string, Room> = {};
   for (const [id, rows] of Object.entries(plan.rooms)) {
-    const key: Record<string, RoomTile> = { ...KEY };
-    for (const ch of letters.keys()) key[ch] = 'door';
-    const map = parseMap(rows, key, ROOM_KINDS);
+    const ground = readGround(
+      rows,
+      plan.ownTide?.includes(id) ?? false,
+      plan.stoneTide?.includes(id) ?? false,
+    );
+    const map = groundMap(ground, { level: 0, shut: false, released: ground.bars.length });
     const doors: Door[] = [];
     for (const [ch, joined] of letters) {
       const cell = cellsOf(rows, ch)[0];
@@ -157,23 +147,37 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
     const starts = cellsOf(rows, 's');
     const ends = cellsOf(rows, 'x');
     if (starts.length > 1 || ends.length > 1) throw new Error(`Room ${id} has two starts or ends.`);
+    const perches = (plan.perches?.[id] ?? []).map(centreOf);
     const foes = plan.foes?.[id] ?? [];
     for (const foe of foes) {
-      const tile = inMap(map, foe.at) ? map.tiles[foe.at.row]![foe.at.col] : null;
-      if (tile !== 'floor') throw new Error(`A ${foe.monster} in ${id} is not standing on floor.`);
+      if (foeKind(foe.monster).flies) {
+        const on = centreOf(foe.at);
+        if (!perches.some((p) => p.x === on.x && p.y === on.y))
+          throw new Error(`A ${foe.monster} in ${id} is not on a perch.`);
+        continue;
+      }
+      const tile = inMap(map, foe.at) ? map.tiles[foe.at.row]![foe.at.col] : undefined;
+      if (!standable(tile) || tile === 'door')
+        throw new Error(`A ${foe.monster} in ${id} is not standing on floor.`);
     }
     rooms[id] = {
       id,
+      ground,
       map,
+      shut: groundMap(ground, { level: 0, shut: true, released: 0 }),
       doors,
       start: starts[0] ?? null,
       end: ends[0] ?? null,
-      shut: { ...map, kinds: SHUT_KINDS },
       foes,
+      perches,
+      spawns: (plan.spawns?.[id] ?? []).map(centreOf),
+      title: plan.titles?.[id] ?? null,
     };
   }
-  for (const room of Object.keys(plan.foes ?? {})) {
-    if (!rooms[room]) throw new Error(`Foes are placed in ${room}, which is not a room.`);
+  for (const key of ['foes', 'perches', 'spawns', 'titles'] as const) {
+    for (const room of Object.keys(plan[key] ?? {})) {
+      if (!rooms[room]) throw new Error(`${key} are given for ${room}, which is not a room.`);
+    }
   }
   if (!rooms[plan.first]?.start) throw new Error(`The first room needs a start.`);
   return { id: plan.id, first: plan.first, rooms };
@@ -225,11 +229,12 @@ export interface Run {
   readonly battle: Battle | null;
 }
 
-/** What a run fights with: the character as they rowed out, the monsters' rows, and the dice's seed. */
+/** What a run fights with: the character as they rowed out, the monsters' rows, the dice's seed, and the items the game knows. */
 export interface RunSetup {
   readonly fighter: Fighter;
   readonly monsters: Readonly<Record<string, MonsterDef>>;
   readonly seed: number;
+  readonly known?: Iterable<string>;
 }
 
 export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
@@ -239,9 +244,15 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
         setup.fighter,
         setup.monsters,
         Object.values(dungeon.rooms).flatMap((r) =>
-          r.foes.map((f) => ({ room: r.id, monster: f.monster, at: centreOf(f.at) })),
+          r.foes.map((f) => ({
+            room: r.id,
+            monster: f.monster,
+            at: centreOf(f.at),
+            ...(f.wave !== undefined ? { wave: f.wave } : {}),
+          })),
         ),
         setup.seed,
+        setup.known ? { known: setup.known } : {},
       )
     : null;
   return {
@@ -264,7 +275,20 @@ export function runLocked(run: Run): boolean {
 /** The room a run is in, as its battle needs it. */
 export function placeOf(dungeon: Dungeon, run: Run): Place {
   const room = dungeon.rooms[run.room]!;
-  return { room: room.id, map: runLocked(run) ? room.shut : room.map, last: room.end !== null };
+  return {
+    room: room.id,
+    ground: room.ground,
+    last: room.end !== null,
+    perches: room.perches,
+    spawns: room.spawns,
+  };
+}
+
+/** The ground the run's room has under it now: tide, doors and cells as they are. */
+export function groundNow(dungeon: Dungeon, run: Run): TileMap<RoomTile> {
+  const room = dungeon.rooms[run.room]!;
+  if (!run.battle) return room.map;
+  return mapOf(run.battle, placeOf(dungeon, run));
 }
 
 /** Which way someone faces coming in through `door`: away from it. */
@@ -322,7 +346,7 @@ export function advanceRun(dungeon: Dungeon, run: Run, play: Play, ms: number): 
   if (atEnd(room, play.walker.at) && !runLocked(run))
     return { ...run, play, ms: elapsed, finished: true, ending: 'cleared' };
   const door = doorAt(room, play.walker.at);
-  if (door) {
+  if (door && !runLocked(run)) {
     return {
       ...run,
       play: { ...play, walker: { ...play.walker, path: [] } },
@@ -349,102 +373,4 @@ export function runTime(ms: number): string {
 /** The run can be played only on a screen wider than it is tall: a phone on its side. */
 export function sideways(size: { readonly width: number; readonly height: number }): boolean {
   return size.width > size.height;
-}
-
-/* ----- How a room looks, grey-boxed ----- */
-
-/** The flat placeholder colours of each kind of tile, until the dungeon's tiles are drawn. */
-const FILL: Readonly<Record<RoomTile, Shade>> = {
-  rock: 'slate3',
-  floor: 'sand2',
-  water: 'sea2',
-  door: 'navy2',
-  end: 'sand2',
-};
-
-/** Rows of rock face shown where rock stands above floor, so walls read as walls. */
-const FACE = 5;
-
-/**
- * A room's ground, in flat colours: rock with a lighter face where it meets
- * the floor below, water, floor, doors as dark openings with posts, and the
- * marked spot as a gold ring.
- */
-export function paintRoom(room: Room): Grid {
-  const { map } = room;
-  const g = grid(map.cols * TILE, map.rows * TILE);
-  const kind = (col: number, row: number): RoomTile | null =>
-    inMap(map, { col, row }) ? map.tiles[row]![col]! : null;
-  for (let row = 0; row < map.rows; row++) {
-    for (let col = 0; col < map.cols; col++) {
-      const k = kind(col, row)!;
-      const x = col * TILE;
-      const y = row * TILE;
-      rect(g, x, y, TILE, TILE, FILL[k]);
-      const below = kind(col, row + 1);
-      if (k === 'rock' && below && below !== 'rock')
-        rect(g, x, y + TILE - FACE, TILE, FACE, 'slate2');
-      if (k === 'water' && kind(col, row - 1) !== 'water') rect(g, x, y, TILE, 1, 'foam1');
-      if (k === 'door') {
-        rect(g, x, y, 2, TILE, 'wood2');
-        rect(g, x + TILE - 2, y, 2, TILE, 'wood3');
-      }
-    }
-  }
-  if (room.end) {
-    const { x, y } = centreOf(room.end);
-    ellipse(g, x, y, 7, 4, 'gold2');
-    ellipse(g, x, y, 5, 2.5, 'gold1');
-    ellipse(g, x, y, 3, 1.5, 'sand2');
-  }
-  return g;
-}
-
-/** The step a walker's shadow is drawn in on each kind of ground; none on water or in a doorway. */
-const SHADOW_ON: Partial<Record<RoomTile, Shade>> = { floor: 'sand3', end: 'sand3' };
-
-export interface RoomArt {
-  readonly ground: Picture;
-  shadowAt(feet: Point): { readonly picture: Picture; readonly middle: Point } | null;
-}
-
-/** Whether a room's doors are shut, set by whoever shows it; its scene's ground follows. */
-export interface RoomLock {
-  shut: boolean;
-}
-
-const rooms = new WeakMap<Room, { scene: Scene; art: RoomArt; lock: RoomLock }>();
-
-/**
- * A room as the stage needs it: its scene (nothing standing in it; what
- * fights is drawn by the run), its ground, and the lock that says whether its
- * doors can be walked into. Made once a page, so going back through a door
- * finds the room already painted.
- */
-export function roomScene(room: Room): { scene: Scene; art: RoomArt; lock: RoomLock } {
-  let made = rooms.get(room);
-  if (made) return made;
-  const shadow = walkerShadow('sand3');
-  const lock: RoomLock = { shut: false };
-  made = {
-    lock,
-    scene: {
-      get map() {
-        return lock.shut ? room.shut : room.map;
-      },
-      things: [],
-    },
-    art: {
-      ground: picture(paintRoom(room)),
-      shadowAt(feet) {
-        const cell = cellAt(feet);
-        if (!inMap(room.map, cell)) return null;
-        return SHADOW_ON[room.map.tiles[cell.row]![cell.col]!]
-          ? { picture: shadow, middle: SHADOW_MIDDLE }
-          : null;
-      },
-    },
-  };
-  rooms.set(room, made);
-  return made;
 }

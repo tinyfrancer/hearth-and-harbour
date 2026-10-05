@@ -56,6 +56,11 @@ const PANEL_MARGIN = 12;
 export interface StageArt {
   /** The whole map, one pixel per art pixel, with its lights. */
   readonly ground: Picture;
+  /**
+   * The ground as it is this frame, for a scene whose ground changes (a
+   * dungeon's tide). Each different picture is composed once and kept.
+   */
+  readonly groundNow?: () => Picture;
   /** Where the walker's feet are in their picture, facing right. */
   readonly heroFeet: Point;
   /** The walker standing at `feet`, facing either way, in this palette's light. */
@@ -76,10 +81,14 @@ type Still = { still: HTMLCanvasElement; standing: Standing[] } | null;
 const STILLS_KEPT = 8;
 
 /**
- * The map with everything standing on it, composed once per scene, palette
- * and set of people turned, and kept for the page (the few most recent).
+ * The map with everything standing on it, composed once per scene, ground,
+ * palette and set of people turned, and kept for the page (the few most recent).
  */
 const stills = new WeakMap<Scene, Map<string, Still>>();
+
+/** A number for each ground picture, to tell them apart in a still's key. */
+const groundIds = new WeakMap<Picture, number>();
+let groundCount = 0;
 
 function stillOf(
   scene: Scene,
@@ -92,7 +101,12 @@ function stillOf(
     made = new Map();
     stills.set(scene, made);
   }
-  const key = `${palette.name} ${[...turned].join(' ')}`;
+  let id = groundIds.get(ground);
+  if (id === undefined) {
+    id = groundCount++;
+    groundIds.set(ground, id);
+  }
+  const key = `${id} ${palette.name} ${[...turned].join(' ')}`;
   if (made.has(key)) return made.get(key)!;
   let still: Still = null;
   const groundImage = canvasOf(ground, palette);
@@ -142,18 +156,36 @@ function union(a: Box, b: Box): Box {
   };
 }
 
-/** Boxes that overlap or touch merged into one, so a patch is never drawn twice. */
+const area = (b: Box): number => b.w * b.h;
+
+/** How much of two boxes' shared area they both cover. */
+function shared(a: Box, b: Box): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/**
+ * Boxes that overlap or touch merged into one, so a patch is seldom drawn
+ * twice, unless the one box would be mostly empty: two figures at opposite
+ * corners of a room are two small patches, not one the size of the room.
+ * Patches that overlap are each drawn whole, so leaving some apart is only
+ * a little work done twice, never a wrong picture.
+ */
 export function mergeBoxes(boxes: readonly Box[]): Box[] {
   const out: Box[] = [];
   for (const box of boxes) {
     let merged = box;
     for (let i = out.length - 1; i >= 0; i--) {
+      const other = out[i]!;
       const grown = { x: merged.x - 1, y: merged.y - 1, w: merged.w + 2, h: merged.h + 2 };
-      if (overlaps(out[i]!, grown)) {
-        merged = union(merged, out[i]!);
-        out.splice(i, 1);
-        i = out.length;
-      }
+      if (!overlaps(other, grown)) continue;
+      const joined = union(merged, other);
+      const waste = area(joined) - area(merged) - area(other) + shared(merged, other);
+      if (waste > Math.max(64, (area(merged) + area(other)) / 2)) continue;
+      merged = joined;
+      out.splice(i, 1);
+      i = out.length;
     }
     out.push(merged);
   }
@@ -201,8 +233,10 @@ export interface StageOptions {
   readonly play: Play;
   /** Told after every change, so a rebuilt stage can carry on from there. */
   readonly keep: (play: Play) => void;
-  /** Day and dusk, with the sun-and-moon button to flip them. Without it, always day and no button. */
+  /** Day and dusk, with the sun-and-moon button to flip them. Without it, `time` and no button. */
   readonly light?: Light;
+  /** The time of day of a scene without a `light`: day unless said (a dungeon is dusk). */
+  readonly time?: TimeOfDay;
   /** How many device pixels an art pixel takes on a canvas this size. The town's rule by default. */
   readonly scaleOf?: (device: Size) => number;
   /**
@@ -248,7 +282,8 @@ const round = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) });
  */
 export function stage(options: StageOptions): View {
   const { scene, art } = options;
-  const light: Light = options.light ?? { current: () => 'day', flip: () => {} };
+  const fixed = options.time ?? 'day';
+  const light: Light = options.light ?? { current: () => fixed, flip: () => {} };
   const scaleOf = options.scaleOf ?? sceneScale;
   const insets = options.insets ?? NO_INSETS;
   const world = mapSize(scene.map);
@@ -470,7 +505,8 @@ export function stage(options: StageOptions): View {
         .filter((t) => turnedTo({ x: footprintCentreX(t), y: t.base }, play.walker.at) === 'left')
         .map((t) => t.id),
     );
-    const made = stillOf(scene, art.ground, palette, turned);
+    const ground = art.groundNow?.() ?? art.ground;
+    const made = stillOf(scene, ground, palette, turned);
     // Art that cannot be painted (jsdom) means no context is asked for either.
     if (!made) return;
     if (canvas.width !== device.width || canvas.height !== device.height) {
@@ -547,7 +583,7 @@ export function stage(options: StageOptions): View {
       w: Math.ceil(view.width),
       h: Math.ceil(view.height),
     };
-    const shown = `${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height} ${[...turned].join(' ')}`;
+    const shown = `${groundIds.get(ground)} ${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height} ${[...turned].join(' ')}`;
     if (shown !== shownLast) {
       drawFrame(ctx, frame, whole);
     } else {
