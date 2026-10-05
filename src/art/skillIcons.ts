@@ -371,5 +371,5 @@ export const SKILL_ICON_DEFS: Readonly<Record<string, IconDef>> = {
     },
   },
   defence: { rows: DEFENCE, legend: { ...TOOLS, u: 'crimson1', U: 'crimson2' } },
-  vitality: { rows: VITALITY, legend: { r: 'red1', R: 'red2', w: 'white1' } },
+  vitality: { rows: VITALITY, legend: { r: 'red1', R: 'red2', w: 'flush1' } },
 };
