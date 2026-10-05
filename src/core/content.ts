@@ -20,6 +20,41 @@ export interface ItemDef {
   value: number;
   /** What drinking one does, for an item that is a potion. */
   potion?: PotionDef;
+  /** Where it is worn and what it gives, for an item that can be worn or wielded. */
+  equip?: EquipDef;
+}
+
+/** Where the character wears things, in the order the character sheet lists them. */
+export const SLOTS = [
+  'head',
+  'body',
+  'legs',
+  'main_hand',
+  'off_hand',
+  'neck',
+  'wrist',
+  'ammo',
+] as const;
+export type Slot = (typeof SLOTS)[number];
+
+/** How the character fights: decided by the weapon in the main hand, and melee without one. */
+export type CombatStyle = 'melee' | 'ranged';
+
+/**
+ * What wearing an item does. The numbers are the three totals combat reads,
+ * and each defaults to nothing. With a `style`, an item's attack and strength
+ * count only while the character fights that way: a bow's and an arrow's are
+ * ranged attack and ranged strength, a sword's are melee. Armour always counts.
+ */
+export interface EquipDef {
+  slot: Slot;
+  /** Held in both hands: wielding it empties the off hand. Only for the main hand. */
+  twoHanded?: boolean;
+  /** For a weapon, how it fights; for anything else, the style its numbers belong to. */
+  style?: CombatStyle;
+  attack?: number;
+  strength?: number;
+  armour?: number;
 }
 
 /**
@@ -67,6 +102,11 @@ export interface ActionDef {
   uses?: readonly { item: string; qty: number }[];
   /** What each completion puts in the bank. */
   gives: readonly { item: string; qty: number }[];
+  /**
+   * The heading it is listed under on a skill page with many actions
+   * ("Bronze"). Groups appear in table order.
+   */
+  group?: string;
 }
 
 export interface Content {

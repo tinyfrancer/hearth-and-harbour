@@ -1,3 +1,4 @@
+import { SLOTS } from '../core/content';
 import { GAME_STATE_VERSION, nameProblem, type GameState } from '../core/state';
 import { migrateGameState } from './migrations';
 
@@ -125,8 +126,32 @@ function saveProblem(state: Record<string, unknown>): string | null {
   ) {
     return 'the potion should be a potion and a whole number of charges';
   }
+  const { look } = state;
+  if (
+    !isRecord(look) ||
+    !Object.entries(look).every(([part, id]) => LOOK_PARTS.includes(part) && typeof id === 'string')
+  ) {
+    return 'the look should be a skin, a hair and a hair colour';
+  }
+  const { equipment } = state;
+  if (
+    !isRecord(equipment) ||
+    !Object.entries(equipment).every(
+      ([slot, worn]) =>
+        (SLOTS as readonly string[]).includes(slot) &&
+        isRecord(worn) &&
+        typeof worn.item === 'string' &&
+        isWhole(worn.qty) &&
+        (slot === 'ammo' ? worn.qty > 0 : worn.qty === 1),
+    )
+  ) {
+    return 'the equipment should be one thing a slot, or a stack of ammunition';
+  }
   return null;
 }
+
+/** The parts of a look a save may name. Their values are the art's to judge. */
+const LOOK_PARTS: readonly string[] = ['skin', 'hair', 'hairColour'];
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;

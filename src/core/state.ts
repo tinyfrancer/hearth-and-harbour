@@ -1,3 +1,4 @@
+import type { Slot } from './content';
 import { levelForXp } from './xp';
 
 /**
@@ -7,7 +8,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 4;
+export const GAME_STATE_VERSION = 5;
 
 export interface ActiveAction {
   /** An ActionDef id. */
@@ -22,6 +23,26 @@ export interface ActivePotion {
   item: string;
   /** Completions it has left to help with: a whole number, never zero. */
   charges: number;
+}
+
+/**
+ * How the character looks, by the ids the art offers (`LOOK_CHOICES` in
+ * `src/art/character.ts`). Core never knows the choices, so it never checks
+ * them: a part left out, or one the art no longer offers, is drawn as the
+ * art's first choice for it. A character made before looks is all left out.
+ */
+export interface Look {
+  skin?: string;
+  hair?: string;
+  hairColour?: string;
+}
+
+/** What is in one equipment slot: one of a thing, or a whole stack of ammunition. */
+export interface Worn {
+  /** An ItemDef id whose `equip` names this slot. */
+  item: string;
+  /** Always 1, except ammunition, which is worn as a stack. Never zero. */
+  qty: number;
 }
 
 export interface GameState {
@@ -42,6 +63,9 @@ export interface GameState {
   action: ActiveAction | null;
   /** One potion at a time; null when none is working. */
   potion: ActivePotion | null;
+  look: Look;
+  /** What is worn, by slot. An empty slot has no entry. */
+  equipment: Partial<Record<Slot, Worn>>;
 }
 
 export const NAME_MAX_LENGTH = 16;
@@ -63,7 +87,7 @@ export function nameProblem(raw: string): string | null {
   return null;
 }
 
-export function newGame(name: string, now: number): GameState {
+export function newGame(name: string, now: number, look: Look = {}): GameState {
   return {
     version: GAME_STATE_VERSION,
     name: cleanName(name),
@@ -75,6 +99,8 @@ export function newGame(name: string, now: number): GameState {
     mastery: {},
     action: null,
     potion: null,
+    look,
+    equipment: {},
   };
 }
 

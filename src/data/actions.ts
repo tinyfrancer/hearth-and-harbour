@@ -47,6 +47,14 @@ function recipe(skill: string, rows: RecipeRow[]): ActionDef[] {
   }));
 }
 
+/**
+ * Rows listed under one heading on their skill's page. Only a skill with a
+ * long page needs its rows grouped; the page decides when to show them.
+ */
+function grouped(group: string, actions: ActionDef[]): ActionDef[] {
+  return actions.map((action) => ({ ...action, group }));
+}
+
 // Tier 1, levels 1-20. In every skill XP per second climbs from about 3.3 at
 // level 1 to 8 at the last unlock, so the newest thing is always the one to
 // do and each skill takes about three hours to finish the tier
@@ -85,40 +93,67 @@ const ALL: ActionDef[] = [
   ]),
   // Smelting pays once for a bar and smithing again for what it becomes. The
   // bigger the piece, the more bars it takes and the longer at the anvil.
-  ...recipe('smithing', [
-    ['smelt_bronze', 'Bronze bar', 1, 3, 15, { copper_ore: 1, tin_ore: 1 }, 'bronze_bar'],
-    ['smith_bronze_axe', 'Bronze axe', 1, 3, 16, { bronze_bar: 1 }, 'bronze_axe'],
-    // One bar makes ten arrowheads, for Fletching.
-    [
-      'smith_bronze_arrowheads',
-      'Bronze arrowheads',
-      2,
-      3,
-      16,
-      { bronze_bar: 1 },
-      'bronze_arrowheads',
-      10,
-    ],
-    ['smith_bronze_sword', 'Bronze sword', 3, 4, 23, { bronze_bar: 2 }, 'bronze_sword'],
-    ['smith_bronze_helmet', 'Bronze helmet', 5, 4, 26, { bronze_bar: 2 }, 'bronze_helmet'],
-    ['smith_bronze_shield', 'Bronze shield', 7, 5, 37, { bronze_bar: 3 }, 'bronze_shield'],
-    [
-      'smith_bronze_breastplate',
-      'Bronze breastplate',
-      9,
-      6,
-      49,
-      { bronze_bar: 4 },
-      'bronze_breastplate',
-    ],
-    // Iron opens when Mining can dig it.
-    ['smelt_iron', 'Iron bar', 15, 3, 32, { iron_ore: 1 }, 'iron_bar'],
-    ['smith_iron_axe', 'Iron axe', 15, 3, 33, { iron_bar: 1 }, 'iron_axe'],
-    ['smith_iron_arrowheads', 'Iron arrowheads', 16, 3, 34, { iron_bar: 1 }, 'iron_arrowheads', 10],
-    ['smith_iron_sword', 'Iron sword', 16, 4, 44, { iron_bar: 2 }, 'iron_sword'],
-    ['smith_iron_helmet', 'Iron helmet', 17, 4, 46, { iron_bar: 2 }, 'iron_helmet'],
-    ['smith_iron_shield', 'Iron shield', 18, 5, 59, { iron_bar: 3 }, 'iron_shield'],
-    ['smith_iron_breastplate', 'Iron breastplate', 19, 6, 73, { iron_bar: 4 }, 'iron_breastplate'],
+  ...grouped('Bars', [
+    ...recipe('smithing', [
+      ['smelt_bronze', 'Bronze bar', 1, 3, 15, { copper_ore: 1, tin_ore: 1 }, 'bronze_bar'],
+      // Iron opens when Mining can dig it.
+      ['smelt_iron', 'Iron bar', 15, 3, 32, { iron_ore: 1 }, 'iron_bar'],
+    ]),
+  ]),
+  ...grouped('Bronze', [
+    ...recipe('smithing', [
+      ['smith_bronze_axe', 'Bronze axe', 1, 3, 16, { bronze_bar: 1 }, 'bronze_axe'],
+      // One bar makes ten arrowheads, for Fletching.
+      [
+        'smith_bronze_arrowheads',
+        'Bronze arrowheads',
+        2,
+        3,
+        16,
+        { bronze_bar: 1 },
+        'bronze_arrowheads',
+        10,
+      ],
+      ['smith_bronze_sword', 'Bronze sword', 3, 4, 23, { bronze_bar: 2 }, 'bronze_sword'],
+      ['smith_bronze_helmet', 'Bronze helmet', 5, 4, 26, { bronze_bar: 2 }, 'bronze_helmet'],
+      ['smith_bronze_shield', 'Bronze shield', 7, 5, 37, { bronze_bar: 3 }, 'bronze_shield'],
+      [
+        'smith_bronze_breastplate',
+        'Bronze breastplate',
+        9,
+        6,
+        49,
+        { bronze_bar: 4 },
+        'bronze_breastplate',
+      ],
+    ]),
+  ]),
+  ...grouped('Iron', [
+    ...recipe('smithing', [
+      ['smith_iron_axe', 'Iron axe', 15, 3, 33, { iron_bar: 1 }, 'iron_axe'],
+      [
+        'smith_iron_arrowheads',
+        'Iron arrowheads',
+        16,
+        3,
+        34,
+        { iron_bar: 1 },
+        'iron_arrowheads',
+        10,
+      ],
+      ['smith_iron_sword', 'Iron sword', 16, 4, 44, { iron_bar: 2 }, 'iron_sword'],
+      ['smith_iron_helmet', 'Iron helmet', 17, 4, 46, { iron_bar: 2 }, 'iron_helmet'],
+      ['smith_iron_shield', 'Iron shield', 18, 5, 59, { iron_bar: 3 }, 'iron_shield'],
+      [
+        'smith_iron_breastplate',
+        'Iron breastplate',
+        19,
+        6,
+        73,
+        { iron_bar: 4 },
+        'iron_breastplate',
+      ],
+    ]),
   ]),
   // Leather (hides into armour) waits for combat (S8) to bring in the hides.
   ...recipe('crafting', [

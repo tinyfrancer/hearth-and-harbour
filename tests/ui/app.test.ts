@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
+import {
+  LocalStorageSaveService,
+  STORAGE_KEY,
+} from '../../src/persistence/LocalStorageSaveService';
 import { writeSaveExport } from '../../src/persistence/saveFile';
 import { newGame } from '../../src/core/state';
 import { mountApp } from '../../src/ui/app';
 import { CONTENT } from '../../src/data';
+import { LOOK_CHOICES } from '../../src/art/character';
 
 // The whole shell, driven the way a thumb would, against real storage.
 let root: HTMLElement;
@@ -703,6 +707,288 @@ describe('the app shell', () => {
       q<HTMLButtonElement>('[data-sell="all"]').click();
       press('Sell 15 for 15 coins');
       expect(coins()).toBe('15');
+    });
+  });
+
+  describe('the look', () => {
+    // The art lane adds choices over time, so these read them rather than name them.
+    const parts = ['skin', 'hair', 'hairColour'] as const;
+    const first = {
+      skin: LOOK_CHOICES.skin[0]!.id,
+      hair: LOOK_CHOICES.hair[0]!.id,
+      hairColour: LOOK_CHOICES.hairColour[0]!.id,
+    };
+
+    it('draws the character on the creation screen and makes them with the first choices', () => {
+      mount();
+      expect(q('.create canvas[role="img"]')).toBeDefined();
+      for (const part of parts) {
+        expect(q(`[data-part="${part}"] .look-choice`).textContent).toBe(
+          LOOK_CHOICES[part][0]!.name,
+        );
+      }
+      create('Cody');
+      expect(new LocalStorageSaveService().load()?.look).toEqual(first);
+    });
+
+    it('steps through the choices of a part that has several, and offers no steps for one', () => {
+      mount();
+      for (const part of parts) {
+        const choices = LOOK_CHOICES[part];
+        const steps = root.querySelectorAll(`[data-part="${part}"] button`);
+        if (choices.length < 2) {
+          expect(steps, part).toHaveLength(0);
+          continue;
+        }
+        const before = q('.create canvas');
+        q<HTMLButtonElement>(`[data-part="${part}"] [aria-label^="Next"]`).click();
+        expect(q(`[data-part="${part}"] .look-choice`).textContent).toBe(choices[1]!.name);
+        // Drawn again for the new choice.
+        expect(q('.create canvas')).not.toBe(before);
+        q<HTMLButtonElement>(`[data-part="${part}"] [aria-label^="Previous"]`).click();
+        q<HTMLButtonElement>(`[data-part="${part}"] [aria-label^="Previous"]`).click();
+        expect(q(`[data-part="${part}"] .look-choice`).textContent).toBe(choices.at(-1)!.name);
+      }
+      create('Cody');
+      const look = new LocalStorageSaveService().load()!.look;
+      for (const part of parts) {
+        expect(look[part]).toBe(LOOK_CHOICES[part].at(-1)!.id);
+      }
+    });
+
+    it('can be changed later from the character sheet', () => {
+      mount();
+      create('Cody');
+      tab('character');
+      press('Change look');
+      expect(root.querySelectorAll('.sheet [data-part]')).toHaveLength(3);
+      press('Done');
+      expect(root.querySelector('.sheet [data-part]')).toBeNull();
+      expect(new LocalStorageSaveService().load()?.look).toEqual(first);
+    });
+  });
+
+  describe('equipment', () => {
+    const geared = (bank: Record<string, number>) => {
+      new LocalStorageSaveService().save({ ...newGame('Cody', clock), bank });
+      return mount();
+    };
+    const slot = (id: string): HTMLButtonElement => q(`[data-slot="${id}"]`);
+    const total = (stat: string): string => q(`[data-total="${stat}"]`).textContent ?? '';
+    const totalName = (stat: string): string =>
+      q(`[data-total="${stat}"]`).previousElementSibling?.textContent ?? '';
+    const lastToast = (): string => [...root.querySelectorAll('.toast')].at(-1)?.textContent ?? '';
+
+    it('shows the character, eight empty slots and nothing in the totals to begin with', () => {
+      geared({});
+      tab('character');
+      expect(q('.sheet canvas[role="img"]')).toBeDefined();
+      const slots = [...root.querySelectorAll('[data-slot]')];
+      expect(slots.map((el) => el.querySelector('.slot-name')?.textContent)).toEqual([
+        'Head',
+        'Body',
+        'Legs',
+        'Main hand',
+        'Off hand',
+        'Neck',
+        'Wrist',
+        'Ammunition',
+      ]);
+      expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
+      expect([total('attack'), total('strength'), total('armour')]).toEqual(['0', '0', '0']);
+      expect(totalName('attack')).toBe('Melee attack');
+    });
+
+    it("says on the bank's card where a thing is worn and what it gives, and equips it", () => {
+      geared({ bronze_sword: 2, iron_sword: 1 });
+      tab('bank');
+      q<HTMLButtonElement>('[data-item="bronze_sword"]').click();
+      const card = q('[data-card="bronze_sword"]').textContent;
+      expect(card).toContain('WornMain hand');
+      expect(card).toContain('GivesMelee attack +6, Melee strength +5');
+      press('Equip Bronze sword');
+      expect(lastToast()).toBe('You take up the Bronze sword.');
+      expect(q('[data-card="bronze_sword"] .qty').textContent).toBe('1');
+      press('Close');
+      q<HTMLButtonElement>('[data-item="iron_sword"]').click();
+      press('Equip Iron sword');
+      expect(lastToast()).toBe('You take up the Iron sword. Bronze sword goes back to the bank.');
+      tab('character');
+      expect(slot('main_hand').textContent).toContain('Iron sword');
+      expect([total('attack'), total('strength')]).toEqual(['10', '9']);
+      expect(new LocalStorageSaveService().load()).toMatchObject({
+        bank: { bronze_sword: 2 },
+        equipment: { main_hand: { item: 'iron_sword', qty: 1 } },
+      });
+    });
+
+    it('offers no Equip button for what cannot be worn, and closes the card on the last one', () => {
+      geared({ pine_logs: 3, linen_hood: 1 });
+      tab('bank');
+      q<HTMLButtonElement>('[data-item="pine_logs"]').click();
+      expect(q('[data-card="pine_logs"]').textContent).not.toContain('Equip');
+      press('Close');
+      q<HTMLButtonElement>('[data-item="linen_hood"]').click();
+      press('Equip Linen hood');
+      expect(lastToast()).toBe('You put on the Linen hood.');
+      expect(root.querySelector('[data-card]')).toBeNull();
+    });
+
+    it('dresses from the sheet: sword and shield, then a bow that empties the off hand', () => {
+      geared({ bronze_sword: 1, bronze_shield: 1, pine_shortbow: 1, bronze_arrows: 50 });
+      tab('character');
+
+      slot('main_hand').click();
+      expect(q('[data-picker="main_hand"]').textContent).toContain('both hands');
+      q<HTMLButtonElement>('[data-equip="bronze_sword"]').click();
+      expect(root.querySelector('[data-picker]')).toBeNull();
+      slot('off_hand').click();
+      q<HTMLButtonElement>('[data-equip="bronze_shield"]').click();
+      expect(slot('main_hand').textContent).toContain('Bronze sword');
+      expect(slot('off_hand').textContent).toContain('Bronze shield');
+      expect([total('attack'), total('strength'), total('armour')]).toEqual(['6', '5', '6']);
+
+      slot('main_hand').click();
+      q<HTMLButtonElement>('[data-equip="pine_shortbow"]').click();
+      expect(lastToast()).toBe(
+        'You take up the Pine shortbow. Bronze sword and Bronze shield go back to the bank.',
+      );
+      expect(slot('off_hand').textContent).toContain('Nothing');
+      expect(totalName('attack')).toBe('Ranged attack');
+      expect([total('attack'), total('strength'), total('armour')]).toEqual(['5', '3', '0']);
+
+      slot('ammo').click();
+      q<HTMLButtonElement>('[data-equip="bronze_arrows"]').click();
+      expect(lastToast()).toBe('You ready 50 Bronze arrows.');
+      expect(slot('ammo').textContent).toContain('50');
+      expect(total('strength')).toBe('6');
+
+      // A shield now would mean putting the bow away, and the sheet says so.
+      slot('off_hand').click();
+      expect(q('[data-picker="off_hand"]').textContent).toContain('needs both hands');
+      q<HTMLButtonElement>('[data-equip="bronze_shield"]').click();
+      expect(slot('main_hand').textContent).toContain('Nothing');
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({
+        bronze_sword: 1,
+        pine_shortbow: 1,
+      });
+    });
+
+    it('takes a thing off back into the bank', () => {
+      geared({ iron_helmet: 1 });
+      tab('character');
+      slot('head').click();
+      q<HTMLButtonElement>('[data-equip="iron_helmet"]').click();
+      expect(total('armour')).toBe('7');
+      slot('head').click();
+      expect(q('[data-picker="head"]').textContent).toContain('Wearing Iron helmet');
+      expect(q('[data-picker="head"]').textContent).toContain('Nothing in the bank goes here yet.');
+      press('Take off');
+      expect(slot('head').textContent).toContain('Nothing');
+      expect(total('armour')).toBe('0');
+      expect(new LocalStorageSaveService().load()).toMatchObject({
+        bank: { iron_helmet: 1 },
+        equipment: {},
+      });
+    });
+
+    it('closes an open slot with a second tap, and with Close', () => {
+      geared({});
+      tab('character');
+      slot('neck').click();
+      expect(slot('neck').getAttribute('aria-expanded')).toBe('true');
+      slot('neck').click();
+      expect(root.querySelector('[data-picker]')).toBeNull();
+      slot('wrist').click();
+      press('Close');
+      expect(root.querySelector('[data-picker]')).toBeNull();
+    });
+
+    it('loads a version 4 save with its gear still in the bank and nothing worn', () => {
+      const v4 = {
+        version: 4,
+        name: 'Cody',
+        createdAt: clock,
+        savedAt: clock,
+        skills: {},
+        bank: { bronze_sword: 1, bronze_shield: 1 },
+        coins: 0,
+        mastery: {},
+        action: null,
+        potion: null,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(v4));
+      mount();
+      tab('character');
+      const slots = [...root.querySelectorAll('[data-slot]')];
+      expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
+      expect(new LocalStorageSaveService().load()).toMatchObject({
+        version: 5,
+        look: {},
+        equipment: {},
+        bank: { bronze_sword: 1, bronze_shield: 1 },
+      });
+      slot('main_hand').click();
+      q<HTMLButtonElement>('[data-equip="bronze_sword"]').click();
+      expect(total('attack')).toBe('6');
+    });
+  });
+
+  describe('a long skill page', () => {
+    const smithing = (skills: Record<string, number> = {}, bank: Record<string, number> = {}) => {
+      new LocalStorageSaveService().save({ ...newGame('Cody', clock), skills, bank });
+      const app = mount();
+      q<HTMLButtonElement>('[data-skill="smithing"]').click();
+      return app;
+    };
+    const toggle = (group: string): void =>
+      q<HTMLButtonElement>(`[data-group-toggle="${group}"]`).click();
+    const isOpen = (group: string): boolean =>
+      q(`[data-group-toggle="${group}"]`).getAttribute('aria-expanded') === 'true' &&
+      !q<HTMLElement>(`[data-group="${group}"] > .stack`).hidden;
+    const opened = (): boolean[] => ['Bars', 'Bronze', 'Iron'].map(isOpen);
+
+    it('lists Smithing under Bars, Bronze and Iron, with the first and the newest open', () => {
+      smithing();
+      const headings = [...root.querySelectorAll('[data-group-toggle] .group-heading')].map(
+        (el) => el.textContent,
+      );
+      expect(headings).toEqual(['Bars', 'Bronze', 'Iron']);
+      expect(opened()).toEqual([true, true, false]);
+      expect(q('[data-group="Bars"]').contains(q('[data-action="smelt_iron"]'))).toBe(true);
+    });
+
+    it('opens the newest group for a smith who has moved on to iron', () => {
+      smithing({ smithing: 1_000_000 });
+      expect(opened()).toEqual([true, false, true]);
+    });
+
+    it('folds and unfolds a group with a tap, and remembers it on the way back', () => {
+      smithing();
+      toggle('Iron');
+      toggle('Bronze');
+      expect(opened()).toEqual([true, false, true]);
+      press('‹ All skills');
+      q<HTMLButtonElement>('[data-skill="smithing"]').click();
+      expect(opened()).toEqual([true, false, true]);
+    });
+
+    it('keeps the group with the running action open', () => {
+      smithing({}, { bronze_bar: 5 });
+      toggle('Bars');
+      q<HTMLButtonElement>('[data-action="smith_bronze_axe"]').click();
+      toggle('Bronze');
+      expect(isOpen('Bronze')).toBe(false);
+      press('‹ All skills');
+      q<HTMLButtonElement>('[data-skill="smithing"]').click();
+      expect(opened()).toEqual([false, true, false]);
+    });
+
+    it('leaves a skill with a short page as one list', () => {
+      smithing();
+      press('‹ All skills');
+      q<HTMLButtonElement>('[data-skill="crafting"]').click();
+      expect(root.querySelector('[data-group-toggle]')).toBeNull();
     });
   });
 

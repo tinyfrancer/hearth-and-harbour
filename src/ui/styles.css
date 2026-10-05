@@ -587,3 +587,195 @@ button.card:active {
 .bar.potion .bar-fill {
   background: var(--violet);
 }
+
+/* A class that sets `display` would otherwise show what `hidden` hides. */
+[hidden] {
+  display: none !important;
+}
+
+/* A skill page's headings fold their actions away. */
+.group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  border-bottom: var(--px) solid var(--line);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.group-toggle::after {
+  content: '';
+  width: 0;
+  height: 0;
+  margin-left: auto;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.group-toggle[aria-expanded='false']::after {
+  transform: rotate(-90deg);
+}
+
+.group-toggle:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+/* The character, drawn: on a dark ground, framed like a portrait. */
+.figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 8px;
+  background: var(--backdrop);
+  border: var(--px) solid var(--line);
+}
+
+.create .figure {
+  align-self: center;
+  padding: 12px 24px;
+}
+
+.sheet-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.totals {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.totals dt {
+  color: var(--text-muted);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.totals dd {
+  margin: 0;
+  text-align: right;
+  color: var(--gold-bright);
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* The eight slots, two to a row; an open slot's choices span the row beneath it. */
+.slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-height: 64px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+  border-radius: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot.empty {
+  border-color: var(--line);
+}
+
+.slot.empty .slot-item {
+  color: var(--text-muted);
+}
+
+.slot[aria-expanded='true'] {
+  border-color: var(--gold-bright);
+  background: var(--panel);
+}
+
+.slot:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.slot-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.slot-item > span:not(.qty) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-picker {
+  grid-column: 1 / -1;
+  border-color: var(--gold-bright);
+}
+
+.slot-picker .worn {
+  padding-bottom: 12px;
+  border-bottom: var(--px) solid var(--line);
+}
+
+.choice-card {
+  gap: 4px;
+}
+
+/* Choosing a look: label, a step back, the choice, a step on. */
+.look-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.look-row {
+  display: grid;
+  grid-template-columns: 7.5em 48px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.look-row .look-choice {
+  text-align: center;
+}
+
+/* With one choice there is nothing to step through: the choice just sits beside its label. */
+.look-row.single {
+  min-height: 0;
+}
+
+.look-row.single .look-choice {
+  grid-column: 2 / -1;
+  text-align: left;
+  color: var(--text-muted);
+}
+
+.btn.step {
+  padding: 0;
+  font-size: 24px;
+  border-color: var(--line);
+}

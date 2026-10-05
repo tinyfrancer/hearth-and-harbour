@@ -37,6 +37,8 @@ describe('migrateGameState', () => {
       coins: 0,
       mastery: {},
       potion: null,
+      look: {},
+      equipment: {},
     });
   });
 
@@ -52,7 +54,30 @@ describe('migrateGameState', () => {
       mastery: { cook_shrimp: 120 },
       action: { id: 'cook_shrimp', progressMs: 250 },
     };
-    expect(migrateGameState(v3)).toEqual({ ...v3, version: 4, potion: null });
+    expect(migrateGameState(v3)).toEqual({
+      ...v3,
+      version: GAME_STATE_VERSION,
+      potion: null,
+      look: {},
+      equipment: {},
+    });
+  });
+
+  it('brings a version 4 save (S6) up to date with the first look and nothing worn', () => {
+    const v4 = {
+      version: 4,
+      name: 'Cody',
+      createdAt: 5,
+      savedAt: 9,
+      skills: { smithing: 4000 },
+      bank: { bronze_sword: 1, bronze_shield: 1, bronze_arrows: 50 },
+      coins: 12,
+      mastery: { smith_bronze_sword: 300 },
+      action: null,
+      potion: { item: 'steady_draught', charges: 40 },
+    };
+    // Gear in the bank stays in the bank: a migration puts nothing on.
+    expect(migrateGameState(v4)).toEqual({ ...v4, version: 5, look: {}, equipment: {} });
   });
 
   it('walks every step in order and stamps the version as it goes', () => {

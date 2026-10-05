@@ -3,17 +3,19 @@ import { pixelSvg } from '../art/pixelSvg';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
 import { sell } from '../core/bank';
+import { equip, unequip } from '../core/equipment';
 import { drinkPotion } from '../core/potions';
-import type { Content } from '../core/content';
+import { SLOTS, type Content } from '../core/content';
 import { newGame, skillLevel, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
 import { awayReportOverlay } from './awayReport';
 import { artGallery } from '../art/gallery';
 import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
-import { characterView } from './characterScreen';
+import { characterView, type SheetPanel } from './characterScreen';
 import { createScreen } from './createScreen';
 import { button, h } from './dom';
+import { listed } from './format';
 import { menuScreen } from './menuScreen';
 import { skillListView, skillPageView } from './skillsScreen';
 import { TABS, type TabId } from './tabs';
@@ -52,6 +54,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let openItem: string | null = null;
   /** Whether Menu is showing the art gallery. */
   let galleryOpen = false;
+  /** What is open under the character sheet: a slot's choices, the look, or nothing. */
+  let sheetPanel: SheetPanel = null;
+  /** Which action headings are open on each skill's page, for as long as the app runs. */
+  const openGroups = new Map<string, Set<string>>();
   let view: View | null = null;
   let lastTick = now();
   let lastSave = now();
@@ -86,6 +92,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     state = next;
     away = null;
     openItem = null;
+    sheetPanel = null;
     tab = 'skills';
     openSkill = null;
     lastTick = now();
@@ -95,7 +102,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
 
   const toast = (text: string): void => {
     const note = h('p', { class: 'toast', text });
-    toasts.append(note);
+    // Toasts sit in one spot, so a new one replaces the last rather than printing over it.
+    toasts.replaceChildren(note);
     setTimeout(() => note.remove(), TOAST_MS);
   };
 
@@ -111,6 +119,42 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     render();
     const screen = root.querySelector('#screen');
     if (screen) screen.scrollTop = top;
+  };
+
+  /**
+   * Wear something from the bank, saying what went on and what came off to
+   * make room for it: a bow's second hand is easy to forget.
+   */
+  const wear = (itemId: string): void => {
+    const before = state;
+    if (!before) return;
+    const result = equip(before, itemId, content);
+    if (!result.ok) {
+      toast(result.reason);
+      return;
+    }
+    const after = result.state;
+    const name = (id: string): string => content.items[id]?.name ?? id;
+    const off = SLOTS.flatMap((slot) => {
+      const was = before.equipment[slot];
+      return was && was.item !== after.equipment[slot]?.item ? [name(was.item)] : [];
+    });
+    const slot = content.items[itemId]!.equip!.slot;
+    const worn = after.equipment[slot]!;
+    const on =
+      slot === 'ammo'
+        ? `You ready ${worn.qty} ${name(itemId)}.`
+        : slot === 'main_hand' || slot === 'off_hand'
+          ? `You take up the ${name(itemId)}.`
+          : `You put on the ${name(itemId)}.`;
+    toast(
+      off.length
+        ? `${on} ${listed(off)} ${off.length === 1 ? 'goes' : 'go'} back to the bank.`
+        : on,
+    );
+    // A card for a stack that is gone would reopen by itself the next time one is made.
+    if (openItem && !after.bank[openItem]) openItem = null;
+    act(after);
   };
 
   const buildView = (game: GameState): View => {
@@ -154,18 +198,24 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           render();
         });
       }
-      return skillPageView(game, content, skill, {
-        back: () => {
-          openSkill = null;
-          render();
+      return skillPageView(
+        game,
+        content,
+        skill,
+        {
+          back: () => {
+            openSkill = null;
+            render();
+          },
+          start: (actionId) => {
+            const result = startAction(state ?? game, actionId, content);
+            if (result.ok) act(result.state);
+            else toast(result.reason);
+          },
+          stop: () => act(stopAction(state ?? game)),
         },
-        start: (actionId) => {
-          const result = startAction(state ?? game, actionId, content);
-          if (result.ok) act(result.state);
-          else toast(result.reason);
-        },
-        stop: () => act(stopAction(state ?? game)),
-      });
+        openGroups,
+      );
     }
     if (tab === 'bank') {
       return bankView(game, content, openItem, {
@@ -189,10 +239,29 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
           act(result.state);
         },
+        equip: wear,
       });
     }
     if (tab === 'character') {
-      return characterView(game, content);
+      return characterView(game, content, sheetPanel, {
+        open: (panel) => {
+          sheetPanel = panel;
+          render();
+        },
+        equip: (itemId) => {
+          sheetPanel = null;
+          wear(itemId);
+        },
+        unequip: (slot) => {
+          sheetPanel = null;
+          act(unequip(state ?? game, slot));
+        },
+        setLook: (look) => {
+          if (!state) return;
+          state = { ...state, look };
+          save();
+        },
+      });
     }
     return townView(game, content, {
       openTab: (id) => {
@@ -211,7 +280,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     if (!state) {
       view = null;
       root.replaceChildren(
-        createScreen({ onCreate: (name) => adopt(newGame(name, now())), onImport: adopt }),
+        createScreen({
+          onCreate: (name, look) => adopt(newGame(name, now(), look)),
+          onImport: adopt,
+        }),
       );
       return;
     }
@@ -252,6 +324,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                     openSkill = null;
                     openItem = null;
                     galleryOpen = false;
+                    sheetPanel = null;
                   }
                   tab = id;
                   render();

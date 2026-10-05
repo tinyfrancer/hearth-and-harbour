@@ -27,6 +27,13 @@ describe('newGame', () => {
       mastery: {},
       action: null,
       potion: null,
+      look: {},
+      equipment: {},
     });
+  });
+
+  it('keeps the look it was made with, whatever ids the art offers', () => {
+    const look = { skin: 'any-skin', hair: 'any-hair', hairColour: 'any-colour' };
+    expect(newGame('Cody', 1000, look).look).toEqual(look);
   });
 });

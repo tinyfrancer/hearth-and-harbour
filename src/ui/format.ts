@@ -18,3 +18,10 @@ export function formatDuration(ms: number): string {
   if (minutes > 0) return `${minutes}m`;
   return `${seconds}s`;
 }
+
+/** "a", "a and b", "a, b and c". */
+export function listed(words: readonly string[]): string {
+  return words.length < 2
+    ? (words[0] ?? '')
+    : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}

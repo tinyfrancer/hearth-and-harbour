@@ -4,6 +4,7 @@ import { itemIcon } from '../art/icons';
 import { button, h, titled } from './dom';
 import { activePotion } from '../core/potions';
 import { formatNumber } from './format';
+import { gearText, slotText } from './gear';
 import { potionEffectText, potionSkillsText } from './potionPanel';
 import type { View } from './view';
 
@@ -12,6 +13,7 @@ interface BankActions {
   open(itemId: string | null): void;
   sell(itemId: string, qty: number): void;
   drink(itemId: string): void;
+  equip(itemId: string): void;
 }
 
 const coins = (amount: number): string =>
@@ -96,8 +98,8 @@ function itemCard(
   const sellButton = button('', () => {
     actions.sell(item.id, chosen === 'all' ? Infinity : chosen);
   });
-  // On a potion the thing to do is drink it, so selling steps back.
-  if (!item.potion) sellButton.classList.add('primary');
+  // On a potion the thing to do is drink it, and on gear to wear it, so selling steps back.
+  if (!item.potion && !item.equip) sellButton.classList.add('primary');
   const choices = ([1, 10, 100, 'all'] as const).map((amount) =>
     h('button', {
       class: 'btn choice',
@@ -130,6 +132,14 @@ function itemCard(
     h('p', { class: 'muted', text: item.description }),
     h('dl', { class: 'facts small' }, [
       ...(item.potion ? potionFacts(item.potion, content) : []),
+      ...(item.equip
+        ? [
+            h('dt', { text: 'Worn' }),
+            h('dd', { text: slotText(item.equip) }),
+            h('dt', { text: 'Gives' }),
+            h('dd', { text: gearText(item.equip) }),
+          ]
+        : []),
       h('dt', { text: 'From' }),
       h('dd', { text: from.join(', ') || 'Nowhere yet' }),
       h('dt', { text: 'Used in' }),
@@ -138,6 +148,7 @@ function itemCard(
       h('dd', { text: `${coins(item.value)} each` }),
     ]),
     item.potion && drinkButton(item, content, actions, () => latest),
+    item.equip && button(`Equip ${item.name}`, () => actions.equip(item.id), 'primary'),
     h('div', { class: 'row' }, choices),
     sellButton,
     button('Close', () => actions.open(null)),

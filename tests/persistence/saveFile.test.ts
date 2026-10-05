@@ -10,6 +10,11 @@ const state: GameState = {
   mastery: { chop_pine: 480 },
   action: { id: 'chop_pine', progressMs: 1500.5 },
   potion: { item: 'sage_tonic', charges: 87 },
+  look: { skin: 'a-skin', hair: 'a-hair', hairColour: 'a-colour' },
+  equipment: {
+    main_hand: { item: 'pine_shortbow', qty: 1 },
+    ammo: { item: 'bronze_arrows', qty: 120 },
+  },
 };
 
 describe('save export and import', () => {
@@ -43,9 +48,21 @@ describe('save export and import', () => {
   it('loads a version 3 save, from before potions, with none drunk', () => {
     const v3: Record<string, unknown> = { ...state, version: 3 };
     delete v3.potion;
+    delete v3.look;
+    delete v3.equipment;
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v3 }))).toEqual({
       ok: true,
-      state: { ...state, potion: null },
+      state: { ...state, potion: null, look: {}, equipment: {} },
+    });
+  });
+
+  it('loads a version 4 save, from before equipment, with nothing worn', () => {
+    const v4: Record<string, unknown> = { ...state, version: 4 };
+    delete v4.look;
+    delete v4.equipment;
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v4 }))).toEqual({
+      ok: true,
+      state: { ...state, look: {}, equipment: {} },
     });
   });
 
@@ -79,6 +96,18 @@ describe('save export and import', () => {
       { ...state, potion: { item: 'sage_tonic', charges: 2.5 } },
       { ...state, potion: { item: 7, charges: 10 } },
       { ...state, potion: undefined },
+      { ...state, look: undefined },
+      { ...state, look: 'handsome' },
+      { ...state, look: { skin: 3 } },
+      { ...state, look: { nose: 'long' } },
+      { ...state, equipment: undefined },
+      { ...state, equipment: [] },
+      { ...state, equipment: { pocket: { item: 'seashells', qty: 1 } } },
+      { ...state, equipment: { head: 'linen_hood' } },
+      { ...state, equipment: { head: { item: 'linen_hood', qty: 2 } } },
+      { ...state, equipment: { head: { item: 5, qty: 1 } } },
+      { ...state, equipment: { ammo: { item: 'bronze_arrows', qty: 0 } } },
+      { ...state, equipment: { ammo: { item: 'bronze_arrows', qty: 1.5 } } },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,
