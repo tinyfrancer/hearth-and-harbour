@@ -43,7 +43,7 @@
   - Pacing: the three skills reach level 20 in 1.80, 1.82 and 1.87 hours with materials on hand;
     each potion's worth over an hour is pinned in `tests/data/pacing.test.ts`.
 
-- S7b Equipment and the character (PR #PRNUM):
+- S7b Equipment and the character (PR #15):
   - **Rules** (`src/core/equipment.ts`): eight slots (`SLOTS` in `src/core/content.ts`: head,
     body, legs, main hand, off hand, neck, wrist, ammunition). `ItemDef.equip` gives the slot,
     `twoHanded`, a `style` (`melee` or `ranged`) and `attack`, `strength`, `armour`. `equip`
