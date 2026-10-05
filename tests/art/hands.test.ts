@@ -47,7 +47,8 @@ const fistBottom = (x: number) => Math.max(...FIST.filter(([fx]) => fx === x).ma
 const townsfolkGear = new Set(TOWNSFOLK_GEAR.map((g) => g.id));
 /** Everything the standard body holds in its weapon hand, the hero's sword included. */
 const HELD = WARDROBE.gear.filter((g) => g.slot === 'weapon' && !townsfolkGear.has(g.id));
-const SHIELDS = WARDROBE.gear.filter((g) => g.slot === 'shield');
+/** Shields hide the hand they are strapped to; a spyglass is held in it instead. */
+const SHIELDS = WARDROBE.gear.filter((g) => g.slot === 'shield' && g.id !== 'spyglass');
 const EVERYDAY = ['short_hair', 'teal_tunic', 'grey_trousers', 'leather_boots', 'leather_belt'];
 /** What may be worn with a held thing, layered on the arm or chest. */
 const OUTFITS: readonly (readonly string[])[] = [
@@ -57,12 +58,16 @@ const OUTFITS: readonly (readonly string[])[] = [
   [...EVERYDAY, 'iron_mail', 'iron_nasal_helm', 'arrow_quiver'],
   [...EVERYDAY, 'leather_jerkin', 'leather_cap', 'leather_bracers', 'trollstone'],
   HERO_OUTFIT.filter((id) => id !== 'iron_sword'),
+  [...EVERYDAY, 'captains_coat', 'tricorn', 'hunters_charm', 'barbed_quiver'],
+  [...EVERYDAY, 'feathered_hat', 'leather_bracers'],
 ];
-const isBow = (g: GearDef) => g.id.endsWith('_shortbow');
+const isBow = (g: GearDef) => /_(short|long)bow$/.test(g.id);
 
 describe('the hand rule', () => {
-  it('covers every held thing: the knight’s sword, the swords, axes, club and bows', () => {
+  it('covers every held thing: the knight’s sword, the swords, axes, club, anchor and bows', () => {
     expect(HELD.map((g) => g.id).sort()).toEqual([
+      'boarding_axe',
+      'brinebeards_anchor',
       'bronze_hatchet',
       'bronze_shortsword',
       'cudgel',
@@ -71,6 +76,8 @@ describe('the hand rule', () => {
       'iron_sword',
       'oak_shortbow',
       'pine_shortbow',
+      'pirates_cutlass',
+      'poachers_longbow',
       'smugglers_cutlass',
       'willow_shortbow',
     ]);
@@ -220,5 +227,20 @@ describe('a shield', () => {
               `${shield.id} ${body} ${x},${y}`,
             ).toBe(false);
       }
+  });
+});
+
+describe('the spyglass', () => {
+  it('is held in the off hand: a fist round its middle, brass above and below it', () => {
+    const g = dress('standard', [...EVERYDAY, 'spyglass', 'iron_arming_sword']);
+    for (const [x, y] of [
+      [24, 22],
+      [25, 22],
+      [25, 23],
+      [24, 24],
+    ] as const)
+      expect(get(g, x, y)?.startsWith('skin'), `${x},${y}`).toBe(true);
+    for (const y of [20, 21, 25, 26])
+      expect(get(g, 25, y)?.startsWith('bronze'), `brass at 25,${y}`).toBe(true);
   });
 });

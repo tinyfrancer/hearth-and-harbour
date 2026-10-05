@@ -31,6 +31,9 @@ import type { Picture } from './raster';
 import { ICON_FAMILIES, itemIcon, skillIcon } from './icons';
 import { PORTRAIT_IDS, portrait } from './portraits';
 import { townPicture } from './town';
+import { FOE_IDS } from './grottoCast';
+import { PROP_IDS } from './grottoProps';
+import { grottoCastPlate, grottoPropsPlate, grottoRoomPlate, grottoTilesPlate } from './grottoRoom';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
 const GAP = 8;
@@ -149,7 +152,51 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  // Portraits first: the newest art. Framed as the fight screen frames them.
+  // The grotto first: the newest art, judged where it will be seen, at dusk.
+  const room = grottoRoomPlate();
+  const tiles = grottoTilesPlate();
+  const cast = grottoCastPlate(FOE_IDS);
+  const grottoProps = grottoPropsPlate(PROP_IDS);
+  part(
+    'Brinebeard’s Grotto',
+    'New art, not yet approved. The first dungeon’s room, assembled from its tiles at dusk with two lanterns lit and the whole cast standing in it, the hero among them in iron. Then each kind of tile, the cast beside the hero, and the props.',
+    ...row([{ pic: room, palette: DUSK, label: 'A room of the grotto, dusk' }], 'game', 1),
+    ...row([{ pic: room, palette: DAY, label: 'The same room by day' }], 'game', 1),
+    el('h3', 'gallery-subhead', 'Tiles'),
+    ...row(
+      [
+        {
+          pic: tiles,
+          palette: DUSK,
+          label:
+            'sand · wet sand · rock floor · shallows · deep water / wall top · wall face · planks · door barred · door open',
+        },
+      ],
+      'close',
+      1,
+    ),
+    el('h3', 'gallery-subhead', 'The cast'),
+    ...row(
+      [
+        {
+          pic: cast,
+          palette: DUSK,
+          label: ['the hero', ...FOE_IDS].join(' · ').replace(/_/g, ' '),
+        },
+      ],
+      'close',
+      1,
+    ),
+    ...row([{ pic: cast, palette: DUSK, label: 'Game scale' }], 'game', 1),
+    el('h3', 'gallery-subhead', 'Props'),
+    ...row(
+      [{ pic: grottoProps, palette: DUSK, label: PROP_IDS.join(' · ').replace(/_/g, ' ') }],
+      'close',
+      1,
+    ),
+  );
+
+  // Portraits next. Framed as the fight screen frames them.
   const faces = el('div', 'portrait-grid');
   for (const id of PORTRAIT_IDS) {
     const cell = el('figure', 'portrait-cell');
@@ -344,7 +391,7 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  part('Still to come', 'The hero’s own portrait; dungeon tiles and monster sprites.');
+  part('Still to come', 'The hero’s own portrait.');
 
   const draw = () => {
     const screen = measure(page);

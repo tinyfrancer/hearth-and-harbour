@@ -1,6 +1,93 @@
 # Lane B: art
 
-**Next session: B6: The grotto's look** (brief in `docs/lanes.md`, wave 6).
+**Next session:** art passes are review sessions with Cody (`docs/lanes.md`, "then"). Before
+that, what B6 did not reach (below, "Deferred"): faces for `goblin_poacher` and `bramble_wyrm`,
+and the five tab icons.
+
+## Dungeon art, for lane C (`src/art/dungeonArt.ts`)
+
+The three doors answer for the grotto now; nothing about their names, parameters or return types
+changed. Anything else (another theme, an unknown id, `toString`) is still null.
+
+**Tiles: `dungeonTile('grotto', kind, variant)`**, a 16 x 16 `Picture`, no transparent pixels,
+no glows. Any number works as `variant` (negative, large, fractional: it is floored); it is mixed
+before choosing, so pass something per cell such as `row * 97 + col * 31` or `row * cols + col`
+and neighbouring cells will not step through the wears in order. The same number always gives
+the same tile (the same object, cached).
+
+| Kind          | Wears | What it is                                                                        |
+| ------------- | ----- | --------------------------------------------------------------------------------- |
+| `sand`        | 20    | dry cave sand; 3 wears in 20 carry a shell, pebbles or a crab's hole              |
+| `wet_sand`    | 16    | the same sand a step darker with water shining on it; 3 carry a pool, weed, shell |
+| `rock_floor`  | 20    | worn grey-purple rock with cracks; 3 carry pebbles, a rock pool, weed             |
+| `wall_top`    | 4     | the rock seen from above: dark slate, a crack, sometimes a paler boss             |
+| `wall_face`   | 4     | the rock's front face, one tile tall (see joining rules)                          |
+| `shallows`    | 4     | light green-teal water over sand: plainly wadeable                                |
+| `deep_water`  | 4     | dark blue swell: plainly not                                                      |
+| `planks`      | 4     | boards across, as the town's pier; one wear has a split showing water             |
+| `door_barred` | 1     | timber frame, iron bars and a band across                                         |
+| `door_open`   | 1     | the same frame, dark beyond, the floor going on into it                           |
+
+How they join (tests hold all of it, `tests/art/dungeonArt.test.ts`):
+
+- Every kind tiles with itself in any arrangement, and every wear of a kind with every other:
+  floors, water and the wall's top have nothing but single grains at their edges, and their base
+  step is most of every edge. The face's and the planks' patterns sit at the same rows on every
+  wear's left and right edges, so a row of faces or a deck runs on without a seam.
+- **Put `wall_face` in a rock cell whose cell below is open ground (floor, water, a door), and
+  `wall_top` in every other rock cell**, as the grey-box's `paintRoom` did with its five rows of
+  face. Its top two rows are a lit lip that meets the `wall_top` above it; its bottom two rows are
+  a dark foot (`shade1`) that anything standing in front of it reads against. Do not stack two
+  faces (the lip would show twice); a face with open ground above it, a rock one cell tall, reads
+  as a low ledge. Side and bottom walls are all `wall_top`.
+- A door tile is a whole timber frame. It works in a top wall's face row and in a side wall. If
+  you swap `door_barred` for `door_open` when a room is cleared, you can drop the drawn bars; if
+  you keep `drawDoorBars`, draw it over `door_open`.
+- Between kinds the join is the tile edge, straight. Where water meets anything above it, a
+  broken row of `foam1` (as `paintRoom` and the town's `sea` do) softens the shore; it is yours to
+  keep or not.
+- Shadows: draw a standing thing's shadow in its ground's next step down, which
+  `GROTTO_SHADOW` in `src/art/grottoRoom.ts` gives by kind: `sand` `cavesand3`, `wet_sand`
+  `cavesand4`, `rock_floor` `stone3`, `shallows` `shoal3`, `planks` `wood3`, none on deep water.
+  (`sand3` on cave sand reads too orange.)
+
+**The cast: `foePicture(id)`**, facing right (mirror it to face left), outlined, cached. `feet`
+is on the outlined picture, from its top-left: the row the feet stand on and the middle between
+them. Sizes and tap boxes are yours as data; these are the pictures' own:
+
+| Id              | Picture | Feet     | Notes                                                                                                         |
+| --------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| `dock_rat`      | 32 x 15 | (17, 12) | tail sweeps behind to row 13; box about 24 x 13                                                               |
+| `sand_crab`     | 28 x 18 | (13, 16) | leg tips either side of the feet point                                                                        |
+| `smuggler`      | 39 x 47 | (23, 45) | the hero's height; cutlass raised on the right, a corked bottle in the other hand                             |
+| `deckhand`      | 39 x 49 | (22, 47) | the hero's height; boathook rises to the top row                                                              |
+| `powder_monkey` | 34 x 44 | (14, 42) | rows 0 to 4 are empty, so his fuse's glow fits inside the picture                                             |
+| `giant_crab`    | 52 x 29 | (25, 27) | wide and low                                                                                                  |
+| `ships_parrot`  | 29 x 39 | (14, 37) | flies: drawn in rows 0 to 24, its feet point is the ground below it; tap box about 28 x 25 above a 12-row gap |
+| `brinebeard`    | 60 x 62 | (29, 60) | a head taller than the hero; his anchor stands at his right, cols 38 to 59                                    |
+
+`powder_monkey` carries one glow (his lit fuse, radius 7, inside the picture), lit by
+`rasterize` at dusk like any other; nothing else of the cast glows.
+
+**Props: `dungeonProp('grotto', id)`**, outlined, cached; `base` is the row the prop stands on.
+
+| Id               | Picture | Base | Glows                                        |
+| ---------------- | ------- | ---- | -------------------------------------------- |
+| `powder_keg`     | 13 x 16 | 14   |                                              |
+| `treasure_chest` | 24 x 13 | 11   | (a dropped coin beside it is part of it)     |
+| `brig_bars`      | 18 x 29 | 27   | a section of bars in timber, one tile wide   |
+| `lantern`        | 12 x 25 | 23   | one, at (8.5, 7.5), radius 44, strength 0.55 |
+| `anchor`         | 19 x 22 | 20   |                                              |
+| `rope_coil`      | 18 x 10 | 8    | lies flat: fine to draw with the ground      |
+| `cannon`         | 27 x 16 | 14   | faces right                                  |
+
+The lantern's light is far bigger than its picture: rasterized on its own it is clipped to the
+prop's 12 x 25. Move its glow into the room's own coordinates and light the room with it, as
+`src/scene/town.ts` does with the town's lamps (`glow.x + at.x`, `glow.y + at.y`).
+
+`src/art/grottoRoom.ts` has the art lane's own test room (`roomPicture(rows, placed)`, rock
+resolved to face or top by `roomKinds`), which the gallery shows: a reference for how the pieces
+are meant to sit together, not a layout for the game.
 
 ## Icons, for lanes A and C (`src/art/icons.ts`)
 
@@ -9,7 +96,8 @@ always sits beside it) showing the thing's 24 × 24 icon at 32 CSS pixels, a who
 pixels per art pixel (`iconScale(dpr)`: 4 at 3x, 3 at 2x, 1 at 1x). Every item in
 `src/data/items.ts` and every skill in `src/data/skills.ts` has one, and so do the combat skills
 `melee`, `ranged`, `defence` and `vitality`. S8's drops and leather set have theirs as of B5.
-Any other id (S9's bounty-shop items, which art has not seen yet) is null, never an error. Also exported: `itemIconPicture(id)` and
+As of B6 so do S9's bounty items, the grotto's eight loot items and the `thieving` skill. Any
+other id is null, never an error. Also exported: `itemIconPicture(id)` and
 `skillIconPicture(id)` (the `Picture`, for drawing onto a canvas of your own, as the town does),
 `ITEM_ICON_IDS`, `SKILL_ICON_IDS` and `ICON_FAMILIES`.
 
@@ -39,13 +127,19 @@ the same 40 × 50 outlined figure, base 47, so the hero's index entry (shadow, b
   trollstone draw too, and a held thing is held in a visible fist (style guide, "How things are
   held"). The figure's size, base line and every export are unchanged; lane C's cached hero
   picks this up by itself.
+- As of B6 S9's bounty items and the grotto's loot draw too: `poachers_longbow`,
+  `wyrmscale_shield`, `barbed_arrows` (a quiver with red fletchings), `hunters_charm`,
+  `feathered_hat`, `pirate_cutlass`, `boarding_axe`, `tricorn`, `captains_coat`, `spyglass` (held
+  in the off hand, so it takes the shield's place) and `brinebeards_anchor`. `doubloon` and
+  `ships_figurehead` are not worn and have icons only.
 
 ## Portraits, for lanes A and C (`src/art/portraits.ts`)
 
 `portrait(id)` gives a face for the eight monsters (`dock_rat`, `sand_crab`, `thieving_gull`,
 `bramble_boar`, `footpad`, `grey_wolf`, `smuggler`, `marsh_troll`) and the three townsfolk
-(`smith`, `trader`, `pirate`), and null for anything else (S9's bounty-only monsters are next
-session's). The element is a `div.portrait-art` holding two canvases, the face at 3 and at 2 CSS
+(`smith`, `trader`, `pirate`), and, as of B6, the grotto's `deckhand`, `powder_monkey`, `giant_crab`,
+`ships_parrot` and `brinebeard` (for the dungeon's target panel); null for anything else, S9's
+bounty-only monsters included (see "Deferred"). The element is a `div.portrait-art` holding two canvases, the face at 3 and at 2 CSS
 pixels per art pixel (144 and 96 CSS pixels at whole device ratios); it fills whatever frame it is
 put in, and a container query in `art.css` shows the canvas that fits that frame, so the fight
 screen's 148px frame shows the 3x face and its lists' 100px frames the 2x one, never resized.
@@ -151,6 +245,43 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B6: The grotto's look.** New art, not yet reviewed by Cody. Review sheets are outside the
+  repo in `/home/claude/lane-shots/wave6-b/` (`grotto-room.png` first).
+  - Studied first: the approved town at dusk (stone, the pier's planks, the sea and its foam,
+    lamplight), and lane C's grey-box room, foes, health bars, warning circles and loot sacks
+    (`src/scene`, read only), whose overlays the review sheets redraw over the tiles to judge
+    them.
+  - **Tiles** (`grottoTiles.ts`): the ten kinds, iterated as a set on an assembled test room at
+    dusk with lanterns lit rather than one at a time. First pass faults fixed on the room: sand
+    too speckled (paired light and dark grains and frequent ripples), a shell or pool on one tile
+    in three, the wall's top a field of identical mounds, the face a brick wall. Two new ramps:
+    `cavesand` and `shoal` (palette.ts); nothing existing changed. See "Dungeon art, for lane C"
+    above for wears and joining rules.
+  - **The cast** (`grottoCast.ts`): all eight, by silhouette first (flat, beside the hero) and
+    then shaded. Creatures sketched shape by shape and finished pixel by pixel; the four people
+    posed bodies of their own with hand-drawn heads, hands and what they hold, then kept as
+    rows. The giant crab's first draft read as a beetle with a scorpion's tail and was redrawn
+    front-on with claws; the parrot was enlarged after it read as a speck; Brinebeard's anchor
+    was first a pickaxe-like diagonal and then stands beside him on its crown.
+  - **Props** (`grottoProps.ts`): all seven; the lantern lit.
+  - **Menu art**: icons (`grottoIcons.ts`) for S9's five bounty items and the grotto's eight
+    loot items, and the `thieving` skill icon (a purse with its string cut); worn layers
+    (`armoury.ts`, mapped in `ITEM_LAYERS`) for the eleven wearables, held things by the hand
+    rule; a longbow shape for `bow()`; twelve new `FIGURE_LEGEND` characters for the new ramps.
+  - **Faces** (`faces.ts`) for the grotto's five, which the dungeon's target panel shows:
+    the deckhand, the powder monkey, the giant crab, the ship's parrot and Brinebeard, each on a
+    disc of its own, sketched with the grid's shapes and hand stamps, then kept as rows like the
+    others. The bounty-only monsters' faces were not reached (below).
+  - **Gallery**: a "Brinebeard's Grotto" section first: the test room at dusk with the cast, the
+    hero and two lanterns lit, the same room by day, every tile kind, the cast beside the hero,
+    the props. The new icons are in two new families.
+  - **Tests**: `tests/art/dungeonArt.test.ts` (every kind, prop and foe from the brief's lists;
+    sizes; same variant same tile; wears mixed; edges; the face's lip and foot; the planks'
+    rows; shallows lighter than deep, wet darker than dry; doors; feet inside every picture and
+    on its lowest row; threat by size; the lantern's and fuse's glows; unknown ids null). The
+    hand rule now covers the cutlass, the boarding axe, the anchor and the longbow, in two more
+    outfits (the coat and tricorn; the feathered hat); a spyglass test; the hats in the head
+    outline test; the icon and wearable lists.
 - **B5: Hands, then the new items, then faces.** New art, not yet reviewed by Cody. Review
   sheets are outside the repo in `/home/claude/lane-shots/wave5-b/`.
   - **What was wrong with the hands** (written from the layer-by-layer renders at 8x and the real
@@ -385,8 +516,28 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
-- Icons, worn layers and portraits for S9's ids (bounty-shop items, the two bounty-only
-  monsters): B6, once they are on `main`. Until then `itemIcon` and `portrait` answer null.
+- **Not reached in B6**: faces for S9's bounty-only monsters, `goblin_poacher` and
+  `bramble_wyrm` (part 5 of its brief), which stay null; and the five tab icons (part 6;
+  `tabIcon(id)` stays null). Drawing the goblin's face will need lane A's
+  `tests/ui/combat.test.ts` (line 79), which expects `goblin_poacher`'s portrait to be the blank
+  "G", changed to expect `.portrait-art` as the dock rat's line above it does.
+- Weak spots for Cody's review (B6), weakest first:
+  - The joins between kinds are straight tile edges (sand to wet sand, shallows to deep water):
+    clean, but the shore is a staircase, not a curve. Softening it needs edge tiles the doors do
+    not ask for yet.
+  - `sand_crab`: small and thin beside the rest; it reads as a crab but its stalk eyes are a
+    pixel each.
+  - `ships_parrot`: a bright bird in flight that reads at game scale, but its wings are flat
+    bands of colour.
+  - `powder_monkey`: bare orange skin is most of him at dusk; his grin carries him.
+  - The tricorn icon (a black hat with brass points, better than its first bowl-like draft) and
+    the boarding axe's small head, worn.
+  - The wall's face is one tile tall, so a wall is a third of the hero's height.
+  - Faces: the giant crab's is the weakest (stalk eyes over its shell's edge, the disc showing
+    between the stalks so it can look like a mask); the powder monkey's round bald head is
+    close to cheerful rather than gleeful.
+- Brinebeard's coat is purple (to keep him apart from the town's red-coated captain); lane A's
+  item text for `captains_coat` says red. See "Needs from another lane".
 - The hero's own portrait (for the character sheet) is not drawn.
 - Weak spots for Cody's review (B5), weakest first:
   - `leather_bracers`' icon: two laced cuffs with their lace ends hanging. It reads as laced
@@ -418,8 +569,14 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
-- Nothing. (The combat test that expected the dock rat to have no face was updated by the
-  orchestrator in B5's own PR.)
+- Lane A, `src/data/items.ts`, `captains_coat`'s description begins "Long, red and heavy with
+  braid": Brinebeard and his coat are drawn purple with brass braid, so that he is never taken
+  for the town's red-coated captain. One word: "Long, purple and heavy with braid". (Or, if Cody
+  prefers red, say so and art recolours the coat; it is a legend change in `grottoCast.ts`,
+  `armoury.ts` and `grottoIcons.ts`.)
+- Lane C: nothing required; the doors are filled behind their names. The notes above say how to
+  lay walls, which shadow step to use, and that the lantern's light must be moved into the room's
+  coordinates to light more than the lantern.
 
 ## Notes for this lane's next session
 
@@ -437,6 +594,14 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   fist's columns (`FIST_PART`), the rest `HELD_FRONT`, and its gear id in the list at the top of
   `tests/art/hands.test.ts`.
 - A new portrait is a row in `FACES` (`faces.ts`) and its id in `tests/art/portraits.test.ts`.
+- A new dungeon theme is a tile table like `GROTTO_TILES`, a cast entry per monster in `FOES`
+  (`grottoCast.ts`, or a file of its own) and props in a table like `grottoProps.ts`'s, wired in
+  `dungeonArt.ts`. Iterate on an assembled room (`roomPicture`), not single tiles, and redraw lane
+  C's overlays on it (warning circle, loot sack) to judge whether floors are quiet enough.
+- Sketching a creature with `grid.ts`'s primitives and dumping it as rows, then finishing it by
+  hand, was much quicker than writing rows blind; the dump needs a reverse legend.
+- Moving `.shots` aside for a check: move it to a name that does not exist yet. `mv` into an
+  existing folder nests it.
 - Real-game screenshots: seed `localStorage['hearth-and-harbour:save']` with a version 6 save
   before load (`equipment` by slot, `{ item, qty }`), then drive the tabs. The town's hero starts
   in the square; taps about 55 CSS pixels either side of the canvas's centre and 45 above it

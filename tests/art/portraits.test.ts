@@ -31,8 +31,9 @@ describe('portrait', () => {
     }
   });
 
-  it('draws a face for every monster and the three townsfolk', () => {
-    for (const id of [...MONSTERS, 'smith', 'trader', 'pirate']) {
+  it('draws a face for every monster, the three townsfolk and the grotto’s cast', () => {
+    const grotto = ['deckhand', 'powder_monkey', 'giant_crab', 'ships_parrot', 'brinebeard'];
+    for (const id of [...MONSTERS, 'smith', 'trader', 'pirate', ...grotto]) {
       expect(PORTRAIT_IDS, id).toContain(id);
       expect(portrait(id), id).not.toBeNull();
     }

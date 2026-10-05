@@ -84,8 +84,74 @@ const BOW_AT: readonly [number, number] = [5, 13];
 const BOW_GRIP = [14, 15, 16];
 const BOW_BINDING = [13, 17];
 
-function bow(id: string, light: string, dark: string): GearDef {
-  const wood = BOW_STAVE.map((row) => row.replace(/</g, light).replace(/>/g, dark));
+/**
+ * The poacher's longbow (B6): taller than the shortbows and nearly straight,
+ * the same hand on it. Its grip (rows 20 to 22) is in the same fist; rows 19
+ * and 23 are its binding.
+ */
+const LONGBOW_STAVE: readonly string[] = [
+  '.<',
+  'e<>',
+  'e.<>',
+  'e.<>',
+  'e..<>',
+  'e..<>',
+  'e..<>',
+  'e..<>',
+  'e..<>',
+  'e..<>',
+  'e...<>',
+  'e...<>',
+  'e...<>',
+  'e...<>',
+  'e...<>',
+  'e....<>',
+  'e....<>',
+  'e....<>',
+  'e.....<>',
+  'e.....<>',
+  'e.....<>',
+  'e.....<>',
+  'e.....<>',
+  'e.....<>',
+  'e.....<>',
+  'e.....<>',
+  'e....<>',
+  'e....<>',
+  'e....<>',
+  'e...<>',
+  'e...<>',
+  'e...<>',
+  'e...<>',
+  'e..<>',
+  'e..<>',
+  'e..<>',
+  'e..<>',
+  'e.<>',
+  'e.<>',
+  'e<>',
+  '.<',
+];
+
+interface Stave {
+  readonly rows: readonly string[];
+  readonly at: readonly [number, number];
+  readonly grip: readonly number[];
+  readonly binding: readonly number[];
+  /** The binding's light and dark characters. */
+  readonly bound: readonly [string, string];
+}
+
+const SHORT: Stave = {
+  rows: BOW_STAVE,
+  at: BOW_AT,
+  grip: BOW_GRIP,
+  binding: BOW_BINDING,
+  bound: ['f', 'O'],
+};
+
+function bow(id: string, light: string, dark: string, shape: Stave = SHORT): GearDef {
+  const wood = shape.rows.map((row) => row.replace(/</g, light).replace(/>/g, dark));
   // The stave without its string, and only the given rows of it.
   const stave = (keep: (i: number) => boolean, paint = (row: string) => row) =>
     wood.map((row, i) => (keep(i) ? paint('.' + row.slice(1)) : ''));
@@ -94,21 +160,21 @@ function bow(id: string, light: string, dark: string): GearDef {
     slot: 'weapon',
     parts: [
       // The string is the one thing held that passes behind the body.
-      { at: BOW_AT, depth: HELD_BEHIND, rows: wood.map((row) => (row[0] === 'e' ? 'e' : '')) },
+      { at: shape.at, depth: HELD_BEHIND, rows: wood.map((row) => (row[0] === 'e' ? 'e' : '')) },
       {
-        at: BOW_AT,
+        at: shape.at,
         depth: HELD_FRONT,
-        rows: stave((i) => !BOW_GRIP.includes(i) && !BOW_BINDING.includes(i)),
+        rows: stave((i) => !shape.grip.includes(i) && !shape.binding.includes(i)),
       },
       {
-        at: BOW_AT,
+        at: shape.at,
         depth: HELD_FRONT,
         rows: stave(
-          (i) => BOW_BINDING.includes(i),
-          (row) => row.replace(light, 'f').replace(dark, 'O'),
+          (i) => shape.binding.includes(i),
+          (row) => row.replace(light, shape.bound[0]).replace(dark, shape.bound[1]),
         ),
       },
-      { at: BOW_AT, depth: GRIP, rows: stave((i) => BOW_GRIP.includes(i)) },
+      { at: shape.at, depth: GRIP, rows: stave((i) => shape.grip.includes(i)) },
     ],
   };
 }
@@ -803,6 +869,311 @@ const AT_EASE: readonly GearDef[] = [
   },
 ];
 
+/**
+ * What bounty hunting buys or wins (S9): a hunter's things, a step aside from
+ * the ladder rather than up it. The longbow is drawn with the bows, below.
+ */
+const BOUNTY: readonly GearDef[] = [
+  {
+    // One great green scale rimmed in iron, shaped like a leaf: rounded at
+    // the top, coming to a point, a ridge down it. Strapped to the forearm
+    // like the heater, hiding the hand.
+    id: 'wyrmscale_shield',
+    slot: 'shield',
+    parts: [
+      {
+        at: [23, 19],
+        depth: SHIELD,
+        rows: [
+          '...nnnnn',
+          '.nnM**++nn',
+          'nM****+++-n',
+          'nM***+*++-n',
+          'nM**+***+-n',
+          'nM*+****+-n',
+          'nM*+***++-n',
+          'nM*+**++--n',
+          'nM*+*+*+--n',
+          '.nM*++*+-n',
+          '.nM*+*+--n',
+          '..nM*+--n',
+          '..nM*+-n',
+          '...nM-n',
+          '....nn',
+        ],
+      },
+    ],
+  },
+  {
+    // A wolf's tooth on a cord at the collar, over clothes and armour.
+    id: 'hunters_charm',
+    slot: 'neck',
+    parts: [
+      { at: [16, 14], depth: JEWELLERY, rows: ['8....8', '.8..8', '..88', '..eE', '..eE', '...E'] },
+    ],
+  },
+  {
+    // A broad felt brim with a red band and a cream plume sweeping back off
+    // it: a hat that stops nothing and is noticed everywhere.
+    id: 'feathered_hat',
+    slot: 'head',
+    parts: [
+      {
+        at: [7, 0],
+        depth: HELMET,
+        rows: [
+          '.eee....FFFFFFFX',
+          'eeeEe..FFFFFFFFXX',
+          'E..eEeeFFFFFFFFXXX',
+          '....EeeF:rrrrrrrrR',
+          '...FFFFFFFFFFFFXXXXXX',
+          '..##FFFFFFFFFFXXXXX###',
+        ],
+      },
+    ],
+  },
+  {
+    // The barbed arrows' quiver: the same quiver, dark red fletchings.
+    id: 'barbed_quiver',
+    slot: 'back',
+    parts: [
+      {
+        at: [24, 3],
+        depth: QUIVER,
+        rows: [
+          '...R.r',
+          '..RRrrR',
+          '..rRrR',
+          '..oooo',
+          '.FXXX#',
+          '.FXX##',
+          'FXXX#',
+          'FXX##',
+          'FXX#',
+          'FX#',
+          'FX#',
+          'F#',
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * Brinebeard's Grotto's loot (B6): a pirate's finery, salt-stained and a
+ * little showy, on the ladder between iron and the knight. Brass rather than
+ * gold (bronze's ramp; gold is the knight's), steel with its nicks, and the
+ * captain's own purple and black.
+ */
+const GROTTO: readonly GearDef[] = [
+  {
+    // A deckhand's cutlass: the smuggler's blade's line, but dull steel,
+    // nicked along the edge and pitted with salt, a brass cup guard and a
+    // brass knuckle bow round the fist.
+    id: 'pirates_cutlass',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [0, 7],
+        depth: HELD_FRONT,
+        rows: [
+          '.M',
+          '.Mm',
+          '.Mmn',
+          '..Mmn',
+          '..nmmn',
+          '...Mmmn',
+          '...Mmqn',
+          '....Mmmn',
+          '....nmmn',
+          '.....Mmmn',
+          '.....Mmmn',
+          '......Mmqn',
+          '......Mmmn',
+          '.......nmmn',
+          '........Mmn',
+          '........Mmn',
+          '........Mmn',
+          '.........Mmn',
+          '.........Mmn',
+        ],
+      },
+      { at: [8, 26], depth: HELD_FRONT, rows: ['112234', '.2', '.2', '..3', '...34'] },
+      { at: [11, 27], depth: GRIP, rows: ['ff', 'ff', 'ff'] },
+    ],
+  },
+  {
+    // A boarding axe: a haft longer than the bearded axe's, rising above the
+    // head, with a broad bit on the outside and a spike behind for hooking
+    // rails. Its haft follows the bearded axe's line through the fist.
+    id: 'boarding_axe',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [0, 0],
+        depth: HELD_FRONT,
+        rows: [
+          '...Mn',
+          '.MmWo',
+          'MmmWo',
+          'MmmWonnq',
+          'MmmnWonq',
+          'Mmn.Wo',
+          '.Mn.Wo',
+          '.....Wo',
+          '.....Wo',
+          '.....Wo',
+          '......Wo',
+          '......Wo',
+          '......Wo',
+          '......Wo',
+          '.......Wo',
+          '.......Wo',
+          '.......Wo',
+          '........Wo',
+          '........Wo',
+          '........Wo',
+          '.........Wo',
+          '.........Wo',
+          '.........Wo',
+          '.........Wo',
+          '..........Wo',
+          '..........Wo',
+          '..........Wo',
+        ],
+      },
+      { at: [11, 27], depth: GRIP, rows: ['Wo', 'Wo', 'Wo'] },
+      { at: [11, 30], depth: HELD_FRONT, rows: ['oO'] },
+    ],
+  },
+  {
+    // Brinebeard's anchor, held by its shank at arm's length, hanging: the
+    // ring and the wooden stock up by the shoulder, the shank down through
+    // the fist, and the crown at the knee with its two arms curving up either
+    // side, as the captain stands with it. Iron going to rust.
+    id: 'brinebeards_anchor',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [0, 9],
+        depth: HELD_FRONT,
+        rows: [
+          '.......nn',
+          '......n..n',
+          '.......nn',
+          '...WWWWMmWWo',
+          '...ooooMmooO',
+          '.......Mm',
+          '.......Mm',
+          '.......Mm',
+          '.......MR',
+          '........Mm',
+          '........Mm',
+          '........Mm',
+          '........Mm',
+          '.........Mm',
+          '.........Mm',
+          '.........MR',
+          '.........Mm',
+          '..........Mm',
+        ],
+      },
+      { at: [11, 27], depth: GRIP, rows: ['Mm', 'Mm', 'Mm'] },
+      {
+        at: [8, 30],
+        depth: HELD_FRONT,
+        rows: [
+          '...Mm',
+          '....Mm',
+          '....MR',
+          '....Mm',
+          '.....Mm',
+          '.....Mm',
+          'Mm...Mm.....mn',
+          'MMm..Mm....mnn',
+          '.Mm...Mm...mn',
+          '..Mm..Mm..mn',
+          '...MMmmmmnn',
+          '.....mmnn',
+        ],
+      },
+    ],
+  },
+  {
+    // A black tricorn, its three corners turned up and edged in brass, one
+    // red feather in the band.
+    id: 'tricorn',
+    slot: 'head',
+    parts: [
+      {
+        at: [9, 0],
+        depth: HELMET,
+        rows: [
+          '.......!!!!!!:r',
+          '1....!!!!!!!!~:r...1',
+          '!1..!!!!!!!!!~~r..1~',
+          '!!1!!!!!!!!!!~~~~1~~',
+          '.!!11!!!!!!!!!~~11~?',
+          '...??11111111111??',
+        ],
+      },
+    ],
+  },
+  {
+    // The captain's coat: long, purple, open down the front over whatever is
+    // under it, braided in brass along its edges and at the cuffs, the
+    // skirts to the knee. The belt goes over it.
+    id: 'captains_coat',
+    slot: 'body',
+    parts: [
+      {
+        at: [10, 15],
+        depth: ARMOUR,
+        rows: [
+          '.@@@@@1....2$$$$^^',
+          '@@@@@@@1..2$$$$$$^',
+          '@@@^@@@1..2$$^$$$^',
+          '@@@^.@@1..2$$.$$$^',
+          '@@@^.@@1..2$$.$$$^',
+          '@@@^.@@1..2$$.$$$^',
+          '1112.@@1..2$$.1122',
+          '.....@@1..2$$',
+          '.....@@1..2$$',
+          '.....@@1..2$$',
+          '.....@@1..2$$',
+          '....@@@1..2$$$',
+          '....@@@1..2$$$',
+          '...@@@@1..2$$$$',
+          '...@@@@1..2$$$$',
+          '...@@@@1..2$$$$',
+          '..@@@@@1..2$$$$$',
+          '..@@@@@1..2$$$$$',
+          '..@@@@@1..2$$$$^',
+          '..@@@@@1..2$$$$^',
+          '..@@@@@1..2$$$$^',
+          '..@@@@@1..2$$$$^',
+          '..@@@@@1..2$$$$^',
+          '..111111..222222',
+        ],
+      },
+    ],
+  },
+  {
+    // A brass spyglass, closed, held upright in the off hand at the hip: the
+    // fingers round the middle of it, the wide end above, the eyepiece below.
+    id: 'spyglass',
+    slot: 'shield',
+    parts: [
+      {
+        at: [24, 16],
+        depth: SHIELD,
+        rows: ['.12', '1223', '1223', '.33', '.12', '.12', '', '', '', '.12', '.33', '.12', '.4'],
+      },
+      { at: [24, 22], depth: SHIELD + 1, rows: ['sssd', 'ssdd', 'sddd'] },
+    ],
+  },
+];
+
 export const ARMOURY: readonly GearDef[] = [
   ...BRONZE,
   ...IRON,
@@ -810,9 +1181,18 @@ export const ARMOURY: readonly GearDef[] = [
   ...LEATHER,
   ...DROPS,
   ...TRINKETS,
+  ...BOUNTY,
+  ...GROTTO,
   bow('pine_shortbow', 'J', 'K'),
   bow('oak_shortbow', 'W', 'o'),
   bow('willow_shortbow', 'Q', 'S'),
+  bow('poachers_longbow', '&', '=', {
+    rows: LONGBOW_STAVE,
+    at: [5, 7],
+    grip: [20, 21, 22],
+    binding: [19, 23],
+    bound: [';', '|'],
+  }),
   ...AT_EASE,
 ];
 
