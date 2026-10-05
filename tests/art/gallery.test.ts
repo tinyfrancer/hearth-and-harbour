@@ -8,6 +8,7 @@ describe('artGallery', () => {
     const page = artGallery();
     const titles = [...page.querySelectorAll('h2')].map((h) => h.textContent);
     expect(titles).toEqual([
+      'Portraits',
       'Icons',
       'Wardrobe',
       'The town',
@@ -69,7 +70,14 @@ describe('artGallery', () => {
   });
 
   it('says what has not been drawn yet', () => {
-    expect(artGallery().textContent).toContain('Nothing drawn yet.');
+    expect(artGallery().textContent).toContain('Still to come');
+  });
+
+  it('shows every portrait in a frame like the fight screen’s, labelled', () => {
+    const cells = [...artGallery().querySelectorAll('.portrait-cell')];
+    expect(cells.length).toBeGreaterThanOrEqual(8);
+    for (const cell of cells) expect(cell.querySelector('.portrait-art canvas')).not.toBeNull();
+    expect(cells.map((c) => c.textContent)).toContain('dock rat');
   });
 });
 
