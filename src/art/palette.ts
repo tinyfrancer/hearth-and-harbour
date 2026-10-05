@@ -68,9 +68,12 @@ export const RAMPS = {
   hairchestnut: ['#9a5434', '#6e3420', '#481e16'],
   hairgrey: ['#e2dcd6', '#ada59e', '#78706c'],
 
-  // Gear. Bronze is copper-red with a pale highlight, so it reads as neither
-  // gold (yellow) nor iron (blue-grey): `metal` is iron.
-  bronze: ['#ffd8a8', '#d47a40', '#8e4428', '#55261c'],
+  // Gear. Bronze leans yellow-olive, away from every skin tone's orange, with
+  // a pale highlight so it reads as metal; it is greener and duller than gold
+  // and warm against iron (`metal`). Hide is the militia's leather, a cool
+  // brown that frames bronze and does not read as skin.
+  bronze: ['#efe6b4', '#bba04e', '#7a6532', '#473a22'],
+  hide: ['#9a7a5c', '#6a4e3c', '#44322a'],
   linen: ['#d8caa6', '#ad9d7a', '#7e705a'],
   shell: ['#fff2ea', '#e8aea4'],
   pinewood: ['#f0d08a', '#c4964e'],
@@ -240,8 +243,8 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   gold1: '#ffcf5a',
   gold2: '#d99a2b',
   metal1: '#e6dcf0',
-  bronze1: '#f0a878',
-  bronze2: '#a85c38',
+  bronze1: '#e6d898',
+  bronze2: '#a08a4a',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
 });
