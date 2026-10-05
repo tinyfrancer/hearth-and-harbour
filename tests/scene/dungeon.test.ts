@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { get } from '../../src/art/grid';
+import { CONTENT } from '../../src/data';
 import {
   DOOR_FADE_MS,
   advanceRun,
@@ -12,8 +13,10 @@ import {
   runTime,
   sideways,
   startRun,
+  type DungeonPlan,
   type Run,
 } from '../../src/scene/dungeon';
+import { FOE_KINDS } from '../../src/scene/foes';
 import { GROTTO } from '../../src/scene/grotto';
 import { cheapest } from '../../src/scene/path';
 import type { Play } from '../../src/scene/play';
@@ -72,6 +75,45 @@ describe('the grotto’s rooms and doors', () => {
       buildDungeon(plan({ a: ['###', '#sb', '###'], b: ['#b#', '#~#', '###'] })),
     ).toThrow(/open tile/);
     expect(() => buildDungeon(plan({ a: ['###', '#s?', '###'] }))).toThrow(/Unknown tile/);
+  });
+
+  it('puts monsters that exist on open floor: rats first, two crabs together, a thrower at the end', () => {
+    const placed = Object.fromEntries(rooms.map((r) => [r.id, r.foes.map((f) => f.monster)]));
+    expect(placed).toEqual({
+      landing: ['dock_rat', 'dock_rat'],
+      pools: ['sand_crab', 'sand_crab'],
+      cove: ['smuggler', 'dock_rat'],
+    });
+    for (const room of rooms) {
+      for (const foe of room.foes) {
+        expect(CONTENT.monsters![foe.monster], foe.monster).toBeDefined();
+        expect(room.map.tiles[foe.at.row]![foe.at.col]).toBe('floor');
+      }
+    }
+    expect(FOE_KINDS.smuggler!.heavy!.aim).toBe('thrown');
+    const plan = (foes: DungeonPlan['foes']) => ({
+      id: 't',
+      first: 'a',
+      rooms: { a: ['####', '#s.#', '####'] },
+      foes,
+    });
+    expect(() =>
+      buildDungeon(plan({ a: [{ monster: 'dock_rat', at: { col: 0, row: 0 } }] })),
+    ).toThrow(/not standing on floor/);
+    expect(() => buildDungeon(plan({ b: [] }))).toThrow(/not a room/);
+  });
+
+  it('bars a room’s doors on its shut ground, and leaves the rest as it was', () => {
+    const landing = grotto.rooms.landing!;
+    const door = landing.doors[0]!;
+    expect(isSolid(landing.shut, door.cell)).toBe(true);
+    expect(isSolid(landing.map, door.cell)).toBe(false);
+    expect(isSolid(landing.shut, door.inside)).toBe(false);
+    const { scene, lock } = roomScene(landing);
+    lock.shut = true;
+    expect(scene.map).toBe(landing.shut);
+    lock.shut = false;
+    expect(scene.map).toBe(landing.map);
   });
 
   it('paints doors, rock faces and the marked spot in flat placeholder colours', () => {

@@ -166,6 +166,24 @@ export interface Light {
   flip(): void;
 }
 
+/**
+ * More to draw than the stage knows of: a dungeon's fight. It says where it
+ * draws, and those boxes (this frame's and the last's) are drawn again each
+ * frame, as the walker's are, rather than the whole view.
+ */
+export interface StageExtra {
+  /** Whoever else stands in the scene, sorted with the walker by their feet. */
+  readonly actors: readonly Standing[];
+  /** Everywhere this draws this frame, in art pixels: actors, marks, numbers. */
+  readonly boxes: readonly Box[];
+  /** On the ground, under everyone: marks, loot. Drawn in art pixels. */
+  ground?(ctx: CanvasRenderingContext2D, palette: Palette): void;
+  /** Over everyone: health, numbers, things in flight. Drawn in art pixels. */
+  over?(ctx: CanvasRenderingContext2D, palette: Palette): void;
+  /** The walker's picture as it should show this frame (a flash when struck). */
+  walker?(image: HTMLCanvasElement): HTMLCanvasElement;
+}
+
 /** Room kept clear at each edge of the canvas, in CSS pixels, for buttons laid over the scene. */
 export interface Insets {
   readonly top: number;
@@ -195,6 +213,20 @@ export interface StageOptions {
   readonly insets?: Insets;
   /** While true, time does not move the walker: a run paused, a door being gone through. */
   readonly frozen?: () => boolean;
+  /**
+   * Moves the walker on by `ms` in place of the stage's own walking: a
+   * dungeon, where the run decides how he moves. Whatever it returns is where
+   * he is.
+   */
+  readonly drive?: (play: Play, ms: number) => Play;
+  /**
+   * Offered every tap first, at `point` in the scene with the smallest tap
+   * target `min` (art pixels): a Play takes the tap (it was on a foe), null
+   * leaves it to the stage to walk or open as ever.
+   */
+  readonly tap?: (point: Point, min: number, play: Play) => Play | null;
+  /** More to draw this frame. */
+  readonly extra?: (now: number, palette: Palette) => StageExtra;
   /** A panel's button was pressed. */
   readonly press: (opens: Opens) => void;
   /** What a screen reader hears for the canvas. */
@@ -381,6 +413,11 @@ export function stage(options: StageOptions): View {
     const tap = toWorld(at);
     const scale = scaleOf(device);
     const min = cssToArt(MIN_TAP_CSS, cssSize(), device, scale);
+    const taken = options.tap?.(tap, min, play);
+    if (taken) {
+      change(taken);
+      return;
+    }
     const thing = thingAt(scene.things, tap, min);
     change(tapAt(scene, play, tap, min));
     // A press on the ground can be held and dragged to steer; one on a thing is only a tap.
@@ -419,6 +456,8 @@ export function stage(options: StageOptions): View {
 
   /** What the last frame drew that can move, by name, to find what changed. */
   let drawnLast = new Map<string, Drawn>();
+  /** Where the extra drawing was last frame: drawn again to clear it. */
+  let extraLast: readonly Box[] = [];
   /** Where the camera was and what palette the last frame used; a change means drawing it all. */
   let shownLast = '';
 
@@ -445,8 +484,10 @@ export function stage(options: StageOptions): View {
     const cam = camera(scale);
     const feet = round(play.walker.at);
     const left = play.facing === 'left';
+    const extra = options.extra?.(now, palette) ?? null;
     const walkerPicture = art.walkerAt(feet, play.facing, palette);
-    const walkerImage = canvasOf(walkerPicture, palette);
+    const plainWalker = canvasOf(walkerPicture, palette);
+    const walkerImage = plainWalker && extra?.walker ? extra.walker(plainWalker) : plainWalker;
     const walker: Standing | null = walkerImage && {
       image: walkerImage,
       // Mirrored, the column under the feet moves to the other side of the picture.
@@ -478,6 +519,10 @@ export function stage(options: StageOptions): View {
     }
     if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
     const actors: Standing[] = walker ? [walker] : [];
+    if (extra) {
+      for (const a of extra.actors) actors.push(a);
+      actors.sort((a, b) => a.base - b.base);
+    }
     const target = play.heading === null ? (play.walker.path.at(-1) ?? null) : null;
     if (target) moving.set('target', { image: made.still, box: markerBox(target) });
 
@@ -492,6 +537,8 @@ export function stage(options: StageOptions): View {
       marker: { light: palette.colours.gold1, ink: palette.colours.ink1 },
       actors,
       above,
+      ground: extra?.ground && ((c) => extra.ground!(c, palette)),
+      over: extra?.over && ((c) => extra.over!(c, palette)),
     };
     const view = viewSize(device, scale);
     const whole: Box = {
@@ -512,11 +559,13 @@ export function stage(options: StageOptions): View {
         if (was) changed.push(was.box);
         if (is) changed.push(is.box);
       }
+      changed.push(...extraLast, ...(extra?.boxes ?? []));
       for (const patch of mergeBoxes(changed.filter((b) => overlaps(b, whole))))
         drawFrame(ctx, frame, patch);
     }
     shownLast = shown;
     drawnLast = moving;
+    extraLast = extra?.boxes ?? [];
   };
 
   showTime();
@@ -538,7 +587,7 @@ export function stage(options: StageOptions): View {
         held = { ...held, aimed: steered.aimed };
         change(steered.play);
       }
-      change(advancePlay(scene, play, ms));
+      change(options.drive ? options.drive(play, ms) : advancePlay(scene, play, ms));
       changeTime(light.current());
       const target = panelLift();
       if (lift !== target) {

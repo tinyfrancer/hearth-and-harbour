@@ -7,7 +7,17 @@
 import { grid, rect, ellipse, type Grid } from '../art/grid';
 import type { Shade } from '../art/palette';
 import { picture, type Picture } from '../art/raster';
-import { startPlay, type Facing, type Play } from './play';
+import {
+  advanceBattle,
+  BEAT_MS,
+  roomLocked,
+  startBattle,
+  type Battle,
+  type Fighter,
+  type Place,
+} from './battle';
+import type { MonsterDef } from '../core/content';
+import { advancePlay, startPlay, type Facing, type Play } from './play';
 import type { Scene } from './things';
 import {
   TILE,
@@ -29,6 +39,14 @@ export interface DungeonPlan {
   /** The room the boat lands in. */
   readonly first: string;
   readonly rooms: Readonly<Record<string, readonly string[]>>;
+  /** Who is waiting in each room, by monster id, and where they stand to begin with. */
+  readonly foes?: Readonly<Record<string, readonly FoeSpot[]>>;
+}
+
+/** A monster placed in a room as written. */
+export interface FoeSpot {
+  readonly monster: string;
+  readonly at: Cell;
 }
 
 export type RoomTile = 'rock' | 'floor' | 'water' | 'door' | 'end';
@@ -41,6 +59,9 @@ export const ROOM_KINDS: Readonly<Record<RoomTile, TileKind>> = {
   door: { solid: false },
   end: { solid: false },
 };
+
+/** A room's tiles while it is being fought in: the doors are barred. */
+const SHUT_KINDS: Readonly<Record<RoomTile, TileKind>> = { ...ROOM_KINDS, door: { solid: true } };
 
 const KEY: Readonly<Record<string, RoomTile>> = {
   '#': 'rock',
@@ -69,6 +90,9 @@ export interface Room {
   readonly start: Cell | null;
   /** The marked spot that ends the run. */
   readonly end: Cell | null;
+  /** The same ground with its doors shut, while something in the room still stands. */
+  readonly shut: TileMap<RoomTile>;
+  readonly foes: readonly FoeSpot[];
 }
 
 export interface Dungeon {
@@ -133,7 +157,23 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
     const starts = cellsOf(rows, 's');
     const ends = cellsOf(rows, 'x');
     if (starts.length > 1 || ends.length > 1) throw new Error(`Room ${id} has two starts or ends.`);
-    rooms[id] = { id, map, doors, start: starts[0] ?? null, end: ends[0] ?? null };
+    const foes = plan.foes?.[id] ?? [];
+    for (const foe of foes) {
+      const tile = inMap(map, foe.at) ? map.tiles[foe.at.row]![foe.at.col] : null;
+      if (tile !== 'floor') throw new Error(`A ${foe.monster} in ${id} is not standing on floor.`);
+    }
+    rooms[id] = {
+      id,
+      map,
+      doors,
+      start: starts[0] ?? null,
+      end: ends[0] ?? null,
+      shut: { ...map, kinds: SHUT_KINDS },
+      foes,
+    };
+  }
+  for (const room of Object.keys(plan.foes ?? {})) {
+    if (!rooms[room]) throw new Error(`Foes are placed in ${room}, which is not a room.`);
   }
   if (!rooms[plan.first]?.start) throw new Error(`The first room needs a start.`);
   return { id: plan.id, first: plan.first, rooms };
@@ -162,6 +202,13 @@ export interface Doorway {
   readonly ms: number;
 }
 
+/**
+ * How a run ended by itself: the last room cleared (or, in a dungeon with
+ * nothing to fight, its end reached), or the hero knocked down. Rowing back
+ * early is the player's, and ends it from outside.
+ */
+export type RunEnding = 'cleared' | 'fell';
+
 /** A run through a dungeon. Not saved; a run lasts as long as the page. */
 export interface Run {
   /** Which dungeon. */
@@ -172,10 +219,31 @@ export interface Run {
   readonly ms: number;
   readonly doorway: Doorway | null;
   readonly finished: boolean;
+  /** How it ended, once it has. */
+  readonly ending: RunEnding | null;
+  /** The fighting, for a run with someone to fight it; null for a walk through. */
+  readonly battle: Battle | null;
 }
 
-export function startRun(dungeon: Dungeon): Run {
+/** What a run fights with: the character as they rowed out, the monsters' rows, and the dice's seed. */
+export interface RunSetup {
+  readonly fighter: Fighter;
+  readonly monsters: Readonly<Record<string, MonsterDef>>;
+  readonly seed: number;
+}
+
+export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
   const room = dungeon.rooms[dungeon.first]!;
+  const battle = setup
+    ? startBattle(
+        setup.fighter,
+        setup.monsters,
+        Object.values(dungeon.rooms).flatMap((r) =>
+          r.foes.map((f) => ({ room: r.id, monster: f.monster, at: centreOf(f.at) })),
+        ),
+        setup.seed,
+      )
+    : null;
   return {
     dungeon: dungeon.id,
     room: room.id,
@@ -183,7 +251,20 @@ export function startRun(dungeon: Dungeon): Run {
     ms: 0,
     doorway: null,
     finished: false,
+    ending: null,
+    battle,
   };
+}
+
+/** Whether the room the run is in has its doors shut. */
+export function runLocked(run: Run): boolean {
+  return !!run.battle && roomLocked(run.battle, run.room);
+}
+
+/** The room a run is in, as its battle needs it. */
+export function placeOf(dungeon: Dungeon, run: Run): Place {
+  const room = dungeon.rooms[run.room]!;
+  return { room: room.id, map: runLocked(run) ? room.shut : room.map, last: room.end !== null };
 }
 
 /** Which way someone faces coming in through `door`: away from it. */
@@ -194,15 +275,20 @@ function facingIn(door: Door, was: Facing): Facing {
 }
 
 /**
- * A run after `ms` of play, with the walker where `play` has him. Stepping
- * onto a door stops him and starts the way through; halfway through, the
- * next room is there with him at the matching door, facing in. Reaching the
- * marked spot ends the run. The clock stops when the run ends.
+ * A run after `ms` of play, with the walker going where `play` has him going:
+ * he walks, and whatever is in the room fights him (`advanceBattle`).
+ * Stepping onto a door stops him and starts the way through; halfway through,
+ * the next room is there with him at the matching door, facing in. Doors are
+ * shut while something in the room stands. Clearing the last room ends the
+ * run a moment after the last blow, as does falling; in a room with nothing
+ * to fight, reaching the marked spot ends it. The clock stops when it ends.
  */
 export function advanceRun(dungeon: Dungeon, run: Run, play: Play, ms: number): Run {
-  if (run.finished) return { ...run, play };
+  if (run.finished) return run;
   const elapsed = run.ms + ms;
   if (run.doorway) {
+    // Between rooms nobody walks.
+    play = { ...run.play, walker: { ...run.play.walker, path: [] } };
     const along = run.doorway.ms + ms;
     if (along >= 2 * DOOR_FADE_MS) return { ...run, play, ms: elapsed, doorway: null };
     if (run.doorway.ms < DOOR_FADE_MS && along >= DOOR_FADE_MS) {
@@ -219,7 +305,22 @@ export function advanceRun(dungeon: Dungeon, run: Run, play: Play, ms: number): 
     return { ...run, play, ms: elapsed, doorway: { ...run.doorway, ms: along } };
   }
   const room = dungeon.rooms[run.room]!;
-  if (atEnd(room, play.walker.at)) return { ...run, play, ms: elapsed, finished: true };
+  let battle = run.battle;
+  if (battle) {
+    const fought = advanceBattle(battle, placeOf(dungeon, run), play, ms);
+    battle = fought.battle;
+    play = fought.play;
+    const over = battle.over;
+    if (over) {
+      const done = battle.clock >= over.at + BEAT_MS;
+      return { ...run, play, ms: elapsed, battle, finished: done, ending: done ? over.why : null };
+    }
+  } else {
+    play = advancePlay({ map: room.map, things: [] }, play, ms);
+  }
+  run = { ...run, battle };
+  if (atEnd(room, play.walker.at) && !runLocked(run))
+    return { ...run, play, ms: elapsed, finished: true, ending: 'cleared' };
   const door = doorAt(room, play.walker.at);
   if (door) {
     return {
@@ -307,19 +408,32 @@ export interface RoomArt {
   shadowAt(feet: Point): { readonly picture: Picture; readonly middle: Point } | null;
 }
 
-const rooms = new WeakMap<Room, { scene: Scene; art: RoomArt }>();
+/** Whether a room's doors are shut, set by whoever shows it; its scene's ground follows. */
+export interface RoomLock {
+  shut: boolean;
+}
+
+const rooms = new WeakMap<Room, { scene: Scene; art: RoomArt; lock: RoomLock }>();
 
 /**
- * A room as the stage needs it: its scene (nothing standing in it yet) and
- * its ground. Made once a page, so going back through a door finds the room
- * already painted.
+ * A room as the stage needs it: its scene (nothing standing in it; what
+ * fights is drawn by the run), its ground, and the lock that says whether its
+ * doors can be walked into. Made once a page, so going back through a door
+ * finds the room already painted.
  */
-export function roomScene(room: Room): { scene: Scene; art: RoomArt } {
+export function roomScene(room: Room): { scene: Scene; art: RoomArt; lock: RoomLock } {
   let made = rooms.get(room);
   if (made) return made;
   const shadow = walkerShadow('sand3');
+  const lock: RoomLock = { shut: false };
   made = {
-    scene: { map: room.map, things: [] },
+    lock,
+    scene: {
+      get map() {
+        return lock.shut ? room.shut : room.map;
+      },
+      things: [],
+    },
     art: {
       ground: picture(paintRoom(room)),
       shadowAt(feet) {
