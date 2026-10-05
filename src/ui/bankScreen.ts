@@ -25,7 +25,7 @@ const coins = (amount: number): string =>
 
 /**
  * Where an item comes from and what it goes into, read off the action tables,
- * and the monsters the character has seen drop it.
+ * the monsters the character has seen drop it, the dungeons and the shops.
  */
 function provenance(
   item: ItemDef,
@@ -45,6 +45,15 @@ function provenance(
     if (action.uses?.some((entry) => entry.item === item.id)) {
       usedIn.push(`${skill} (${action.name})`);
     }
+  }
+  for (const dungeon of Object.values(content.dungeons ?? {})) {
+    if (dungeon.loot.includes(item.id)) from.push(dungeon.name);
+  }
+  if (Object.values(content.shop ?? {}).some((entry) => entry.item === item.id)) {
+    from.push('The bounty shop');
+  }
+  if (Object.values(content.store ?? {}).some((entry) => entry.item === item.id)) {
+    from.push('The general store');
   }
   return { from, usedIn };
 }

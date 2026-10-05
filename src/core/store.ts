@@ -9,13 +9,18 @@ import { bankCount, stat, type GameState } from './state';
  * sold once.
  */
 
+/** "150,000": store prices run to six figures, and a reason is read at a glance. */
+const grouped = (amount: number): string => Math.floor(amount).toLocaleString('en-GB');
+
 export type StoreResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
 /** Why the store will not sell this entry now, or null if it will. */
 export function storeProblem(state: GameState, entry: StoreEntry): string | null {
   if (entry.perk && state.perks.includes(entry.id)) return 'Yours already.';
   if (entry.item && entry.once && held(state, entry.item) > 0) return 'You have one already.';
-  if (state.coins < entry.price) return `Needs ${entry.price} coins; you have ${state.coins}.`;
+  if (state.coins < entry.price) {
+    return `Needs ${grouped(entry.price)} coins; you have ${grouped(state.coins)}.`;
+  }
   return null;
 }
 

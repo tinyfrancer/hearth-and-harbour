@@ -957,19 +957,24 @@ button.card:active {
   z-index: 5;
   display: flex;
   flex-direction: column-reverse;
-  gap: 8px;
   height: 0;
   padding: 0 16px;
-  transform: translateY(-64px);
+  /* Clear of a toast two lines high. */
+  transform: translateY(-104px);
   pointer-events: none;
 }
 
 .award {
   flex: none;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--panel);
   border: var(--px) solid var(--gold-bright);
   text-align: center;
+}
+
+/* Stacked notes share a border, so nothing behind shows between them. */
+.award + .award {
+  margin-bottom: calc(-1 * var(--px));
 }
 
 .award-name {

@@ -75,7 +75,7 @@ const TOAST_MS = 3000;
 /** An achievement's note stays a little longer than a toast: it is worth reading. */
 const AWARD_MS = 4500;
 /** At most this many achievement notes at once; more are summed up in the last. */
-const AWARDS_SHOWN = 3;
+const AWARDS_SHOWN = 2;
 /** The skills trained by fighting, which have a Combat page instead of actions. */
 const COMBAT_SKILLS: readonly string[] = [MELEE, RANGED, DEFENCE, VITALITY];
 
@@ -131,8 +131,9 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let view: View | null = null;
   let lastTick = now();
   let lastSave = now();
-  /** The away report on screen, until it is dismissed. */
+  /** The away report on screen, until it is dismissed, and the achievements it earned. */
   let away: AwayReport | null = null;
+  let awayEarned: string[] = [];
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
@@ -180,11 +181,16 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   const returnFrom = (ms: number): void => {
     if (!state) return;
     const result = catchUp(state, ms, content);
+    const had = state.achievements.length;
     state = result.state;
-    // A quick reload is paid like any other gap but is not worth a report.
-    // Coming back twice before reading the first report keeps the newer one.
-    if (ms >= AWAY_MS) away = result.report ?? away;
     save();
+    // A quick reload is paid like any other gap but is not worth a report.
+    // Coming back twice before reading the first report keeps the newer one,
+    // and everything both earned.
+    if (ms >= AWAY_MS && result.report) {
+      awayEarned = [...(away ? awayEarned : []), ...state.achievements.slice(had)];
+      away = result.report;
+    }
   };
 
   // A loaded or imported file is not paid for the time since it was written:
@@ -626,10 +632,16 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       toasts,
       ...(away
         ? [
-            awayReportOverlay(away, content, () => {
-              away = null;
-              render();
-            }),
+            awayReportOverlay(
+              away,
+              content,
+              () => {
+                away = null;
+                awayEarned = [];
+                render();
+              },
+              awayEarned,
+            ),
           ]
         : []),
       h(

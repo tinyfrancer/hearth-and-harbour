@@ -67,7 +67,7 @@ describe('the general store', () => {
     const cap = q<HTMLButtonElement>('[data-buy="velvet_cap"]');
     expect(cap.disabled).toBe(true);
     expect(q('[data-stock="velvet_cap"]').textContent).toContain(
-      'Needs 75000 coins; you have 500.',
+      'Needs 75,000 coins; you have 500.',
     );
     // A first purchase is an achievement.
     expect(awards()).toContain('first_purchase');
@@ -153,6 +153,10 @@ describe('achievements', () => {
     clock += 2 * 60 * 60 * 1000;
     mountApp(root, { saves: saves(), content: CONTENT, now: () => clock });
     expect(awards()).toEqual(expect.arrayContaining(['first_catch', 'level_10']));
+    // The away report says so too, where it will be read.
+    expect(q('[role="dialog"] [data-away-award="first_catch"]').textContent).toBe(
+      'Achievement: A Bite',
+    );
     expect(saved().achievements).toEqual(expect.arrayContaining(['first_catch', 'level_10']));
   });
 
