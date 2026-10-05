@@ -1,7 +1,7 @@
 # Lane B: art
 
-**Next session: B3: Icons for every item and skill, and gear layers for S7b's items** (brief to
-come in `docs/lanes.md`, wave 3).
+**Next session: B3: The character's wardrobe** (brief in `docs/lanes.md`, wave 3). Icons moved to
+B4.
 
 ## The town index, for lane C (`src/art/town.ts`)
 

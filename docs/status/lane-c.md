@@ -1,7 +1,6 @@
 # Lane C: scenes
 
-**Next session: S12b: The whole town** (needs lane B's B2 on `main`; brief to come in
-`docs/lanes.md`, wave 3).
+**Next session: S12b: The whole town** (brief in `docs/lanes.md`, wave 3).
 
 ## Plots for lane B's pieces
 
