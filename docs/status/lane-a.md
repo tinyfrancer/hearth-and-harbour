@@ -91,7 +91,7 @@
     remembered per skill while the app runs; the running action's heading always opens on a
     redraw.
 
-- S8 Idle combat (PR #S8PR). Pick an area and a monster on the Skills tab's Combat section; the
+- S8 Idle combat (PR #22). Pick an area and a monster on the Skills tab's Combat section; the
   character fights by itself, eats from the food slot, banks the loot, and keeps going while the
   game is shut.
   - **State.** `GameState.fight` (beside `action`; at most one is set, and starting either clears
