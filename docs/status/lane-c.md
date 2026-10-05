@@ -1,7 +1,6 @@
 # Lane C: scenes
 
-**Next session: S12: The town** (needs S7a from lane B on `main`; brief to be written in
-`docs/lanes.md`).
+**Next session: S12a: The town on the engine** (brief in `docs/lanes.md`, wave 2).
 
 ## Done
 
@@ -40,14 +39,8 @@
 
 ## Needs from another lane
 
-- **Lane A, `src/ui/app.ts`**: the shell calls `View.update` only while an idle action is
-  running, so a scene cannot rely on it for its frames and runs its own loop. If the shell called
-  `update` every frame (or offered a `dispose` hook when a view is replaced), scenes could drop
-  that loop and the attach-wait logic in `stage.ts`. Not urgent; the loop stops itself.
-- **Lane A, `src/ui/styles.css`**: the Town tab's `.screen` has 16px padding and scrolls, which a
-  full-bleed canvas does not want. `src/scene/scene.css` works around it with
-  `.screen:has(> .scene) { position: relative; padding: 0; overflow: hidden }`. A shell rule (say,
-  `.screen[data-tab='town']`) would be tidier and does not rely on `:has()` (iOS 15.4+).
+- Nothing. Both S11 requests were met before wave 2: `update` now arrives every frame, and the
+  shell styles the Town tab's screen. `townView` also now receives a `Shell`.
 
 ## Notes for this lane's next session
 

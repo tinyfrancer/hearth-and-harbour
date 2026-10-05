@@ -1,6 +1,7 @@
 # Lane B: art
 
-**Next session: B2: Icons for everything so far** (brief to be written in `docs/lanes.md`).
+**Next session: B2: The rest of the town's art** (brief in `docs/lanes.md`, wave 2). Icons
+moved to B3.
 
 ## Done
 
