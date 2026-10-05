@@ -76,6 +76,20 @@ const ITEMS = [
   'leather_bracers',
   'leather_cap',
   'leather_jerkin',
+  // S9's bounty items and the grotto's loot, drawn in B6.
+  'poachers_longbow',
+  'wyrmscale_shield',
+  'barbed_arrows',
+  'hunters_charm',
+  'feathered_hat',
+  'doubloon',
+  'pirate_cutlass',
+  'boarding_axe',
+  'tricorn',
+  'captains_coat',
+  'spyglass',
+  'brinebeards_anchor',
+  'ships_figurehead',
 ];
 
 const SKILLS = [
@@ -93,6 +107,8 @@ const SKILLS = [
   'ranged',
   'defence',
   'vitality',
+  // S9's, drawn in B6.
+  'thieving',
 ];
 
 const cells = (g: Grid): Shade[] => g.d.filter((c): c is Shade => c !== null);

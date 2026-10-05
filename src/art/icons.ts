@@ -8,6 +8,7 @@
  */
 import { pixelCanvas } from './canvas';
 import { GEAR_ICON_DEFS } from './gearIcons';
+import { GROTTO_ICON_DEFS } from './grottoIcons';
 import { ICON_SIZE, iconGrid, type IconDef } from './iconKit';
 import { ITEM_ICON_DEFS } from './itemIcons';
 import { LOOT_ICON_DEFS } from './lootIcons';
@@ -20,6 +21,7 @@ const ITEMS: Readonly<Record<string, IconDef>> = {
   ...ITEM_ICON_DEFS,
   ...GEAR_ICON_DEFS,
   ...LOOT_ICON_DEFS,
+  ...GROTTO_ICON_DEFS,
 };
 
 export const ITEM_ICON_IDS: readonly string[] = Object.keys(ITEMS);
@@ -82,6 +84,31 @@ export const ICON_FAMILIES: readonly {
     name: 'The vial and potions',
     kind: 'item',
     ids: ['shell_vial', 'sage_tonic', 'steady_draught', 'glowcap_tincture', 'midnight_oil'],
+  },
+  {
+    name: 'Bounty hunting',
+    kind: 'item',
+    ids: [
+      'poachers_longbow',
+      'wyrmscale_shield',
+      'barbed_arrows',
+      'hunters_charm',
+      'feathered_hat',
+    ],
+  },
+  {
+    name: 'Brinebeard’s Grotto',
+    kind: 'item',
+    ids: [
+      'doubloon',
+      'pirate_cutlass',
+      'boarding_axe',
+      'tricorn',
+      'captains_coat',
+      'spyglass',
+      'brinebeards_anchor',
+      'ships_figurehead',
+    ],
   },
   { name: 'Skills', kind: 'skill', ids: SKILL_ICON_IDS },
 ];

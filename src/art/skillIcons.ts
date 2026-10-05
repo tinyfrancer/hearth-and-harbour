@@ -297,6 +297,31 @@ const VITALITY: readonly string[] = [
   '........RR',
 ];
 
+// Thieving: a fat purse with its string cut, a coin dropping out of it.
+const THIEVING: readonly string[] = [
+  '.......l....L',
+  '........l..L',
+  '.........lL',
+  '........bccb',
+  '.......abbbbc',
+  '......aayyYbbc',
+  '.....aayYYYybbc',
+  '....aaaaaaaabbbc',
+  '...aaaaaaaabbbbbc',
+  '...aaaaaaaaabbbbc',
+  '..aaaaaaaaabbbbbbc',
+  '..aaaaaaaaabbbbbbc',
+  '..aaaaaaaabbbbbbbc',
+  '...aaaaaabbbbbbbc',
+  '...aaaabbbbbbbbcc',
+  '....bbbbbbbbbccc',
+  '......ccccccc',
+  '...................yy',
+  '..................yYYy',
+  '..................yYYY',
+  '...................YY',
+];
+
 export const SKILL_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   woodcutting: {
     rows: WOODCUTTING,
@@ -372,4 +397,8 @@ export const SKILL_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   },
   defence: { rows: DEFENCE, legend: { ...TOOLS, u: 'crimson1', U: 'crimson2' } },
   vitality: { rows: VITALITY, legend: { r: 'red1', R: 'red2', w: 'flush1' } },
+  thieving: {
+    rows: THIEVING,
+    legend: { a: 'tan1', b: 'tan2', c: 'tan3', y: 'gold1', Y: 'gold2', l: 'linen1', L: 'linen2' },
+  },
 };
