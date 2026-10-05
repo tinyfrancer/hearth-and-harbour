@@ -10,7 +10,7 @@ import {
   figure,
 } from '../../src/art/figure';
 import { get, type Grid } from '../../src/art/grid';
-import { loadMockup, without } from './mockup';
+import { loadMockup, withB5Hand, without } from './mockup';
 
 const mockup = loadMockup();
 
@@ -30,8 +30,8 @@ describe('townsfolk', () => {
     sameGrid(figure('trader', TRADER_OUTFIT), mockup.traderFig());
   });
 
-  it('still draws the hero as the mock-up does', () => {
-    sameGrid(figure('standard', HERO_OUTFIT), mockup.heroFig());
+  it('still draws the hero as the mock-up does, but for B5’s sword hand', () => {
+    sameGrid(figure('standard', HERO_OUTFIT), withB5Hand(mockup.heroFig()));
   });
 
   it('makes what they hold a layer of its own', () => {

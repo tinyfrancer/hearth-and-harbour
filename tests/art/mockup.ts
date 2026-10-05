@@ -7,6 +7,7 @@
  * drawing tells apart share a value).
  */
 import mockupHtml from '../../docs/art-reference/town-mockup.html?raw';
+import { FIGURE_LEGEND } from '../../src/art/figure';
 import type { Cell, Grid } from '../../src/art/grid';
 import type { Glow } from '../../src/art/raster';
 
@@ -198,4 +199,44 @@ export function cut(g: Grid, x: number, y: number, w: number, h: number): Cell[]
 /** Our glows in the mock-up's form, for comparing lists. */
 export function asMockupGlows(glows: readonly Glow[]): number[][] {
   return glows.map((g) => [g.x, g.y, g.radius, g.strength]);
+}
+
+/**
+ * B5 changed the approved hero, at the owner's request ("weapons seem to be
+ * appearing behind the character's hand"): his sword hand, by these pixels
+ * and no others, as [x, y, figure legend character] on the outlined figure.
+ * The blade's dark edge now runs in front of the sleeve down to the guard,
+ * and where a fist-sized wooden grip stood below the guard there is a fist,
+ * with the grip inside it and the pommel showing below.
+ */
+export const B5_HAND: readonly (readonly [number, number, string])[] = [
+  // The blade, in front of the forearm.
+  [11, 21, 'm'],
+  [11, 22, 'm'],
+  [11, 23, 'm'],
+  [11, 24, 'm'],
+  [12, 25, 'm'],
+  [12, 26, 'm'],
+  // The fist, over the grip and the cloak behind it.
+  [11, 28, 's'],
+  [12, 28, 's'],
+  [13, 28, 's'],
+  [14, 28, 'd'],
+  [15, 28, 't'],
+  [11, 29, 's'],
+  [12, 29, 's'],
+  [13, 29, 'd'],
+  [14, 29, 'd'],
+  [15, 29, 't'],
+  [12, 30, 'd'],
+  [13, 30, 'd'],
+  [14, 30, 'd'],
+  [15, 30, 't'],
+];
+
+/** A copy of `g` with B5's hand painted on the hero whose outlined figure's top-left is (x, y). */
+export function withB5Hand(g: Grid, x = 0, y = 0): Grid {
+  const d = [...g.d];
+  for (const [hx, hy, ch] of B5_HAND) d[(y + hy) * g.w + x + hx] = FIGURE_LEGEND[ch] ?? null;
+  return { w: g.w, h: g.h, d };
 }

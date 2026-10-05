@@ -11,7 +11,7 @@ import {
   townPiece,
   type TownId,
 } from '../../src/art/town';
-import { asMockupGlows, loadMockup } from './mockup';
+import { asMockupGlows, loadMockup, withB5Hand } from './mockup';
 
 const mockup = loadMockup();
 
@@ -26,9 +26,10 @@ function lowestRow(g: Grid): number {
 }
 
 describe('the assembled town', () => {
-  it('is the mock-up’s town, pixel for pixel', () => {
+  it('is the mock-up’s town, pixel for pixel, but for B5’s change to the hero’s hand', () => {
     mockup.dusk(false);
-    const theirs = mockup.town();
+    const hero = townLayout().find((p) => p.id === 'hero')!;
+    const theirs = withB5Hand(mockup.town(), hero.x, hero.y);
     const ours = townPicture().grid;
     expect([ours.w, ours.h]).toEqual([TOWN_W, TOWN_H]);
     expect([theirs.w, theirs.h]).toEqual([TOWN_W, TOWN_H]);

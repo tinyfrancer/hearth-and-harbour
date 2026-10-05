@@ -10,12 +10,23 @@
  */
 import { ARMOURY } from './armoury';
 import { DEPTH } from './depth';
-import type { BodyDef, GearDef } from './figure';
+import type { BodyDef, FigurePart, GearDef } from './figure';
 import { HAIRSTYLE_GEAR } from './hair';
 import { TOWNSFOLK_BODIES, TOWNSFOLK_GEAR } from './townsfolk';
 
-const { CLOAK, HELD_BEHIND, LEGS, FEET, SHIRT, ARMOUR, HAND, BELT, HELD_FRONT, HAIR, SHIELD } =
+const { CLOAK, LEGS, FEET, SHIRT, ARMOUR, HAND, BELT, GRIP, FIST, HELD_FRONT, HAIR, SHIELD } =
   DEPTH;
+
+/**
+ * The weapon hand closed on a grip: four fingers' width and three rows deep,
+ * below the cuff and the wrist, lit from the upper left. Every held thing is
+ * drawn so its grip runs down through these columns (`GRIP`, hidden by the
+ * fingers), something of it shows directly above (a guard, a haft, the bow's
+ * binding) and something directly below (a pommel, a butt). B5 added it:
+ * before, the sleeve ran to the wrist and a guard and a fist-sized grip filled
+ * the rows where the hand should be, so no hand showed at all.
+ */
+export const FIST_PART: FigurePart = { at: [10, 27], depth: FIST, rows: ['sssd', 'ssdd', '.ddd'] };
 
 const STANDARD_BODY: BodyDef = {
   // Standing square to the viewer in linen smallclothes: the left fist
@@ -75,6 +86,7 @@ const STANDARD_BODY: BodyDef = {
         '...ddddd..ddddd',
       ],
     },
+    FIST_PART,
   ],
 };
 
@@ -174,14 +186,17 @@ export const GEAR: readonly GearDef[] = [
     ],
   },
   {
-    // Held up in the left fist: the blade rises behind the shoulder, the
-    // guard and grip sit in front of the hand.
+    // Held up in the left fist: the blade rises past the shoulder in front of
+    // the arm, the guard sits on the wrist above the fist, the grip runs
+    // through the fist and the pommel shows below it. (B5 changed the
+    // approved hero here, at the owner's request: the blade was behind the
+    // arm and the grip, as wide as a fist, stood where the hand should be.)
     id: 'iron_sword',
     slot: 'weapon',
     parts: [
       {
         at: [3, 0],
-        depth: HELD_BEHIND,
+        depth: HELD_FRONT,
         rows: [
           'm',
           'Mm',
@@ -211,11 +226,9 @@ export const GEAR: readonly GearDef[] = [
           '.......Mm',
         ],
       },
-      {
-        at: [7, 26],
-        depth: HELD_FRONT,
-        rows: ['gggggggG', '....oooO', '....oooO', '....oooO', '.....gG'],
-      },
+      { at: [7, 26], depth: HELD_FRONT, rows: ['gggggggG'] },
+      { at: [11, 27], depth: GRIP, rows: ['oO', 'oO', 'oO'] },
+      { at: [12, 30], depth: HELD_FRONT, rows: ['gG'] },
     ],
   },
   {

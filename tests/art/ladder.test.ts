@@ -198,7 +198,7 @@ describe('an empty hand', () => {
     const atEase = dress('standard_at_ease', []);
     for (let y = 0; y < standard.h; y++)
       for (let x = 0; x < standard.w; x++) {
-        const inArm = x >= 10 && x <= 16 && y >= 22 && y <= 27;
+        const inArm = x >= 10 && x <= 16 && y >= 22 && y <= 29;
         if (!inArm) expect(get(atEase, x, y), `${x},${y}`).toBe(get(standard, x, y));
       }
     // No fist hangs below the sleeve at the hip.
