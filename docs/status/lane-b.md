@@ -1,7 +1,6 @@
 # Lane B: art
 
-**Next session: B6: Dungeon tiles and monster sprites; what B5 did not reach** (brief to come in
-`docs/lanes.md`, wave 6).
+**Next session: B6: The grotto's look** (brief in `docs/lanes.md`, wave 6).
 
 ## Icons, for lanes A and C (`src/art/icons.ts`)
 

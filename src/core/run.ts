@@ -22,6 +22,16 @@ export interface RunSpoils {
    * character comes round as from any other. Left out, health is unchanged.
    */
   hp?: number;
+  /**
+   * Kills in the run, by monster id. Not counted yet: S10 makes them count
+   * towards the bestiary and a held bounty.
+   */
+  kills?: Readonly<Record<string, number>>;
+  /**
+   * The dungeon's id, if the run cleared it (reached the end with the boss
+   * down). Not recorded yet: S10 keeps the clears, and S16 unlocks by them.
+   */
+  cleared?: string;
 }
 
 const whole = (value: number | undefined): number =>

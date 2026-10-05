@@ -145,3 +145,12 @@ export function itemIcon(itemId: string): Element | null {
 export function skillIcon(skillId: string): Element | null {
   return iconElement(skillIconPicture(skillId));
 }
+
+/**
+ * A picture for one of the app's bottom tabs (`skills`, `bank`, `character`,
+ * `town`, `menu`), or null until art has drawn it. The tab bar keeps its old
+ * one-colour glyph for a tab that answers null.
+ */
+export function tabIcon(_tabId: string): Element | null {
+  return null;
+}
