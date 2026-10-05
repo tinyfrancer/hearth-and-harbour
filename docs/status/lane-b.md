@@ -419,7 +419,12 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
-- Nothing. (`.card-head` is centred as of PR #24.)
+- **Lane A, `tests/ui/combat.test.ts` (the test "lists every monster with its level...")** asserts
+  that the dock rat has no face yet (`.portrait.blank` reading "D"). B5 draws it, so that test
+  fails once B5 is in. Suggested replacement for its last two lines, checked locally (13 of 13
+  pass): a drawn face shows (`rat.querySelector('.portrait:not(.blank) .portrait-art')` is not
+  null) and a monster with no face yet still gets the initial
+  (`[data-monster="goblin_poacher"] .portrait.blank` reads "G").
 
 ## Notes for this lane's next session
 
