@@ -135,6 +135,34 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B5: Hands, then the new items, then faces.** (in progress)
+  - **What was wrong with the hands** (written from the layer-by-layer renders at 8x and the real
+    game's town and sheet, before any pixel changed; review sheets outside the repo in
+    `/home/claude/lane-shots/wave5-b/`, `hands-diagnosis.png` first):
+    - Swords and axes (the hero's long sword, `bronze_sword`, `iron_sword`, `bronze_axe`,
+      `iron_axe`): **there was no hand.** The standard body's weapon hand is skin in rows 22 to 26,
+      but every tunic's sleeve covers it down to row 25, and each weapon's front part (guard and
+      grip, `HELD_FRONT`) started at row 26 and covered the one row of skin left. Not one skin
+      pixel of the weapon hand showed (one shadow pixel beside the bronze guard).
+    - In the hand's place stood the grip, drawn **four pixels wide** (`oooO`, or `FXX#` for bronze)
+      and three or four rows deep: exactly a fist's size and place, in brown or grey-brown. It
+      read as a wooden hand or a glove, with the guard on top of it at the cuff.
+    - The blade or haft was **one layer at `HELD_BEHIND`**, behind the body. From the elbow down
+      (rows 17 to 25) the sleeve covered its dark edge, so only a one-pixel sliver showed beside
+      the arm: the weapon went **behind the arm** and reappeared below the cuff as the guard.
+    - The line kinked: the blade reached columns 10 and 11 at row 25, but the grip below the guard
+      was columns 11 to 14, two pixels to the right, so no straight weapon passed through any hand.
+    - Bows: a hand did show (two rows of skin), with the stave behind it and a pixel of binding
+      above and below, so they were closest to right; but the hand was only two rows deep and the
+      grip sat at the top of the stave's curve rather than its middle.
+    - Shields: correct already. The hand they are strapped to is wholly hidden behind them, on
+      both bodies.
+    - The pirate's cutlass: his hand rests on top of the guard with the blade point down in front
+      of his coat; nothing covers the hand and it reads as held. The trader's hand is over her
+      basket. Both left as approved.
+    - At game scale in the town, by day and dusk, facing either way, all of this showed as a
+      brown block under the sleeve and a blade beside the arm: what Cody saw.
+
 - **B4: Icons, and the hatchet.** New art, not yet reviewed by Cody. Review sheets are outside
   the repo in `/home/claude/lane-shots/wave4-b/`.
   - The hatchet (`bronze_axe` worn, layer `bronze_hatchet`): five candidates in two rounds,

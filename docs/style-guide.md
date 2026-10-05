@@ -84,8 +84,8 @@ These rules exist because the first drafts broke them.
 6. Villains get attitude from silhouette (hat, coat, hook), not from gore.
 
 In code (`src/art/figure.ts`, `src/art/wardrobe.ts`): a figure is a posed body plus gear layers
-chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a depth (cloak and a
-held blade behind the body, clothes and armour on it, shield in front), and the outline goes round
+chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a depth (cloak behind
+the body, clothes and armour on it, what is held and the shield in front), and the outline goes round
 the dressed figure. The standard body stands in linen smallclothes, left fist at the hip where a
 weapon goes and right hand on the hip where a shield goes; every new piece of gear is drawn to fit
 that pose. Its hero outfit is the mock-up's hero, pixel for pixel. Townsfolk whose pose differs
@@ -122,9 +122,9 @@ drawn to.
   skull in a skin-like colour reads as a scalp; one in a hair-like colour reads as a haircut. A
   close cap reads as metal by its shine: a bright ridge over the crown and a riveted rim on a dark
   liner. A wide flat brim reads as a sun hat (B3b's bronze cap leaned to a pith helmet).
-- **Held things sit in the left fist**, along the approved sword's line: a blade or haft rises
-  behind the shoulder and the grip shows where the fist is. A bow is held at its grip, string
-  outward, so the whole stave shows beside the body; the three bows are one drawing in three woods.
+- **Held things sit in the left fist**, by the hand rule below. A bow is held at the middle of its
+  stave, string outward, so the whole stave shows beside the body; the three bows are one drawing
+  in three woods.
 - **A weapon reads by its shape before its colour.** A sword is straight along its centre line,
   even in its steps (a one-pixel step between longer ones reads as a bend), symmetric about a
   midrib, with a point, a guard wider than the blade and a grip in the fist. An axe's head sits at
@@ -144,6 +144,51 @@ drawn to.
   never peach (peach is skin), and set by hand at dusk like the other whites, or they go the
   orange of skin. They are few, larger than one pixel and of uneven sizes, hanging from the cord:
   a string of found things. Many regular ones read as a beaded cuff.
+
+### How things are held
+
+Written in B5, after Cody played wave 4: "weapons seem to be appearing behind the character's
+hand". They were: the sleeve ran down to the wrist, the blade was one layer behind the arm, and
+the guard and a grip as wide as a fist filled the rows where the hand should have been, so no hand
+showed at all, and the weapon seemed to hang from the cuff with its blade tucked behind the arm.
+
+A held thing reads as held when the grip passes **through** a fist, the fingers wrap **over** the
+grip, and the rest of the weapon is clear of the fist and in front of the arm. So every held thing,
+on every body and in every outfit, is layered round the hand in this order, back to front:
+
+1. **Behind the body** (`HELD_BEHIND`): only what really passes behind it, a bowstring. Never a
+   blade, a haft or a limb of the bow.
+2. The body, clothes, armour, belt and a bracelet (`WRIST`).
+3. **The grip** (`GRIP`): the part of the weapon the hand closes on. It runs down through the
+   fist's columns and the fingers cover all of it.
+4. **The fist** (`FIST`): four pixels wide and three deep, lit from the upper left, below the cuff
+   and the wrist (`FIST_PART` in `wardrobe.ts`). It is part of the standard body, so every weapon
+   and the hero share one hand; the hand at rest (`standard_at_ease`) has none. It covers the grip
+   and nothing else of the weapon.
+5. **Everything else of the weapon** (`HELD_FRONT`), in front of forearm and body: the blade,
+   guard or head above the fist, and the pommel or butt below it. A guard sits on the wrist row,
+   directly above the fist; a haft or the bow's binding shows there instead. Something of the
+   weapon always shows directly above the fist and directly below it.
+
+The weapon keeps one line through the hand: blade or haft, grip and pommel lie on one straight
+line that passes through the middle of the fist and leans out towards the top, as the approved
+sword does. The fist is never wider than the line by more than the fingers' wrap, and a grip is
+two pixels wide, never the width of a hand (a fist-wide grip reads as a wooden hand).
+
+A shield is strapped to the forearm: the hand it is strapped to is wholly hidden behind it, with
+or without something in the other hand.
+
+Small things on the weapon arm keep clear of the line: the bracelet's shells hang on the side of
+the cuff towards the body, where a blade passing in front of the forearm does not cover them.
+
+`tests/art/hands.test.ts` holds all of this for every held thing, in every outfit, with and
+without each shield, and holds that the hand shows in every look. The approved hero's sword hand
+changed for it, by 20 pixels (the blade's dark edge in front of the sleeve, a fist where the
+grip block was), at Cody's request; `tests/art/mockup.ts` lists them.
+
+The townsfolk keep their own approved poses: the pirate's hand rests on top of his cutlass's
+guard with the blade point down in front of his coat, and the trader's hand is over her basket.
+Both read as held at game scale, so they were left as approved.
 
 ### Gear ladder
 
