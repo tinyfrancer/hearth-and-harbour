@@ -129,6 +129,8 @@ export function townView(state: GameState, _content: Content, shell?: Shell): Vi
 
   /** Back to town by any way out of a run: the clock and the bars come back, the hero by the boat. */
   const leave = (): void => {
+    // The shell first: starting the clock again draws a frame, and that frame is still the run's.
+    tell(false, false);
     run = null;
     play = {
       ...play,
@@ -137,7 +139,6 @@ export function townView(state: GameState, _content: Content, shell?: Shell): Vi
       heading: null,
       open: null,
     };
-    tell(false, false);
     showTown();
   };
 
