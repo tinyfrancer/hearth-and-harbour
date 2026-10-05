@@ -81,6 +81,10 @@ export const RAMPS = {
   linen: ['#d8caa6', '#ad9d7a', '#7e705a'],
   shell: ['#f6f2ec', '#d8a2b4'],
   pinewood: ['#f0d08a', '#c4964e'],
+  // Leather, the hunter's rung between linen and bronze (B5): a tan that leans
+  // yellow, away from every skin tone's orange, and set by hand at dusk like
+  // bronze, since shifted it goes the plum-brown of brown and deep skin.
+  tan: ['#b89058', '#836434', '#56401f'],
   willow: ['#e4ddcc', '#aca390'],
 
   // Icons (icons.ts). Bark tells the three logs apart: pine's is the warm
@@ -263,7 +267,8 @@ export const DAY: Palette = makePalette('day', DAY_SHIFT, false, { ink1: '#1a122
  * the sea's crests, gold, polished metal, the whites of eyes, sails) were
  * set by hand in the approved mock-up so they still catch the light instead
  * of going muddy. Bronze is set by hand at every step: shifted, it drifts
- * into the plum-brown of skin at dusk; kept olive, it stays metal. Shells
+ * into the plum-brown of skin at dusk; kept olive, it stays metal. Leather
+ * (`tan`) is set by hand for the same reason. Shells
  * are pale things that catch the light, like the whites of eyes: shifted,
  * they go the orange of skin at dusk.
  */
@@ -282,6 +287,9 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   bronze3: '#6c6036',
   bronze4: '#3e3a28',
   bronze5: '#f2ecd8',
+  tan1: '#a08a58',
+  tan2: '#6e5c36',
+  tan3: '#463a24',
   shell1: '#ece4e6',
   shell2: '#b88aa0',
   white1: '#efe4f0',
