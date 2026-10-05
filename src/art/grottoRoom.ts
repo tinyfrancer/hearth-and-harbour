@@ -4,6 +4,7 @@
  * at dusk, not one tile at a time. Lane C lays out the real rooms; this is
  * the art lane's own test room, and the picture of how the pieces join.
  */
+import { DEFAULT_LOOK, characterPicture } from './character';
 import { dungeonProp, dungeonTile, foePicture } from './dungeonArt';
 import { blit, ellipse, grid, type Grid } from './grid';
 import type { Shade } from './palette';
@@ -54,6 +55,30 @@ export const TEST_ROOM: readonly string[] = [
   '#====~~~=======p=======#',
   '#==============p=======#',
   '########################',
+];
+
+/**
+ * Who and what stands in the test room for the gallery: the whole cast,
+ * spread out so each is seen whole, two lanterns lit, the props about.
+ */
+export const TEST_ROOM_PLACED: readonly Placed[] = [
+  { kind: 'prop', id: 'lantern', x: 40, y: 62 },
+  { kind: 'prop', id: 'lantern', x: 290, y: 66 },
+  { kind: 'prop', id: 'brig_bars', x: 108, y: 63 },
+  { kind: 'prop', id: 'cannon', x: 205, y: 56 },
+  { kind: 'prop', id: 'treasure_chest', x: 256, y: 50 },
+  { kind: 'prop', id: 'powder_keg', x: 340, y: 50 },
+  { kind: 'prop', id: 'powder_keg', x: 352, y: 56 },
+  { kind: 'prop', id: 'anchor', x: 92, y: 140 },
+  { kind: 'prop', id: 'rope_coil', x: 40, y: 138 },
+  { kind: 'foe', id: 'smuggler', x: 58, y: 104 },
+  { kind: 'foe', id: 'dock_rat', x: 100, y: 120 },
+  { kind: 'foe', id: 'deckhand', x: 222, y: 92 },
+  { kind: 'foe', id: 'sand_crab', x: 168, y: 134 },
+  { kind: 'foe', id: 'ships_parrot', x: 250, y: 124 },
+  { kind: 'foe', id: 'brinebeard', x: 305, y: 120 },
+  { kind: 'foe', id: 'powder_monkey', x: 352, y: 104 },
+  { kind: 'foe', id: 'giant_crab', x: 120, y: 170 },
 ];
 
 /** Each cell's tile kind, rock resolved to its face or its top. */
@@ -152,5 +177,83 @@ export function roomPicture(
   }
   standing.sort((a, b) => a.base - b.base);
   for (const s of standing) blit(g, s.pic, s.x, s.y);
+  return picture(g, glows);
+}
+
+/** The hero as the gallery stands him among the cast: a town guard in iron. */
+const heroInIron = (): Picture =>
+  characterPicture(DEFAULT_LOOK, ['iron_sword', 'iron_helmet', 'iron_breastplate']);
+
+/** The test room with the whole cast in it, the hero among them and the lanterns lit. */
+export function grottoRoomPlate(): Picture {
+  return roomPicture(TEST_ROOM, [
+    ...TEST_ROOM_PLACED,
+    { kind: 'picture', id: 'hero', x: 158, y: 108, pic: heroInIron(), feet: { x: 20, y: 47 } },
+  ]);
+}
+
+/** Each tile kind laid three by two, every cell a different variant, with a gap between kinds. */
+export function grottoTilesPlate(): Picture {
+  const kinds = [
+    'sand',
+    'wet_sand',
+    'rock_floor',
+    'shallows',
+    'deep_water',
+    'wall_top',
+    'wall_face',
+    'planks',
+    'door_barred',
+    'door_open',
+  ] as const;
+  const fieldW = 3 * TILE_SIZE;
+  const fieldH = 2 * TILE_SIZE;
+  const gap = 6;
+  const g = grid(5 * fieldW + 4 * gap, 2 * fieldH + gap);
+  kinds.forEach((kind, k) => {
+    const x0 = (k % 5) * (fieldW + gap);
+    const y0 = Math.floor(k / 5) * (fieldH + gap);
+    for (let r = 0; r < 2; r++)
+      for (let c = 0; c < 3; c++) {
+        const t = dungeonTile('grotto', kind, k * 13 + r * 3 + c);
+        if (t) blit(g, t.grid, x0 + c * TILE_SIZE, y0 + r * TILE_SIZE);
+      }
+  });
+  return picture(g);
+}
+
+/** The hero and then the cast, standing on one line, each facing right. */
+export function grottoCastPlate(ids: readonly string[]): Picture {
+  const hero = heroInIron();
+  const foes = ids.map((id) => foePicture(id)).filter((f): f is NonNullable<typeof f> => !!f);
+  const ground = Math.max(47, ...foes.map((f) => f.feet.y));
+  const w = 42 + foes.reduce((n, f) => n + f.picture.grid.w + 4, 0);
+  const g = grid(w, ground + 3);
+  const glows: Glow[] = [];
+  blit(g, hero.grid, 0, ground - 47);
+  let x = 42;
+  for (const f of foes) {
+    const y = ground - f.feet.y;
+    blit(g, f.picture.grid, x, y);
+    for (const l of f.picture.glows) glows.push({ ...l, x: l.x + x, y: l.y + y });
+    x += f.picture.grid.w + 4;
+  }
+  return picture(g, glows);
+}
+
+/** Every prop on one line, standing on its base. */
+export function grottoPropsPlate(ids: readonly string[]): Picture {
+  const props = ids.map((id) => dungeonProp('grotto', id)).filter((p) => !!p);
+  const ground = Math.max(...props.map((p) => p.base));
+  const w = props.reduce((n, p) => n + p.picture.grid.w + 4, 0);
+  const g = grid(w, ground + 2);
+  const glows: Glow[] = [];
+  let x = 0;
+  for (const p of props) {
+    const y = ground - p.base;
+    blit(g, p.picture.grid, x, y);
+    for (const l of p.picture.glows) glows.push({ ...l, x: l.x + x, y: l.y + y, radius: 14 });
+    x += p.picture.grid.w + 4;
+  }
   return picture(g, glows);
 }

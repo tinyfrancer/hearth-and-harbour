@@ -8,6 +8,7 @@ describe('artGallery', () => {
     const page = artGallery();
     const titles = [...page.querySelectorAll('h2')].map((h) => h.textContent);
     expect(titles).toEqual([
+      'Brinebeard’s Grotto',
       'Portraits',
       'Icons',
       'Wardrobe',
