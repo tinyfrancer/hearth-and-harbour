@@ -96,13 +96,13 @@ const BRONZE_SWORD: readonly string[] = [
   '............12523',
   '...........12523',
   '..........1253',
-  '.........1253',
-  '.....12..153',
-  '......32153',
-  '.......32',
-  '.......X32',
-  '......X#.32',
-  '.....X#...3',
+  '.....13..1253',
+  '......23.153',
+  '.......2353',
+  '........23',
+  '.......X.23',
+  '......X#..23',
+  '.....X#',
   '....X#',
   '..12#',
   '..23',
@@ -134,15 +134,14 @@ const IRON_SWORD: readonly string[] = [
 // Helmets. Bronze: a close cap, a bright ridge over the crown, a riveted rim
 // on a hide liner. Iron: a conical helm with a nasal, dark inside.
 const BRONZE_HELMET: readonly string[] = [
-  '......115223',
-  '....1111522223',
-  '...11111522222.3',
-  '..1111115222223',
-  '.11111115222223',
-  '.11111115222223',
-  '1111111152222233',
-  '1111111152222233',
-  '313131313131313',
+  '......12523',
+  '....112252233',
+  '...11222522233',
+  '..1122225222233',
+  '.112222252222334',
+  '.112222252222334',
+  '11222222522222334',
+  '31313131313131313',
   'FXXXXXXXXXXXXXXX#',
   '.###############',
 ];
@@ -213,21 +212,22 @@ const IRON_SHIELD: readonly string[] = [
 // Body. Bronze: a hide jerkin with one bronze disc on the chest and tabs
 // below the belt. Iron: a mail shirt with short sleeves, rows of rings.
 const BRONZE_BODY: readonly string[] = [
-  '...FXX....XX#',
-  '..FXXXX..XXXX#',
-  '..FXXXXOOXXXX#',
-  '..FXXXXXOXXXX#',
-  '.FXXXXXXXXXXXX#',
-  'FXXXXX1122XXXXX#',
-  'FXXXX112223XXXX#',
-  'FXXXX125223XXXX#',
-  'FXXXX122233XXXX#',
-  'FXXXX222334XXXX#',
-  'FXXXXX2334XXXXX#',
-  'F##############F',
-  'FXXXXXXXXXXXXXX#',
-  'FX#FX#FX#FX#FX##',
-  'F#.F#.F#.F#.F#.#',
+  '...FXXX....XXX#',
+  '...FXXX....XXX#',
+  '...FXXXO..OXXX#',
+  '...FXXXXOOXXXX#',
+  '..FXXXXXOOXXXXX#',
+  '.FXXXXXXXXXXXXXX#',
+  'FXXXXXX1122XXXXXX#',
+  'FXXXXX112223XXXXX#',
+  'FXXXXX125223XXXXX#',
+  'FXXXXX122233XXXXX#',
+  'FXXXXX222334XXXXX#',
+  'FXXXXXX2334XXXXXX#',
+  'F################F',
+  'FXXXXXXXXXXXXXXXX#',
+  'FX#FX#FX#FX#FX#FX#',
+  'F#.F#.F#.F#.F#.F#',
 ];
 
 const IRON_BODY: readonly string[] = [
@@ -272,21 +272,23 @@ const LINEN_TUNIC: readonly string[] = [
 ];
 
 const LINEN_TROUSERS: readonly string[] = [
-  'IIIIIIOOIIIIII',
-  'lllllllLLLLLLL',
-  'lllllllLLLLLLL',
-  'llllllLlLLLLLL',
-  'lllllL..lLLLLL',
-  'lllllL..lLLLLL',
-  'lllllL..lLLLLL',
-  'llllLL..lLLLLI',
-  'llllLL..lLLLLI',
-  'llllLL..lLLLLI',
-  'IlllLL..lLLLII',
-  'lIllLL..lILLLI',
-  'llIlLL..lLILLI',
-  'lllIIL..lLLIII',
-  'IIIIII..IIIIII',
+  'IIIIIIIOOIIIIIII',
+  'llllllllLLLLLLLL',
+  'llllllllLLLLLLLL',
+  'lllllllLlLLLLLLL',
+  'llllllL..lLLLLLL',
+  'llllllL..lLLLLLL',
+  'llllllL..lLLLLLL',
+  'lllllLL..lLLLLLI',
+  'lllllLL..lLLLLLI',
+  'lllllLL..lLLLLLI',
+  'llllLLL..lLLLLLI',
+  'IlllLLL..lLLLLII',
+  'lIllLLL..lILLLLI',
+  'llIlLLL..lLILLLI',
+  'lllIlLL..lLLILLI',
+  'llllILL..lLLLIII',
+  'IIIIIII..IIIIIII',
 ];
 
 const LINEN_HOOD: readonly string[] = [
@@ -494,18 +496,21 @@ const FLETCH: Legend = {
 // ---------------------------------------------------------------------------
 // Cloth and string.
 const LINEN_CLOTH: readonly string[] = [
-  '....lllOllllllllllL',
-  '...llllOlllllllllLLL',
-  '..lLLLLOLLLLLLLLLLLI',
-  '...IIIIOIIIIIIIIIII',
-  '..lllllOllllllllllL',
-  '.llllllOlllllllllllLL',
-  '.lLLLLLOLLLLLLLLLLLLI',
-  '..IIIIIOIIIIIIIIIIII',
-  '...llllOllllllllllllL',
-  '..lllllOlllllllllllllL',
-  '..lLLLLOLLLLLLLLLLLLLI',
-  '...IIIIOIIIIIIIIIIIII',
+  '....llllllllllllll',
+  '...llllllllllllllLL',
+  '..llllllllllllllLLLL',
+  '.LLLLLLLLLLLLLLLLLLLl',
+  '.IIIIIIIIIIIIIIIIIIIL',
+  '..llllllllllllllllllL',
+  '.lLLLLLLLLLLLLLLLLLLLl',
+  '.IIIIIIIIIIIIIIIIIIIlL',
+  '..lllllllllllllllllllL',
+  '.lLLLLLLLLLLLLLLLLLLlLI',
+  '.IIIIIIIIIIIIIIIIIIIlLI',
+  '...................lLI',
+  '..................lLLI',
+  '..................LLI',
+  '...................I',
 ];
 
 const BOWSTRING: readonly string[] = [
@@ -551,10 +556,34 @@ const VIAL_BODY: readonly string[] = [
   '.....c',
 ];
 
-const CORK = ['.....sS', '....ssSS', '....sSSS', '....nnnn'];
-const WAX = ['....rrR', '...rrrRR', '...rRrRR', '...rnRnR'];
-const CAP = ['...ggggG', '..gggggGG', '..GGGGGGG', '....nnnn'];
-const WICK = ['.....f', '....fF', '.....k', '....NNNN'];
+// prettier-ignore
+const CORK: readonly string[] = [
+  '.....sS',
+  '....ssSS',
+  '....sSSS',
+  '....nnnn',
+];
+// prettier-ignore
+const WAX: readonly string[] = [
+  '....rrR',
+  '...rrrRR',
+  '...rRrRR',
+  '...rnRnR',
+];
+// prettier-ignore
+const CAP: readonly string[] = [
+  '...ggggG',
+  '..gggggGG',
+  '..GGGGGGG',
+  '....nnnn',
+];
+// prettier-ignore
+const WICK: readonly string[] = [
+  '.....f',
+  '....fF',
+  '.....k',
+  '....NNNN',
+];
 
 const potion = (top: readonly string[], body: Legend): IconDef => ({
   rows: [...top, ...VIAL_BODY],
@@ -575,12 +604,13 @@ const potion = (top: readonly string[], body: Legend): IconDef => ({
   },
 });
 
-const liquid = (ramp: 'tonic' | 'draught' | 'tincture' | 'midnight'): Legend => ({
-  a: `${ramp}1`,
-  b: `${ramp}2`,
-  c: `${ramp}3`,
-  r: `${ramp}3`,
-} as Legend);
+const liquid = (ramp: 'tonic' | 'draught' | 'tincture' | 'midnight'): Legend =>
+  ({
+    a: `${ramp}1`,
+    b: `${ramp}2`,
+    c: `${ramp}3`,
+    r: `${ramp}3`,
+  }) as Legend;
 
 // ---------------------------------------------------------------------------
 

@@ -6,7 +6,6 @@
  * side, lit from the upper left like everything else.
  */
 import { blit, grid, outline, parseSprite, type Grid, type Legend } from './grid';
-import type { Glow } from './raster';
 
 /** The drawing area inside the outline. */
 export const ICON_INNER = 22;
@@ -16,8 +15,6 @@ export const ICON_SIZE = ICON_INNER + 2;
 export interface IconDef {
   readonly rows: readonly string[];
   readonly legend: Legend;
-  /** Lights in it, in the outlined icon's pixels (a lit wick, a glowing cap). */
-  readonly glows?: readonly Glow[];
 }
 
 /** A family's drawing in one of its materials: each key character swapped for another. */

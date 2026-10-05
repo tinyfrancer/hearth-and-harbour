@@ -180,16 +180,16 @@ const TIN_ORE: readonly string[] = [
 
 const IRON_ORE: readonly string[] = [
   '.....aaaaaa',
-  '...aaaayaaaaa',
-  '.aaxaaaaaaaaaac',
-  'aaaaaaaaayaaaccc',
-  'bbaaaaaaaaaacccc',
-  'bbbbbaaaaaaccxccc',
-  'bbbbbbbybbcccccccc',
-  'bybbbbbbbbccycccc',
-  'bbbbbxbbbbcccccxcc',
-  '.bbbbbbbbbcyccccc',
-  '..bbbybbbbcccccc',
+  '...aaaaMmaaaa',
+  '.aaaaaaammaaaac',
+  'aaaaaaaaaaaaaccc',
+  'bbaaaaaaaaaaaMcmc',
+  'bbbbbaaaaaacccmmc',
+  'bbMmbbbbbbcccccccc',
+  'bbmmbbbbbbcccccccc',
+  'bbbbbbbbbbccccMccc',
+  '.bbbbbbMbbcccccccc',
+  '..bbbbbmmbcccccc',
   '...bbbbbbbccccc',
 ];
 
@@ -257,9 +257,12 @@ const SAGELEAF: readonly string[] = [
   '.aabbc.sabbc...',
   '.abbbcs.bcc....',
   '..bcc.s........',
-  '.....s.........',
-  '....s..........',
-  '...s...........',
+  '.....s.aab.....',
+  '....s.aabbc....',
+  '...s..abbc.....',
+  '..s....cc......',
+  '.s.............',
+  's..............',
 ];
 
 const GLOWCAP: readonly string[] = [
@@ -312,7 +315,14 @@ export const ITEM_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   }),
   raw_shrimp: {
     rows: SHRIMP,
-    legend: { a: 'shrimpraw1', b: 'shrimpraw2', c: 'shrimpraw3', t: 'shrimpraw3', l: 'shrimpraw3', k: 'ink1' },
+    legend: {
+      a: 'shrimpraw1',
+      b: 'shrimpraw2',
+      c: 'shrimpraw3',
+      t: 'shrimpraw3',
+      l: 'shrimpraw3',
+      k: 'ink1',
+    },
   },
   raw_herring: { rows: HERRING, legend: RAW_FISH },
   raw_cod: { rows: COD, legend: RAW_COD },
@@ -340,7 +350,7 @@ export const ITEM_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   },
   iron_ore: {
     rows: IRON_ORE,
-    legend: { a: 'rust1', b: 'rust2', c: 'rust3', x: 'metal2', y: 'wood4' },
+    legend: { a: 'rust1', b: 'rust2', c: 'rust3', M: 'metal1', m: 'metal3' },
   },
   bronze_bar: {
     rows: BAR,
