@@ -55,20 +55,23 @@ const OUTFITS: readonly (readonly string[])[] = [
   ['short_hair', 'linen_tunic', 'linen_trousers', 'leather_boots', 'leather_belt', 'linen_hood'],
   [...EVERYDAY, 'bronze_jerkin', 'bronze_cap', 'shell_bracelet', 'shell_necklace'],
   [...EVERYDAY, 'iron_mail', 'iron_nasal_helm', 'arrow_quiver'],
+  [...EVERYDAY, 'leather_jerkin', 'leather_cap', 'leather_bracers', 'trollstone'],
   HERO_OUTFIT.filter((id) => id !== 'iron_sword'),
 ];
 const isBow = (g: GearDef) => g.id.endsWith('_shortbow');
 
 describe('the hand rule', () => {
-  it('covers every held thing: the knight’s sword, the swords, the axes and the bows', () => {
+  it('covers every held thing: the knight’s sword, the swords, axes, club and bows', () => {
     expect(HELD.map((g) => g.id).sort()).toEqual([
       'bronze_hatchet',
       'bronze_shortsword',
+      'cudgel',
       'iron_arming_sword',
       'iron_bearded_axe',
       'iron_sword',
       'oak_shortbow',
       'pine_shortbow',
+      'smugglers_cutlass',
       'willow_shortbow',
     ]);
   });
@@ -183,7 +186,15 @@ describe('the hand rule', () => {
   });
 
   it('shows a hand on the character holding anything, in any look', () => {
-    for (const held of ['bronze_sword', 'iron_sword', 'bronze_axe', 'iron_axe', 'oak_shortbow']) {
+    for (const held of [
+      'bronze_sword',
+      'iron_sword',
+      'bronze_axe',
+      'iron_axe',
+      'oak_shortbow',
+      'cudgel',
+      'smugglers_cutlass',
+    ]) {
       const g: Grid = characterPicture(DEFAULT_LOOK, [held, 'iron_breastplate']).grid;
       // The fist, one pixel in on the outlined picture.
       const skin = FIST.filter(([x, y]) => get(g, x + 1, y + 1)?.startsWith('skin'));

@@ -18,6 +18,7 @@ import { DAY, DUSK, RAMPS, rgbOf, type Shade } from '../../src/art/palette';
 
 const RUNGS = {
   linen: ['linen_hood', 'linen_tunic', 'linen_trousers'],
+  leather: ['leather_cap', 'leather_jerkin', 'leather_bracers'],
   bronze: ['bronze_helmet', 'bronze_breastplate', 'bronze_shield'],
   iron: ['iron_helmet', 'iron_breastplate', 'iron_shield'],
 } as const;
@@ -111,6 +112,35 @@ function distance(a: string, b: string): number {
   return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
 }
 
+describe('leather', () => {
+  const steps = (ramp: keyof typeof RAMPS) => RAMPS[ramp].map((_, i) => `${ramp}${i + 1}` as Shade);
+  const skins: Shade[] = [
+    'skin1',
+    'skin2',
+    ...(['skinpale', 'skingolden', 'skinbrown', 'skindeep'] as const).flatMap((r) =>
+      steps(r).slice(0, 2),
+    ),
+  ];
+
+  it('sits between linen and bronze: leather on the chest, head and arms, and no metal', () => {
+    const leather = picture(RUNGS.leather);
+    expect(metal(leather)).toBe(0);
+    const tan = (g: Grid) => g.d.filter((c) => c && /^tan\d$/.test(c)).length;
+    expect(tan(leather)).toBeGreaterThan(100);
+    // Fully armed it covers more in leather than bronze's jerkin covers in metal.
+    expect(tan(leather)).toBeGreaterThan(metal(picture(RUNGS.bronze)));
+  });
+
+  it('cannot be mistaken for skin of any tone, by day or at dusk', () => {
+    for (const palette of [DAY, DUSK])
+      for (const t of steps('tan'))
+        for (const s of skins) {
+          const d = distance(palette.colours[t], palette.colours[s]);
+          expect(d, `${palette.name} ${t} ${s}`).toBeGreaterThan(12);
+        }
+  });
+});
+
 describe('bronze', () => {
   const steps = (ramp: keyof typeof RAMPS) => RAMPS[ramp].map((_, i) => `${ramp}${i + 1}` as Shade);
   const skins: Shade[] = [
@@ -160,7 +190,7 @@ describe('headgear', () => {
   );
 
   it('changes the head’s outline in every look, so it reads as something worn', () => {
-    for (const head of ['bronze_helmet', 'iron_helmet', 'linen_hood']) {
+    for (const head of ['bronze_helmet', 'iron_helmet', 'linen_hood', 'leather_cap']) {
       const bald = picture([], { ...DEFAULT_LOOK, hair: 'bald' });
       for (const look of looks) {
         const g = picture([head], look);

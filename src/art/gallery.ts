@@ -195,7 +195,7 @@ export function artGallery(): HTMLElement {
   }
   part(
     'Wardrobe',
-    'New art, not yet approved. Gear climbs a ladder: tier 1 runs from a villager in linen to a militia volunteer in bronze to a town guard in iron. The approved hero stands where tier 2’s knight will be; no item is drawn with his gear yet. With nothing in hand, the character rests that hand at the belt.',
+    'New art, not yet approved. Gear climbs a ladder: tier 1 runs from a villager in linen to a hunter in leather to a militia volunteer in bronze to a town guard in iron. The approved hero stands where tier 2’s knight will be; no item is drawn with his gear yet. With nothing in hand, the character rests that hand at the belt.',
     el('h3', 'gallery-subhead', 'The gear ladder'),
     ...row(
       [

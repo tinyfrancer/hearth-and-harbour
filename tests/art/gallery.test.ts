@@ -32,11 +32,11 @@ describe('artGallery', () => {
     expect(heads.slice(0, 2)).toEqual(['The gear ladder', 'Each item alone']);
     expect(heads.indexOf('Skin')).toBeGreaterThan(heads.indexOf('Each item alone'));
     const labels = [...wardrobe.querySelectorAll('figcaption')].map((f) => f.textContent);
-    expect(labels[0]).toBe('Linen · Bronze · Iron · Tier 2 (the hero)');
+    expect(labels[0]).toBe('Linen · Leather · Bronze · Iron · Tier 2 (the hero)');
     expect(labels[1]).toBe('Dusk');
     for (const part of ['skin', 'hair', 'hairColour'] as const)
       expect(labels).toContain(LOOK_CHOICES[part].map((c) => c.name).join(' · '));
-    expect(labels).toContain('Bronze · Iron · Linen');
+    expect(labels).toContain('Bronze · Iron · Linen · Leather');
     expect(labels).toContain('Pine shortbow · Oak shortbow · Willow shortbow');
     expect(labels).toContain('Dusk');
   });
@@ -63,7 +63,7 @@ describe('artGallery', () => {
     expect(heads[0]).toBe('Logs');
     expect(heads).toContain('Skills');
     const cells = [...icons.querySelectorAll('.icon-cell')];
-    expect(cells.length).toBe(48 + 13);
+    expect(cells.length).toBe(59 + 13);
     for (const cell of cells) expect(cell.querySelector('canvas')).not.toBeNull();
     expect(cells.map((c) => c.textContent)).toContain('pine logs');
   });

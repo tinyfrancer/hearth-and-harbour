@@ -94,6 +94,13 @@ export const ITEM_LAYERS: Readonly<Record<string, string>> = {
   willow_shortbow: 'willow_shortbow',
   bronze_arrows: 'arrow_quiver',
   iron_arrows: 'arrow_quiver',
+  // S8's leather set and the drops that can be worn (B5).
+  leather_jerkin: 'leather_jerkin',
+  leather_cap: 'leather_cap',
+  leather_bracers: 'leather_bracers',
+  cudgel: 'cudgel',
+  smugglers_cutlass: 'smugglers_cutlass',
+  trollstone: 'trollstone',
 };
 
 /**

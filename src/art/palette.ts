@@ -84,7 +84,7 @@ export const RAMPS = {
   // Leather, the hunter's rung between linen and bronze (B5): a tan that leans
   // yellow, away from every skin tone's orange, and set by hand at dusk like
   // bronze, since shifted it goes the plum-brown of brown and deep skin.
-  tan: ['#b89058', '#836434', '#56401f'],
+  tan: ['#b89058', '#836434', '#584420'],
   willow: ['#e4ddcc', '#aca390'],
 
   // Icons (icons.ts). Bark tells the three logs apart: pine's is the warm

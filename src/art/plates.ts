@@ -184,6 +184,11 @@ export interface Outfit {
 export const WARDROBE_LADDER: readonly Outfit[] = [
   { name: 'Linen', look: DEFAULT_LOOK, items: ['linen_tunic', 'linen_trousers'] },
   {
+    name: 'Leather',
+    look: DEFAULT_LOOK,
+    items: ['leather_cap', 'leather_jerkin', 'leather_bracers', 'oak_shortbow', 'bronze_arrows'],
+  },
+  {
     name: 'Bronze',
     look: DEFAULT_LOOK,
     items: ['bronze_helmet', 'bronze_breastplate', 'bronze_sword', 'bronze_shield'],
@@ -219,6 +224,11 @@ export const WARDROBE_SETS: readonly Outfit[] = [
     name: 'Linen',
     look: { skin: 'pale', hair: 'long', hairColour: 'blonde' },
     items: ['linen_hood', 'linen_tunic', 'linen_trousers', 'shell_necklace', 'shell_bracelet'],
+  },
+  {
+    name: 'Leather',
+    look: { skin: 'deep', hair: 'shaggy', hairColour: 'auburn' },
+    items: ['leather_cap', 'leather_jerkin', 'leather_bracers', 'trollstone', 'cudgel'],
   },
 ];
 
