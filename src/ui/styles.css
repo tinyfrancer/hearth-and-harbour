@@ -352,7 +352,9 @@ button.card:active {
 
 .card-head {
   display: flex;
-  align-items: baseline;
+  /* Centred, not on the baseline: a heading may start with an icon, and a
+     canvas has no baseline to line the other side up with. */
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
