@@ -580,7 +580,7 @@ button.card:active {
 
 .panel.potion h2,
 .potion-text,
-.muted.potion-helped {
+.rate .potion-helped {
   color: var(--violet);
 }
 

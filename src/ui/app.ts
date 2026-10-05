@@ -99,11 +99,18 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     setTimeout(() => note.remove(), TOAST_MS);
   };
 
-  /** A change the player made: take it, keep it, and redraw the screen. */
+  /**
+   * A change the player made: take it, keep it, and redraw the screen. The
+   * screen is the same one, so it stays scrolled where the thumb left it: a
+   * card tapped low on a long page should still be under the thumb after.
+   */
   const act = (next: GameState): void => {
     state = next;
     save();
+    const top = root.querySelector('#screen')?.scrollTop ?? 0;
     render();
+    const screen = root.querySelector('#screen');
+    if (screen) screen.scrollTop = top;
   };
 
   const buildView = (game: GameState): View => {

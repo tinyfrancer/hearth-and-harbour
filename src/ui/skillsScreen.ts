@@ -170,7 +170,9 @@ export function skillPageView(
     const hint = h('span', { class: 'small hint' });
     const progress = bar('action', `${action.name} progress`);
     const mastery = bar('mastery', `${action.name} mastery`);
-    const rate = h('span', { class: 'muted' });
+    const time = h('span', { attrs: { 'data-rate': 'time' } });
+    const xpEach = h('span', { attrs: { 'data-rate': 'xp' } });
+    const rate = h('span', { class: 'muted rate' }, [time, ' · ', xpEach]);
     const owned = h('p', { class: 'muted small' });
     const masteryText = h('span', { class: 'small mastery-level' });
     updates.push((now) => {
@@ -178,9 +180,11 @@ export function skillPageView(
       const potion = potionFor(now, action, content);
       progress.set(now.action?.id === action.id ? now.action.progressMs / duration : 0);
       mastery.set(levelProgress(masteryXp(now, action.id)));
-      // The numbers a potion changes are shown changed, in its colour.
-      rate.textContent = `${formatSeconds(duration)} · ${xpPerCompletion(action, potion)} XP`;
-      rate.classList.toggle('potion-helped', potion !== null);
+      // A number a potion changes is shown changed, in the potion's colour.
+      time.textContent = formatSeconds(duration);
+      time.classList.toggle('potion-helped', potion?.effect.kind === 'speed');
+      xpEach.textContent = `${xpPerCompletion(action, potion)} XP`;
+      xpEach.classList.toggle('potion-helped', potion?.effect.kind === 'xp');
       const level = masteryLevel(now, action.id);
       const quicker = Number(((level - 1) * MASTERY_SPEED_PER_LEVEL * 100).toFixed(1));
       masteryText.textContent =

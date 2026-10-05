@@ -539,9 +539,13 @@ describe('the app shell', () => {
     it('uses a charge a completion, and the action carries on unaided when it runs out', () => {
       const app = begin({ potion: { item: 'sage_tonic', charges: 3 } });
       q<HTMLButtonElement>('[data-skill="woodcutting"]').click();
-      const rate = (): HTMLElement => q('[data-action="chop_pine"] .card-head .muted');
+      const rate = (): HTMLElement => q('[data-action="chop_pine"] .rate');
+      const time = (): HTMLElement => q('[data-action="chop_pine"] [data-rate="time"]');
       expect(rate().textContent).toBe('2.7s · 10 XP');
-      expect(rate().classList).toContain('potion-helped');
+      expect(time().classList).toContain('potion-helped');
+      expect(q('[data-action="chop_pine"] [data-rate="xp"]').classList).not.toContain(
+        'potion-helped',
+      );
       card('chop_pine').click();
       clock += 2700;
       app.tick();
@@ -554,7 +558,7 @@ describe('the app shell', () => {
       expect(root.querySelector('[data-potion]')).toBeNull();
       // Back to plain, less the mastery three chops have earned.
       expect(rate().textContent).toBe('2.99s · 10 XP');
-      expect(rate().classList).not.toContain('potion-helped');
+      expect(time().classList).not.toContain('potion-helped');
       expect(card('chop_pine').getAttribute('aria-pressed')).toBe('true');
       clock += 3000;
       app.tick();
@@ -579,6 +583,21 @@ describe('the app shell', () => {
         item: 'sage_tonic',
         charges: 150,
       });
+    });
+
+    it('shows the XP a potion adds on the cards of the skills it helps', () => {
+      begin({
+        bank: { raw_shrimp: 5 },
+        potion: { item: 'steady_draught', charges: 150 },
+      });
+      q<HTMLButtonElement>('[data-skill="cooking"]').click();
+      expect(q('[data-action="cook_shrimp"] .rate').textContent).toBe('2s · 11 XP');
+      expect(q('[data-action="cook_shrimp"] [data-rate="xp"]').classList).toContain(
+        'potion-helped',
+      );
+      expect(q('[data-action="cook_shrimp"] [data-rate="time"]').classList).not.toContain(
+        'potion-helped',
+      );
     });
 
     it('closes the card when the last of a potion is drunk', () => {
