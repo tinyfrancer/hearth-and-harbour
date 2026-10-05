@@ -79,8 +79,10 @@ function bow(id: string, light: string, dark: string): GearDef {
 /** Bronze: the militia volunteer. Leather and cloth with a little cast metal. */
 const BRONZE: readonly GearDef[] = [
   {
-    // A short leaf blade, widest near the point, cast with its guard; the
-    // grip is bound in hide. It rises only to the shoulder.
+    // A short leaf blade, straight along its centre line: a bright midrib
+    // (the polished step, `5`) between two olive faces, a dark edge on the
+    // shadow side, widest a little below the point. A small cast guard, a
+    // hide-bound grip and a bronze pommel. It rises only to the shoulder.
     id: 'bronze_shortsword',
     slot: 'weapon',
     parts: [
@@ -88,50 +90,53 @@ const BRONZE: readonly GearDef[] = [
         at: [6, 13],
         depth: HELD_BEHIND,
         rows: [
-          '1',
-          '12',
-          '123',
-          '123',
-          '.123',
-          '.12',
-          '.12',
-          '..12',
-          '..12',
-          '..12',
-          '...12',
-          '...12',
-          '...12',
+          '5',
+          '53',
+          '253',
+          '2523',
+          '2523',
+          '.253',
+          '.253',
+          '.253',
+          '..253',
+          '..253',
+          '..253',
+          '...253',
+          '...253',
         ],
       },
       {
-        at: [7, 26],
+        at: [8, 26],
         depth: HELD_FRONT,
-        rows: ['41222334', '....FXX#', '....FXX#', '.....13'],
+        rows: ['412234', '...FXX#', '...FXX#', '....13'],
       },
     ],
   },
   {
-    // A hatchet: a short haft and a small wedge of a head, edge outward.
+    // A hatchet for kindling: the head sits at the very top of a short haft,
+    // which shows above it. Straight along the top, it flares down to a
+    // curved bit with a bright edge; the socket is dark where the wood goes in.
     id: 'bronze_hatchet',
     slot: 'weapon',
     parts: [
       {
-        at: [1, 11],
+        at: [0, 10],
         depth: HELD_BEHIND,
         rows: [
           '......Wo',
-          '.1122234',
-          '11222334',
-          '11223344',
-          '.1234.Wo',
-          '.13...Wo',
+          '.5112344',
+          '522222344',
+          '522233444',
+          '5233..Wo',
+          '.53...Wo',
+          '......Wo',
           '.......Wo',
           '.......Wo',
           '.......Wo',
           '........Wo',
           '........Wo',
           '........Wo',
-          '........Wo',
+          '.........Wo',
           '.........Wo',
           '.........Wo',
         ],
@@ -144,8 +149,9 @@ const BRONZE: readonly GearDef[] = [
     ],
   },
   {
-    // A skullcap: a low bronze dome with a rolled brim wider than the head,
-    // on a dark hide band. The brim is what makes it a hat and not a scalp.
+    // A soldier's cap: a low dome that sits close, a pixel proud of the
+    // skull, with a bright ridge over the crown and a riveted rim on a dark
+    // hide liner. The ridge's shine is what tells it from hair.
     id: 'bronze_cap',
     slot: 'head',
     parts: [
@@ -153,12 +159,12 @@ const BRONZE: readonly GearDef[] = [
         at: [12, 0],
         depth: HELMET,
         rows: [
-          '....211223',
-          '...22112223',
-          '..2221222334',
-          '..2222222334',
-          '33133133133134',
-          '.X##########X',
+          '....215233',
+          '..1122522333',
+          '.112225222334',
+          '.112225222334',
+          '.313131313134',
+          '..#XXXXXXXX#',
         ],
       },
     ],
@@ -479,17 +485,18 @@ const LINEN: readonly GearDef[] = [
 /** Things worn by anyone, on any rung. */
 const TRINKETS: readonly GearDef[] = [
   {
-    // Three shells on a cord at the throat.
+    // Two found shells, one larger, hung from a cord along the collar.
     id: 'shell_necklace',
     slot: 'neck',
-    parts: [{ at: [16, 14], depth: JEWELLERY, rows: ['.O..O', '.bOOb', '..bP', '..PP'] }],
+    parts: [{ at: [16, 14], depth: JEWELLERY, rows: ['O....O', '.OOOO', '.b.bb', '...bP'] }],
   },
   {
-    // White shells strung between dark beads round the left wrist, a pixel
-    // proud of the arm: the beads keep them apart from skin of any tone.
+    // A dark cord round the left wrist, a pixel proud of the arm, with two
+    // shells of different sizes hanging from it: a string of found things,
+    // not a band. The cord keeps the shells apart from skin of any tone.
     id: 'shell_bracelet',
     slot: 'wrist',
-    parts: [{ at: [9, 24], depth: JEWELLERY, rows: ['.bObOb', 'bObObO'] }],
+    parts: [{ at: [9, 24], depth: JEWELLERY, rows: ['OOOOOO', '.bb.P', '.bP'] }],
   },
   {
     // A quiver slung on the back: its mouth and a fan of fletchings rise
@@ -595,7 +602,7 @@ const AT_EASE: readonly GearDef[] = [
   {
     id: 'shell_bracelet_at_ease',
     slot: 'wrist',
-    parts: [{ at: [10, 23], depth: JEWELLERY, rows: ['..bObOb', '.bObObO'] }],
+    parts: [{ at: [10, 23], depth: JEWELLERY, rows: ['..OOOOO', '.OObb.P', '...bP'] }],
   },
 ];
 

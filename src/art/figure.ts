@@ -63,6 +63,7 @@ export const FIGURE_LEGEND: Legend = {
   '2': 'bronze2',
   '3': 'bronze3',
   '4': 'bronze4',
+  '5': 'bronze5',
   l: 'linen1',
   L: 'linen2',
   I: 'linen3',

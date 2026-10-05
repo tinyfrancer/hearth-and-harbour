@@ -1,7 +1,7 @@
 # Lane B: art
 
 **Next session: B4: Icons for every item and skill; portraits** (wave 4, brief still to be
-written). Neither B3 nor B3b reached icons.
+written). Neither B3, B3b nor B3c reached icons.
 
 ## The character, for lanes A and C (`src/art/character.ts`)
 
@@ -125,6 +125,35 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B3c: The wardrobe's third pass.** Cody looked at B3b and asked for work on what was still
+  weak. Four pieces redrawn, each chosen from three or more candidates compared side by side at
+  game scale and twice that, day and dusk (sheets kept outside the repo for his review:
+  `/home/claude/lane-shots/wardrobe-pass-3/`). Ids, layers and exports are unchanged.
+
+  | Item             | Layer               | What it is now                                                                                                |
+  | ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------- |
+  | `bronze_axe`     | `bronze_hatchet`    | head at the very top of a short haft (haft shows above), straight top flaring to a curved bit, dark socket    |
+  | `bronze_helmet`  | `bronze_cap`        | close skullcap a pixel proud of the skull, bright ridge over the crown, riveted rim on a hide liner; no brim  |
+  | `bronze_sword`   | `bronze_shortsword` | straight leaf blade, bright midrib between olive faces, dark shadow edge, evenly stepped; small guard, pommel |
+  | `shell_bracelet` | `shell_bracelet`    | dark cord round the wrist with two shells of different sizes hanging from it (and its at-ease version)        |
+  | `shell_necklace` | `shell_necklace`    | redrawn to match: a cord along the collar with two uneven shells                                              |
+  - Palette: bronze gains a fifth step, `bronze5`, a polished glint for a blade's midrib, an axe's
+    edge and the cap's ridge (the armour's four steps alone made a blade read as yellow plastic);
+    the first four are unchanged. Shells were peach (7.9 CIE76 from pale skin by day, 6.2 at dusk,
+    where they went the orange of skin): now cream and rose, set by hand at dusk like the other
+    whites. Nothing else in the palette changed.
+  - Tests (`tests/art/pieces.test.ts`): the sword's midrib and middle run along one line, step
+    evenly, and the blade is symmetric about the midrib within a pixel with a dark shadow edge, a
+    point and a wider guard; the hatchet's head is at least 12 times the haft's width in pixels,
+    sits at the top with haft above it, has a curved bit edged in the polished step and a dark
+    socket against the wood, and is smaller than the iron axe's head; the cap stays within a pixel
+    of the skull and above the brows, with a ridge and a riveted rim; shells are more than 12 from
+    every skin step by day and dusk, hang from a cord in two or three groups of uneven size in both
+    arm poses, and show on every skin holding something or not. The bronze-versus-skin test now
+    covers `bronze5` too. The old "brim wider than the head" test became "no wider than the head".
+  - Style guide: the polished step, how a close cap reads as metal, what makes a sword and an axe
+    read, and how shells are drawn.
+
 - **B3b: The wardrobe's second pass.** After Cody's first look: gear on a ladder that starts
   simple and climbs, and the weak pieces redrawn. New art, not yet reviewed.
   - The ladder (style guide, "Gear ladder"): linen is a villager, bronze a militia volunteer,
@@ -224,10 +253,11 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 - Portraits (48 × 48): not started (B4).
 - Item and skill icons (24 × 24): not started (B4). B3 did not reach them.
 - The tab icons and home-screen icon are still the S1 placeholders.
-- Wardrobe weak spots for Cody's review (after B3b): the bronze hatchet is the weakest piece (it
-  reads as a hatchet at game scale but is a little flag-like close up); the bronze cap reads as
-  a brimmed metal cap but leans towards a pith helmet; the bracelet is findable but reads as a
-  beaded cuff more than as shells; the linen tunic and trousers are still plain.
+- Wardrobe weak spots for Cody's review (after B3c): the shell bracelet is still the weakest
+  piece. At game scale it is a pale speck on a dark cord at the wrist: findable, and no longer a
+  checked cuff, but "bracelet" rather than "shells" is as far as two or three pixels go. The
+  bronze cap over blonde hair is the next: bronze and blonde are close in colour, and the ridge's
+  shine is what separates them. The linen tunic and trousers are still plain.
 - Tier 2, 3 and 4 gear: tier 2 is the approved hero's layers, waiting for tier 2's items; tiers 3
   and 4 are words in the style guide only.
 - No walk cycle; figures face one way (mirror for the other).
@@ -252,4 +282,6 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   `tests/art/character.test.ts`.
 - Scratch renders: a vitest file under `.shots/` with its own config (environment `node`) can
   rasterize pictures and write PNGs without a browser, which is much faster for iterating on a
-  sprite than the gallery.
+  sprite than the gallery. `eslint .` lints `.shots/` too (it does not read `.gitignore`), so
+  move the folder aside before a local `npm run check`. For "before" pictures, extract `main`'s
+  `src/art` (`git archive origin/main src/art`) into `.shots/` and render from that copy.
