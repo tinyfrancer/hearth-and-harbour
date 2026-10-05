@@ -654,7 +654,7 @@
 
 /* ----- The grotto: the captain's health, the tide, each room's name. ----- */
 
-/* The boss's panel takes the target's place, his phases beside his name. */
+/* The boss's panel takes the target's place, his phases marked on his bar. */
 .fight-boss[hidden],
 .tide-gauge[hidden] {
   display: none;
@@ -663,36 +663,33 @@
 .fight-boss-head {
   display: flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
 }
 
-/* A smaller hand, so the whole of his name fits beside the pips. */
+/* A smaller hand, so the whole of his name fits beside his portrait. */
 .fight-boss-head .fight-target-name {
   flex: 1;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-/* One pip for each phase: spent ones dark, the one he is in bright. */
+/* A notch across the bar where each phase begins: bright ahead of him, dark once passed. */
 .fight-phases {
-  display: flex;
-  flex: none;
-  gap: 3px;
+  position: absolute;
+  inset: 0;
 }
 
 .fight-phases i {
-  width: 8px;
-  height: 8px;
-  background: var(--danger);
-  border: var(--px) solid var(--backdrop);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px;
+  background: var(--gold-bright);
+  border-inline: var(--px) solid var(--backdrop);
 }
 
 .fight-phases i.done {
   background: var(--line);
-}
-
-.fight-phases i.now {
-  background: var(--gold-bright);
 }
 
 .fight-phases i[hidden] {

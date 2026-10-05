@@ -233,6 +233,7 @@ export function dungeonView(options: DungeonViewOptions): View {
   const bossName = h('span', { class: 'fight-target-name' });
   const bossFill = h('span', { class: 'fight-fill' });
   const bossNumbers = h('span', { class: 'fight-numbers' });
+  // His phases as notches across the bar where each begins, so the bar itself says how near the next is.
   const bossPhases = h('span', { class: 'fight-phases', attrs: { 'aria-hidden': 'true' } }, [
     h('i'),
     h('i'),
@@ -245,8 +246,8 @@ export function dungeonView(options: DungeonViewOptions): View {
     [
       bossFace,
       h('span', { class: 'fight-target-body' }, [
-        h('span', { class: 'fight-boss-head' }, [bossName, bossPhases]),
-        h('span', { class: 'fight-track' }, [bossFill, bossNumbers]),
+        h('span', { class: 'fight-boss-head' }, [bossName]),
+        h('span', { class: 'fight-track' }, [bossFill, bossPhases, bossNumbers]),
       ]),
     ],
   );
@@ -482,11 +483,15 @@ export function dungeonView(options: DungeonViewOptions): View {
       }
       fill(bossFill, 'X', fraction(boss.hp, def.hp));
       setText(bossNumbers, `${boss.hp}/${def.hp}`);
-      const phases = foeKind(boss.monster).boss?.phases.length ?? 0;
-      [...bossPhases.children].forEach((pip, i) => {
-        (pip as HTMLElement).hidden = i > phases;
-        pip.classList.toggle('done', i < boss.phase - 1);
-        pip.classList.toggle('now', i === boss.phase - 1);
+      const phases = foeKind(boss.monster).boss?.phases ?? [];
+      [...bossPhases.children].forEach((notch, i) => {
+        const at = phases[i];
+        const el = notch as HTMLElement;
+        el.hidden = at === undefined;
+        if (at === undefined) return;
+        el.style.left = `${(at * 100).toFixed(2)}%`;
+        // Passed once he is into the phase it marks.
+        el.classList.toggle('done', boss.phase > i + 1);
       });
     }
 

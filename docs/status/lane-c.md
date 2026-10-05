@@ -107,7 +107,7 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
     a spyglass into the bank.
   - **On screen**: dusk, lit by lanterns (the hero is lit by the room's lanterns, not the town's);
     a tide gauge beside Leave; the captain's health in the target's place while he stands, with a
-    pip per phase; each room's name for a moment on the way in; what the captain shouts in a
+    notch across his bar where each phase begins; each room's name for a moment on the way in; what the captain shouts in a
     bubble over him. The boat's panel says where it goes and what to bring. Art comes through
     `dungeonTile`, `dungeonProp` and `foePicture`, each falling back to this lane's own drawing on
     null; a sprite of any size drops in (its feet and height taken from the picture for drawing
@@ -120,6 +120,15 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
     pools 90 s, store 61, bridge 97, brig 84, cove 167; the one failure fell to the captain. With
     no reaction delay: 17 of 20, median 8.2 min, the three failures all in the cove. At half
     strength (levels 10, bronze, the same fish): 0 of 20, falling in the brig (12) or the cove (8).
+  - **Seen dressed** after rebasing onto lane B's grotto art (B6), and fixed on this side: each
+    cell asks for its own tile wear (its index in the room); shadows, under props and walkers, in
+    lane B's step for the ground (`GROTTO_SHADOW`); every light taken from the glows in the props'
+    own pictures, so the lanterns light from their flames; the parrot drawn by how far its picture
+    already hovers (perched on its post, down on the ground when it lands); health bars over the
+    top of what is drawn, not the picture's empty rows; the monkey's fuse glow mirrored with him;
+    tap boxes grown to the new figures (deckhand 22 x 44, monkey 18 x 36, parrot 22 x 22, captain
+    36 x 56); and the captain's name fitting beside his portrait at 667 x 375 (phases became
+    notches on the bar). Depth order, the brig's bars and the props' feet sat right as they were.
   - Found on the way: the room's ground is refreshed after each frame as well as before it, so a
     tap in the instant after a room clears walks through its door; `mergeBoxes` leaves apart boxes
     whose union would be mostly empty.
@@ -129,7 +138,9 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
     volleys and the anchor, median 16.7, p95 33.4, worst 50, about 49 fps. The frame callbacks
     take p95 4.6 ms (bridge) and 6.5 ms (cove). Most of each fight frame is the browser copying
     the changed 2532 x 1170 canvas for the compositor, in software here (about 14 ms a frame);
-    `main`'s grey-box rat fight, measured the same way, pays about 12 and just holds 60.
+    `main`'s grey-box rat fight, measured the same way, pays about 12 and just holds 60. Dressed
+    in lane B's art, the same: quiet rooms 60, the bridge fight about 48 fps, the captain's last
+    phase about 46, frame callbacks p95 4.5 and 6.8 ms.
   - Checked in headless Chromium at 844 x 390 and 667 x 375 with a melee character of the
     intended strength, a ranged one (willow bow) and a weak one; screenshots in
     `/home/claude/lane-shots/wave6-c/`.
@@ -342,15 +353,15 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
   attack's circle is drawn over rock as well as floor.
 - Walk cycle.
 - Ship, boat and buoys do not bob; the waterline foam on the ship and rock does not move.
-- The grotto's rooms are flat placeholder colours until lane B draws dungeon tiles (B5).
 
 ## Needs from another lane
 
 - Nothing blocking. For lane B: the store asks `dungeonProp('grotto', 'crate')` and the bridge
   `dungeonProp('grotto', 'perch')` (a mooring post the parrot sits on); neither id is in the
-  fixed list, so both show this lane's own drawing until lane B adds them. Every other tile and
-  prop id in `docs/lanes.md` is used. A foe sprite of any size drops in (`foeSprite` in
-  `foes.ts`); a prop stands on its tile with its `base` row two pixels above the tile's bottom.
+  fixed list, so both show this lane's own drawing beside lane B's art until lane B adds them.
+  Every other tile and prop id in `docs/lanes.md` is used. A foe sprite of any size drops in
+  (`foeSprite` in `foes.ts`); a prop stands on its tile with its `base` row two pixels above the
+  tile's bottom, and whatever glows in its picture lights the room.
 - For lane A, when wanted: the grotto's cast lives in `src/scene/cast.ts`, not the monster
   tables, so `kills` by those ids count for nothing in the bestiary yet (as S10's brief says an
   unknown id should). Saving a run in progress would need a place in the save.

@@ -515,29 +515,33 @@ function riseOf(foe: Foe): number {
   return foe.flight.mode === 'down' ? 0 : FLY_RISE;
 }
 
-const gaps = new Map<string, number>();
+/** A foe picture's first and last rows with anything drawn in them. Measured once a monster. */
+const drawnRows = new Map<string, { top: number; bottom: number }>();
+
+function rowsOf(monster: string): { top: number; bottom: number } {
+  let rows = drawnRows.get(monster);
+  if (!rows) {
+    const { w, h, d } = foeSprite(monster, 'right').picture.grid;
+    const filled = (y: number): boolean => {
+      for (let x = 0; x < w; x++) if (d[y * w + x]) return true;
+      return false;
+    };
+    let top = 0;
+    while (top < h - 1 && !filled(top)) top++;
+    let bottom = h - 1;
+    while (bottom > top && !filled(bottom)) bottom--;
+    rows = { top, bottom };
+    drawnRows.set(monster, rows);
+  }
+  return rows;
+}
 
 /**
  * The empty rows a flier's picture leaves between its body and its feet: the
  * art lane draws a bird already hovering over the ground it stands on.
- * Measured once a monster.
  */
 function gapOf(monster: string): number {
-  let gap = gaps.get(monster);
-  if (gap === undefined) {
-    const { picture: pic, feet } = foeSprite(monster, 'right');
-    const { w, h, d } = pic.grid;
-    let bottom = -1;
-    for (let y = h - 1; y >= 0 && bottom < 0; y--)
-      for (let x = 0; x < w; x++)
-        if (d[y * w + x]) {
-          bottom = y;
-          break;
-        }
-    gap = Math.max(0, feet.y - 1 - bottom);
-    gaps.set(monster, gap);
-  }
-  return gap;
+  return Math.max(0, foeSprite(monster, 'right').feet.y - 1 - rowsOf(monster).bottom);
 }
 
 /** How far a foe's picture is drawn up from where it is: its rise less what its picture already hovers. */
@@ -545,10 +549,11 @@ function liftOf(foe: Foe): number {
   return foe.flight ? riseOf(foe) - gapOf(foe.monster) : 0;
 }
 
-/** How tall a foe stands above its feet, as drawn: its tap box or its picture, whichever is taller. */
+/** How tall a foe stands above its feet, as drawn: its tap box or the top of its picture, whichever is higher. */
 function standsOf(foe: Foe): number {
   const sprite = foeSprite(foe.monster, 'right');
-  return Math.max(foeKind(foe.monster).box.h, sprite.feet.y) + liftOf(foe);
+  const drawn = sprite.feet.y - rowsOf(foe.monster).top;
+  return Math.max(foeKind(foe.monster).box.h, drawn) + liftOf(foe);
 }
 
 /** A foe's health over its head, its blow coming, a parrot's rally on it, and the target's mark. */
