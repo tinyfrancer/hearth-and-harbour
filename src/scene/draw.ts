@@ -111,6 +111,10 @@ export interface Frame {
   readonly actors: readonly Standing[];
   /** Over everything: smoke, gulls. */
   readonly above: readonly Placed[];
+  /** Drawn on the ground after what is laid there, before anyone standing: a fight's marks. */
+  readonly ground?: ((ctx: CanvasRenderingContext2D) => void) | undefined;
+  /** Drawn last, over everything: a fight's health bars and numbers. */
+  readonly over?: ((ctx: CanvasRenderingContext2D) => void) | undefined;
 }
 
 /** The box the end-of-walk marker covers. */
@@ -174,6 +178,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame, patch: Bo
   for (const p of frame.underfoot) if (overlaps(boxOf(p), patch)) ctx.drawImage(p.image, p.x, p.y);
   if (frame.target && overlaps(markerBox(frame.target), patch))
     drawTarget(ctx, frame.target, frame.marker);
+  frame.ground?.(ctx);
   const { boxes, list } = redrawn(frame, patch);
   if (list.length > 0) {
     ctx.save();
@@ -184,6 +189,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame, patch: Bo
     ctx.restore();
   }
   for (const p of frame.above) if (overlaps(boxOf(p), patch)) ctx.drawImage(p.image, p.x, p.y);
+  frame.over?.(ctx);
   ctx.restore();
 }
 

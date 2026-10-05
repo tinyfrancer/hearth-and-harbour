@@ -1,7 +1,9 @@
 /*
- * The first dungeon, grey-boxed: three rooms as tile maps and the doors that
- * join them. There is nothing to fight yet (that waits for the combat rules);
- * this is the shape of a run, to walk from the boat to the far end and back.
+ * The first dungeon, grey-boxed: three rooms as tile maps, the doors that
+ * join them and who waits in each. A gentle first room of rats, a room of two
+ * crabs among the pools, and a smuggler who throws things guarding the end,
+ * with pillars to put between you and him. The grotto's own rooms, tide and
+ * captain are a later session's.
  *
  * Each room is drawn sideways, for a phone on its side: wider than it is
  * tall. In the maps, `#` is rock, `.` floor, `~` water, `s` where the boat
@@ -59,6 +61,20 @@ export const GROTTO: DungeonPlan = {
       '#~~..............~~~~#',
       '#~~~~............~~~~#',
       '##########b###########',
+    ],
+  },
+  foes: {
+    landing: [
+      { monster: 'dock_rat', at: { col: 17, row: 3 } },
+      { monster: 'dock_rat', at: { col: 20, row: 8 } },
+    ],
+    pools: [
+      { monster: 'sand_crab', at: { col: 25, row: 5 } },
+      { monster: 'sand_crab', at: { col: 27, row: 9 } },
+    ],
+    cove: [
+      { monster: 'smuggler', at: { col: 10, row: 3 } },
+      { monster: 'dock_rat', at: { col: 4, row: 8 } },
     ],
   },
 };
