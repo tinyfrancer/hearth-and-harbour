@@ -71,11 +71,15 @@ export const RAMPS = {
   // Gear. Bronze leans yellow-olive, away from every skin tone's orange, with
   // a pale highlight so it reads as metal; it is greener and duller than gold
   // and warm against iron (`metal`). Hide is the militia's leather, a cool
-  // brown that frames bronze and does not read as skin.
-  bronze: ['#efe6b4', '#bba04e', '#7a6532', '#473a22'],
+  // brown that frames bronze and does not read as skin. Bronze's fifth step
+  // is out of order on purpose: a polished glint brighter and cooler than its
+  // first, for the edges and midribs of weapons, which in the armour's steps
+  // alone read as yellow plastic. Shells are cream and rose, kept away from
+  // every skin tone's peach.
+  bronze: ['#efe6b4', '#bba04e', '#7a6532', '#473a22', '#fbfae6'],
   hide: ['#958070', '#64524a', '#40342e'],
   linen: ['#d8caa6', '#ad9d7a', '#7e705a'],
-  shell: ['#fff2ea', '#e8aea4'],
+  shell: ['#f6f2ec', '#d8a2b4'],
   pinewood: ['#f0d08a', '#c4964e'],
   willow: ['#e4ddcc', '#aca390'],
 } as const satisfies Record<string, readonly string[]>;
@@ -100,9 +104,9 @@ export const GUIDE_RAMPS: readonly RampName[] = [
   'navy',
   'fire',
 ];
-type StepNumber = [1, 2, 3, 4];
+type StepNumber = [1, 2, 3, 4, 5];
 type StepsOf<R extends string, T extends readonly string[]> = {
-  [K in keyof T]: K extends `${infer N extends 0 | 1 | 2 | 3}` ? `${R}${StepNumber[N]}` : never;
+  [K in keyof T]: K extends `${infer N extends 0 | 1 | 2 | 3 | 4}` ? `${R}${StepNumber[N]}` : never;
 }[number];
 /** One step of one ramp, named like 'wood2' (steps count from 1, lightest first). */
 export type Shade = { [R in RampName]: StepsOf<R, (typeof RAMPS)[R]> }[RampName];
@@ -232,7 +236,9 @@ export const DAY: Palette = makePalette('day', DAY_SHIFT, false, { ink1: '#1a122
  * the sea's crests, gold, polished metal, the whites of eyes, sails) were
  * set by hand in the approved mock-up so they still catch the light instead
  * of going muddy. Bronze is set by hand at every step: shifted, it drifts
- * into the plum-brown of skin at dusk; kept olive, it stays metal.
+ * into the plum-brown of skin at dusk; kept olive, it stays metal. Shells
+ * are pale things that catch the light, like the whites of eyes: shifted,
+ * they go the orange of skin at dusk.
  */
 export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   ink1: '#150d20',
@@ -248,6 +254,9 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   bronze2: '#a08a4a',
   bronze3: '#6c6036',
   bronze4: '#3e3a28',
+  bronze5: '#f2ecd8',
+  shell1: '#ece4e6',
+  shell2: '#b88aa0',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
 });

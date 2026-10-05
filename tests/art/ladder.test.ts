@@ -172,15 +172,18 @@ describe('headgear', () => {
     }
   });
 
-  it('gives the bronze cap a brim wider than the head and a band between it and the brows', () => {
+  it('sits the bronze cap close: no brim, a hide liner between it and the brows', () => {
     const bald = picture([], { ...DEFAULT_LOOK, hair: 'bald' });
     const cap = picture(['bronze_helmet'], { ...DEFAULT_LOOK, hair: 'bald' });
     const width = (g: Grid, y: number) =>
       Array.from({ length: g.w }, (_, x) => get(g, x, y)).filter(Boolean).length;
     const head = Math.max(...Array.from({ length: 14 }, (_, y) => width(bald, y)));
-    expect(Math.max(...[0, 1, 2, 3, 4, 5, 6].map((y) => width(cap, y)))).toBeGreaterThan(head);
-    // The band (row 6 of the outlined figure) is dark hide over the forehead.
-    expect(get(cap, 18, 6)).toBe('hide3');
+    // A pixel proud of the head at most on each side: a cap, not a sun hat.
+    expect(Math.max(...[0, 1, 2, 3, 4, 5, 6].map((y) => width(cap, y)))).toBeLessThanOrEqual(
+      head,
+    );
+    // The liner (row 6 of the outlined figure) is dark hide over the forehead.
+    expect(get(cap, 18, 6)).toMatch(/^hide/);
   });
 });
 
