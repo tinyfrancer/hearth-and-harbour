@@ -1,8 +1,7 @@
 # Lane C: scenes
 
-**Next session: S12c: The player's own look and gear in town** (wave 4), once lane A's S7b
-(equipment and the look) and lane B's B3 (the wardrobe) are on `main`. Then S14, the dungeon
-engine, which needs lane A's S8.
+**Next session: S12c and S14a: your own character in town, and the dungeon's shell** (brief in
+`docs/lanes.md`, wave 4).
 
 ## The town's map
 

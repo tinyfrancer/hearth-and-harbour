@@ -52,6 +52,8 @@ function shellSpy(): Shell & { calls: string[] } {
     calls,
     openTab: (tab) => calls.push(`tab:${tab}`),
     openSkill: (id) => calls.push(`skill:${id}`),
+    pauseIdle: (on) => calls.push(`pause:${on}`),
+    fullScreen: (on) => calls.push(`full:${on}`),
   };
 }
 

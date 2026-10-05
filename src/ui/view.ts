@@ -23,4 +23,17 @@ export interface Shell {
   openTab(tab: TabId): void;
   /** Open the Skills tab on one skill's page. An unknown id opens the list. */
   openSkill(skillId: string): void;
+  /**
+   * Stop the idle game's clock, or start it again. While a dungeon run is on,
+   * the idle task waits: no time passes for it and none is owed afterwards.
+   * Leaving the Town tab always starts the clock again.
+   */
+  pauseIdle(paused: boolean): void;
+  /**
+   * Hide the top bar and the tabs so a scene has the whole screen (dungeons
+   * are played sideways, where the bars would take half the height). Leaving
+   * the Town tab always brings them back; a full-screen scene must offer its
+   * own way out.
+   */
+  fullScreen(on: boolean): void;
 }

@@ -152,6 +152,16 @@ h2 {
   -webkit-overflow-scrolling: touch;
 }
 
+/* A full-screen scene: the bars go, and the app may be as wide as the screen. */
+#app.fullscreen {
+  max-width: none;
+}
+
+#app.fullscreen .topbar,
+#app.fullscreen .tabbar {
+  display: none;
+}
+
 /* A scene fills its screen edge to edge and is tapped, not scrolled. */
 .screen[data-tab='town'] {
   position: relative;
