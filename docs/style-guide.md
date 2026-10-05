@@ -198,6 +198,7 @@ from across the town. One rung per stage of the game:
 | Rung                                   | Who                     | What it is                                                                                                                                                                                |
 | -------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Linen (start of tier 1)                | A villager              | Undyed linen tunic, trousers and hood. No metal. Nothing held: the hand rests at the belt.                                                                                                |
+| Leather (tier 1, a side rung)          | A hunter or woodsman    | A snug tan cap with ear flaps and a stitched seam; a tan jerkin laced with linen cord, its skirt in tabs; laced cuffs on both forearms; a bow. No metal.                                  |
 | Bronze (tier 1, early)                 | A militia volunteer     | A close bronze skullcap with a ridge and a riveted rim; a hide jerkin over the tunic with one bronze disc; a small round wooden shield with a bronze boss; a short leaf blade; a hatchet. |
 | Iron (tier 1, late)                    | A town guard            | A conical helm with a nasal; a mail shirt to the thigh, sleeves to the elbow, no pauldrons; a plain iron heater; a straight arming sword; a bearded axe. One metal, no gold.              |
 | Tier 2 (opened by Brinebeard's Grotto) | The knight              | The approved hero: plate with pauldrons and knee cops, the kite shield with its cross, the long raised sword with a gilt guard, the red cloak. Drawn; waiting for tier 2's items.         |
@@ -224,6 +225,14 @@ What grows from rung to rung, and the rules that hold it:
   specular on every plate; tier 4 adds glows at dusk.
 - **A rung never borrows the next one's signature.** Pauldrons, a cloak and gold trim belong to
   tier 2 and above; plumes and devices to tier 3 and above; glows to tier 4.
+- **Leather** (B5) sits beside linen and below bronze: the archer's rung, no metal at all, so it
+  is not on the metal count; it covers more of the body than bronze covers in metal. It is the
+  `tan` ramp, a yellow-leaning tan kept more than 12 (CIE76) from every skin step by day and
+  dusk, with its dusk steps set by hand like bronze (shifted, it goes the plum-brown of brown and
+  deep skin). It is laced with linen cord, which is how it reads as leather and not cloth.
+- **Drops a shade finer than their tier** (B5): the smuggler's cutlass is iron's rung by its
+  steel, finer by its polish (a white edge) and a knuckle bow, never by gold. The footpad's
+  cudgel is a knotted length of oak in the `oakbark` ramp, its icon and worn layer alike.
 
 ## Icons
 
@@ -265,6 +274,13 @@ every action card), so they follow the same hand as the town and the figures.
 - New ramps for icons only: `oakbark`, `willowbark`, `scales`, `herring`, `cod`, `shrimpraw`,
   `shrimp`, `cooked`, `verdigris`, `copper`, `rust`, `sage`, `glowcap`, `shelldark`, and the four
   potion liquids. No existing colour changed.
+- **What monsters drop, and leather** (B5, `lootIcons.ts`): a raw pelt with four legs and a
+  tail in the cool `hide` ramp, fur in strokes (raw, so not tan); two feathers, white over grey,
+  each with a shaft; a pearl in an open oyster (a pearl alone reads as an egg or a ball); a tea
+  tin with a red label and a leaf; a grey pebble on a thong; the cudgel; the cutlass. Leather is
+  a tan roll tied with a thong; the cap, jerkin and laced cuffs are the worn ones as objects.
+  Bracers were the hardest: a flat guard read as a pine cone and plain cuffs as barrels; a pair
+  of cuffs laced up the front with the lace ends hanging is what read.
 
 ## Portraits
 
@@ -273,6 +289,28 @@ every action card), so they follow the same hand as the town and the figures.
 - One clear expression per portrait (a smirk, a glare, a raised eyebrow).
 - Portraits were a first pass at approval time and are expected to improve; the hero's and
   Brinebeard's faces need another round.
+
+In code (B5, `src/art/faces.ts` and `portraits.ts`): each face is rows of characters with a
+legend of its own on the 48 × 48 square, the bust outlined automatically and cut by the bottom
+edge, in front of a disc of radius 21.5 in a dark step of a ramp chosen per face, its upper-left
+rim one step lighter. Discs are darker than the face on them and never a step that lights at
+dusk (`glass` and `lamp` switch on). Faces are drawn for daylight; the menus have no dusk.
+
+- **Monsters** keep to the silhouette that names them at true size (round ears and a snout, eyes
+  on stalks and a raised claw, a hooked beak, tusks and a snout disc, pricked ears and a long
+  muzzle, a hood, a knitted cap, a vast jaw with tusks). Expression is in the brows and the
+  mouth: brows slanting in for menace, one raised for cheek. Animal eyes may be small and beady;
+  people's mirror each other with the iris centred.
+- **Funny, not cute**: the gull's stolen chip, the crab's furious stalks. Cute came from big
+  round eyes and round heads; they were made smaller and harder.
+- **People** are the town's own figures, recognisable from their sprites: the smith bald and
+  bearded in his apron, the trader's auburn hair and purple dress, the pirate's tricorn and patch
+  on the same eye as in town.
+- **How they are shown.** The fight screen frames a portrait at 3 CSS pixels per art pixel and
+  its lists at 2, and never resizes it. `portrait(id)` is told only the id, so it returns both
+  canvases, each a whole number of device pixels per art pixel (rounded down, so a face never
+  outgrows its frame at a fractional ratio), and a container query in `art.css` shows the one
+  that fits the frame.
 
 ## Scenery
 

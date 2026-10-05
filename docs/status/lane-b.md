@@ -1,6 +1,7 @@
 # Lane B: art
 
-**Next session: B5: Hands, then the new items, then faces** (brief in `docs/lanes.md`, wave 5).
+**Next session: B6: Dungeon tiles and monster sprites; what B5 did not reach** (brief to come in
+`docs/lanes.md`, wave 6).
 
 ## Icons, for lanes A and C (`src/art/icons.ts`)
 
@@ -8,8 +9,8 @@
 always sits beside it) showing the thing's 24 × 24 icon at 32 CSS pixels, a whole number of device
 pixels per art pixel (`iconScale(dpr)`: 4 at 3x, 3 at 2x, 1 at 1x). Every item in
 `src/data/items.ts` and every skill in `src/data/skills.ts` has one, and so do the combat skills
-`melee`, `ranged`, `defence` and `vitality`. Any other id (S8's leather, hides and drops, which art
-has not seen yet) is null, never an error. Also exported: `itemIconPicture(id)` and
+`melee`, `ranged`, `defence` and `vitality`. S8's drops and leather set have theirs as of B5.
+Any other id (S9's bounty-shop items, which art has not seen yet) is null, never an error. Also exported: `itemIconPicture(id)` and
 `skillIconPicture(id)` (the `Picture`, for drawing onto a canvas of your own, as the town does),
 `ITEM_ICON_IDS`, `SKILL_ICON_IDS` and `ICON_FAMILIES`.
 
@@ -35,6 +36,22 @@ the same 40 × 50 outlined figure, base 47, so the hero's index entry (shadow, b
   the same 40 × 50 figure, base 47, with that hand resting at the belt.
 - One item per slot: if two items share a slot (a sword and an axe), the first listed is drawn.
   A bow and a shield together both draw; emptying the off hand is lane A's rule.
+- As of B5 the leather cap, jerkin and bracers, the cudgel, the smuggler's cutlass and the
+  trollstone draw too, and a held thing is held in a visible fist (style guide, "How things are
+  held"). The figure's size, base line and every export are unchanged; lane C's cached hero
+  picks this up by itself.
+
+## Portraits, for lanes A and C (`src/art/portraits.ts`)
+
+`portrait(id)` gives a face for the eight monsters (`dock_rat`, `sand_crab`, `thieving_gull`,
+`bramble_boar`, `footpad`, `grey_wolf`, `smuggler`, `marsh_troll`) and the three townsfolk
+(`smith`, `trader`, `pirate`), and null for anything else (S9's bounty-only monsters are next
+session's). The element is a `div.portrait-art` holding two canvases, the face at 3 and at 2 CSS
+pixels per art pixel (144 and 96 CSS pixels at whole device ratios); it fills whatever frame it is
+put in, and a container query in `art.css` shows the canvas that fits that frame, so the fight
+screen's 148px frame shows the 3x face and its lists' 100px frames the 2x one, never resized.
+Also exported: `portraitPicture(id)` (the 48 × 48 `Picture`), `PORTRAIT_IDS`, `PORTRAIT_SIZE`
+and `portraitScales(dpr)`.
 
 ## The town index, for lane C (`src/art/town.ts`)
 
@@ -135,7 +152,8 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
-- **B5: Hands, then the new items, then faces.** (in progress)
+- **B5: Hands, then the new items, then faces.** New art, not yet reviewed by Cody. Review
+  sheets are outside the repo in `/home/claude/lane-shots/wave5-b/`.
   - **What was wrong with the hands** (written from the layer-by-layer renders at 8x and the real
     game's town and sheet, before any pixel changed; review sheets outside the repo in
     `/home/claude/lane-shots/wave5-b/`, `hands-diagnosis.png` first):
@@ -162,6 +180,62 @@ from world position, so painting in pieces still lines up; only flecks and wear 
       basket. Both left as approved.
     - At game scale in the town, by day and dusk, facing either way, all of this showed as a
       brown block under the sleeve and a blade beside the arm: what Cody saw.
+  - **The rule** (style guide, "How things are held"; `src/art/depth.ts`): back to front, only a
+    bowstring behind the body (`HELD_BEHIND`); body, clothes, armour, belt, bracelet (`WRIST`,
+    new, 51); the grip (`GRIP`, new, 52), two pixels wide, running through the fist's columns;
+    the fist (`FIST`, new, 55), wrapped over the grip and nothing else; everything else of the
+    weapon in front of the arm and body (`HELD_FRONT`), with a guard, haft or binding directly
+    above the fist and a pommel or butt directly below it, all on one line through the middle of
+    the fist.
+  - **What changed in the structure:** the standard body has a fist (`FIST_PART` in
+    `wardrobe.ts`: four wide, three deep, rows 27 to 29, below the cuff and the wrist), shared by
+    every held thing and absent on the hand at rest. Every weapon was re-cut into the three
+    layers: the blades and hafts that were `HELD_BEHIND` are `HELD_FRONT`; each fist-wide grip
+    block became a two-pixel grip under the fingers with a pommel or butt below; the axes' hafts
+    run one row further to the wrist; the bows moved down a row so the fist holds the middle of
+    the stave, with the string the only part behind. Shields already hid the hand they are
+    strapped to, on both bodies, and are unchanged. The shell bracelet moved to the new `WRIST`
+    depth, a row up the cuff, its shells on the side towards the body, so a blade in front of the
+    forearm does not hide them.
+  - **The approved hero changed, by 20 pixels** (owner's request): the six pixels of his blade's
+    dark edge that the sleeve hid now show in front of it down to the guard, and the 4 × 3 wooden
+    grip block below the guard (with a pixel of cloak and of tunic beside it) is now the fist.
+    Guard, pommel and everything else are untouched. `tests/art/mockup.ts` lists the 20 pixels
+    (`B5_HAND`); the figure, townsfolk and town tests hold the hero, and the assembled town, to the
+    mock-up with exactly those changes. `hero-before-after.png`.
+  - **Tests** (`tests/art/hands.test.ts`): every held thing (the knight's sword, both swords, both
+    axes, the cudgel, the cutlass, the three bows) is drawn in only the three layers, behind
+    only for a bowstring; the fingers cover all of the grip; something shows directly above and
+    directly below the fist; nothing of the weapon is under or over the fist; in five outfits
+    (linen, bronze, iron, leather, the hero's) with and without each shield, the whole fist and all
+    of the weapon but its grip show (nothing of it behind arm, torso, armour or a hood's cape);
+    blades and hafts keep one straight line, leaning out, through the middle of the fist; bows are
+    held at the middle of the stave with the string clear of the hand; no fist on the resting
+    hand; the hand shows in every look; a shield hides its hand with or without anything held.
+  - **Judged at game scale** in the real town (day and dusk, facing both ways) and on the
+    character sheet: `hands-in-town.png`, `hands-on-sheet.png`, `hands-before-after.png` (every
+    held thing on both bodies at 8x, 2x and game scale) and `hands-diagnosis.png` (the hand at 8x
+    with the layer of every pixel, before and after). In town a pale fist now sits under every
+    guard and round every haft, where a brown block was. Weakest: the bows, whose hand was
+    nearly right before; the change there is small (a fist a row lower on the stave's middle).
+  - **The eleven new items** (`lootIcons.ts`, family "What monsters drop" and "Leather"): icons
+    for `hide`, `feathers`, `pearl`, `smuggled_tea`, `trollstone`, `cudgel`, `smugglers_cutlass`,
+    `leather`, `leather_cap`, `leather_jerkin`, `leather_bracers`. Worn layers (`ITEM_LAYERS`) for
+    the six wearables: `leather_jerkin`, `leather_cap`, `leather_bracers` (both forearms; an at-ease
+    version), `cudgel` and `smugglers_cutlass` (by the hand rule from the start) and `trollstone`
+    (a pebble on a thong at the collar). A new ramp, `tan`, for leather, dusk set by hand; tests
+    hold it more than 12 from every skin step by day and dusk, and leather as a rung with no metal
+    that covers more than bronze's metal. The gallery's ladder now shows Linen, Leather, Bronze,
+    Iron and the hero. `new-items.png`.
+  - **Portraits** (`faces.ts`, `portraits.ts`): all eight monsters and the three townsfolk.
+    Sketched shape by shape (head, ears, snout, hat placed by hand), finished pixel by pixel, kept
+    as rows of characters; each on a dark disc of its own tint, outlined, one expression each.
+    Checked in the real fight screen (3x in its frame) and the monster list (2x):
+    `portraits.png`, `fight-screen.png`. The gallery opens with them, framed as the fight screen
+    frames them. Tests (`tests/art/portraits.test.ts`): every monster and townsperson has a face
+    and unknown ids are null; 48 × 48, clear corners, a dark disc darker than the face, the bust
+    outlined and filling the square; no step that lights at dusk; both canvases at whole device
+    pixels, sized 144 and 96 CSS pixels.
 
 - **B4: Icons, and the hatchet.** New art, not yet reviewed by Cody. Review sheets are outside
   the repo in `/home/claude/lane-shots/wave4-b/`.
@@ -312,10 +386,20 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
-- Portraits (48 × 48): not started. B4 spent its time on icons; the eight monsters, then the
-  three townsfolk, are B5's.
-- Icons for S8's new items (leather, the leather set, hides and other drops): B5, once their ids
-  are on `main`. Until then `itemIcon` answers null for them.
+- Icons, worn layers and portraits for S9's ids (bounty-shop items, the two bounty-only
+  monsters): B6, once they are on `main`. Until then `itemIcon` and `portrait` answer null.
+- The hero's own portrait (for the character sheet) is not drawn.
+- Weak spots for Cody's review (B5), weakest first:
+  - `leather_bracers`' icon: two laced cuffs with their lace ends hanging. It reads as laced
+    leather, but at true size could be taken for a pair of boots. Three designs were tried.
+  - The trollstone worn: a grey pebble at the collar, findable on the tunic, lost against iron
+    mail (grey on grey). Like the shell bracelet, as far as four pixels go.
+  - The bracers worn on the weapon arm are mostly hidden by a blade passing in front of the
+    forearm, as the hand rule says it should; the other arm's show unless a shield is carried.
+  - Portraits: the trader's hair is lit in a hard diagonal; the footpad's cudgel reads as a mace;
+    the boar's bristle ridge with brambles in it can read as a crown. The rest read in a word at
+    true size (rat, crab, gull with a chip, wolf, smuggler, troll, smith, pirate).
+  - The leather cap is close in shape to the bronze cap; its ear flaps and tan tell them apart.
 - Icon weak spots for Cody's review (B4): `linen` (a folded stack with a hanging corner; reads
   as cloth more than as a bolt), `shell_bracelet` (small: a cord ring with three shells),
   `arrow_shafts` (three sticks bound with hide), the bronze sword's guard (busy where it crosses
@@ -349,7 +433,14 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   always pixel-perfect; at whole ratios they are exact.
 - Gear ids are art ids; `ITEM_LAYERS` in `character.ts` maps the game's item ids onto them. A new
   wearable item needs a layer in `armoury.ts`, a row there, and its id in the list in
-  `tests/art/character.test.ts`.
+  `tests/art/character.test.ts`. A new held thing is drawn to the hand rule: a `GRIP` part in the
+  fist's columns (`FIST_PART`), the rest `HELD_FRONT`, and its gear id in the list at the top of
+  `tests/art/hands.test.ts`.
+- A new portrait is a row in `FACES` (`faces.ts`) and its id in `tests/art/portraits.test.ts`.
+- Real-game screenshots: seed `localStorage['hearth-and-harbour:save']` with a version 6 save
+  before load (`equipment` by slot, `{ item, qty }`), then drive the tabs. The town's hero starts
+  in the square; taps about 55 CSS pixels either side of the canvas's centre and 45 above it
+  land on open cobbles and turn him each way. Combat is Skills, then a combat skill's row.
 - Scratch renders: a vitest file under `.shots/` with its own config (environment `node`) can
   rasterize pictures and write PNGs without a browser, which is much faster for iterating on a
   sprite than the gallery. `eslint .` lints `.shots/` too (it does not read `.gitignore`), so
