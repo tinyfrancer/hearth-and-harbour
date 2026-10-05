@@ -20,6 +20,7 @@ import { canvasOf, type Standing } from './draw';
 import type { Dungeon, Run } from './dungeon';
 import { LOOT_PILE, foeFigure, foeKind } from './foes';
 import type { StageExtra } from './stage';
+import type { Box } from './things';
 import { TILE, type Point } from './tileMap';
 
 /** How long someone struck shows white. */
@@ -185,18 +186,18 @@ function drawEffect(
   switch (e.kind) {
     case 'hit': {
       const top = e.on === 'hero' ? hero.y - 50 : e.at.y - 10;
-      const x = (e.on === 'hero' ? hero.x : e.at.x) + nudge;
+      const x = (e.on === 'hero' ? hero.x - 10 : e.at.x) + nudge;
       label(ctx, String(e.amount), x, top - rise, 12, e.on === 'hero' ? c.red1 : c.white1, c.ink1);
       break;
     }
     case 'miss': {
       const top = e.on === 'hero' ? hero.y - 50 : e.at.y - 10;
-      const x = (e.on === 'hero' ? hero.x : e.at.x) + nudge;
+      const x = (e.on === 'hero' ? hero.x - 10 : e.at.x) + nudge;
       label(ctx, 'miss', x, top - rise, 8, c.metal2, c.ink1);
       break;
     }
     case 'heal':
-      label(ctx, `+${e.amount}`, hero.x, hero.y - 50 - rise, 11, c.grass1, c.ink1);
+      label(ctx, `+${e.amount}`, hero.x + 14, hero.y - 50 - rise, 11, c.grass1, c.ink1);
       break;
     case 'empty':
       label(ctx, 'Out of arrows', hero.x, hero.y - 52 - rise, 8, c.sand1, c.ink1);
@@ -280,13 +281,85 @@ function drawFoeOver(
   }
 }
 
+const around = (at: Point, r: number): Box => ({
+  x: Math.floor(at.x - r - 2),
+  y: Math.floor(at.y - r - 2),
+  w: Math.ceil(2 * r + 5),
+  h: Math.ceil(2 * r + 5),
+});
+
+/**
+ * Where the fight draws this frame, generously: each foe with its health,
+ * marks and numbers above it, the hero's head and what floats over it, every
+ * heavy attack's circle and what is in flight to it, loot, and doors while
+ * they lift. The stage draws these again each frame instead of the whole view.
+ */
+function fightBoxes(
+  battle: Battle,
+  run: Run,
+  hero: Point,
+  here: readonly Foe[],
+  doors: readonly Point[],
+): Box[] {
+  const boxes: Box[] = [];
+  for (const foe of here) {
+    const { h } = foeKind(foe.monster).box;
+    boxes.push({
+      x: Math.floor(foe.at.x) - 26,
+      y: Math.floor(foe.at.y) - h - 44,
+      w: 53,
+      h: h + 50,
+    });
+    const t = foe.heavy;
+    if (t) {
+      boxes.push(around(t.at, t.radius + 1));
+      if (t.origin) {
+        const x = Math.floor(Math.min(t.origin.x, t.at.x)) - 4;
+        const y = Math.floor(Math.min(t.origin.y, t.at.y)) - 64;
+        boxes.push({
+          x,
+          y,
+          w: Math.ceil(Math.abs(t.origin.x - t.at.x)) + 9,
+          h: Math.ceil(Math.abs(t.origin.y - t.at.y)) + 72,
+        });
+      }
+    }
+  }
+  // The hero's numbers, heals and brace, over his head.
+  boxes.push({ x: Math.floor(hero.x) - 34, y: Math.floor(hero.y) - 78, w: 69, h: 30 });
+  for (const e of battle.effects) {
+    if (e.kind === 'landed' || e.kind === 'swing') boxes.push(around(e.at, e.radius + 2));
+    else if (e.kind === 'shot') {
+      const x = Math.floor(Math.min(e.at.x, e.to.x)) - 12;
+      const y = Math.floor(Math.min(e.at.y - 22, e.to.y - 8)) - 12;
+      boxes.push({
+        x,
+        y,
+        w: Math.ceil(Math.abs(e.at.x - e.to.x)) + 25,
+        h: Math.ceil(Math.abs(e.at.y - 22 - e.to.y + 8)) + 25,
+      });
+    } else if (e.kind === 'loot')
+      boxes.push({ x: Math.floor(e.at.x) - 6, y: Math.floor(e.at.y) - 34, w: 13, h: 36 });
+    else if (e.kind === 'hit' || e.kind === 'miss') {
+      if (e.on === 'foe')
+        boxes.push({ x: Math.floor(e.at.x) - 26, y: Math.floor(e.at.y) - 40, w: 53, h: 42 });
+    }
+  }
+  for (const p of battle.piles) {
+    if (p.room === run.room)
+      boxes.push({ x: Math.floor(p.at.x) - 7, y: Math.floor(p.at.y) - 11, w: 14, h: 12 });
+  }
+  for (const door of doors) boxes.push({ x: door.x, y: door.y, w: TILE, h: TILE });
+  return boxes;
+}
+
 /**
  * Everything a run's fight adds to the stage this frame. `hero` is where the
  * walker's feet are.
  */
 export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageExtra {
   const battle = run.battle;
-  if (!battle) return { actors: [] };
+  if (!battle) return { actors: [], boxes: [] };
   const c = palette.colours;
   const clock = battle.clock;
   const hero = run.play.walker.at;
@@ -311,9 +384,14 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
   const pile = canvasOf(LOOT_PILE.picture, palette);
   const locked = roomLocked(battle, run.room);
   const openedAt = battle.opened[run.room];
+  const lifted = locked ? 0 : openedAt === undefined ? 1 : (clock - openedAt) / DOOR_LIFT_MS;
+  const lifting = lifted < 1 && !locked;
+  const doorsAt = room.doors.map((d) => ({ x: d.cell.col * TILE, y: d.cell.row * TILE }));
+  const boxes = fightBoxes(battle, run, hero, here, lifting ? doorsAt : []);
 
   return {
     actors,
+    boxes,
     walker: (image) => {
       if (flashing(battle.struckAt, clock)) return flashOf(image, c.white1);
       // Down: he blinks red until the tide takes him.
@@ -323,10 +401,8 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
     },
     ground(ctx) {
       // Barred doors, lifting when the room is clear.
-      const lifted = locked ? 0 : openedAt === undefined ? 1 : (clock - openedAt) / DOOR_LIFT_MS;
       if (lifted < 1) {
-        for (const door of room.doors)
-          drawDoorBars(ctx, { x: door.cell.col * TILE, y: door.cell.row * TILE }, lifted, palette);
+        for (const at of doorsAt) drawDoorBars(ctx, at, lifted, palette);
       }
       for (const p of battle.piles) {
         if (p.room !== run.room || !pile) continue;

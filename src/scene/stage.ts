@@ -167,12 +167,15 @@ export interface Light {
 }
 
 /**
- * More to draw than the stage knows of: a dungeon's fight. When a scene has
- * it, the whole view is drawn every frame (too much moves to patch).
+ * More to draw than the stage knows of: a dungeon's fight. It says where it
+ * draws, and those boxes (this frame's and the last's) are drawn again each
+ * frame, as the walker's are, rather than the whole view.
  */
 export interface StageExtra {
   /** Whoever else stands in the scene, sorted with the walker by their feet. */
   readonly actors: readonly Standing[];
+  /** Everywhere this draws this frame, in art pixels: actors, marks, numbers. */
+  readonly boxes: readonly Box[];
   /** On the ground, under everyone: marks, loot. Drawn in art pixels. */
   ground?(ctx: CanvasRenderingContext2D, palette: Palette): void;
   /** Over everyone: health, numbers, things in flight. Drawn in art pixels. */
@@ -453,6 +456,8 @@ export function stage(options: StageOptions): View {
 
   /** What the last frame drew that can move, by name, to find what changed. */
   let drawnLast = new Map<string, Drawn>();
+  /** Where the extra drawing was last frame: drawn again to clear it. */
+  let extraLast: readonly Box[] = [];
   /** Where the camera was and what palette the last frame used; a change means drawing it all. */
   let shownLast = '';
 
@@ -543,7 +548,7 @@ export function stage(options: StageOptions): View {
       h: Math.ceil(view.height),
     };
     const shown = `${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height} ${[...turned].join(' ')}`;
-    if (shown !== shownLast || extra) {
+    if (shown !== shownLast) {
       drawFrame(ctx, frame, whole);
     } else {
       const changed: Box[] = [];
@@ -554,11 +559,13 @@ export function stage(options: StageOptions): View {
         if (was) changed.push(was.box);
         if (is) changed.push(is.box);
       }
+      changed.push(...extraLast, ...(extra?.boxes ?? []));
       for (const patch of mergeBoxes(changed.filter((b) => overlaps(b, whole))))
         drawFrame(ctx, frame, patch);
     }
     shownLast = shown;
     drawnLast = moving;
+    extraLast = extra?.boxes ?? [];
   };
 
   showTime();
