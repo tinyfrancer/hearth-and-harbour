@@ -37,9 +37,11 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   // proves was held: the bank, what is worn, the food slot, the potion
   // working, and every drop the bestiary and the marks have seen. Nothing
   // older can be known; achievements are earned from this state on first
-  // load, like any other change.
+  // load, like any other change. Coins changed meaning: every price went up
+  // tenfold, so the purse does too and is worth what it was.
   7: (state) => ({
     ...state,
+    coins: typeof state.coins === 'number' ? state.coins * 10 : state.coins,
     collection: provenFinds(state),
     achievements: [],
     dungeons: {},

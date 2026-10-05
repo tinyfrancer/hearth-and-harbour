@@ -45,6 +45,8 @@ const unfought = {
   rng: seedFrom(state.createdAt),
   bestiary: {},
 };
+/** A purse from before version 8, when every price went up tenfold. */
+const tenfold = { coins: 770 };
 /** What version 8 adds to a save from before it, but for the log of what it proves was held. */
 const V8_FIELDS = ['collection', 'achievements', 'dungeons', 'stats', 'perks'];
 /** A save as a version before 6 wrote it. */
@@ -99,6 +101,7 @@ describe('save export and import', () => {
         look: {},
         equipment: {},
         ...unfought,
+        ...tenfold,
         collection: ['pine_logs'],
       },
     });
@@ -115,6 +118,7 @@ describe('save export and import', () => {
         look: {},
         equipment: {},
         ...unfought,
+        ...tenfold,
         collection: ['pine_logs', 'sage_tonic'],
       },
     });
@@ -126,6 +130,7 @@ describe('save export and import', () => {
       state: {
         ...state,
         ...unfought,
+        ...tenfold,
         collection: ['pine_logs', 'pine_shortbow', 'bronze_arrows', 'sage_tonic'],
       },
     });
@@ -144,6 +149,7 @@ describe('save export and import', () => {
         bounty: null,
         bountyPoints: 0,
         health: null,
+        ...tenfold,
         collection: [
           'pine_logs',
           'pine_shortbow',
@@ -163,6 +169,7 @@ describe('save export and import', () => {
       ok: true,
       state: {
         ...state,
+        ...tenfold,
         collection: [
           'pine_logs',
           'pine_shortbow',

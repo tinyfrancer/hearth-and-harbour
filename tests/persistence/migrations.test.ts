@@ -87,6 +87,7 @@ describe('migrateGameState', () => {
       equipment: {},
       ...unfought(5),
       ...logged(['raw_shrimp', 'sageleaf']),
+      coins: 400,
     });
   });
 
@@ -111,6 +112,7 @@ describe('migrateGameState', () => {
       equipment: {},
       ...unfought(5),
       ...logged(['bronze_sword', 'bronze_shield', 'bronze_arrows', 'steady_draught']),
+      coins: 120,
     });
   });
 
@@ -136,6 +138,7 @@ describe('migrateGameState', () => {
       version: GAME_STATE_VERSION,
       ...unfought(v5.createdAt),
       ...logged(['cooked_shrimp', 'bronze_sword']),
+      coins: 120,
     });
     expect(Number.isInteger(v6!.rng) && v6!.rng >= 0 && v6!.rng < 2 ** 32).toBe(true);
     // Two characters made at different times roll different dice.
@@ -191,12 +194,15 @@ describe('migrateGameState', () => {
       marks: { steal_sailor: { picked: 5, caught: 2, seen: ['pearl', 'smuggled_tea'] } },
       bounty: { monster: 'dock_rat', count: 60, done: 9 },
       bountyPoints: 4,
+      coins: 123,
     } as Record<string, unknown>;
     for (const key of Object.keys(logged([]))) delete v7[key];
-    // Sold or eaten long ago leaves no trace, so is not in it; everything shown is, once.
+    // Sold or eaten long ago leaves no trace, so is not in it; everything shown
+    // is, once. Prices went up tenfold, and the purse with them.
     expect(migrateGameState(structuredClone(v7))).toEqual({
       ...v7,
       version: GAME_STATE_VERSION,
+      coins: 1230,
       ...logged([
         'pine_logs',
         'hide',

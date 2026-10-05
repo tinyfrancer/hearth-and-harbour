@@ -680,7 +680,7 @@ describe('the app shell', () => {
       expect(card.textContent).toContain(
         'Used inFletching (Arrow shafts), Fletching (Pine shortbow)',
       );
-      expect(card.textContent).toContain('Worth1 coin each');
+      expect(card.textContent).toContain('Worth10 coins each');
       press('Close');
       expect(root.querySelector('[data-card]')).toBeNull();
     });
@@ -688,26 +688,26 @@ describe('the app shell', () => {
     it('sells one, ten, and then all that is left', () => {
       stock();
       q<HTMLButtonElement>('[data-item="pine_logs"]').click();
-      press('Sell 1 for 1 coin');
-      expect(coins()).toBe('1');
+      press('Sell 1 for 10 coins');
+      expect(coins()).toBe('10');
       q<HTMLButtonElement>('[data-sell="10"]').click();
-      press('Sell 10 for 10 coins');
-      expect(coins()).toBe('11');
+      press('Sell 10 for 100 coins');
+      expect(coins()).toBe('110');
       // Only four left: a hundred is offered as what there is.
       q<HTMLButtonElement>('[data-sell="100"]').click();
-      press('Sell 4 for 4 coins');
-      expect(coins()).toBe('15');
+      press('Sell 4 for 40 coins');
+      expect(coins()).toBe('150');
       expect(root.querySelector('[data-card]')).toBeNull();
       expect(root.textContent).toContain('Your bank is empty');
-      expect(new LocalStorageSaveService().load()).toMatchObject({ coins: 15, bank: {} });
+      expect(new LocalStorageSaveService().load()).toMatchObject({ coins: 150, bank: {} });
     });
 
     it('sells everything held with All', () => {
       stock();
       q<HTMLButtonElement>('[data-item="pine_logs"]').click();
       q<HTMLButtonElement>('[data-sell="all"]').click();
-      press('Sell 15 for 15 coins');
-      expect(coins()).toBe('15');
+      press('Sell 15 for 150 coins');
+      expect(coins()).toBe('150');
     });
   });
 

@@ -75,7 +75,7 @@ describe('Thieving', () => {
     const fisherman = q('[data-action="steal_fisherman"]');
     expect(fisherman.textContent).toContain('Dozing fisherman');
     expect(q('[data-chance="steal_fisherman"]').textContent).toBe('58% chance · caught: 3s stun');
-    expect(fisherman.textContent).toContain('1–7 coins · ?');
+    expect(fisherman.textContent).toContain('10–70 coins · ?');
     expect(fisherman.textContent).toContain('Not yet tried');
     // The rest wait for their levels.
     expect(q('[data-action="steal_strongbox"]').classList).toContain('locked');
@@ -155,8 +155,8 @@ describe('bounties', () => {
     const coinsBefore = saved().coins;
     press('Hand in for 2 points');
     expect(saved().bountyPoints).toBe(31);
-    expect(saved().coins).toBe(coinsBefore + 20);
-    expect(lastToast()).toMatch(/^Bounty paid: 2 points and 20 coins\./);
+    expect(saved().coins).toBe(coinsBefore + 200);
+    expect(lastToast()).toMatch(/^Bounty paid: 2 points and 200 coins\./);
     // A fresh one is posted at once.
     expect(saved().bounty).toMatchObject({ done: 0 });
     // And something bought with the points.

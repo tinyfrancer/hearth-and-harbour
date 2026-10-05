@@ -14,7 +14,7 @@ import { bankCount, skillLevel, stat, type GameState } from './state';
  *   likely; then the number of kills, between the row's two numbers.
  * - Kills of that monster count while the bounty is held, live or away, until
  *   it asks for no more (src/core/fight.ts counts them, blow by blow).
- * - Handing it in pays the row's points and ten coins a point, and posts the
+ * - Handing it in pays the row's points and a hundred coins a point, and posts the
  *   next.
  * - Swapping it for another costs three points, or what there is if fewer,
  *   so nobody is ever stuck with one.
@@ -30,7 +30,7 @@ export type BountyResult = { ok: true; state: GameState } | { ok: false; reason:
 
 /** How far below the character's combat level a bounty may be posted. */
 export const BOUNTY_BELOW = 6;
-export const COINS_PER_POINT = 10;
+export const COINS_PER_POINT = 100;
 export const SWAP_COST = 3;
 
 export function combatLevel(state: GameState): number {

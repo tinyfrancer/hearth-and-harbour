@@ -311,7 +311,7 @@ const ALL: ActionDef[] = [
       xp: 22,
       difficulty: 8,
       stunSeconds: 3,
-      coins: [1, 7],
+      coins: [10, 70],
       loot: [{ item: 'raw_shrimp', min: 1, max: 3, oneIn: 5 }],
     },
     steal_fish_stall: {
@@ -323,7 +323,7 @@ const ALL: ActionDef[] = [
       xp: 36,
       difficulty: 11,
       stunSeconds: 4,
-      coins: [3, 11],
+      coins: [30, 110],
       loot: [
         { item: 'cooked_shrimp', min: 1, max: 2, oneIn: 4 },
         { item: 'cooked_herring', min: 1, max: 1, oneIn: 10 },
@@ -338,7 +338,7 @@ const ALL: ActionDef[] = [
       xp: 50,
       difficulty: 14,
       stunSeconds: 4,
-      coins: [6, 18],
+      coins: [60, 180],
       loot: [
         { item: 'smuggled_tea', min: 1, max: 1, oneIn: 20 },
         { item: 'pearl', min: 1, max: 1, oneIn: 80 },
@@ -353,7 +353,7 @@ const ALL: ActionDef[] = [
       xp: 70,
       difficulty: 17,
       stunSeconds: 5,
-      coins: [11, 30],
+      coins: [110, 300],
       loot: [
         { item: 'linen', min: 1, max: 2, oneIn: 8 },
         { item: 'sage_tonic', min: 1, max: 1, oneIn: 30 },
@@ -369,7 +369,7 @@ const ALL: ActionDef[] = [
       xp: 88,
       difficulty: 20,
       stunSeconds: 5,
-      coins: [18, 46],
+      coins: [150, 380],
       loot: [
         // Confiscated, and now unconfiscated.
         { item: 'smuggled_tea', min: 1, max: 2, oneIn: 6 },
