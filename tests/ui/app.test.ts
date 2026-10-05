@@ -551,4 +551,18 @@ describe('the app shell', () => {
       expect(q('#screen h2').textContent).toBe('Cody');
     });
   });
+
+  describe('what a view can rely on', () => {
+    it('hears every frame even when the character is doing nothing', () => {
+      const app = mount();
+      create('Cody');
+      // The skill list rewrites its status line on update; emptying it by hand
+      // and ticking shows whether update ran.
+      const xp = q('[data-skill="woodcutting"] .bar');
+      xp.setAttribute('aria-valuenow', 'stale');
+      clock += 16;
+      app.tick();
+      expect(xp.getAttribute('aria-valuenow')).toBe('0');
+    });
+  });
 });

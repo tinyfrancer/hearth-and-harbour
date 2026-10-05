@@ -176,7 +176,17 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     if (tab === 'character') {
       return characterView(game, content);
     }
-    return townView(game, content);
+    return townView(game, content, {
+      openTab: (id) => {
+        tab = id;
+        render();
+      },
+      openSkill: (skillId) => {
+        tab = 'skills';
+        openSkill = content.skills[skillId] ? skillId : null;
+        render();
+      },
+    });
   };
 
   const render = (): void => {
@@ -241,7 +251,13 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     const time = now();
     const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
-    if (!state?.action) return;
+    if (!state) return;
+    if (!state.action) {
+      // Nothing is passing in the game, but a screen may still be moving (a
+      // scene's walker): every view hears every frame.
+      view?.update?.(state);
+      return;
+    }
     if (elapsed >= AWAY_MS) {
       returnFrom(elapsed);
       render();

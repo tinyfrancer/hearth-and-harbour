@@ -1,11 +1,26 @@
 import type { GameState } from '../core/state';
+import type { TabId } from './tabs';
 
 /**
  * One screen's worth of DOM. It is built once when shown; `update` then moves
  * only what time moves (bars, counts), many times a second, so buttons are
  * never torn out from under a thumb.
+ *
+ * `update` is called once a frame for as long as the view is on screen,
+ * whether or not anything in the game is happening.
  */
 export interface View {
   el: HTMLElement;
   update?(state: GameState): void;
+}
+
+/**
+ * What a scene may ask of the app around it: a door in town that opens the
+ * bank, a tree that takes you to Woodcutting. Scenes get this and nothing else
+ * of the shell.
+ */
+export interface Shell {
+  openTab(tab: TabId): void;
+  /** Open the Skills tab on one skill's page. An unknown id opens the list. */
+  openSkill(skillId: string): void;
 }
