@@ -128,7 +128,7 @@ describe('bounties', () => {
     expect(q('[data-points]').textContent).toBe('0');
     press('Take a bounty');
     expect(saved().bounty).toMatchObject({ monster: 'dock_rat', done: 0 });
-    expect(lastToast()).toMatch(/^Wanted: \d+ Dock rat\.$/);
+    expect(lastToast()).toMatch(/^Wanted: \d+ Dock rats\.$/);
     expect(q('[data-bounty="dock_rat"]').textContent).toContain('Wanted:');
   });
 
@@ -148,7 +148,7 @@ describe('bounties', () => {
       toasts += lastToast();
     }
     expect(saved().bounty).toEqual({ monster: 'dock_rat', count: 5, done: 5 });
-    expect(toasts).toContain('Bounty done: 5 Dock rat. Hand it in.');
+    expect(toasts).toContain('Bounty done: 5 Dock rats. Hand it in.');
     expect(q('[data-wanted]').textContent).toContain('Hand it in');
     press('‹ Areas');
     q<HTMLButtonElement>('[data-bounties]').click();

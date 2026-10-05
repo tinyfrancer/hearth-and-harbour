@@ -303,7 +303,7 @@ describe('however the time is cut up', () => {
 
   it('lands in the same place cut on a mastery level that changes the chance', () => {
     const start = thief();
-    // Mastery 2 gives nothing (half of it, rounded down, is still 1); 4 gives one more than 3.
+    // Half the mastery level, rounded down: 4 adds one to the rating that 3 did not.
     const at = firstMoment(start, (state) => masteryLevel(state, 'snooze') >= 4);
     const before = advance(start, at - 1, content);
     const after = advance(start, at, content);

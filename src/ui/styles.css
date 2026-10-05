@@ -924,6 +924,12 @@ button.card:active {
   color: var(--danger);
 }
 
+/* A locked card's level stays on one line beside a long name. */
+.card.locked .card-head > span {
+  flex: none;
+  white-space: nowrap;
+}
+
 /* Bounties: a monster wanted, and a bounty ready to hand in. */
 .wanted,
 .bounty-text {

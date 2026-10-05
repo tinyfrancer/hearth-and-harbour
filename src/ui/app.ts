@@ -39,7 +39,7 @@ import { characterView, type SheetPanel } from './characterScreen';
 import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
 import { createScreen } from './createScreen';
 import { button, h } from './dom';
-import { listed } from './format';
+import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
 import { skillListView, skillPageView } from './skillsScreen';
 import { TABS, type TabId } from './tabs';
@@ -293,21 +293,21 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     take: () =>
       bountyAct(
         takeBounty(state ?? game, content),
-        (next) => `Wanted: ${next.bounty!.count} ${monsterName(next.bounty!.monster)}.`,
+        (next) => `Wanted: ${counted(next.bounty!.count, monsterName(next.bounty!.monster))}.`,
       ),
     handIn: () => {
       const before = state ?? game;
       const { points, coins } = bountyReward(before, content);
       bountyAct(handInBounty(before, content), (next) => {
         const stopped = before.fight && !next.fight ? ' The hunt is over.' : '';
-        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Next: ${next.bounty?.count ?? 0} ${monsterName(next.bounty?.monster)}.`;
+        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Next: ${counted(next.bounty?.count ?? 0, monsterName(next.bounty?.monster))}.`;
       });
     },
     swap: () =>
       bountyAct(
         swapBounty(state ?? game, content),
         (next) =>
-          `Swapped. Wanted now: ${next.bounty!.count} ${monsterName(next.bounty!.monster)}.`,
+          `Swapped. Wanted now: ${counted(next.bounty!.count, monsterName(next.bounty!.monster))}.`,
       ),
     hunt: (monsterId) => {
       const current = state ?? game;
@@ -635,7 +635,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     }
     if (bountyReady(state) && !bountyReady(before)) {
       toast(
-        `Bounty done: ${state.bounty!.count} ${monsterName(state.bounty!.monster)}. Hand it in.`,
+        `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
       );
       // Its page and cards change from hunting to handing in.
       redraw = true;

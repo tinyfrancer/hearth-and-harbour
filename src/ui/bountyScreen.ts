@@ -6,7 +6,7 @@ import type { GameState } from '../core/state';
 import { bar } from './bar';
 import { face } from './face';
 import { button, h, titled } from './dom';
-import { formatNumber } from './format';
+import { counted, formatNumber } from './format';
 import { gearText, slotText } from './gear';
 import type { View } from './view';
 
@@ -21,7 +21,7 @@ export interface BountyActions {
   buy(entryId: string): void;
 }
 
-const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
+const plural = counted;
 
 /** "6 of 24 Footpads", or "Ready to hand in". */
 function progressText(state: GameState, monster: MonsterDef | undefined): string {
