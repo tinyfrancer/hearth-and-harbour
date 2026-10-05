@@ -13,7 +13,7 @@ by the orchestrating session for wave 3).
   as bank items; the action card shows what a recipe uses, how many are held, how many times it
   can be made, and what is short; the Skills list is grouped under Gathering and Artisan
   (`SkillDef.group`); both skills paced in `tests/data/pacing.test.ts` (PR #6)
-- S6 Crafting, Fletching, Alchemy and potions (S6's PR):
+- S6 Crafting, Fletching, Alchemy and potions (PR #11):
   - **Crafting** (Foraging into things): shell vial, bowstring, linen, a shell necklace and a
     shell bracelet, and a linen hood, trousers and tunic (bank items until S7b).
   - **Fletching** (logs into things): arrow shafts (ten a log), bronze and iron arrows (ten
