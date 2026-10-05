@@ -87,7 +87,11 @@ export function equip(state: GameState, itemId: string, content: Content): Equip
  * What stops the character putting an item on, in words, or null if nothing
  * does. Only putting on is checked: what is already worn stays worn.
  */
-export function unmetRequirement(state: GameState, itemId: string, content: Content): string | null {
+export function unmetRequirement(
+  state: GameState,
+  itemId: string,
+  content: Content,
+): string | null {
   const needs = content.items[itemId]?.equip?.requires;
   if (!needs || skillLevel(state, needs.skill) >= needs.level) return null;
   const skill = content.skills[needs.skill]?.name ?? needs.skill;
