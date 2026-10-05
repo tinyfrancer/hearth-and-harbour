@@ -1,6 +1,6 @@
 # Lane A: idle rules
 
-**Next session: S9: Thieving and Bounties** (brief to come in `docs/lanes.md`, wave 5).
+**Next session: S9: Thieving and Bounties** (brief in `docs/lanes.md`, wave 5).
 
 ## Done
 

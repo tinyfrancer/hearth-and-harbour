@@ -61,14 +61,15 @@ Paste one of these into a new Claude Code session attached to `tinyfrancer/heart
 `docs/plan.md` lists the sessions in their original single-file order. Lanes change the order and
 split S7 in two; where the two disagree, this file wins.
 
-| Wave     | Lane A                           | Lane B                                                            | Lane C                                                    |
-| -------- | -------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
-| 1 (done) | S5 Cooking and Smithing          | S7a Art pipeline                                                  | S11 Scene engine                                          |
-| 2 (done) | S6 Crafting, Fletching, Alchemy  | B2 The rest of the town's art                                     | S12a The town on the engine                               |
-| 3 (done) | S7b Equipment and character      | B3 The character's wardrobe (three passes)                        | S12b The whole town                                       |
-| 4        | S8 Idle combat                   | B4 Icons for every item and skill; the hatchet; portraits if time | S12c Your own character in town; S14a the dungeon's shell |
-| 5        | S9 Thieving and Bounties         | B5 Portraits; icons for S8's new items; dungeon tiles             | S14b Fighting in dungeons (needs S8)                      |
-| later    | S10, then the Milestone A review | art passes are review sessions with Cody, one at a time           | S15, S16                                                  |
+| Wave     | Lane A                                                                                | Lane B                                                      | Lane C                                                    |
+| -------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- |
+| 1 (done) | S5 Cooking and Smithing                                                               | S7a Art pipeline                                            | S11 Scene engine                                          |
+| 2 (done) | S6 Crafting, Fletching, Alchemy                                                       | B2 The rest of the town's art                               | S12a The town on the engine                               |
+| 3 (done) | S7b Equipment and character                                                           | B3 The character's wardrobe (three passes)                  | S12b The whole town                                       |
+| 4 (done) | S8 Idle combat                                                                        | B4 Icons; the hatchet                                       | S12c Your own character in town; S14a the dungeon's shell |
+| 5        | S9 Thieving and Bounties                                                              | B5 How things sit in the hand; the new items; portraits     | S14b Fighting in dungeons                                 |
+| 6        | S10 Shop, collection log, achievements                                                | B6 Dungeon tiles and monster sprites; what B5 did not reach | S15 Brinebeard's Grotto                                   |
+| then     | **Milestone A review**: Cody plays for a few days; pacing and art direction revisited |                                                             |                                                           |
 
 A lane that reaches a session whose needs have not landed stops and says so in its status file.
 Lanes do not wait for a whole wave: each takes its next session as soon as what it needs is on
@@ -78,7 +79,182 @@ Lanes do not wait for a whole wave: each takes its next session as soon as what 
 that was meant to come first. The scene engine does not depend on idle pacing, so the risk is
 wasted polish on the town if the review changes direction, not rework of the engine.
 
-## Wave 4 briefs
+## Wave 5 briefs
+
+New since wave 4:
+
+- `src/core/run.ts`: `settleRun(state, spoils)` brings a dungeon run's spoils home as one change
+  (XP, loot and coins in; food eaten and arrows shot out), and the `Shell` a scene is given has
+  `settleRun(spoils)` to call it and save. It is what S14b ends every run with.
+- Card headings are centred (`.card-head`), so icons line up with the text beside them.
+- From Cody, on looking at wave 4: **"weapons seem to be appearing behind the character's hand."**
+  How things sit in the hand is lane B's first job this wave.
+
+### Lane A · S9: Thieving and Bounties
+
+Read: `docs/design.md` section 5 (the Roguery and Tasks rows); `docs/status/lane-a.md`;
+`src/core/fight.ts` and `src/core/rng.ts` (how chance is done here).
+
+Two reasons to come back that are not "number goes up": picking pockets, played for laughs, and
+the notice board's bounties.
+
+- **Thieving.** A skill under a "Roguery" group. Marks as data, across levels 1-20 (four or five:
+  from a dozing fisherman to the harbourmaster's strongbox, say; yours to choose and name). Each
+  attempt takes a set time and succeeds by a chance that rises with level against the mark's
+  difficulty (and with mastery of that mark). Success pays coins and sometimes an item from the
+  mark's table. Failure is being caught: a short stun (a few seconds in which nothing happens)
+  and no other cost. No fines, no lost items, no health: the design says "a short stun, not a
+  punishment". Show the chance on the card.
+- **Chance, as fights do it.** Attempts are events with seeded dice from the save, walked in
+  order; `advance(a)` then `advance(b)` must equal `advance(a + b)` with thieving running,
+  through stuns and across level-ups that change the chance. Decide whether thieving is a third
+  activity kind beside `action` and `fight` or a kind of action with a roll, and say why in the
+  status file. Tests for the invariant come before screens, as in S8.
+- **Bounties.** The notice board posts a bounty: kill so many of a monster the character can
+  reasonably fight (chosen by seeded dice from those near the character's combat level, never
+  one hopeless or trivial). Kills count while the bounty is held, live or away. Handing it in
+  pays bounty points and a little coin and posts the next. A bounty can be swapped for another
+  at a small cost in points, so nobody is stuck. One at a time.
+- **The bounty shop.** Points buy things nothing else gives: start small (three or four things),
+  for instance a quiver of better arrows, a charm worn at the neck or wrist with numbers a shade
+  above shell, a one-off cosmetic. Anything wearable needs an `equip` row; lane B will draw
+  worn layers and icons for new ids next wave, and until then they show without a picture.
+- **Bounty-only monsters.** Two monsters that can only be fought while a bounty names them, one
+  around level 10 and one around 18, with a drop each that is worth the trip. Add them to the
+  monster tables under an area of their own; their ids are yours (say them in the status file so
+  lane B can draw their portraits).
+- **Screens.** Thieving is a skill page like the others, with the chance and the stun shown.
+  Bounties get a page reached from the Combat section: the current bounty and its progress, hand
+  in, swap, points, and the shop. The away report covers both (attempts, successes, times
+  caught, coins; bounty progress and "ready to hand in").
+- **Balance, by simulation.** Thieving reaches 20 in about three hours like the gathering skills,
+  and earns coins at a rate that is better than selling gathered goods but not absurdly so (pin
+  the coins per hour at levels 1, 10 and 20). A bounty near the character's level takes ten to
+  twenty minutes of fighting.
+- **Save.** Version 7, with a migration, `saveProblem` checks and tests.
+- Also, small: health now returns in full whenever a fight stops, so stopping and restarting
+  heals for free. Carry hit points between fights and regenerate them slowly out of combat
+  instead (as part of state, advanced by time like everything else), unless that breaks the
+  duel simulations badly; if it does, leave it and say why.
+
+Minimum: thieving with its dice exact through time away; one bounty at a time with points.
+Done when: `npm run check` passes; a phone-sized run shows a pocket picked, getting caught, a
+bounty taken, progressed by fighting and handed in, and something bought with points.
+
+### Lane B · B5: Hands, then the new items, then faces
+
+Read: `docs/style-guide.md` (Figures, Gear ladder, Portraits); `docs/status/lane-b.md`;
+`src/art/wardrobe.ts`, `src/art/armoury.ts`, `src/art/depth.ts`, `src/art/character.ts`.
+
+**1. How things sit in the hand (first, and the most important part of this session).**
+Cody's words after playing wave 4: "weapons seem to be appearing behind the character's hand.
+Dig into the character and how items sit in their hands." So the character does not look as if
+he is holding his weapon: it looks as if the weapon is behind his hand, or stuck to it.
+
+- Find out what is actually happening before changing anything. Render the character large,
+  holding each kind of thing in turn (hero's long sword, iron sword, bronze short sword, both
+  axes, each bow, and each shield on the other arm), in both the standard pose and at game
+  scale, and study the hand: which pixels are fist, which are grip, what is drawn over what
+  (`depth.ts` has `HELD_BEHIND`, `HAND` and `HELD_FRONT`), and where the weapon's line passes
+  relative to the knuckles. Look at the same things in the town at game scale, mirrored to face
+  left, since that is where Cody saw it.
+- A held thing reads as held when: the grip passes **through** the fist (some of it visible
+  below the hand as a pommel or butt, the rest emerging above), the fingers wrap **over** the
+  grip (hand in front of the grip, but only the grip), the guard or head sits clear above the
+  fist and in front of the forearm and body, and the weapon's angle agrees with the forearm's.
+  It reads as "behind the hand" when the whole weapon is one layer drawn under a solid fist, when
+  no grip shows below the hand, when the fist is wider than what it holds with no wrap, or when
+  the blade passes behind the arm or torso. Work out which of these is true here.
+- Fix it in the structure, not weapon by weapon: decide the rule for how any held thing is
+  layered around the hand (what is behind the fist, what is in front, where fingers are drawn,
+  where the grip must enter and leave), write it in the style guide's Figures section, and make
+  every weapon, both shields' grips or straps and the bows follow it. A bow is held at its
+  middle with the string behind the hand; a shield is strapped to the forearm with the hand
+  hidden behind it or gripping its edge.
+- The approved hero is included. If his sword hand has this fault, fix it: this is the owner
+  asking for a change to the approved figure. Change as few pixels as do the job, update his
+  pinned test deliberately in the same commit, and show before and after. The town draws him and
+  the three townsfolk too: check the pirate's cutlass and the trader's basket by the same rule.
+- Show the work: a labelled before-and-after sheet of every held thing at 2x and at game scale,
+  day and dusk, facing both ways, and a close-up diagram of the hand with the layers named.
+  Tests that hold the rule where a test can (for example, for every held layer: some grip pixel
+  lies directly below the fist and some directly above it; no fist pixel is drawn over a blade
+  or head pixel).
+
+**2. The eleven new items.** Icons for `hide`, `feathers`, `pearl`, `cudgel`, `smuggled_tea`,
+`smugglers_cutlass`, `trollstone`, `leather`, `leather_bracers`, `leather_cap` and
+`leather_jerkin`; worn layers (through `ITEM_LAYERS`) for the wearables among them (read
+`src/data/items.ts` to see which have `equip`). Leather sits on the gear ladder between linen and
+bronze: a hunter or woodsman, no metal. The smuggler's cutlass is a rare drop and may look a
+little finer than its tier. Held ones follow the new hand rule from the start.
+
+**3. Portraits, 48 x 48, through `portrait(id)`.** The eight monsters first (`dock_rat`,
+`sand_crab`, `thieving_gull`, `bramble_boar`, `footpad`, `grey_wolf`, `smuggler`, `marsh_troll`;
+`src/data/` says what each is), then the smith, the trader and the pirate captain (ids `smith`,
+`trader`, `pirate`). The fight screen shows a portrait at 3x in a 148px frame and lists at 2x in
+100px, placed as given and never resized, so return an element at the right size for its place
+if the door lets you tell which, or at one size that suits both. One clear expression each, on a
+dark tinted disc as the style guide says; menace by silhouette and attitude, never gore; funny is
+welcome (the gull especially), cute is not. Any you do not reach stay null.
+
+Not this session: dungeon tiles, the tab icons, tier 2 gear.
+
+Minimum: part 1 complete, with its sheet and tests; icons for the eleven items.
+Done when: `npm run check` passes; the before-and-after sheet shows weapons plainly held, in the
+town as well as on the sheet; nothing outside `src/art`, `tests/art`, `docs/style-guide.md` and
+this lane's status file changed.
+
+### Lane C · S14b: Fighting in dungeons
+
+Read: `docs/design.md` section 8; `docs/status/lane-c.md`; lane A's notes for you in
+`docs/status/lane-a.md`; `src/core/combat.ts` (the formulas) and `src/core/run.ts`
+(`settleRun`).
+
+The dungeon has rooms and a way through them. Put the fight in: short, active, one thumb.
+
+- **The rules are lane A's; the run is yours.** Use `playerCombat(state, content)` for the
+  character's attack, defence, max hit and hit points, `hitChance` and the monsters' own numbers
+  from the content tables for who hits whom and how hard, and the weapon's style for reach
+  (melee beside the target, ranged from a distance, one arrow a shot). Roll your own dice from a
+  seed taken when the run starts (`src/core/rng.ts` has the generator; never touch `state.rng`).
+  Nothing about a run is saved while it lasts. When it ends, by any route, call
+  `shell.settleRun(spoils)` exactly once with what it came to: it pays the XP, loot and coins in,
+  takes the food eaten and arrows shot out, and saves. It is the only way a scene changes the
+  save.
+- **Enemies.** Placed in rooms as data. They notice the hero within a range, come at him, and
+  attack on their timers. Use monsters that exist (`dock_rat`, `sand_crab`, `smuggler`) with a
+  placeholder figure each (a labelled shape in a base-ramp colour is fine; their real sprites are
+  a later art session). A room's doors stay shut until it is cleared.
+- **Auto-attack.** The hero attacks whatever is in reach by himself, on his attack timer. Tap an
+  enemy to choose it as the target; tap the ground to move, as ever.
+- **Telegraphed attacks.** At least one enemy has a heavy attack that marks the ground first (a
+  shape that fills over a second or so) and hits hard only if the hero is still in it when it
+  lands. This is the heart of the active game: moving out of the way must work and feel fair.
+- **Abilities.** A bar of two for the weapon's style, each with a cooldown shown on the button:
+  melee, say, a wide swing that hits everything adjacent and a brace that halves the next heavy
+  hit; ranged, a quick double shot and a step back. Yours to design; keep them few and readable.
+  Buttons sit at the bottom edge, thumb-sized, inside the safe area.
+- **Food.** A button that eats one from the food slot (the count the character walked in with),
+  with a short cooldown. No food slot loaded, no button.
+- **Health** for the hero on screen at all times, and over each enemy.
+- **Ending.** Clearing the last room ends the run with results: time, kills, XP by skill
+  (`XP_PER_DAMAGE` and its friends in `combat.ts` say how much), coins and loot (roll each
+  monster's table from the content). Falling to zero ends it too: "washed back to town" with
+  whatever was picked up so far, nothing lost. Leaving early keeps what was picked up. All three
+  settle through `settleRun`.
+- Keep it grey-box. The grotto's own rooms, tide, enemies and boss are the next session (S15).
+- Tests: targeting and reach; the telegraph (in the shape when it lands: hit; out of it: not);
+  cooldowns; a cleared room opens its doors; each of the three endings settles exactly once with
+  the right spoils; a run rolls the same from the same seed.
+
+Minimum: enemies that chase and hit, auto-attack, health, one telegraphed attack, and the three
+endings settling their spoils.
+Done when: `npm run check` passes; a landscape phone-sized run shows a room cleared, a heavy
+attack dodged and one taken, an ability used, food eaten, a run finished and a run failed, and
+afterwards the bank and skills showing what was earned; nothing outside `src/scene`,
+`tests/scene` and this lane's status file changed.
+
+## Wave 4 briefs (done)
 
 New since wave 3:
 
@@ -630,7 +806,6 @@ nothing outside `src/scene`, `tests/scene` and this lane's status file changed.
 Written when their wave is next, by Cody's orchestrating session, from `docs/plan.md` and what the
 lanes' status files say they left behind:
 
-- **S9** (A): Thieving and Bounties.
-- **B5** (B): portraits not reached in B4; icons for S8's new items; tiles for the first dungeon.
-- **S14b** (C): enemies, telegraphed attacks, the ability bar, food, failing and finishing a run,
-  on S8's combat rules.
+- **S10** (A): coins and the general shop, the collection log, achievements.
+- **B6** (B): tiles for the first dungeon, sprites for monsters in scenes, whatever B5 left.
+- **S15** (C): Brinebeard's Grotto: its five rooms, the tide, its enemies and boss.
