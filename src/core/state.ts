@@ -9,13 +9,19 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 6;
+export const GAME_STATE_VERSION = 7;
 
 export interface ActiveAction {
   /** An ActionDef id. */
   id: string;
   /** Time already put into the completion under way. */
   progressMs: number;
+  /**
+   * A theft only: milliseconds left of being stunned after getting caught,
+   * during which nothing happens and `progressMs` is 0. Left out when not
+   * stunned, never kept at 0.
+   */
+  stunMs?: number;
 }
 
 /** The potion last drunk, while it has charges left. */
@@ -83,6 +89,37 @@ export interface MonsterRecord {
   seen: string[];
 }
 
+/** What the character knows of one mark (a theft's ActionDef), from robbing it. */
+export interface MarkRecord {
+  /** Successes. */
+  picked: number;
+  /** Times caught. */
+  caught: number;
+  /** The item ids it has been seen to give up, besides coins, in the order first seen. */
+  seen: string[];
+}
+
+/** The bounty the character holds from the notice board. */
+export interface Bounty {
+  /** A MonsterDef id. */
+  monster: string;
+  /** Kills asked for. */
+  count: number;
+  /** Kills made since it was taken, never more than `count`. Equal: ready to hand in. */
+  done: number;
+}
+
+/**
+ * Hit points out of a fight, when the character is hurt. They come back by
+ * themselves with time (`rest` in src/core/combat.ts): `regenMs` is the time
+ * already put towards the next one.
+ */
+export interface Health {
+  /** Above zero and below the most the character can have. */
+  hp: number;
+  regenMs: number;
+}
+
 export interface GameState {
   version: number;
   name: string;
@@ -117,6 +154,17 @@ export interface GameState {
   rng: number;
   /** What the character knows of each monster, by MonsterDef id. Never fought reads as nothing. */
   bestiary: Record<string, MonsterRecord>;
+  /** What the character knows of each mark, by ActionDef id. Never robbed reads as nothing. */
+  marks: Record<string, MarkRecord>;
+  /** The bounty held, or null. One at a time. */
+  bounty: Bounty | null;
+  /** Earned by handing bounties in, spent in the bounty shop. */
+  bountyPoints: number;
+  /**
+   * Hit points out of a fight while hurt; null when at full health. In a
+   * fight the fight's own `hp` is the truth and this is always null.
+   */
+  health: Health | null;
 }
 
 /** Eat below half health, unless the player says otherwise. */
@@ -160,6 +208,10 @@ export function newGame(name: string, now: number, look: Look = {}): GameState {
     eatAt: DEFAULT_EAT_AT,
     rng: seedFrom(now),
     bestiary: {},
+    marks: {},
+    bounty: null,
+    bountyPoints: 0,
+    health: null,
   };
 }
 

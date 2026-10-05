@@ -39,6 +39,20 @@ export interface AwayReport {
   levels: Record<string, { from: number; to: number }>;
   /** Actions whose mastery level rose, by action id. */
   mastery: Record<string, { from: number; to: number }>;
+  /** What came of the theft that was running when the game was left, or null. */
+  theft: null | {
+    /** The mark's ActionDef id. */
+    mark: string;
+    attempts: number;
+    picked: number;
+    caught: number;
+  };
+  /**
+   * How the bounty held came along: kills made towards it while away, where
+   * it stands, and whether it is ready to hand in. Null when no bounty was
+   * held, or it gained nothing and was not already done.
+   */
+  bounty: null | { monster: string; gained: number; done: number; count: number; ready: boolean };
   /** Why the action or fight is no longer running, or null if it still is. */
   stopped:
     | null
@@ -67,10 +81,11 @@ export function catchUp(
 ): { state: GameState; report: AwayReport | null } {
   // A clock set backwards makes a negative gap; it pays nothing.
   const away = Number.isFinite(awayMs) ? Math.max(awayMs, 0) : 0;
-  if (!busy(state) || away === 0) {
-    return { state, report: null };
-  }
   const countedMs = Math.min(away, OFFLINE_CAP_MS);
+  if (!busy(state) || away === 0) {
+    // A hurt character heals while away, but that is nothing to report.
+    return { state: advance(state, countedMs, content), report: null };
+  }
   const after = advance(state, countedMs, content);
 
   const items: Record<string, number> = {};
@@ -118,6 +133,26 @@ export function catchUp(
     stopped = short ? { reason: 'ran_out', item: short.item } : { reason: 'gone' };
   }
 
+  let theft: AwayReport['theft'] = null;
+  const mark = state.action && content.actions[state.action.id];
+  if (mark?.steal) {
+    const was = state.marks[mark.id];
+    const now = after.marks[mark.id];
+    const picked = (now?.picked ?? 0) - (was?.picked ?? 0);
+    const caught = (now?.caught ?? 0) - (was?.caught ?? 0);
+    theft = { mark: mark.id, attempts: picked + caught, picked, caught };
+  }
+
+  // Only a fight changes a bounty while time passes, and only by counting kills.
+  let bounty: AwayReport['bounty'] = null;
+  if (state.bounty && after.bounty) {
+    const { monster, done, count } = after.bounty;
+    const gained = done - state.bounty.done;
+    if (gained > 0 || done >= count) {
+      bounty = { monster, gained, done, count, ready: done >= count };
+    }
+  }
+
   // Only `advance` ran, and it never swaps one potion for another, so what is
   // left (if anything) is the same potion with fewer charges.
   const used = state.potion ? state.potion.charges - (after.potion?.charges ?? 0) : 0;
@@ -136,6 +171,8 @@ export function catchUp(
       xp,
       levels,
       mastery,
+      theft,
+      bounty,
       stopped,
       potion,
     },

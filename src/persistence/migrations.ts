@@ -28,6 +28,10 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     rng: seedFrom(typeof state.createdAt === 'number' ? state.createdAt : 0),
     bestiary: {},
   }),
+  // Thieving, bounties and hit points that last (S9): nobody made before them
+  // has robbed anyone or held a bounty, and a character not in a fight was
+  // always at full health between fights, which is what no `health` means.
+  6: (state) => ({ ...state, marks: {}, bounty: null, bountyPoints: 0, health: null }),
 };
 
 /**

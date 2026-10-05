@@ -110,7 +110,14 @@ function saveProblem(state: Record<string, unknown>): string | null {
   const { action } = state;
   if (
     action !== null &&
-    !(isRecord(action) && typeof action.id === 'string' && isCount(action.progressMs))
+    !(
+      isRecord(action) &&
+      typeof action.id === 'string' &&
+      isCount(action.progressMs) &&
+      // A stun is time still to wait, so never nothing, and nothing fills the bar during it.
+      (action.stunMs === undefined ||
+        (isCount(action.stunMs) && action.stunMs > 0 && action.progressMs === 0))
+    )
   ) {
     return 'the current action is not one';
   }
@@ -179,6 +186,47 @@ function saveProblem(state: Record<string, unknown>): string | null {
     )
   ) {
     return 'what is known of monsters should be kills and drops seen';
+  }
+  const { marks } = state;
+  if (
+    !isRecord(marks) ||
+    !Object.values(marks).every(
+      (record) =>
+        isRecord(record) &&
+        isWhole(record.picked) &&
+        isWhole(record.caught) &&
+        Array.isArray(record.seen) &&
+        record.seen.every((item) => typeof item === 'string'),
+    )
+  ) {
+    return 'what is known of marks should be pockets picked, times caught and things seen';
+  }
+  const { bounty } = state;
+  if (
+    bounty !== null &&
+    !(
+      isRecord(bounty) &&
+      typeof bounty.monster === 'string' &&
+      isWhole(bounty.count) &&
+      bounty.count > 0 &&
+      isWhole(bounty.done) &&
+      bounty.done <= bounty.count
+    )
+  ) {
+    return 'the bounty should be a monster and a count of kills made of those asked';
+  }
+  if (!isWhole(state.bountyPoints)) {
+    return 'bounty points should be a whole number';
+  }
+  const { health } = state;
+  if (
+    health !== null &&
+    !(isRecord(health) && isWhole(health.hp) && health.hp > 0 && isCount(health.regenMs))
+  ) {
+    return 'health should be hit points and time towards the next';
+  }
+  if (health !== null && fight !== null) {
+    return 'it has hit points in a fight and out of one at once';
   }
   return null;
 }

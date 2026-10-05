@@ -3,13 +3,17 @@ import { seedFrom } from '../../src/core/rng';
 import { GAME_STATE_VERSION, newGame } from '../../src/core/state';
 import { migrateGameState } from '../../src/persistence/migrations';
 
-/** What version 6 adds to a save made at `createdAt`: no fight, no food, dice of its own. */
+/** What version 7 adds: nothing robbed, no bounty, and full health. */
+const unrobbed = { marks: {}, bounty: null, bountyPoints: 0, health: null };
+
+/** What versions 6 and 7 add to a save made at `createdAt`: no fight, no food, dice of its own. */
 const unfought = (createdAt: number) => ({
   fight: null,
   food: null,
   eatAt: 50,
   rng: seedFrom(createdAt),
   bestiary: {},
+  ...unrobbed,
 });
 
 describe('migrateGameState', () => {
@@ -115,10 +119,36 @@ describe('migrateGameState', () => {
     };
     // Gear stays worn and food stays in the bank: a migration feeds nobody.
     const v6 = migrateGameState(v5);
-    expect(v6).toEqual({ ...v5, version: 6, ...unfought(v5.createdAt) });
+    expect(v6).toEqual({ ...v5, version: GAME_STATE_VERSION, ...unfought(v5.createdAt) });
     expect(Number.isInteger(v6!.rng) && v6!.rng >= 0 && v6!.rng < 2 ** 32).toBe(true);
     // Two characters made at different times roll different dice.
     expect(migrateGameState({ ...v5, createdAt: 1 })!.rng).not.toBe(v6!.rng);
+  });
+
+  it('brings a version 6 save (S8) up to date mid-fight, unrobbed and with no bounty', () => {
+    const v6 = {
+      ...newGame('Cody', 5),
+      version: 6,
+      bank: { hide: 3 },
+      equipment: { main_hand: { item: 'bronze_sword', qty: 1 } },
+      food: { item: 'cooked_shrimp', qty: 10 },
+      fight: {
+        monster: 'dock_rat',
+        hp: 12,
+        foeHp: 4,
+        playerMs: 800,
+        foeMs: 1200,
+        kills: 3,
+        coins: 6,
+        loot: { hide: 3 },
+        eaten: 0,
+        arrows: 0,
+      },
+      bestiary: { dock_rat: { kills: 3, seen: ['hide'] } },
+    } as Record<string, unknown>;
+    for (const key of Object.keys(unrobbed)) delete v6[key];
+    // The fight keeps its own hit points: health out of a fight is for after it.
+    expect(migrateGameState(v6)).toEqual({ ...v6, version: GAME_STATE_VERSION, ...unrobbed });
   });
 
   it('walks every step in order and stamps the version as it goes', () => {

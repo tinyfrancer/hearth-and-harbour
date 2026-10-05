@@ -49,6 +49,8 @@ describe('catchUp', () => {
       xp: { woodcutting: 24_740 },
       levels: { woodcutting: { from: 1, to: 14 } },
       mastery: { chop_pine: { from: 1, to: 22 } },
+      theft: null,
+      bounty: null,
       stopped: null,
       potion: null,
     });

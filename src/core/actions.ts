@@ -1,31 +1,32 @@
+import { leaveFight, rest } from './combat';
 import type { ActionDef, Content, PotionDef } from './content';
 import { advanceFight } from './fight';
 import { extrasIn, potionFor } from './potions';
 import { bankCount, masteryLevel, masteryXp, skillLevel, type GameState } from './state';
-import { MAX_LEVEL, xpForLevel } from './xp';
+import { advanceTheft } from './thieving';
+import { MAX_LEVEL, masteryXpPer, xpForLevel } from './xp';
+
+export { masteryXpPer };
 
 export type StartResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
-/** Mastery XP per second of an action's base time. Level 99 is about 88 hours of one thing. */
-const MASTERY_XP_PER_SECOND = 12;
 /** Each mastery level past the first makes its action this much quicker: 19.6% at 99. */
 export const MASTERY_SPEED_PER_LEVEL = 0.002;
 
-/** Mastery XP one completion of an action is worth. Longer actions teach more. */
-export function masteryXpPer(action: ActionDef): number {
-  return Math.max(1, Math.round((action.durationMs / 1000) * MASTERY_XP_PER_SECOND));
-}
 
 /**
  * How long one completion takes at a mastery level, under a potion if one is
  * helping. A whole number of milliseconds, rounded once, so that sums of them
  * are exact and time cut into frames adds up to the same as time taken whole.
+ * A theft's attempts always take their set time: mastery of a mark makes it
+ * surer, not quicker.
  */
 export function durationAt(
   action: ActionDef,
   mastery: number,
   potion: PotionDef | null = null,
 ): number {
+  if (action.steal) return action.durationMs;
   const quicker = potion?.effect.kind === 'speed' ? potion.effect.percent : 0;
   return Math.max(
     1,
@@ -71,7 +72,7 @@ export function startAction(state: GameState, actionId: string, content: Content
     const item = content.items[short.item]?.name ?? short.item;
     return { ok: false, reason: `Needs ${short.qty} ${item}.` };
   }
-  return { ok: true, state: { ...state, fight: null, action: { id: actionId, progressMs: 0 } } };
+  return { ok: true, state: { ...leaveFight(state), action: { id: actionId, progressMs: 0 } } };
 }
 
 export function stopAction(state: GameState): GameState {
@@ -150,25 +151,38 @@ function complete(
  * most 99 of them. Time left over at a boundary carries into the next stretch
  * as milliseconds, so it does not matter where a cut fell.
  *
- * A fight is the other thing the character can be doing, and it goes by
- * chance: `advanceFight` (src/core/fight.ts) walks it event by event with
- * seeded dice instead, under the same rule.
+ * Two things the character can be doing go by chance, a fight and a theft:
+ * `advanceFight` (src/core/fight.ts) and `advanceTheft` (src/core/thieving.ts)
+ * walk them event by event with seeded dice instead, under the same rule.
+ *
+ * Out of a fight, a hurt character heals as the time passes, whatever else
+ * they are doing (`rest`, src/core/combat.ts); a fight that ends heals for
+ * whatever of the time is left after it.
  */
 export function advance(state: GameState, ms: number, content: Content): GameState {
   if (state.fight) {
     return advanceFight(state, ms, content);
   }
-  if (!state.action || !(ms > 0)) {
+  if (!(ms > 0)) {
     return state;
   }
-  const action = content.actions[state.action.id];
+  const rested = rest(state, ms);
+  return rested.action ? work(rested, ms, content) : rested;
+}
+
+/** The action under way, by arithmetic, or a theft, by its walk. */
+function work(state: GameState, ms: number, content: Content): GameState {
+  const action = content.actions[state.action!.id];
   if (!action || action.durationMs <= 0) {
     // A save can outlive the thing it was doing; stop rather than guess.
     return { ...state, action: null };
   }
+  if (action.steal) {
+    return advanceTheft(state, action, ms);
+  }
   const perCompletion = masteryXpPer(action);
   /** Time in hand: what was already put into the bar, plus what has just passed. */
-  let time = state.action.progressMs + ms;
+  let time = state.action!.progressMs + ms;
   let next = state;
   for (;;) {
     const mastery = masteryLevel(next, action.id);

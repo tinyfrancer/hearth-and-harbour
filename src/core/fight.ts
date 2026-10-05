@@ -8,38 +8,21 @@ import {
   attackRating,
   attackSkill,
   breatherFor,
+  comeRound,
   defenceRating,
   hitChance,
   maxHitFor,
+  hurt,
+  leaveFight,
   maxHpFor,
   monsterDef,
+  rest,
 } from './combat';
 import type { Content } from './content';
 import { combatStyle, equipmentTotals } from './equipment';
 import { Dice } from './rng';
 import type { GameState, MonsterRecord } from './state';
-import { MAX_LEVEL, levelForXp, xpForLevel } from './xp';
-
-/** One skill's XP as the walk adds to it, with its level kept current without a search each time. */
-class Trained {
-  xp: number;
-  level: number;
-  private next: number;
-
-  constructor(xp: number) {
-    this.xp = xp;
-    this.level = levelForXp(xp);
-    this.next = this.level >= MAX_LEVEL ? Infinity : xpForLevel(this.level + 1);
-  }
-
-  add(amount: number): void {
-    this.xp += amount;
-    if (this.xp >= this.next) {
-      this.level = levelForXp(this.xp);
-      this.next = this.level >= MAX_LEVEL ? Infinity : xpForLevel(this.level + 1);
-    }
-  }
-}
+import { Trained } from './xp';
 
 /** Why a fight that was under way before some time passed is not any more. */
 export type FightEnd = 'died' | 'no_arrows' | 'gone';
@@ -59,15 +42,30 @@ export type FightEnd = 'died' | 'no_arrows' | 'gone';
  * At the same moment, the character strikes before the monster: a monster
  * killed by that blow does not strike back.
  *
- * The walk keeps its numbers in plain variables and builds one new state at
- * the end, because a day away is tens of thousands of events.
+ * A fight that ends partway through the time leaves the rest of it to heal
+ * in, as any time out of a fight is, so where the time was cut still does not
+ * matter.
  */
 export function advanceFight(state: GameState, ms: number, content: Content): GameState {
+  const { state: after, left } = walkFight(state, ms, content);
+  return left > 0 ? rest(after, left) : after;
+}
+
+/**
+ * The walk itself, and how much of the time was left when the fight ended
+ * (0 if it did not). It keeps its numbers in plain variables and builds one
+ * new state at the end, because a day away is tens of thousands of events.
+ */
+function walkFight(
+  state: GameState,
+  ms: number,
+  content: Content,
+): { state: GameState; left: number } {
   const fight = state.fight;
-  if (!fight || !(ms > 0)) return state;
+  if (!fight || !(ms > 0)) return { state, left: 0 };
   const monster = monsterDef(content, fight.monster);
   // A save can outlive the monster it was fighting; stop rather than guess.
-  if (!monster) return { ...state, fight: null };
+  if (!monster) return { state: leaveFight(state), left: ms };
 
   const totals = equipmentTotals(state, content);
   const ranged = totals.style === 'ranged';
@@ -86,7 +84,11 @@ export function advanceFight(state: GameState, ms: number, content: Content): Ga
   let bank: Record<string, number> | null = null;
   let record: MonsterRecord | null = null;
   let ended = false;
+  let knockedOut = false;
   let time = ms;
+  // Kills count towards a bounty on this monster until it asks for no more.
+  const hunting = state.bounty?.monster === monster.id ? state.bounty : null;
+  let hunted = hunting?.done ?? 0;
 
   const kill = (): void => {
     kills += 1;
@@ -97,6 +99,7 @@ export function advanceFight(state: GameState, ms: number, content: Content): Ga
       seen: [...(state.bestiary[monster.id]?.seen ?? [])],
     };
     record.kills += 1;
+    if (hunting && hunted < hunting.count) hunted += 1;
     coins += dice.between(monster.coins[0], monster.coins[1]);
     const drop = (item: string, qty: number): void => {
       loot![item] = (loot![item] ?? 0) + qty;
@@ -141,6 +144,7 @@ export function advanceFight(state: GameState, ms: number, content: Content): Ga
     vitality.add(Math.floor(earned / 2));
     if (hp <= 0) {
       ended = true;
+      knockedOut = true;
       return;
     }
     const most = maxHpFor(vitality.level);
@@ -206,12 +210,14 @@ export function advanceFight(state: GameState, ms: number, content: Content): Ga
     if (ammo > 0) equipment.ammo = { item: state.equipment.ammo.item, qty: ammo };
     else delete equipment.ammo;
   }
+  const most = maxHpFor(vitality.level);
   const next: GameState = {
     ...state,
     skills,
     equipment,
     food: state.food && food > 0 ? { item: state.food.item, qty: food } : null,
     rng: dice.seed,
+    health: !ended ? null : knockedOut ? comeRound(most) : hurt(hp, most),
     fight: ended
       ? null
       : {
@@ -230,7 +236,8 @@ export function advanceFight(state: GameState, ms: number, content: Content): Ga
   if (banked) next.bank = banked;
   if (coins !== fight.coins) next.coins = state.coins + coins - fight.coins;
   if (learnt) next.bestiary = { ...state.bestiary, [monster.id]: learnt };
-  return next;
+  if (hunting && hunted !== hunting.done) next.bounty = { ...hunting, done: hunted };
+  return { state: next, left: ended ? time : 0 };
 }
 
 /**

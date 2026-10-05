@@ -1,3 +1,4 @@
+import { comeRound, hurt, maxHp } from './combat';
 import type { GameState } from './state';
 
 /**
@@ -15,6 +16,12 @@ export interface RunSpoils {
   foodEaten?: number;
   /** How many were shot from the ammunition slot. */
   arrowsUsed?: number;
+  /**
+   * The hero's hit points when the run ended, if the run kept them (it should
+   * start from `playerCombat(state, content).hp`). 0 is a knock-out, and the
+   * character comes round as from any other. Left out, health is unchanged.
+   */
+  hp?: number;
 }
 
 const whole = (value: number | undefined): number =>
@@ -28,6 +35,8 @@ const whole = (value: number | undefined): number =>
  * more can be eaten or shot than was carried.
  *
  * It touches neither the idle task nor the dice (`rng`): a run rolls its own.
+ * (A run happens with the idle clock paused, so no idle fight is under way to
+ * own the hit points; if one somehow is, its hit points stand.)
  */
 export function settleRun(state: GameState, spoils: RunSpoils): GameState {
   const skills = { ...state.skills };
@@ -57,5 +66,12 @@ export function settleRun(state: GameState, spoils: RunSpoils): GameState {
     else delete equipment.ammo;
   }
 
-  return { ...state, skills, bank, coins: state.coins + whole(spoils.coins), food, equipment };
+  const settled = { ...state, skills, bank, coins: state.coins + whole(spoils.coins), food, equipment };
+  // Read after the XP is in: a Vitality level from the run raises the most there can be.
+  if (typeof spoils.hp === 'number' && Number.isFinite(spoils.hp) && !state.fight) {
+    const most = maxHp(settled);
+    const hp = Math.min(Math.floor(spoils.hp), most);
+    settled.health = hp > 0 ? hurt(hp, most) : comeRound(most);
+  }
+  return settled;
 }
