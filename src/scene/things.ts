@@ -23,9 +23,17 @@ export type Opens = { readonly tab: Parameters<Shell['openTab']>[0] } | { readon
 /** What walking up to a thing shows: its name, a line or two, and perhaps a button. */
 export interface Use {
   readonly name: string;
+  /** Shown every visit. */
   readonly lines: readonly string[];
   /** What it says instead after dark, if that is different. */
   readonly duskLines?: readonly string[];
+  /**
+   * Said one at a time, after `lines`: the next one each visit, in order and
+   * then round again. Someone who talks rather than something that is read.
+   */
+  readonly says?: readonly string[];
+  /** Said after dark before going round `says`, so the first visit of an evening hears one of these. */
+  readonly duskSays?: readonly string[];
   readonly button?: { readonly label: string; readonly opens: Opens };
 }
 
@@ -50,6 +58,11 @@ export interface Thing {
   /** Where a person stands to use it. Without them, any open tile beside its footprint. */
   readonly spots?: readonly Cell[];
   readonly use?: Use;
+  /**
+   * Walking up to this opens another thing's panel instead: a stall's counter
+   * opens the trader's. Counted as a visit to that other thing.
+   */
+  readonly panelOf?: string;
   readonly sprite?: Sprite;
 }
 
@@ -127,10 +140,25 @@ export function approach(map: TileMap, from: Point, thing: Thing): Cell | null {
   return cheapest(map, from, spotsBeside(map, thing));
 }
 
-/** The middle of a thing's footprint, across: which way to face it. */
+/**
+ * The middle of a thing's footprint, across: which way to face it. Something
+ * with no footprint (it stands on water, which is solid anyway) is faced by
+ * the middle of its tap box.
+ */
 export function footprintCentreX(thing: Thing): number {
   const cols = thing.footprint.map((c) => c.col);
+  if (cols.length === 0) return thing.tap ? thing.tap.x + thing.tap.w / 2 : 0;
   return ((Math.min(...cols) + Math.max(...cols) + 1) * TILE) / 2;
+}
+
+/** Whether walking up to a thing does anything. */
+export function usable(thing: Thing): boolean {
+  return thing.use !== undefined || thing.panelOf !== undefined;
+}
+
+/** The thing whose panel opens when the walker reaches `thing`. */
+export function panelFor(thing: Thing): string {
+  return thing.panelOf ?? thing.id;
 }
 
 /** A box grown about its centre to at least `min` art pixels each way. */

@@ -3,9 +3,18 @@
  * things are, what order they stand in, what the camera sees and how big a
  * pixel is are all worked out by pure functions elsewhere, and this only puts
  * pixels where they say.
+ *
+ * Everything that never moves (the ground and every thing standing on it) is
+ * composed once per palette into one picture of the whole map. A frame copies
+ * the part of it the camera sees, then draws over it only what moves (the
+ * walker, his shadow, smoke, gulls) and the few standing things that must be
+ * drawn again because they stand in front of the walker where he overlaps
+ * them. A patch of the frame can be redrawn the same way on its own, so a gull
+ * crossing the sky repaints a few pixels round the gull, not the screen.
  */
 import type { Palette } from '../art/palette';
 import { rasterize, type Picture } from '../art/raster';
+import type { Box } from './things';
 import type { Point } from './tileMap';
 
 /**
@@ -46,25 +55,6 @@ function paint(pic: Picture, palette: Palette): HTMLCanvasElement | null {
   return canvas;
 }
 
-const mirrors = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
-
-/** The same canvas flipped left to right: a walker facing the other way. */
-export function mirrorOf(source: HTMLCanvasElement): HTMLCanvasElement {
-  let flipped = mirrors.get(source);
-  if (!flipped) {
-    flipped = document.createElement('canvas');
-    flipped.width = source.width;
-    flipped.height = source.height;
-    const ctx = flipped.getContext('2d');
-    if (ctx) {
-      ctx.setTransform(-1, 0, 0, 1, source.width, 0);
-      ctx.drawImage(source, 0, 0);
-    }
-    mirrors.set(source, flipped);
-  }
-  return flipped;
-}
-
 /** Something to copy onto the frame, with its top-left at whole art pixels. */
 export interface Placed {
   readonly image: HTMLCanvasElement;
@@ -72,33 +62,125 @@ export interface Placed {
   readonly y: number;
 }
 
+/** A standing thing, placed, with the line it sorts by. */
+export interface Standing extends Placed {
+  readonly base: number;
+}
+
+/** The box a placed image covers, in art pixels. */
+export function boxOf(p: Placed): Box {
+  return { x: p.x, y: p.y, w: p.image.width, h: p.image.height };
+}
+
+/**
+ * The whole map as it stands with nobody walking: the ground, then every
+ * standing thing in depth order. Made once per palette and kept.
+ */
+export function compose(
+  ground: HTMLCanvasElement,
+  standing: readonly Standing[],
+): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas');
+  canvas.width = ground.width;
+  canvas.height = ground.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(ground, 0, 0);
+  for (const s of [...standing].sort((a, b) => a.base - b.base)) ctx.drawImage(s.image, s.x, s.y);
+  return canvas;
+}
+
 export interface Frame {
   /** What shows past the map's edges. */
   readonly backdrop: string;
   readonly scale: number;
   readonly camera: Point;
-  readonly ground: HTMLCanvasElement;
-  /** Laid on the ground under everything that stands: the walker's shadow. */
+  /** The map with everything that stands still on it (`compose`). */
+  readonly still: HTMLCanvasElement;
+  /** Every standing thing, already in `still`, in depth order. */
+  readonly standing: readonly Standing[];
+  /** Laid on the ground over `still`: the walker's shadow, foam. */
   readonly underfoot: readonly Placed[];
   /** Where a walk on open ground ends, if one is under way. */
   readonly target: Point | null;
   readonly marker: { readonly light: string; readonly ink: string };
-  /** Everything that stands, back to front. */
-  readonly standing: readonly Placed[];
+  /** The walker, and the line their feet are on. */
+  readonly walker: Standing | null;
+  /** Over everything: smoke, gulls. */
+  readonly above: readonly Placed[];
 }
 
-/** Draws one frame. Every position is a whole art pixel and the scale whole, so nothing blurs or shimmers. */
-export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame): void {
-  const { scale, camera } = frame;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = frame.backdrop;
-  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+/** The box the end-of-walk marker covers. */
+export function markerBox(at: Point): Box {
+  return { x: Math.round(at.x) - 3, y: Math.round(at.y) - 3, w: 7, h: 7 };
+}
+
+export function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+/**
+ * What must be drawn again over a patch: the boxes where the still picture
+ * is wrong there (under the walker and whatever is laid on the ground), and
+ * the standing things that cross those boxes, with the walker among them in
+ * depth order. They are drawn clipped to those boxes, so a thing drawn again
+ * never lands on one in front of it anywhere else.
+ */
+export function redrawn(frame: Frame, patch: Box): { boxes: Box[]; list: Standing[] } {
+  const boxes: Box[] = [
+    ...frame.underfoot.map(boxOf),
+    ...(frame.target ? [markerBox(frame.target)] : []),
+    ...(frame.walker ? [boxOf(frame.walker)] : []),
+  ].filter((b) => overlaps(b, patch));
+  if (boxes.length === 0) return { boxes, list: [] };
+  const list: Standing[] = frame.standing.filter((s) => {
+    const box = boxOf(s);
+    return overlaps(box, patch) && boxes.some((m) => overlaps(m, box));
+  });
+  if (frame.walker && overlaps(boxOf(frame.walker), patch)) {
+    // After anything level with the walker's feet, so the walker is in front.
+    const at = list.findIndex((s) => s.base > frame.walker!.base);
+    list.splice(at === -1 ? list.length : at, 0, frame.walker);
+  }
+  return { boxes, list };
+}
+
+/**
+ * Draws one patch of the frame (a box in art pixels, whole numbers), or all
+ * of it. Every position is a whole art pixel and the scale whole, so nothing
+ * blurs or shimmers.
+ */
+export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame, patch: Box): void {
+  const { scale, camera, still } = frame;
+  ctx.save();
   ctx.setTransform(scale, 0, 0, scale, -camera.x * scale, -camera.y * scale);
-  ctx.drawImage(frame.ground, 0, 0);
-  for (const p of frame.underfoot) ctx.drawImage(p.image, p.x, p.y);
-  if (frame.target) drawTarget(ctx, frame.target, frame.marker);
-  for (const p of frame.standing) ctx.drawImage(p.image, p.x, p.y);
+  ctx.imageSmoothingEnabled = false;
+  ctx.beginPath();
+  ctx.rect(patch.x, patch.y, patch.w, patch.h);
+  ctx.clip();
+  const x0 = Math.max(0, patch.x);
+  const y0 = Math.max(0, patch.y);
+  const x1 = Math.min(still.width, patch.x + patch.w);
+  const y1 = Math.min(still.height, patch.y + patch.h);
+  if (x0 > patch.x || y0 > patch.y || x1 < patch.x + patch.w || y1 < patch.y + patch.h) {
+    ctx.fillStyle = frame.backdrop;
+    ctx.fillRect(patch.x, patch.y, patch.w, patch.h);
+  }
+  if (x1 > x0 && y1 > y0) ctx.drawImage(still, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+  for (const p of frame.underfoot) if (overlaps(boxOf(p), patch)) ctx.drawImage(p.image, p.x, p.y);
+  if (frame.target && overlaps(markerBox(frame.target), patch))
+    drawTarget(ctx, frame.target, frame.marker);
+  const { boxes, list } = redrawn(frame, patch);
+  if (list.length > 0) {
+    ctx.save();
+    ctx.beginPath();
+    for (const b of boxes) ctx.rect(b.x, b.y, b.w, b.h);
+    ctx.clip();
+    for (const s of list) ctx.drawImage(s.image, s.x, s.y);
+    ctx.restore();
+  }
+  for (const p of frame.above) if (overlaps(boxOf(p), patch)) ctx.drawImage(p.image, p.x, p.y);
+  ctx.restore();
 }
 
 /** A small cross on the ground where the walk ends. */
