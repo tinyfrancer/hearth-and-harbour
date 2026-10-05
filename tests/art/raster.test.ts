@@ -68,4 +68,13 @@ describe('glows', () => {
     const forge = picture(dark, [{ x: 2.5, y: 1.5, radius: 3, strength: 0.5, always: true }]);
     expect(colourPixels(forge, DAY)[28]).toBeGreaterThan(0x1a);
   });
+
+  it('can shine by day only, giving way to a stronger glow at dusk', () => {
+    const forge = picture(dark, [
+      { x: 2.5, y: 1.5, radius: 3, strength: 0.25, byDay: true },
+      { x: 2.5, y: 1.5, radius: 3, strength: 0.5 },
+    ]);
+    expect(colourPixels(forge, DAY)[28]).toBeCloseTo(0x1a + 255 * 0.25, 6);
+    expect(colourPixels(forge, DUSK)[28]).toBeCloseTo(0x15 + 255 * 0.5, 6);
+  });
 });

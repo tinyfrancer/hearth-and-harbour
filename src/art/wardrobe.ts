@@ -9,6 +9,7 @@
  * edges the dark one. Eyes mirror each other, pupils toward the nose.
  */
 import type { BodyDef, GearDef } from './figure';
+import { TOWNSFOLK_BODIES, TOWNSFOLK_GEAR } from './townsfolk';
 
 // Depths, back to front.
 const CLOAK = -20;
@@ -83,6 +84,7 @@ export const BODIES: readonly BodyDef[] = [
       },
     ],
   },
+  ...TOWNSFOLK_BODIES,
 ];
 
 export const GEAR: readonly GearDef[] = [
@@ -335,4 +337,5 @@ export const GEAR: readonly GearDef[] = [
       },
     ],
   },
+  ...TOWNSFOLK_GEAR,
 ];

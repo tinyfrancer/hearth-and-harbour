@@ -34,25 +34,33 @@ export function grass(g: Grid, rand: Rand, box: Box): void {
   }
 }
 
+/**
+ * The cobble at a spot: offset rows of stones with dark joints and a few pale
+ * faces. Worked out from where it is, so cobbles painted in pieces still line up.
+ */
+export function cobbleAt(x: number, y: number): Shade {
+  const row = (y / 6) | 0;
+  const o = (row % 2) * 5;
+  const joint = y % 6 === 0 || (x + o) % 10 === 0;
+  let c: Shade = joint ? 'cobble3' : 'cobble2';
+  if (!joint) {
+    const k = ((((x + o) / 10) | 0) * 7 + row * 13) % 11;
+    if (k === 0 || ((x + o) % 10 === 1 && y % 6 === 1)) c = 'cobble1';
+  }
+  return c;
+}
+
 /** Cobbles in offset rows with dark joints, a few pale stones and some grime. */
 export function cobbles(g: Grid, rand: Rand, box: Box): void {
   for (let y = box.y; y < box.y + box.h; y++)
     for (let x = box.x; x < box.x + box.w; x++) {
-      const row = (y / 6) | 0;
-      const o = (row % 2) * 5;
-      const joint = y % 6 === 0 || (x + o) % 10 === 0;
-      let c: Shade = joint ? 'cobble3' : 'cobble2';
-      if (!joint) {
-        const k = ((((x + o) / 10) | 0) * 7 + row * 13) % 11;
-        if (k === 0 || ((x + o) % 10 === 1 && y % 6 === 1)) c = 'cobble1';
-      }
-      set(g, x, y, c);
+      set(g, x, y, cobbleAt(x, y));
     }
   sprinkle(g, rand, Math.round((box.w * box.h * 160) / (264 * 92)), box, 'cobble2', 'cobble3');
 }
 
 /** Roof shingles in staggered rows, narrowing toward the ridge, with patched tiles. */
-function shingles(
+export function shingles(
   c: Grid,
   rand: Rand,
   x0: number,
@@ -88,7 +96,7 @@ function shingles(
 }
 
 /** Stone blocks in offset courses, a few faces catching the light. */
-function stone(
+export function stone(
   c: Grid,
   rand: Rand,
   x: number,
@@ -111,7 +119,7 @@ function stone(
  * A framed window of nx by ny panes with a sill. Its glow is noted against
  * the outlined drawing, hence the one-pixel shift.
  */
-function windowPanes(
+export function windowPanes(
   c: Grid,
   glows: Glow[],
   x: number,

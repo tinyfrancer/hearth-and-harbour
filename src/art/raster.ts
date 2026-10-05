@@ -18,6 +18,11 @@ export interface Glow {
   readonly radius: number;
   readonly strength: number;
   readonly always?: boolean;
+  /**
+   * Shines only by daylight, when the lights are off: a forge's daytime
+   * glow, which its larger evening glow replaces at dusk.
+   */
+  readonly byDay?: boolean;
 }
 
 /** A drawing and the lights in it. */
@@ -53,9 +58,14 @@ export function colourPixels(pic: Picture, palette: Palette): Float64Array {
     out.set([rgb[0], rgb[1], rgb[2], 255], i * 4);
   }
   for (const glow of pic.glows) {
-    if (glow.always || palette.lightsOn) addGlow(out, w, h, glow);
+    if (shines(glow, palette)) addGlow(out, w, h, glow);
   }
   return out;
+}
+
+/** Whether a glow is lit in this palette. */
+export function shines(glow: Glow, palette: Palette): boolean {
+  return glow.byDay ? !palette.lightsOn : glow.always === true || palette.lightsOn;
 }
 
 /**

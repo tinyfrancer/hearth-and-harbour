@@ -10,9 +10,17 @@
  * and its caption says so.
  */
 import { gameScale, pixelCanvas, repaint, wholeScale, type PixelCanvasOptions } from './canvas';
-import { DRESSING, dressingPlate, figurePlate, propsPlate, tavernPlate } from './plates';
+import {
+  DRESSING,
+  dressingPlate,
+  figurePlate,
+  propsPlate,
+  tavernPlate,
+  townsfolkPlate,
+} from './plates';
 import { DAY, DUSK, GUIDE_RAMPS, RAMPS, type Palette, type RampName } from './palette';
 import type { Picture } from './raster';
+import { townPicture } from './town';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
 const GAP = 8;
@@ -127,8 +135,37 @@ export function artGallery(): HTMLElement {
     el(
       'p',
       'gallery-intro',
-      'The art pipeline: the approved town mock-up, rebuilt as the game’s own drawing engine. Day and dusk are the same drawing in two palettes.',
+      'The approved town mock-up, rebuilt as the game’s own drawing engine. Day and dusk are the same drawing in two palettes.',
     ),
+  );
+
+  const town = townPicture();
+  part(
+    'The town',
+    'The whole of the approved mock-up, assembled from the game’s own pieces: tavern, smithy, stall, square, quay, pier, ship and sea. Hold it against the mock-up; they should be the same picture.',
+    ...row(
+      [
+        { pic: town, palette: DAY, label: 'Day' },
+        { pic: town, palette: DUSK, label: 'Dusk' },
+      ],
+      'game',
+      1,
+    ),
+  );
+
+  const folk = townsfolkPlate();
+  part(
+    'Townsfolk',
+    'The hero, the pirate captain, the smith and the trader. Each is a posed body; what they hold is a layer of its own.',
+    ...row(
+      [
+        { pic: folk, palette: DAY, label: 'Day' },
+        { pic: folk, palette: DUSK, label: 'Dusk' },
+      ],
+      'close',
+      1,
+    ),
+    ...row([{ pic: folk, palette: DAY, label: 'Day' }], 'game'),
   );
 
   const hero = figurePlate();
@@ -198,7 +235,7 @@ export function artGallery(): HTMLElement {
 
   part(
     'Still to come',
-    'Item and skill icons (next session), portraits, the other townsfolk and the rest of the town. Nothing drawn yet.',
+    'Item and skill icons, gear for new equipment, and portraits. Nothing drawn yet.',
   );
 
   const draw = () => {

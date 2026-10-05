@@ -3,10 +3,12 @@ import { artGallery, shotScale } from '../../src/art/gallery';
 import { RAMPS } from '../../src/art/palette';
 
 describe('artGallery', () => {
-  it('shows the hero, the tavern, the props, the layers and the palette', () => {
+  it('shows the town, the townsfolk, the hero, the tavern, the props, the layers and the palette', () => {
     const page = artGallery();
     const titles = [...page.querySelectorAll('h2')].map((h) => h.textContent);
     expect(titles).toEqual([
+      'The town',
+      'Townsfolk',
       'The hero',
       'The tavern',
       'Props',
@@ -15,8 +17,8 @@ describe('artGallery', () => {
       'Still to come',
     ]);
     const labels = [...page.querySelectorAll('canvas')].map((c) => c.getAttribute('aria-label'));
-    expect(labels.filter((l) => l === 'Day').length).toBeGreaterThanOrEqual(4);
-    expect(labels.filter((l) => l === 'Dusk').length).toBeGreaterThanOrEqual(4);
+    expect(labels.filter((l) => l === 'Day').length).toBeGreaterThanOrEqual(7);
+    expect(labels.filter((l) => l === 'Dusk').length).toBeGreaterThanOrEqual(6);
   });
 
   it('draws every picture at a whole number of device pixels', () => {
