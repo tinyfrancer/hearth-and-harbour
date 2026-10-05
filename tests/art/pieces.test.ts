@@ -56,6 +56,13 @@ describe('the bronze short sword', () => {
       return [(Math.min(...xs) + Math.max(...xs)) / 2, y] as const;
     });
     expect(bend(middles)).toBeLessThan(1);
+    // It steps evenly: a short run between long ones reads as a kink.
+    const runs: number[] = [];
+    ridge.forEach(([x], i) => {
+      if (i > 0 && x === ridge[i - 1]![0]) runs[runs.length - 1]!++;
+      else runs.push(1);
+    });
+    expect(new Set(runs.slice(1, -1)).size).toBe(1);
   });
 
   it('is symmetric about its midrib, with a dark edge on the shadow side', () => {
