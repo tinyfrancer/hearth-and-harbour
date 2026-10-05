@@ -28,24 +28,29 @@ import {
   fighterOf,
   foeAt,
   foodProblem,
+  inMark,
   inReach,
   spoilsOf,
   startBattle,
   targetFoe,
   useAbility,
+  WADE_PACE,
   type Battle,
   type Fighter,
   type Foe,
   type Place,
+  type Telegraph,
 } from '../../src/scene/battle';
 import {
   advanceRun,
   buildDungeon,
+  groundNow,
   placeOf,
   runLocked,
   startRun,
   type Run,
 } from '../../src/scene/dungeon';
+import { GROTTO_CAST } from '../../src/scene/cast';
 import { FOE_KINDS } from '../../src/scene/foes';
 import { GROTTO } from '../../src/scene/grotto';
 import { startPlay, type Play } from '../../src/scene/play';
@@ -71,7 +76,7 @@ const YARD = ['#####', '#...#', 'a...#', '#.x.#', '#####'];
 const ARENA = buildDungeon({ id: 'arena', first: 'hall', rooms: { hall: HALL, yard: YARD } });
 const GROTTO_DUNGEON = buildDungeon(GROTTO);
 const hall = ARENA.rooms.hall!;
-const place = (last = false): Place => ({ room: 'hall', map: hall.shut, last });
+const place = (last = false): Place => ({ room: 'hall', ground: hall.ground, last });
 
 const melee = (over: Partial<Fighter> = {}): Fighter => ({
   style: 'melee',
@@ -148,7 +153,7 @@ describe('targeting and reach', () => {
   });
 
   it('shoots from a distance with a bow, but not through rock, and one arrow a shot', () => {
-    const map = place().map;
+    const map = hall.shut;
     const b = awake(battle(archer(), [['sand_crab', P(200, 40)]]));
     const rat = foe(b);
     expect(inReach(b, map, P(100, 40), rat)).toBe(true);
@@ -211,21 +216,94 @@ describe('enemies', () => {
   });
 });
 
+/**
+ * The furthest anyone standing in a mark must walk to be out of it, from its
+ * worst spot: found by trying every point inside and every way out.
+ */
+function walkOutOf(t: Telegraph): number {
+  let worst = 0;
+  const span = t.radius;
+  // A line is the same all the way down it: across its width is all that matters.
+  const ys = t.shape === 'line' ? [40] : null;
+  for (let dx = -span; dx <= span; dx += 1) {
+    for (const dy of ys ?? Array.from({ length: span + 1 }, (_, i) => 2 * i - span)) {
+      const p = { x: t.at.x + dx, y: t.at.y + dy };
+      if (!inMark(t, p)) continue;
+      let best = Infinity;
+      for (let a = 0; a < 48; a++) {
+        const angle = (a / 48) * Math.PI * 2;
+        for (let d = 0; d < Math.min(best, 160); d += 1) {
+          if (!inMark(t, { x: p.x + Math.cos(angle) * d, y: p.y + Math.sin(angle) * d })) {
+            best = Math.min(best, d);
+            break;
+          }
+        }
+      }
+      worst = Math.max(worst, best);
+    }
+  }
+  return worst;
+}
+
 describe('the telegraph', () => {
   const kinds = Object.entries(FOE_KINDS).filter(([, k]) => k.heavy);
-
-  it.each(kinds)(
-    '%s: warns long enough to walk out from its middle, and lands on a tick',
-    (_id, kind) => {
+  /** Every big hit in the game as it is marked: heavy attacks, and each phase's cannon volley. */
+  const marks: [string, Telegraph, number][] = [
+    ...kinds.map(([id, kind]): [string, Telegraph, number] => {
       const heavy = kind.heavy!;
-      const walkOut = (1000 * heavy.radius) / WALK_SPEED;
-      // Half a second to see it and tap, on top of the walk.
-      expect(heavy.warnMs).toBeGreaterThanOrEqual(walkOut + 500);
-      expect(heavy.warnMs % TICK_MS).toBe(0);
-      expect(heavy.everyMs % TICK_MS).toBe(0);
-      expect(heavy.firstMs % TICK_MS).toBe(0);
+      const sweep = heavy.aim === 'sweep';
+      return [
+        id,
+        {
+          at: P(200, 200),
+          radius: heavy.radius,
+          shape: sweep ? 'arc' : 'circle',
+          ...(sweep ? { facing: 0, spread: heavy.spread } : {}),
+          from: 0,
+          lands: heavy.warnMs,
+          origin: null,
+          damage: 1,
+        },
+        heavy.warnMs,
+      ];
+    }),
+    ...Object.entries(FOE_KINDS)
+      .filter(([, k]) => k.boss)
+      .flatMap(([id, k]) =>
+        k.boss!.volleys.phases.map((v, i): [string, Telegraph, number] => [
+          `${id} volley, phase ${i + 1}`,
+          {
+            at: P(200, 0),
+            radius: k.boss!.volleys.half,
+            shape: 'line',
+            bottom: 400,
+            from: 0,
+            lands: v.warnMs,
+            origin: null,
+            damage: 1,
+          },
+          v.warnMs,
+        ]),
+      ),
+  ];
+
+  it.each(marks)(
+    '%s: warns long enough to walk out of its worst spot, wading or not, and lands on a tick',
+    (_id, mark, warnMs) => {
+      const out = walkOutOf(mark);
+      // Half a second to see it and tap, on top of the walk; in the shallows, a quarter.
+      expect(warnMs).toBeGreaterThanOrEqual((1000 * out) / WALK_SPEED + 500);
+      expect(warnMs).toBeGreaterThanOrEqual((1000 * out) / (WALK_SPEED * WADE_PACE) + 250);
+      expect(warnMs % TICK_MS).toBe(0);
     },
   );
+
+  it.each(kinds)('%s: its timers are whole ticks', (_id, kind) => {
+    const heavy = kind.heavy!;
+    expect(heavy.warnMs % TICK_MS).toBe(0);
+    expect(heavy.everyMs % TICK_MS).toBe(0);
+    expect(heavy.firstMs % TICK_MS).toBe(0);
+  });
 
   /** A crab beside the hero, its slam just begun. */
   function slam(): { b: Battle; play: Play } {
@@ -372,7 +450,11 @@ describe('a run with something to fight', () => {
       yard: [{ monster: 'dock_rat', at: { col: 2, row: 1 } }],
     },
   });
-  const setup = (fighter: Fighter, seed = 3) => ({ fighter, monsters, seed });
+  const setup = (fighter: Fighter, seed = 3) => ({
+    fighter,
+    monsters: { ...monsters, ...GROTTO_CAST },
+    seed,
+  });
 
   /** A run with the hero going after whatever is left in his room until it is clear or he is down. */
   function fightOut(start: Run, frame = 16, limit = 120_000): Run {
@@ -394,7 +476,7 @@ describe('a run with something to fight', () => {
     let r = startRun(plan, setup(strong()));
     const door = plan.rooms.hall!.doors[0]!;
     expect(runLocked(r)).toBe(true);
-    expect(isSolid(placeOf(plan, r).map, door.cell)).toBe(true);
+    expect(isSolid(groundNow(plan, r), door.cell)).toBe(true);
     // Walking at the door does nothing while it is shut.
     const tryDoor = advanceRun(
       plan,
@@ -406,7 +488,7 @@ describe('a run with something to fight', () => {
     r = fightOut(r);
     expect(runLocked(r)).toBe(false);
     expect(r.battle!.opened.hall).toBeGreaterThan(0);
-    expect(isSolid(placeOf(plan, r).map, door.cell)).toBe(false);
+    expect(isSolid(groundNow(plan, r), door.cell)).toBe(false);
   });
 
   it('ends cleared a moment after the last room is cleared, with its floor gathered up', () => {
@@ -475,7 +557,15 @@ describe('a run with something to fight', () => {
     };
     const b: Battle = {
       ...startBattle(fighterOf(state, CONTENT), monsters, [], 1),
-      tally: { xp: { ranged: 40 }, loot: { hide: 2 }, coins: 7, kills: 2, eaten: 2, shot: 9 },
+      tally: {
+        xp: { ranged: 40 },
+        loot: { hide: 2 },
+        coins: 7,
+        kills: 2,
+        killed: { dock_rat: 2 },
+        eaten: 2,
+        shot: 9,
+      },
     };
     const after = settleRun(state, spoilsOf(b));
     expect(after.food).toEqual({ item: 'cooked_cod', qty: 3 });
@@ -487,8 +577,9 @@ describe('a run with something to fight', () => {
 
   it('rolls the same from the same seed and the same taps, however the frames fall', () => {
     const play = (frame: number, seed: number): Run => {
-      let r = startRun(GROTTO_DUNGEON, setup(melee({ maxHp: 300 }), seed));
-      for (let t = 0; t < 40_000; t += frame) {
+      // Through a turn of the tide in the pools, crabs and all.
+      let r = startRun(GROTTO_DUNGEON, setup(melee({ attack: 60, maxHit: 15, maxHp: 300 }), seed));
+      for (let t = 0; t < 60_000; t += frame) {
         // The same taps at the same moments: every two seconds, the nearest foe.
         if (t % 2000 === 0) {
           const left = r.battle!.foes.find((f) => f.room === r.room && alive(f));

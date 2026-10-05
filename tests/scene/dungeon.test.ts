@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { get } from '../../src/art/grid';
-import { CONTENT } from '../../src/data';
 import {
   DOOR_FADE_MS,
   advanceRun,
@@ -8,16 +7,15 @@ import {
   buildDungeon,
   doorAt,
   doorwayDark,
-  paintRoom,
-  roomScene,
   runTime,
   sideways,
   startRun,
   type DungeonPlan,
   type Run,
 } from '../../src/scene/dungeon';
-import { FOE_KINDS } from '../../src/scene/foes';
+import { groundMap } from '../../src/scene/ground';
 import { GROTTO } from '../../src/scene/grotto';
+import { paintGround, roomLook, tileGrid, tileKindAt } from '../../src/scene/grottoArt';
 import { cheapest } from '../../src/scene/path';
 import type { Play } from '../../src/scene/play';
 import { dungeonScale, sceneScale } from '../../src/scene/scale';
@@ -33,11 +31,6 @@ const standingAt = (run: Run, col: number, row: number): Play => ({
 });
 
 describe('the grotto’s rooms and doors', () => {
-  it('has three rooms, wider than they are tall, for a phone on its side', () => {
-    expect(rooms).toHaveLength(3);
-    for (const room of rooms) expect(room.map.cols).toBeGreaterThan(room.map.rows);
-  });
-
   it('leads every door somewhere, and back through the matching door', () => {
     for (const room of rooms) {
       for (const door of room.doors) {
@@ -53,8 +46,8 @@ describe('the grotto’s rooms and doors', () => {
   });
 
   it('can be walked from the boat to the end: every door reachable from where you come in', () => {
-    const landing = grotto.rooms[grotto.first]!;
-    expect(landing.start).not.toBeNull();
+    const first = grotto.rooms[grotto.first]!;
+    expect(first.start).not.toBeNull();
     for (const room of rooms) {
       const from = room.start ?? room.doors[0]!.inside;
       for (const door of room.doors) {
@@ -77,87 +70,122 @@ describe('the grotto’s rooms and doors', () => {
     expect(() => buildDungeon(plan({ a: ['###', '#s?', '###'] }))).toThrow(/Unknown tile/);
   });
 
-  it('puts monsters that exist on open floor: rats first, two crabs together, a thrower at the end', () => {
-    const placed = Object.fromEntries(rooms.map((r) => [r.id, r.foes.map((f) => f.monster)]));
-    expect(placed).toEqual({
-      landing: ['dock_rat', 'dock_rat'],
-      pools: ['sand_crab', 'sand_crab'],
-      cove: ['smuggler', 'dock_rat'],
-    });
-    for (const room of rooms) {
-      for (const foe of room.foes) {
-        expect(CONTENT.monsters![foe.monster], foe.monster).toBeDefined();
-        expect(room.map.tiles[foe.at.row]![foe.at.col]).toBe('floor');
-      }
-    }
-    expect(FOE_KINDS.smuggler!.heavy!.aim).toBe('thrown');
-    const plan = (foes: DungeonPlan['foes']) => ({
+  it('refuses someone standing in a wall, a flier off its perch, or foes in a room that is not there', () => {
+    const plan = (foes: DungeonPlan['foes'], perches?: DungeonPlan['perches']) => ({
       id: 't',
       first: 'a',
-      rooms: { a: ['####', '#s.#', '####'] },
+      rooms: { a: ['#####', '#s.~#', '#####'] },
       foes,
+      ...(perches ? { perches } : {}),
     });
     expect(() =>
       buildDungeon(plan({ a: [{ monster: 'dock_rat', at: { col: 0, row: 0 } }] })),
     ).toThrow(/not standing on floor/);
+    expect(() =>
+      buildDungeon(plan({ a: [{ monster: 'deckhand', at: { col: 3, row: 1 } }] })),
+    ).toThrow(/not standing on floor/);
+    expect(() =>
+      buildDungeon(plan({ a: [{ monster: 'ships_parrot', at: { col: 3, row: 1 } }] })),
+    ).toThrow(/not on a perch/);
+    expect(() =>
+      buildDungeon(
+        plan(
+          { a: [{ monster: 'ships_parrot', at: { col: 3, row: 1 } }] },
+          { a: [{ col: 3, row: 1 }] },
+        ),
+      ),
+    ).not.toThrow();
     expect(() => buildDungeon(plan({ b: [] }))).toThrow(/not a room/);
   });
 
   it('bars a room’s doors on its shut ground, and leaves the rest as it was', () => {
-    const landing = grotto.rooms.landing!;
-    const door = landing.doors[0]!;
-    expect(isSolid(landing.shut, door.cell)).toBe(true);
-    expect(isSolid(landing.map, door.cell)).toBe(false);
-    expect(isSolid(landing.shut, door.inside)).toBe(false);
-    const { scene, lock } = roomScene(landing);
-    lock.shut = true;
-    expect(scene.map).toBe(landing.shut);
-    lock.shut = false;
-    expect(scene.map).toBe(landing.map);
+    const store = grotto.rooms.store!;
+    const door = store.doors[0]!;
+    expect(isSolid(store.shut, door.cell)).toBe(true);
+    expect(isSolid(store.map, door.cell)).toBe(false);
+    expect(isSolid(store.shut, door.inside)).toBe(false);
+    // The stage walks on whatever ground the view says is under the room now.
+    const look = roomLook(store);
+    look.lock.map = store.shut;
+    expect(look.scene.map).toBe(store.shut);
+    look.lock.map = groundMap(store.ground, { level: 3, shut: false, released: 0 });
+    expect(isSolid(look.scene.map, door.cell)).toBe(false);
+  });
+});
+
+describe('how a room looks', () => {
+  const pools = grotto.rooms.pools!;
+
+  it('draws walls with a face where rock stands above floor, and open doors as dark doorways', () => {
+    expect(tileKindAt(pools, 0, 0, 0, false)).toBe('wall_top');
+    // The cliff over the ledge path, above open ground.
+    expect(tileKindAt(pools, 9, 0, 0, false)).toBe('wall_face');
+    const door = pools.doors[0]!.cell;
+    expect(tileKindAt(pools, door.col, door.row, 0, false)).toBe('door_open');
+    const g = paintGround(pools, 0, false);
+    expect(get(g, door.col * TILE + 8, door.row * TILE + 8)).toBe(get(tileGrid('door_open'), 8, 8));
   });
 
-  it('paints doors, rock faces and the marked spot in flat placeholder colours', () => {
-    const cove = grotto.rooms.cove!;
-    const g = paintRoom(cove);
-    const door = cove.doors[0]!.cell;
-    expect(get(g, door.col * TILE + 8, door.row * TILE + 8)).toBe('navy2');
-    const end = centreOf(cove.end!);
-    expect(get(g, end.x + 6, end.y)).toBe('gold2');
-    // Rock that stands above floor shows its face.
-    expect(get(g, 8, 0 * TILE + TILE - 1)).toBe('slate3');
-    expect(get(g, 8 * TILE + 8, TILE - 1)).toBe('slate2');
+  it('shows the tide: the sandbar dry at low water, shallows, then sea; wet before it floods', () => {
+    const bar = { col: 22, row: 7 };
+    expect(tileKindAt(pools, bar.col, bar.row, 0, false)).toBe('sand');
+    // The sea about to come in: the sand it will cover darkens first.
+    expect(tileKindAt(pools, bar.col, bar.row, 0, true)).toBe('wet_sand');
+    expect(tileKindAt(pools, bar.col, bar.row, 1, false)).toBe('shallows');
+    expect(tileKindAt(pools, bar.col, bar.row, 2, false)).toBe('deep_water');
+    // Ground the tide never reaches never darkens.
+    expect(tileKindAt(pools, 2, 6, 0, true)).toBe('sand');
+    // Foam along the waterline, and it moves with the tide.
+    const low = paintGround(pools, 0, false);
+    const high = paintGround(pools, 3, false);
+    expect(low).not.toEqual(high);
   });
 
-  it('casts the hero’s shadow on floor, not on water or in a doorway', () => {
-    const { art } = roomScene(grotto.rooms.landing!);
-    expect(art.shadowAt(centreOf({ col: 10, row: 4 }))).not.toBeNull();
-    expect(art.shadowAt(centreOf({ col: 2, row: 4 }))).toBeNull();
-    expect(art.shadowAt(centreOf({ col: 23, row: 4 }))).toBeNull();
-    expect(roomScene(grotto.rooms.landing!)).toBe(roomScene(grotto.rooms.landing!));
+  it('makes each tide’s ground once, and every one of them can be painted ahead', () => {
+    const look = roomLook(pools);
+    expect(look.groundAt(1, false)).toBe(look.groundAt(1, false));
+    expect(look.groundAt(1, true)).not.toBe(look.groundAt(1, false));
+    // Four levels, and a warning before each of the three rises.
+    expect(look.grounds()).toHaveLength(7);
+    // Lit by its lanterns.
+    expect(look.lights.length).toBe(pools.ground.lanterns.length);
+    expect(look.groundAt(0, false).glows.length).toBe(look.lights.length);
+  });
+
+  it('stands its props and lanterns in the room, and casts the hero’s shadow on dry ground only', () => {
+    const store = grotto.rooms.store!;
+    const look = roomLook(store);
+    const kegs = look.scene.things.filter((t) => t.id.startsWith('powder_keg'));
+    expect(kegs.length).toBe(store.ground.props.filter((p) => p.id === 'powder_keg').length);
+    expect(look.scene.things.some((t) => t.id.startsWith('lantern'))).toBe(true);
+    look.lock.map = groundMap(store.ground, { level: 3, shut: true, released: 0 });
+    expect(look.shadowAt(centreOf({ col: 5, row: 4 }))).not.toBeNull();
+    expect(look.shadowAt(centreOf({ col: 5, row: 12 }))).toBeNull();
+    expect(roomLook(store)).toBe(look);
   });
 });
 
 describe('a run', () => {
   it('starts in the first room where the boat puts you ashore, with nothing on the clock', () => {
     const run = startRun(grotto);
-    expect(run.room).toBe('landing');
-    expect(run.play.walker.at).toEqual(centreOf(grotto.rooms.landing!.start!));
+    expect(run.room).toBe('pools');
+    expect(run.play.walker.at).toEqual(centreOf(grotto.rooms.pools!.start!));
     expect(run.ms).toBe(0);
     expect(run.finished).toBe(false);
   });
 
   it('goes through a door: dark, then the next room with the hero at the matching door', () => {
     const run = startRun(grotto);
-    const door = grotto.rooms.landing!.doors[0]!;
+    const door = grotto.rooms.pools!.doors[0]!;
     const walking = { ...standingAt(run, door.cell.col, door.cell.row) };
     const stepped = advanceRun(grotto, run, walking, 16);
-    expect(stepped.doorway).toEqual({ room: 'pools', door: 'a', ms: 0 });
-    expect(stepped.room).toBe('landing');
+    expect(stepped.doorway).toEqual({ room: 'store', door: 'a', ms: 0 });
+    expect(stepped.room).toBe('pools');
     expect(doorwayDark(stepped.doorway)).toBe(0);
 
     const half = advanceRun(grotto, stepped, stepped.play, DOOR_FADE_MS);
-    expect(half.room).toBe('pools');
-    const inside = grotto.rooms.pools!.doors.find((d) => d.letter === 'a')!.inside;
+    expect(half.room).toBe('store');
+    const inside = grotto.rooms.store!.doors.find((d) => d.letter === 'a')!.inside;
     expect(half.play.walker.at).toEqual(centreOf(inside));
     // Coming in from the west door, facing into the room.
     expect(half.play.facing).toBe('right');

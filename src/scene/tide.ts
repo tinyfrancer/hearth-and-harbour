@@ -98,7 +98,8 @@ export function surgeTide(clock: number, surge: number | null, ebb: number | nul
   if (ebb === null || clock < ebb) {
     const level = risen(clock);
     const since = level === 0 ? surge : riseAt(level);
-    if (level < HIGH_WATER) return { level, since, next: { level: level + 1, at: riseAt(level + 1) } };
+    if (level < HIGH_WATER)
+      return { level, since, next: { level: level + 1, at: riseAt(level + 1) } };
     return { level, since, next: ebb === null ? null : { level: level - 1, at: ebb } };
   }
   const top = risen(ebb);

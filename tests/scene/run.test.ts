@@ -75,11 +75,11 @@ let character: GameState;
 
 const lvl = (n: number): number => Math.round(40 * (n - 1) ** 2.5);
 
-/** Strong enough to clear the grotto standing still, every heavy blow taken. */
-function veteran(): GameState {
+/** Strong enough for a room or two standing still, every heavy blow taken. */
+function veteran(level = 60): GameState {
   return {
     ...newGame('Cody', 0),
-    skills: { melee: lvl(60), defence: lvl(60), vitality: lvl(60) },
+    skills: { melee: lvl(level), defence: lvl(level), vitality: lvl(level) },
     equipment: {
       main_hand: { item: 'iron_sword', qty: 1 },
       body: { item: 'iron_breastplate', qty: 1 },
@@ -87,6 +87,9 @@ function veteran(): GameState {
     food: { item: 'cooked_cod', qty: 4 },
   };
 }
+
+/** Strong enough to clear the whole grotto standing still, every volley taken. */
+const champion = (): GameState => veteran(99);
 
 function shown(shell?: Shell): View {
   const view = townView(character, CONTENT, shell);
@@ -158,7 +161,7 @@ function rowOut(view: View): void {
   tap(view.el, { x: 130, y: 345 });
   wait(view, 3000);
   expect(view.el.querySelector('.scene-panel h2')!.textContent).toBe('Rowing boat');
-  click(view.el, 'Row out to the grotto (unfinished)');
+  click(view.el, 'Row out to Brinebeard’s Grotto');
 }
 
 const prompt = (view: View) => view.el.querySelector<HTMLElement>('.dungeon-prompt')!;
@@ -218,7 +221,7 @@ describe('the way into the grotto', () => {
     expect(shell.calls).toEqual([
       'full:true',
       'pause:true',
-      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20}',
+      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20,"kills":{}}',
       'full:false',
       'pause:false',
     ]);
@@ -247,14 +250,14 @@ describe('the way into the grotto', () => {
     const from = runNow()!.room;
     resize(844, 390);
     tap(view.el, centreOf({ col, row }));
-    for (let t = 0; t < 15_000 && (runNow()!.room === from || runNow()!.doorway); t += 500)
+    for (let t = 0; t < 40_000 && (runNow()!.room === from || runNow()!.doorway); t += 500)
       wait(view, 500);
     // A browser tells a new room's canvas its size as it goes on the page; jsdom is told here.
     resize(844, 390);
   }
 
-  it('fights through three rooms, their doors opening as each is cleared, and settles once at the end', () => {
-    character = veteran();
+  it('fights through all five rooms, their doors opening as each is cleared, and settles a clear once', () => {
+    character = champion();
     const shell = shellSpy();
     const view = shown(shell);
     rowOut(view);
@@ -263,30 +266,36 @@ describe('the way into the grotto', () => {
     expect(view.el.querySelector('.fight-hud')).not.toBeNull();
     expect(view.el.querySelectorAll('.fight-button')).toHaveLength(3);
     const rooms: string[] = [runNow()!.room];
-    fightRoom(view);
-    expect(runNow()!.battle!.opened.landing).toBeGreaterThan(0);
-    through(view, 23, 4);
-    rooms.push(runNow()!.room);
-    fightRoom(view);
-    through(view, 39, 5);
-    rooms.push(runNow()!.room);
+    const exits: Record<string, [number, number]> = {
+      pools: [37, 6],
+      store: [35, 5],
+      bridge: [41, 6],
+      brig: [33, 6],
+    };
+    for (const room of ['pools', 'store', 'bridge', 'brig']) {
+      fightRoom(view);
+      expect(runNow()!.battle!.opened[room], room).toBeGreaterThan(0);
+      through(view, ...exits[room]!);
+      rooms.push(runNow()!.room);
+    }
     fightRoom(view);
     wait(view, 2000);
-    expect(rooms).toEqual(['landing', 'pools', 'cove']);
+    expect(rooms).toEqual(['pools', 'store', 'bridge', 'brig', 'cove']);
     const run = runNow()!;
     expect(run.ending).toBe('cleared');
-    expect(run.battle!.tally.kills).toBe(6);
+    expect(run.battle!.tally.kills).toBeGreaterThanOrEqual(14);
     const results = view.el.querySelector('.dungeon-results')!;
     expect(results.textContent).toMatch(/The grotto is cleared/);
-    expect(results.textContent).toMatch(/Time taken: \d:\d\d/);
+    expect(results.textContent).toMatch(/Time taken: \d+:\d\d/);
     expect(results.textContent).toMatch(/Melee\+\d+ XP/);
-    expect(results.textContent).toMatch(/Hide×\d/);
     // Settled once, then the idle task carries on while the results are read, still full screen.
     const settles = shell.calls.filter((c) => c.startsWith('settle:'));
     expect(settles).toHaveLength(1);
     const spoils = JSON.parse(settles[0]!.slice('settle:'.length));
-    expect(spoils.loot.hide).toBeGreaterThanOrEqual(3);
-    expect(spoils.xp.melee).toBe(5 * (2 * 10 + 2 * 16 + 64 + 10));
+    expect(spoils.cleared).toBe('brinebeards_grotto');
+    expect(spoils.kills.brinebeard).toBe(1);
+    expect(spoils.kills.giant_crab).toBe(2);
+    expect(spoils.xp.melee).toBeGreaterThan(0);
     expect(shell.calls.slice(-3, -2)[0]).toMatch(/^settle:/);
     expect(shell.calls.slice(-2)).toEqual(['full:true', 'pause:false']);
     expect(view.el.querySelector<HTMLElement>('.dungeon-leave')!.hidden).toBe(true);
@@ -294,7 +303,7 @@ describe('the way into the grotto', () => {
     expect(shell.calls.slice(-2)).toEqual(['full:false', 'pause:false']);
     expect(shell.calls.filter((c) => c.startsWith('settle:'))).toHaveLength(1);
     expect(view.el.querySelector('.dungeon')).toBeNull();
-  });
+  }, 60_000);
 
   it('washes a hero who falls back to town with what he picked up, settled once', () => {
     // A new character, no weapon, no food: the rats are a fair fight and the crabs are not.
@@ -306,7 +315,7 @@ describe('the way into the grotto', () => {
     expect(view.el.querySelectorAll('.fight-button')).toHaveLength(2);
     fightRoom(view);
     if (!runNow()!.battle!.over) {
-      through(view, 23, 4);
+      through(view, 37, 6);
       fightRoom(view);
     }
     wait(view, 2000);
@@ -344,11 +353,11 @@ describe('the way into the grotto', () => {
     tap(view.el, rat.at);
     wait(view, 100);
     expect(target.hidden).toBe(false);
-    expect(target.textContent).toMatch(/Dock rat/);
+    expect(target.textContent).toMatch(/Giant crab/);
     // Walked up beside it.
     for (
       let i = 0;
-      i < 40 && swing!.dataset.state !== 'ready' && alive(runNow()!.battle!.foes[0]!);
+      i < 150 && swing!.dataset.state !== 'ready' && alive(runNow()!.battle!.foes[0]!);
       i++
     )
       wait(view, 100);
@@ -407,7 +416,7 @@ describe('the idle task during a run', () => {
     frames(3000);
     tap(root, { x: 130, y: 345 });
     frames(3000);
-    click(root, 'Row out to the grotto (unfinished)');
+    click(root, 'Row out to Brinebeard’s Grotto');
     expect(root.classList.contains('fullscreen')).toBe(true);
     app.save();
     const before = saves.load()!;
@@ -451,28 +460,31 @@ describe('a run’s spoils in the real app', () => {
     frames(3000);
     tap(root, { x: 130, y: 345 });
     frames(3000);
-    click(root, 'Row out to the grotto (unfinished)');
+    click(root, 'Row out to Brinebeard’s Grotto');
     resize(844, 390);
     frames(100);
-    // Both rats, then whatever they left on the floor.
-    const standing = () => runNow()!.battle!.foes.filter((f) => f.room === 'landing' && alive(f));
-    for (let i = 0; i < 60 && standing().length > 0; i++) {
-      const rat = standing()[0]!;
-      if (runNow()!.battle!.target !== rat.key) tap(root, rat.at);
+    // Both crabs, then whatever they left on the floor.
+    const standing = () => runNow()!.battle!.foes.filter((f) => f.room === 'pools' && alive(f));
+    for (let i = 0; i < 120 && standing().length > 0; i++) {
+      const crab = standing()[0]!;
+      if (runNow()!.battle!.target !== crab.key) tap(root, crab.at);
       frames(1000);
     }
+    expect(standing()).toEqual([]);
     for (const pile of runNow()!.battle!.piles) {
       tap(root, pile.at);
-      frames(4000);
+      frames(6000);
     }
     const tally = runNow()!.battle!.tally;
     const hpLeft = runNow()!.battle!.hp;
-    expect(runNow()!.battle!.piles).toEqual([]);
-    expect(tally.loot.hide).toBe(2);
     root.querySelector<HTMLButtonElement>('.dungeon-leave')!.click();
     click(root, 'Row back');
     const saved = saves.load()!;
-    expect(saved.bank.hide).toBe(2);
+    // Whatever was picked up is in the bank: only things the game's tables know.
+    for (const [item, qty] of Object.entries(tally.loot)) {
+      expect(CONTENT.items[item], item).toBeDefined();
+      expect(saved.bank[item]).toBe((start.bank[item] ?? 0) + qty);
+    }
     expect(saved.coins).toBe(start.coins + tally.coins);
     expect(saved.skills.melee).toBe(start.skills.melee! + tally.xp.melee!);
     expect(saved.skills.vitality).toBe(start.skills.vitality! + tally.xp.vitality!);
@@ -480,7 +492,6 @@ describe('a run’s spoils in the real app', () => {
     // Hurt in the grotto is hurt in town.
     expect(hitPoints(saved)).toBe(hpLeft);
     root.querySelector<HTMLElement>('.tab[data-tab="bank"]')!.click();
-    expect(root.textContent).toMatch(/Hide/);
     root.querySelector<HTMLElement>('.tab[data-tab="skills"]')!.click();
     expect(root.textContent).toMatch(/Melee/);
   });

@@ -40,7 +40,16 @@ import { clearLine, route } from './path';
 import { advancePlay, facingToward, type Facing, type Play } from './play';
 import { cycleTide, surgeTide, type TideNow } from './tide';
 import { step } from './walker';
-import { TILE, cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
+import {
+  TILE,
+  cellAt,
+  centreOf,
+  inMap,
+  isSolid,
+  type Cell,
+  type Point,
+  type TileMap,
+} from './tileMap';
 
 /** The rules act every this many ms of the run's clock. Every timer is a whole number of them. */
 export const TICK_MS = 100;
@@ -807,7 +816,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
   w.effects = w.effects.filter((e) => w.clock - e.from < (e.kind === 'say' ? SAY_MS : EFFECT_MS));
   if (w.over) return play;
   let map = mapOf(w, place);
-  let hero = play.walker.at;
+  const hero = play.walker.at;
   let next = play;
 
   // The sea: washed off covered ground, slowed in the shallows. Fliers fly over it.
@@ -938,8 +947,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     w.target = null;
     w.chase = false;
   }
-  const reachable = (f: Foe): boolean =>
-    alive(f) && !held(w, place, f) && inReach(w, map, hero, f);
+  const reachable = (f: Foe): boolean => alive(f) && !held(w, place, f) && inReach(w, map, hero, f);
   if (!target || (!w.chase && !reachable(target))) {
     const near = here
       .filter(reachable)
@@ -1133,7 +1141,8 @@ function fly(w: Work, place: Place, foe: Writable<Foe>, map: TileMap, hero: Poin
     return true;
   }
   // Going back up.
-  if (foe.path.length === 0) foe.flight = { ...foe.flight!, mode: 'perch', until: w.clock + flies.perchMs };
+  if (foe.path.length === 0)
+    foe.flight = { ...foe.flight!, mode: 'perch', until: w.clock + flies.perchMs };
   return true;
 }
 
@@ -1144,13 +1153,7 @@ function fly(w: Work, place: Place, foe: Writable<Foe>, map: TileMap, hero: Poin
  * sweep is being wound up, nor a sweep while a volley is on its way: one big
  * thing to step out of at a time.
  */
-function bossTurn(
-  w: Work,
-  dice: Dice,
-  place: Place,
-  foe: Writable<Foe>,
-  hero: Point,
-): void {
+function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: Point): void {
   const rules = foeKind(foe.monster).boss!;
   const def = w.monsters[foe.monster]!;
   const phase = 1 + rules.phases.filter((f) => foe.hp <= f * def.hp).length;
@@ -1206,13 +1209,15 @@ function bossTurn(
   }
 }
 
-const bounds = new WeakMap<
-  Ground,
-  { left: number; right: number; top: number; bottom: number }
->();
+const bounds = new WeakMap<Ground, { left: number; right: number; top: number; bottom: number }>();
 
 /** The span of a room's open ground, in art pixels: where a volley's lines can fall. */
-export function floorBounds(g: Ground): { left: number; right: number; top: number; bottom: number } {
+export function floorBounds(g: Ground): {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+} {
   let made = bounds.get(g);
   if (!made) {
     let left = Infinity;

@@ -568,6 +568,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       if (next) canvasOf(next, DUSK);
       const after = options.run();
       if (after.room !== roomShown) showRoom();
+      // And again after the frame, so a tap before the next one walks on the ground as it is now.
+      else look.lock.map = groundNow(dungeon, after);
       if (after.finished && !before.finished) {
         showResults();
         options.finished();

@@ -389,11 +389,13 @@ export function paintGround(room: Room, level: number, warn: boolean): Grid {
         // Foam along an edge where water meets ground: the waterline, which moves with the tide.
         const above = kinds[row - 1]?.[col];
         if (above && !isWater(above) && above !== 'wall_face' && above !== 'wall_top') {
-          for (let i = 0; i < TILE; i++) if (hash(col, i, level) % 3 !== 0) set(out, x + i, y, 'foam1');
+          for (let i = 0; i < TILE; i++)
+            if (hash(col, i, level) % 3 !== 0) set(out, x + i, y, 'foam1');
         }
         const left = kinds[row]?.[col - 1];
         if (left && !isWater(left) && left !== 'wall_top' && left !== 'wall_face') {
-          for (let j = 0; j < TILE; j++) if (hash(j, row, level) % 3 !== 0) set(out, x, y + j, 'foam1');
+          for (let j = 0; j < TILE; j++)
+            if (hash(j, row, level) % 3 !== 0) set(out, x, y + j, 'foam1');
         }
         const right = kinds[row]?.[col + 1];
         if (right && !isWater(right) && right !== 'wall_top' && right !== 'wall_face') {
@@ -480,7 +482,8 @@ export function roomLook(room: Room): RoomLook {
   const lock = { map: room.map };
   const grounds = new Map<string, Picture>();
   const groundAt = (level: number, warn: boolean): Picture => {
-    const l = room.ground.tidal || room.ground.ownTide ? Math.max(0, Math.min(HIGH_WATER, level)) : 0;
+    const l =
+      room.ground.tidal || room.ground.ownTide ? Math.max(0, Math.min(HIGH_WATER, level)) : 0;
     const w = warn && l < HIGH_WATER && (room.ground.tidal || room.ground.ownTide);
     const key = `${l} ${w}`;
     let pic = grounds.get(key);

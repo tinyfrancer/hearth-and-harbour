@@ -22,16 +22,7 @@ import { HIGH_WATER, waterAt } from './tide';
 import { type Cell, type TileKind, type TileMap } from './tileMap';
 
 export type RoomTile =
-  | 'rock'
-  | 'floor'
-  | 'sand'
-  | 'planks'
-  | 'shallows'
-  | 'water'
-  | 'door'
-  | 'end'
-  | 'prop'
-  | 'bars';
+  'rock' | 'floor' | 'sand' | 'planks' | 'shallows' | 'water' | 'door' | 'end' | 'prop' | 'bars';
 
 export const ROOM_KINDS: Readonly<Record<RoomTile, TileKind>> = {
   rock: { solid: true },

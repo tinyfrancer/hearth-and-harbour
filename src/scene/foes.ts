@@ -90,14 +90,7 @@ export interface Rally {
 }
 
 export type FoeLook =
-  | 'rat'
-  | 'crab'
-  | 'smuggler'
-  | 'deckhand'
-  | 'monkey'
-  | 'giant_crab'
-  | 'parrot'
-  | 'captain';
+  'rat' | 'crab' | 'smuggler' | 'deckhand' | 'monkey' | 'giant_crab' | 'parrot' | 'captain';
 
 export interface FoeKind {
   readonly look: FoeLook;

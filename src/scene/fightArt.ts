@@ -252,7 +252,12 @@ function drawArc(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number, p: 
   ctx.fillStyle = c.metal2;
   for (const a of [facing - half, facing + half]) {
     for (let r = 4; r < t.radius; r += 1)
-      ctx.fillRect(Math.round(t.at.x + Math.cos(a) * r), Math.round(t.at.y + Math.sin(a) * r), 1, 1);
+      ctx.fillRect(
+        Math.round(t.at.x + Math.cos(a) * r),
+        Math.round(t.at.y + Math.sin(a) * r),
+        1,
+        1,
+      );
   }
 }
 
@@ -616,7 +621,11 @@ function fightBoxes(
   const boxes: Box[] = [];
   for (const foe of here) {
     const tall = standsOf(foe);
-    const wide = Math.max(53, foeKind(foe.monster).box.w + 12, foeSprite(foe.monster, 'right').picture.grid.w + 8);
+    const wide = Math.max(
+      53,
+      foeKind(foe.monster).box.w + 12,
+      foeSprite(foe.monster, 'right').picture.grid.w + 8,
+    );
     boxes.push({
       x: Math.floor(foe.at.x - wide / 2),
       y: Math.floor(foe.at.y) - tall - 44,
@@ -644,7 +653,11 @@ function fightBoxes(
   boxes.push({ x: Math.floor(hero.x) - 34, y: Math.floor(hero.y) - 78, w: 69, h: 30 });
   for (const e of battle.effects) {
     if (e.kind === 'landed')
-      boxes.push(e.doused ? { x: Math.floor(e.at.x) - 24, y: Math.floor(e.at.y) - 36, w: 49, h: 44 } : markBox(e.mark));
+      boxes.push(
+        e.doused
+          ? { x: Math.floor(e.at.x) - 24, y: Math.floor(e.at.y) - 36, w: 49, h: 44 }
+          : markBox(e.mark),
+      );
     else if (e.kind === 'swing') boxes.push(around(e.at, e.radius + 2));
     else if (e.kind === 'splash')
       boxes.push({ x: Math.floor(e.at.x) - 24, y: Math.floor(e.at.y) - 72, w: 49, h: 96 });
@@ -665,7 +678,13 @@ function fightBoxes(
         boxes.push({ x: Math.floor(e.at.x) - 26, y: Math.floor(e.at.y) - 40, w: 53, h: 42 });
     } else if (e.kind === 'say') {
       const who = battle.foes.find((f) => f.key === e.who);
-      if (who) boxes.push({ x: Math.floor(who.at.x) - 110, y: Math.floor(who.at.y) - standsOf(who) - 40, w: 220, h: 34 });
+      if (who)
+        boxes.push({
+          x: Math.floor(who.at.x) - 110,
+          y: Math.floor(who.at.y) - standsOf(who) - 40,
+          w: 220,
+          h: 34,
+        });
     }
   }
   for (const p of battle.piles) {
@@ -673,7 +692,8 @@ function fightBoxes(
       boxes.push({ x: Math.floor(p.at.x) - 7, y: Math.floor(p.at.y) - 11, w: 14, h: 12 });
   }
   for (const door of doors) boxes.push({ x: door.x, y: door.y, w: TILE, h: TILE });
-  for (const cell of ripples) boxes.push({ x: cell.col * TILE, y: cell.row * TILE, w: TILE, h: TILE });
+  for (const cell of ripples)
+    boxes.push({ x: cell.col * TILE, y: cell.row * TILE, w: TILE, h: TILE });
   boxes.push(...bars);
   return boxes;
 }
@@ -712,7 +732,12 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
     const fy = Math.round(foe.at.y);
     const rise = riseOf(foe);
     // A perched or flying thing sorts by the ground below it, but is drawn up in the air.
-    actors.push({ image, x: fx - fig.feet.x, y: fy - fig.feet.y - rise, base: fy + (rise > 0 ? 2 : 0) });
+    actors.push({
+      image,
+      x: fx - fig.feet.x,
+      y: fy - fig.feet.y - rise,
+      base: fy + (rise > 0 ? 2 : 0),
+    });
   }
   // A cell's bars stand in the room until the cell opens, in front of whoever waits behind them.
   const barsArt = propArt('brig_bars');
@@ -778,9 +803,11 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
           oval(ctx, foe.at.x, foe.at.y, rx + 2, 4);
         }
       }
-      for (const foe of here) if (foe.heavy && foe.heavy.shape !== 'circle') drawMark(ctx, foe.heavy, clock, palette);
+      for (const foe of here)
+        if (foe.heavy && foe.heavy.shape !== 'circle') drawMark(ctx, foe.heavy, clock, palette);
       for (const t of battle.volleys) drawMark(ctx, t, clock, palette);
-      for (const foe of here) if (foe.heavy?.shape === 'circle') drawMark(ctx, foe.heavy, clock, palette);
+      for (const foe of here)
+        if (foe.heavy?.shape === 'circle') drawMark(ctx, foe.heavy, clock, palette);
       for (const e of battle.effects) {
         if (e.kind === 'landed') drawLanded(ctx, e, clock, palette);
         const age = clock - e.from;
@@ -869,7 +896,14 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
         if (e.kind !== 'say' || clock - e.from >= SAY_MS) continue;
         const who = battle.foes.find((f) => f.key === e.who);
         if (!who || who.room !== run.room) continue;
-        speech(ctx, CAPTAIN_SAYS[e.line], who.at.x, who.at.y - standsOf(who) - 10, viewWidth, palette);
+        speech(
+          ctx,
+          CAPTAIN_SAYS[e.line],
+          who.at.x,
+          who.at.y - standsOf(who) - 10,
+          viewWidth,
+          palette,
+        );
       }
     },
   };
