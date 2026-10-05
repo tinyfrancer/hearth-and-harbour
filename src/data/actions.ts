@@ -1,4 +1,4 @@
-import type { ActionDef } from '../core/content';
+import type { ActionDef, StealDef } from '../core/content';
 
 const SECOND = 1000;
 
@@ -45,6 +45,31 @@ function recipe(skill: string, rows: RecipeRow[]): ActionDef[] {
     uses: Object.entries(uses).map(([input, qty]) => ({ item: input, qty })),
     gives: [{ item, qty: makes }],
   }));
+}
+
+type MarkRow = { name: string; level: number; seconds: number; xp: number } & Omit<
+  StealDef,
+  'stunMs' | 'loot'
+> & { stunSeconds: number; loot?: StealDef['loot'] };
+
+/**
+ * Thieving's marks: an attempt every so many seconds that succeeds by chance,
+ * paying XP only when it does (src/core/thieving.ts). They give nothing for
+ * certain, so `gives` is empty and the loot is in `steal`.
+ */
+function marks(rows: Record<string, MarkRow>): ActionDef[] {
+  return Object.entries(rows).map(
+    ([id, { name, level, seconds, xp, stunSeconds, loot = [], ...steal }]) => ({
+      id,
+      skill: 'thieving',
+      name,
+      level,
+      durationMs: seconds * SECOND,
+      xp,
+      gives: [],
+      steal: { ...steal, stunMs: stunSeconds * SECOND, loot },
+    }),
+  );
 }
 
 /**
@@ -272,6 +297,87 @@ const ALL: ActionDef[] = [
       'midnight_oil',
     ],
   ]),
+  // Tier 1 of Thieving, held to about three hours to level 20 and to a purse
+  // somewhat fuller than selling what gathering brings in, by
+  // tests/data/pacing.test.ts. Difficulty is set against the thief's rating
+  // (10 + level + half the mastery): a mark opens at a little over even odds.
+  ...marks({
+    steal_fisherman: {
+      name: 'Dozing fisherman',
+      description:
+        'Asleep on an upturned crate with his hat over his eyes. Snores in the key of herring.',
+      level: 1,
+      seconds: 3,
+      xp: 22,
+      difficulty: 8,
+      stunSeconds: 3,
+      coins: [1, 7],
+      loot: [{ item: 'raw_shrimp', min: 1, max: 3, oneIn: 5 }],
+    },
+    steal_fish_stall: {
+      name: 'Fish stall',
+      description:
+        'Ice, scales and a stallholder who can hear a coin drop across the harbour. Mostly.',
+      level: 5,
+      seconds: 3.5,
+      xp: 36,
+      difficulty: 11,
+      stunSeconds: 4,
+      coins: [3, 11],
+      loot: [
+        { item: 'cooked_shrimp', min: 1, max: 2, oneIn: 4 },
+        { item: 'cooked_herring', min: 1, max: 1, oneIn: 10 },
+      ],
+    },
+    steal_sailor: {
+      name: 'Tipsy sailor',
+      description:
+        'Three sheets to the wind and singing about a fourth. Keeps his purse in his boot, he says.',
+      level: 9,
+      seconds: 4,
+      xp: 50,
+      difficulty: 14,
+      stunSeconds: 4,
+      coins: [6, 18],
+      loot: [
+        { item: 'smuggled_tea', min: 1, max: 1, oneIn: 20 },
+        { item: 'pearl', min: 1, max: 1, oneIn: 80 },
+      ],
+    },
+    steal_pedlar: {
+      name: 'Travelling pedlar',
+      description:
+        'A coat of a hundred pockets, ninety-nine of them full of ribbons. The hundredth is not.',
+      level: 13,
+      seconds: 4.5,
+      xp: 70,
+      difficulty: 17,
+      stunSeconds: 5,
+      coins: [11, 30],
+      loot: [
+        { item: 'linen', min: 1, max: 2, oneIn: 8 },
+        { item: 'sage_tonic', min: 1, max: 1, oneIn: 30 },
+        { item: 'shell_bracelet', min: 1, max: 1, oneIn: 100 },
+      ],
+    },
+    steal_strongbox: {
+      name: 'Harbourmaster’s strongbox',
+      description:
+        'Iron-bound, triple-locked, and guarded by a clerk who has not blinked since Tuesday.',
+      level: 18,
+      seconds: 5,
+      xp: 88,
+      difficulty: 20,
+      stunSeconds: 5,
+      coins: [18, 46],
+      loot: [
+        // Confiscated, and now unconfiscated.
+        { item: 'smuggled_tea', min: 1, max: 2, oneIn: 6 },
+        { item: 'iron_arrows', min: 10, max: 20, oneIn: 15 },
+        { item: 'pearl', min: 1, max: 1, oneIn: 50 },
+      ],
+    },
+  }),
 ];
 
 export const ACTIONS: Record<string, ActionDef> = Object.fromEntries(

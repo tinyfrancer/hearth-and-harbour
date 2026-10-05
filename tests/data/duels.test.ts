@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advance } from '../../src/core/actions';
+import { BOUNTY_BELOW, bountyChoices } from '../../src/core/bounty';
 import { CONTENT } from '../../src/data';
 import { HOUR, characterAt, duels, fight, hourOf } from './fighting';
 
@@ -56,10 +57,53 @@ describe('food', () => {
     ['grey_wolf', 250],
     ['smuggler', 187],
     ['marsh_troll', 190],
+    ['goblin_poacher', 165],
+    ['bramble_wyrm', 182],
   ] as const)('costs a fixed number of fish an hour against the %s: %i', (id, fish) => {
     const level = CONTENT.monsters![id]!.level;
     const hour = hourOf(level, id);
     expect(hour.deaths).toBe(0);
     expect(hour.eaten).toBe(fish);
   });
+});
+
+// A bounty is a short errand, not an afternoon: ten to twenty minutes of
+// fighting a monster at the character's level, whichever way they fight and
+// however many kills the board's dice ask for.
+describe('bounties', () => {
+  const posted = MONSTERS.filter((monster) => monster.bounty);
+
+  it('are posted for every monster', () => {
+    expect(posted).toEqual(MONSTERS);
+  });
+
+  it.each(posted.map((monster) => [monster.id, monster.level] as const))(
+    'ask ten to twenty minutes of the %s at level %i, with either weapon',
+    (id, level) => {
+      const [least, most] = CONTENT.monsters![id]!.bounty!.kills;
+      for (const style of ['melee', 'ranged'] as const) {
+        const { kills, deaths } = hourOf(level, id, { style });
+        expect(deaths, style).toBe(0);
+        expect((least * 60) / kills, `${style}: the fewest kills`).toBeGreaterThanOrEqual(10);
+        expect((most * 60) / kills, `${style}: the most kills`).toBeLessThanOrEqual(20);
+      }
+    },
+  );
+
+  // The board never posts something hopeless: the hardest it may post at each
+  // combat level is a fair fight at that level, in that level's gear. Nor
+  // anything trivial: nothing more than six levels below.
+  it.each(Array.from({ length: 22 }, (_, i) => i + 1))(
+    'posts nothing hopeless or trivial at combat level %i',
+    (level) => {
+      const choices = bountyChoices(characterAt(level), CONTENT);
+      expect(choices.length).toBeGreaterThan(0);
+      for (const monster of choices) {
+        expect(monster.level).toBeLessThanOrEqual(level);
+        expect(monster.level).toBeGreaterThanOrEqual(level - BOUNTY_BELOW);
+      }
+      const hardest = choices.at(-1)!;
+      expect(duels(level, hardest.id, 100).winRate, hardest.id).toBeGreaterThanOrEqual(0.7);
+    },
+  );
 });
