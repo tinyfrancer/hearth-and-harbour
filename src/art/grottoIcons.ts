@@ -58,6 +58,9 @@ const L: Legend = {
   '>': 'pinewood2',
 };
 
+/** Brass, not gold: the grotto's trim is the `bronze` ramp, as on the worn layers. */
+const BRASS: Legend = { ...L, y: 'bronze1', Y: 'bronze2' };
+
 /* ----- Bounty hunting (S9) ----- */
 
 // A longbow taller than the shortbows, nearly straight, in dark oak with a
@@ -253,22 +256,22 @@ const BOARDING_AXE: readonly string[] = [
 
 // A black tricorn, three corners edged in brass, one red feather.
 const TRICORN: readonly string[] = [
-  '................rr',
-  'Y..............rRR.Y',
-  'KY....KKKKKK..rRR.YJ',
-  'KKY.KKKKKKKKKKRRJ.YJJ',
-  'KKKYKKKKKKKKKKJJJYJJJ',
-  '.KKKYKKKKKKKKKJJYJJJV',
-  '.KKKKYYKKKKKKJYYJJJV',
-  '..KKKKKYYKKKJYJJJJV',
-  '...KKKKKKYYYYJJJJV',
-  '....VKKKKKYJJJJVV',
-  '......VKKKYJJVV',
-  '........VYVV',
-  '.........Y',
+  '.......KKKKKK......rr',
+  '......KKKKKKKK....rRR',
+  'Y....KKKKKKKKKJ..rRR.Y',
+  'KY...KKKKKKKKJJ.rRJ.YJ',
+  'KKY.KKKKKKKKKJJJRJ.YJJ',
+  'KKKYYKKKKKKKKJJJJYYJJV',
+  '.KKKKYYKKKKKKJJYYJJJV',
+  '..KKKKKYYKKKKJYYJJJV',
+  '...KKKKKKYYYYYJJJJV',
+  '....VKKKKKKYJJJJVV',
+  '......VVKKKYJJVV',
+  '.........VYV',
+  '..........Y',
 ];
 
-// Brinebeard's coat: long and purple, gold braid down the front and on the
+// Brinebeard's coat: long and purple, brass braid down the front and on the
 // cuffs, a white shirt at the collar.
 const CAPTAINS_COAT: readonly string[] = [
   '....uuuu....UUUU',
@@ -370,11 +373,11 @@ export const GROTTO_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   hunters_charm: { rows: HUNTERS_CHARM, legend: L },
   feathered_hat: { rows: FEATHERED_HAT, legend: L },
   doubloon: { rows: DOUBLOON, legend: L },
-  pirate_cutlass: { rows: PIRATE_CUTLASS, legend: L },
+  pirate_cutlass: { rows: PIRATE_CUTLASS, legend: BRASS },
   boarding_axe: { rows: BOARDING_AXE, legend: L },
-  tricorn: { rows: TRICORN, legend: L },
-  captains_coat: { rows: CAPTAINS_COAT, legend: L },
-  spyglass: { rows: SPYGLASS, legend: L },
+  tricorn: { rows: TRICORN, legend: BRASS },
+  captains_coat: { rows: CAPTAINS_COAT, legend: BRASS },
+  spyglass: { rows: SPYGLASS, legend: BRASS },
   brinebeards_anchor: { rows: BRINEBEARDS_ANCHOR, legend: L },
   ships_figurehead: { rows: SHIPS_FIGUREHEAD, legend: L },
 };

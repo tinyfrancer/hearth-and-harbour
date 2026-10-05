@@ -431,11 +431,12 @@ const POWDER_MONKEY: FoeDef = {
 };
 
 // Captain Brinebeard: a head taller and twice as broad as anyone. A great
-// black tricorn with a skull on it, brows down, a nose like a mooring post, a
-// beard grey-green with brine in two forked braids hung with shells and weed;
-// a purple coat trimmed in gold over a red sash. One fist on his hip, the
-// other round the shank of his own anchor, which stands on its crown beside
-// him as tall as his shoulder: ring, wooden stock, and two curved arms.
+// black tricorn with a skull on it, brows down over a broad red face, a gold
+// tooth, a beard grey-green with brine in two forked braids hung with shells
+// and weed; a purple coat trimmed in gold over a red sash. One fist on his
+// hip, the other round the shank of his own anchor, which stands on its crown
+// beside him as tall as his shoulder: ring, wooden stock, and two curved arms.
+// Not the town's captain: no patch, no peg, no red coat.
 const BRINEBEARD: FoeDef = {
   rows: [
     '....................JJJJJJJJJJ',

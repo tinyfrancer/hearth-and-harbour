@@ -234,6 +234,19 @@ What grows from rung to rung, and the rules that hold it:
   steel, finer by its polish (a white edge) and a knuckle bow, never by gold. The footpad's
   cudgel is a knotted length of oak in the `oakbark` ramp, its icon and worn layer alike.
 
+- **The grotto's loot** (B6) sits between iron and the knight: a pirate's finery, salt-stained
+  and a little showy. It may have colour (the captain's coat is purple, the tricorn black, a red
+  feather) but its metal trim is brass (the `bronze` ramp), never gold, which stays the knight's.
+  The cutlass is iron's steel, duller than the smuggler's and nicked along its edge, with a brass
+  cup guard and knuckle bow; the boarding axe a long haft rising above the head with a broad bit
+  and a spike; the anchor hangs from the fist by its shank, ring and stock up by the shoulder,
+  crown and arms at the knee, read as an anchor at a glance (held crown up, it read as a
+  grapnel); the spyglass is held closed in the off hand, the fingers round its middle.
+- **Bounty hunting's things** (B6) are a hunter's, beside the ladder: a dark oak longbow a head
+  taller than the shortbows, nearly straight, green-bound at the grip; a single great green
+  scale rimmed in iron for a shield; a wolf's tooth at the collar; a broad felt hat with a red
+  band and a cream plume; barbed arrows in the same quiver with dark red fletchings.
+
 ## Icons
 
 Drawn in B4; not yet reviewed by Cody. The icons are the most-seen art in the game (every bank row,
@@ -282,6 +295,11 @@ every action card), so they follow the same hand as the town and the figures.
   Bracers were the hardest: a flat guard read as a pine cone and plain cuffs as barrels; a pair
   of cuffs laced up the front with the lace ends hanging is what read.
 
+- **Bounty hunting and the grotto** (B6, `grottoIcons.ts`): each the worn thing as an object,
+  or for what is not worn, the thing itself: a doubloon (gold, it is money) with another lying
+  by it, the figurehead as a carved lady's bust in profile with her paint worn, a purse with its
+  string cut for thieving. Brass is the `bronze` ramp, as on the worn layers.
+
 ## Portraits
 
 - 48 × 48 bust on a dark tinted disc, in a gold-edged frame.
@@ -324,6 +342,54 @@ In code: buildings and props are in `src/art/scenery.ts` and `src/art/harbour.ts
 sand, cobbled square, quay wall, sea) are painters in `src/art/ground.ts`, and `src/art/town.ts`
 indexes every piece by id with its size, base line and walk-up spots, and assembles the mock-up's
 town from them, pixel for pixel.
+
+## Dungeons
+
+Drawn in B6 for Brinebeard's Grotto; not yet reviewed by Cody. The first dungeon sets the look
+of the ones after it.
+
+- **The same world, underground.** A dungeon is the town's stone, wood and sea in the dusk
+  palette, lit by lanterns. Its own ramps are few: `cavesand` (greyer and cooler than the road's
+  sand, so a cave floor stays calm under warm lantern light) and `shoal` (shallow water over
+  sand, green-teal). Everything else is the town's: `stone` and `slate` for rock, `wood` for
+  planks and frames, `sea` and `navy` for deep water, `metal` for iron.
+- **Tiles are 16 x 16 and join in any arrangement** (`src/art/grottoTiles.ts`). Nothing but a
+  single grain touches a floor's edge, and every edge is mostly the kind's base step, so tiles
+  show no seam or grid. A kind with a pattern that runs across tiles (the wall's ledges, the
+  planks' boards) keeps that pattern at the same rows on every wear's left and right edges.
+  Wears are chosen by a mixed number, so a run of neighbouring cells does not step through them
+  in order; most wears are plain, and a shell, a pebble, a pool or a strand of weed turns up on
+  one floor tile in six or so.
+- **Floors are quieter than anything standing on them.** A floor is its base step, a few grains
+  a step lighter and darker, and now and then one small thing. No floor uses red or orange: a
+  warning circle is red and fire-edged, loot is a dark sack with gold, and both must stand out.
+  Shadows on a floor are its own next step down.
+- **Rooms read as hollowed out of rock.** The rock's top, seen from above, is dark slate with a
+  crack and here and there a paler boss; its front face is a lit lip where the top rounds over,
+  two ledges that wander a pixel, upright cracks lit on their right, the tide's mark with weed
+  and barnacles, and a dark foot two rows deep that anything standing in front of it reads
+  against. A face is one tile tall, under a top.
+- **Water says whether you can stand in it.** Shallows are light green-teal with the sand's
+  ripples showing through and glints on top; deep water is dark blue in a slow swell, much darker
+  than the shallows (a test holds the gap). Wet sand is the dry sand a step darker with water
+  shining on it, which is how the tide's coming shows.
+- **Doors** are timber frames in the rock: open, the dark of the next cave with the floor going
+  on into it; barred, iron bars and a band across.
+- **The cast** (`src/art/grottoCast.ts`), facing right, outlined, feet marked. Size carries
+  threat: the rat is small, a deckhand and the smuggler the hero's height, the powder monkey a
+  head shorter, the giant crab wider than the hero and low, Brinebeard a head taller and half as
+  wide again. People are front-facing posed bodies like the townsfolk, eyes mirrored, with the
+  action on the right (the side they face): what they hold is held by the hand rule. Each is told
+  apart by silhouette before colour: the deckhand by his boathook taller than he is, the
+  smuggler by his long coat and raised cutlass, the powder monkey by the keg held over his head
+  with its fuse lit (a glow), Brinebeard by his great hat, beard and the anchor beside him. The
+  powder monkey is a small grown man, stubbled and wiry, never a child.
+- **Brinebeard is not the town's captain.** No patch, no peg leg, no red coat: a purple coat,
+  a grey-green beard full of brine and shells, an anchor. Menace from his size, brows and anchor;
+  the ridiculous from the beard and the hat.
+- **Props** (`src/art/grottoProps.ts`) are the town's barrels and crates' kin: a powder keg with
+  a painted skull and a fuse, a sea chest, the brig's bars, a ship's lantern on a post (lit at
+  dusk), a spare anchor, a coil of rope, a cannon on its carriage.
 
 ## Menus
 
