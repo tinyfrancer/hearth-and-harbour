@@ -160,8 +160,10 @@ describe('the shells', () => {
     for (const palette of [DAY, DUSK])
       for (const s of steps('shell'))
         for (const k of skins)
-          expect(distance(palette.colours[s], palette.colours[k]), `${palette.name} ${s} ${k}`)
-            .toBeGreaterThan(12);
+          expect(
+            distance(palette.colours[s], palette.colours[k]),
+            `${palette.name} ${s} ${k}`,
+          ).toBeGreaterThan(12);
   });
 
   it('hang from a cord in uneven sizes, not in a regular band, in both arm poses', () => {

@@ -179,9 +179,7 @@ describe('headgear', () => {
       Array.from({ length: g.w }, (_, x) => get(g, x, y)).filter(Boolean).length;
     const head = Math.max(...Array.from({ length: 14 }, (_, y) => width(bald, y)));
     // A pixel proud of the head at most on each side: a cap, not a sun hat.
-    expect(Math.max(...[0, 1, 2, 3, 4, 5, 6].map((y) => width(cap, y)))).toBeLessThanOrEqual(
-      head,
-    );
+    expect(Math.max(...[0, 1, 2, 3, 4, 5, 6].map((y) => width(cap, y)))).toBeLessThanOrEqual(head);
     // The liner (row 6 of the outlined figure) is dark hide over the forehead.
     expect(get(cap, 18, 6)).toMatch(/^hide/);
   });
