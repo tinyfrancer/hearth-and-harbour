@@ -380,7 +380,11 @@ describe('however the time is cut up', () => {
     const died = firstMoment(start, (state) => state.fight === null);
     const whole = expectCutsAgree(start, HOUR, [...around(died), died - 1700, died + 5000]);
     expect(fightEnded(start, whole, content)).toBe('died');
-    expect(inFrames(start, died + 10_000)).toEqual(whole);
+    // An hour after, the character has long since healed; ten seconds after, not yet.
+    expect(whole.health).toBeNull();
+    const soon = advance(start, died + 10_000, content);
+    expect(soon.health?.hp).toBeGreaterThan(0);
+    expect(inFrames(start, died + 10_000)).toEqual(soon);
   });
 
   it('lands in the same place cut on the last arrow', () => {

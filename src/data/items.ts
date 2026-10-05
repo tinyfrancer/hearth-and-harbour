@@ -388,6 +388,55 @@ export const ITEMS = {
       requires: { skill: 'defence', level: 18 },
     },
   },
+  // What the monsters only bounty hunters go after leave behind, rarely.
+  poachers_longbow: {
+    id: 'poachers_longbow',
+    name: 'Poacher’s longbow',
+    description:
+      'Taller than its last owner, and quieter. Nobody in Gullwick will admit to knowing where it came from.',
+    value: 60,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'ranged',
+      attack: 10,
+      strength: 8,
+      requires: { skill: 'ranged', level: 10 },
+    },
+  },
+  wyrmscale_shield: {
+    id: 'wyrmscale_shield',
+    name: 'Wyrmscale shield',
+    description:
+      'One great green scale, rimmed in iron. It still bristles faintly when anyone mentions brambles.',
+    value: 180,
+    equip: { slot: 'off_hand', armour: 14, requires: { skill: 'defence', level: 18 } },
+  },
+  // What bounty points buy (src/data/shop.ts), and nothing else gives.
+  barbed_arrows: {
+    id: 'barbed_arrows',
+    name: 'Barbed arrows',
+    description:
+      'Iron heads with a hook behind the point, for things that would rather not stay shot.',
+    value: 4,
+    equip: { slot: 'ammo', style: 'ranged', strength: 8, requires: { skill: 'ranged', level: 15 } },
+  },
+  hunters_charm: {
+    id: 'hunters_charm',
+    name: 'Hunter’s charm',
+    description:
+      'A wolf’s tooth on a cord, notched for every bounty. It came with a few notches already, which seems unfair.',
+    value: 40,
+    equip: { slot: 'neck', attack: 3, strength: 1 },
+  },
+  feathered_hat: {
+    id: 'feathered_hat',
+    name: 'Feathered hat',
+    description:
+      'A broad brim and a plume the size of a gull’s opinion. Stops nothing, and is noticed everywhere.',
+    value: 1,
+    equip: { slot: 'head', armour: 1 },
+  },
   leather: {
     id: 'leather',
     name: 'Leather',

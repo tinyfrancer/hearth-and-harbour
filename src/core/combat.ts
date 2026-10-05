@@ -1,6 +1,6 @@
 import type { CombatStyle, Content, MonsterDef } from './content';
 import { equipmentTotals } from './equipment';
-import { bankCount, skillLevel, type Fight, type GameState, type Worn } from './state';
+import { bankCount, skillLevel, type Fight, type GameState, type Health, type Worn } from './state';
 
 /**
  * Combat's rules, each plain enough to say in a sentence. The fight itself,
@@ -56,6 +56,50 @@ export function breatherFor(maxHp: number): number {
   return Math.ceil(maxHp / 10);
 }
 
+/** Out of a fight the character gets back one hit point every six seconds. */
+export const REGEN_MS = 6000;
+
+/** The most hit points the character can have, by their Vitality level. */
+export function maxHp(state: GameState): number {
+  return maxHpFor(skillLevel(state, VITALITY));
+}
+
+/** The character's hit points now: the fight's, or what they carry out of one. */
+export function hitPoints(state: GameState): number {
+  if (state.fight) return state.fight.hp;
+  return state.health ? state.health.hp : maxHp(state);
+}
+
+/** What `health` holds for a character at `hp` of `most`: nothing at full health. */
+export function hurt(hp: number, most: number): Health | null {
+  return hp >= most ? null : { hp, regenMs: 0 };
+}
+
+/**
+ * Let `ms` pass out of a fight for the character's health: a hit point back
+ * every REGEN_MS, the time towards the next one carried, until full. Worked
+ * out by arithmetic on the total, so time cut up any way heals the same.
+ */
+export function rest(state: GameState, ms: number): GameState {
+  const health = state.health;
+  if (!health || state.fight || !(ms > 0)) return state;
+  const time = health.regenMs + ms;
+  const hp = health.hp + Math.floor(time / REGEN_MS);
+  if (hp >= maxHp(state)) return { ...state, health: null };
+  return { ...state, health: { hp, regenMs: time % REGEN_MS } };
+}
+
+/** Out of the fight under way, carrying its hit points out with the character. */
+export function leaveFight(state: GameState): GameState {
+  if (!state.fight) return state;
+  return { ...state, fight: null, health: hurt(state.fight.hp, maxHp(state)) };
+}
+
+/** Knocked out: the fight is over and the character comes round with a tenth of their hit points. */
+export function comeRound(most: number): Health {
+  return { hp: breatherFor(most), regenMs: 0 };
+}
+
 /** The skill a blow in this style trains. */
 export function attackSkill(style: CombatStyle): string {
   return style === 'ranged' ? RANGED : MELEE;
@@ -70,6 +114,8 @@ export interface PlayerCombat {
   defence: number;
   maxHit: number;
   maxHp: number;
+  /** Hit points now, in a fight or out of one: what a dungeon run starts with. */
+  hp: number;
 }
 
 export function playerCombat(state: GameState, content: Content): PlayerCombat {
@@ -83,6 +129,7 @@ export function playerCombat(state: GameState, content: Content): PlayerCombat {
     defence: defenceRating(skillLevel(state, DEFENCE), totals.armour),
     maxHit: maxHitFor(level, totals.strength),
     maxHp: maxHpFor(skillLevel(state, VITALITY)),
+    hp: hitPoints(state),
   };
 }
 
@@ -113,10 +160,16 @@ export function freshFight(monster: MonsterDef, hp: number): Fight {
   };
 }
 
+/** Whether a monster may be fought now: one only bounty hunters go after needs a bounty on it. */
+export function mayFight(state: GameState, monster: MonsterDef): boolean {
+  return !monster.bountyOnly || state.bounty?.monster === monster.id;
+}
+
 /**
  * Pick a fight. It stops whatever else the character was doing; picking the
  * fight already under way changes nothing, so a double tap loses nothing.
- * A new fight starts at full health.
+ * A new fight starts with the hit points the character has, and if those are
+ * below the eating line, with a meal from the food slot first.
  */
 export function startFight(state: GameState, monsterId: string, content: Content): ResultOf {
   const monster = monsterDef(content, monsterId);
@@ -126,18 +179,35 @@ export function startFight(state: GameState, monsterId: string, content: Content
   if (state.fight?.monster === monsterId) {
     return { ok: true, state };
   }
+  if (!mayFight(state, monster)) {
+    return { ok: false, reason: `Only a bounty on the ${monster.name} will lead you to it.` };
+  }
   const me = playerCombat(state, content);
   if (me.style === 'ranged' && !state.equipment.ammo) {
     return { ok: false, reason: 'A bow needs arrows. Ready some first.' };
   }
+  let hp = me.hp;
+  let food = state.food?.qty ?? 0;
+  const heals = state.food ? (content.items[state.food.item]?.heals ?? 0) : 0;
+  while (food > 0 && heals > 0 && hp * 100 < state.eatAt * me.maxHp) {
+    hp = Math.min(me.maxHp, hp + heals);
+    food -= 1;
+  }
+  const eaten = (state.food?.qty ?? 0) - food;
   return {
     ok: true,
-    state: { ...state, action: null, fight: freshFight(monster, me.maxHp) },
+    state: {
+      ...state,
+      action: null,
+      health: null,
+      food: state.food && food > 0 ? { item: state.food.item, qty: food } : null,
+      fight: { ...freshFight(monster, hp), eaten },
+    },
   };
 }
 
 export function stopFight(state: GameState): GameState {
-  return state.fight ? { ...state, fight: null } : state;
+  return leaveFight(state);
 }
 
 /** Whether there is anything going on for time to pass for. */

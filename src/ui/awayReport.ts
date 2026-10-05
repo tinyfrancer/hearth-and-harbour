@@ -80,11 +80,32 @@ export function awayReportOverlay(
       fight.push(`${formatNumber(arrows)} ${arrows === 1 ? 'arrow' : 'arrows'} shot.`);
   }
 
+  // A theft's own account: how often it worked, and how often it did not.
+  const theft: string[] = [];
+  if (report.theft) {
+    const { attempts, picked, caught } = report.theft;
+    const times = (n: number): string => `${formatNumber(n)} ${n === 1 ? 'time' : 'times'}`;
+    theft.push(
+      `${formatNumber(attempts)} ${attempts === 1 ? 'attempt' : 'attempts'}: got away with it ${times(picked)}, caught ${times(caught)}.`,
+    );
+  }
+
+  // The bounty held: what the time away did for it.
+  let bounty = '';
+  if (report.bounty) {
+    const { monster: id, gained, done, count, ready } = report.bounty;
+    const name = content.monsters?.[id]?.name ?? 'monster';
+    const progress = `Bounty on the ${name}: ${formatNumber(done)} of ${formatNumber(count)}`;
+    bounty = ready
+      ? `${progress}. Ready to hand in.`
+      : `${progress} (${formatNumber(gained)} while you were away).`;
+  }
+
   let stopped = '';
   if (report.stopped?.reason === 'ran_out') {
     stopped = `Stopped: you ran out of ${itemName(report.stopped.item)}.`;
   } else if (report.stopped?.reason === 'died') {
-    stopped = `Knocked out by the ${monster?.name ?? 'monster'}. No harm done: you are back at full health, resting.`;
+    stopped = `Knocked out by the ${monster?.name ?? 'monster'}. No harm done: you came round sore, and have been healing since.`;
   } else if (report.stopped?.reason === 'no_arrows') {
     stopped = 'Stopped: your last arrow is gone, and the fight with it.';
   } else if (report.stopped) {
@@ -110,6 +131,9 @@ export function awayReportOverlay(
           ? h('ul', { class: 'gains' }, gains)
           : h('p', { class: 'muted', text: 'Nothing finished in that time.' }),
         ...fight.map((text) => h('p', { class: 'fight-text', text })),
+        ...theft.map((text) => h('p', { class: 'theft-text', text })),
+        bounty &&
+          h('p', { class: `bounty-text${report.bounty?.ready ? ' ready' : ''}`, text: bounty }),
         ...levels,
         ...unlocked,
         ...mastery,

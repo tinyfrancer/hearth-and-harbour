@@ -20,6 +20,8 @@ import { itemIcon, skillIcon } from '../art/icons';
 import { bar } from './bar';
 import { button, h, titled } from './dom';
 import { formatNumber, formatSeconds } from './format';
+import { bountyEntry } from './bountyScreen';
+import { markCard } from './markCard';
 import { potionPanel } from './potionPanel';
 import type { View } from './view';
 
@@ -31,7 +33,9 @@ function doing(state: GameState, skill: SkillDef, content: Content): string {
     return monster && trains.includes(skill.id) ? `${skill.verb} the ${monster.name}` : '';
   }
   const action = state.action && content.actions[state.action.id];
-  return action && action.skill === skill.id ? `${skill.verb} ${action.name}` : '';
+  if (!action || action.skill !== skill.id) return '';
+  if (action.steal && state.action?.stunMs) return 'Caught! Lying low';
+  return `${skill.verb} ${action.name}`;
 }
 
 /** The way into combat, at the head of the Combat skills: what is being fought, if anything. */
@@ -63,6 +67,7 @@ export function skillListView(
   content: Content,
   open: (skillId: string) => void,
   openCombat: () => void = () => {},
+  openBounties: () => void = () => {},
 ): View {
   const updates: ((state: GameState) => void)[] = [];
   const row = (skill: SkillDef): HTMLElement => {
@@ -93,10 +98,13 @@ export function skillListView(
   for (const skill of Object.values(content.skills)) {
     groups.set(skill.group, [...(groups.get(skill.group) ?? []), skill]);
   }
+  const bounties = bountyEntry(state, content, openBounties);
+  if (bounties.update) updates.push(bounties.update);
   const sections = [...groups].map(([group, skills]) =>
     h('section', { class: 'stack', attrs: { 'data-group': group } }, [
       h('h2', { class: 'group-heading', text: group }),
       group === 'Combat' && combatEntry(state, content, openCombat),
+      group === 'Combat' && bounties.el,
       ...skills.map(row),
     ]),
   );
@@ -263,6 +271,9 @@ export function skillPageView(
   });
 
   const card = (action: ActionDef): HTMLElement => {
+    if (level >= action.level && action.steal) {
+      return markCard(state, action, content, updates, actions);
+    }
     if (level < action.level) {
       return h('div', { class: 'panel card locked', attrs: { 'data-action': action.id } }, [
         h('div', { class: 'card-head' }, [

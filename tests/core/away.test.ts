@@ -49,6 +49,8 @@ describe('catchUp', () => {
       xp: { woodcutting: 24_740 },
       levels: { woodcutting: { from: 1, to: 14 } },
       mastery: { chop_pine: { from: 1, to: 22 } },
+      theft: null,
+      bounty: null,
       stopped: null,
       potion: null,
     });
@@ -164,6 +166,21 @@ describe('catchUp', () => {
       const took = performance.now() - started;
       expect(report?.fight?.kills).toBeGreaterThan(10_000);
       expect(state.fight).not.toBeNull();
+      expect(took).toBeLessThan(250);
+    });
+  });
+
+  describe('with a theft, on the real tables', () => {
+    it('pays a whole day of thieving in well under a second', () => {
+      // The fisherman is the quickest mark: an attempt every three seconds,
+      // about twenty-five thousand in a day. Kept under a quarter of a second
+      // as fighting is.
+      const thief = start(newGame('Cody', 0), 'steal_fisherman');
+      const started = performance.now();
+      const { state, report } = catchUp(thief, OFFLINE_CAP_MS, CONTENT);
+      const took = performance.now() - started;
+      expect(report?.theft?.attempts).toBeGreaterThan(20_000);
+      expect(state.action?.id).toBe('steal_fisherman');
       expect(took).toBeLessThan(250);
     });
   });

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { advance, startAction } from '../../src/core/actions';
+import type { ActionDef } from '../../src/core/content';
+import { markChance } from '../../src/core/thieving';
 import { newGame, skillLevel, type GameState } from '../../src/core/state';
+import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { hoursToLevel as hoursOfFighting } from './fighting';
 
@@ -127,4 +130,87 @@ describe('what a potion is worth', () => {
   ])('pins %s at a fixed gain over an hour of %s', (potion, actionId, expected) => {
     expect(gained(actionId, potion)).toEqual(expected);
   });
+});
+
+// Thieving is paced like a gathering skill, and pays in coins: somewhat more
+// than selling what gathering brings in, never absurdly more. A sensible thief
+// picks the mark that pays best for what they are after, counting the time
+// lost to being caught, and looks again once a minute.
+describe('pacing of Thieving', () => {
+  const marks = Object.values(CONTENT.actions).filter((action) => action.steal);
+  /** What a mark is expected to pay a millisecond, in XP or coins, at the thief's chance now. */
+  const worth = (state: GameState, mark: ActionDef, of: 'xp' | 'coins'): number => {
+    const steal = mark.steal!;
+    const chance = markChance(state, mark);
+    const each = of === 'xp' ? mark.xp : (steal.coins[0] + steal.coins[1]) / 2;
+    return (chance * each) / (mark.durationMs + (1 - chance) * steal.stunMs);
+  };
+  const bestMark = (state: GameState, of: 'xp' | 'coins'): string =>
+    marks
+      .filter((mark) => mark.level <= skillLevel(state, 'thieving'))
+      .sort((a, b) => worth(state, b, of) - worth(state, a, of))[0]!.id;
+  /** A minute at a time, the best mark (or action) chosen afresh each minute. */
+  const minutes = (start: GameState, count: number, choose: (s: GameState) => string) => {
+    let state = start;
+    for (let minute = 0; minute < count; minute += 1) {
+      const started = startAction(state, choose(state), CONTENT);
+      if (!started.ok) throw new Error(started.reason);
+      state = advance(started.state, 60_000, CONTENT);
+    }
+    return state;
+  };
+  const at = (skill: string, level: number): GameState => ({
+    ...newGame('Sim', 0),
+    skills: level > 1 ? { [skill]: xpForLevel(level) } : {},
+  });
+  const sold = (state: GameState): number =>
+    Object.entries(state.bank).reduce(
+      (sum, [item, qty]) => sum + qty * CONTENT.items[item]!.value,
+      0,
+    );
+
+  it('takes Thieving through tier 1 in about three hours', () => {
+    let state = newGame('Sim', 0);
+    let hours = 0;
+    while (skillLevel(state, 'thieving') < 20) {
+      state = minutes(state, 1, (now) => bestMark(now, 'xp'));
+      hours += 1 / 60;
+      if (hours > 10) throw new Error('Thieving never reached 20');
+    }
+    expect(hours).toBeGreaterThan(2.5);
+    expect(hours).toBeLessThan(3.5);
+  });
+
+  /** An hour of the gathering skill whose goods sell best, from a level, all of it sold. */
+  const gatheringHour = (level: number): number =>
+    Math.max(
+      ...['woodcutting', 'fishing', 'mining', 'foraging'].map((skill) => {
+        const actions = Object.values(CONTENT.actions).filter((action) => action.skill === skill);
+        const pays = (action: ActionDef): number =>
+          CONTENT.items[action.gives[0]!.item]!.value / action.durationMs;
+        const best = (state: GameState): string =>
+          actions
+            .filter((action) => action.level <= skillLevel(state, skill))
+            .sort((a, b) => pays(b) - pays(a))[0]!.id;
+        return sold(minutes(at(skill, level), 60, best));
+      }),
+    );
+
+  it.each([
+    // Coins in the hour, and what the loot that came with them would sell for.
+    [1, 3959, 605],
+    [10, 5671, 578],
+    [20, 9736, 2322],
+  ])(
+    'pays a fixed purse in an hour from level %i: %i coins, and loot worth %i',
+    (level, coins, loot) => {
+      const hour = minutes(at('thieving', level), 60, (now) => bestMark(now, 'coins'));
+      expect(hour.coins).toBe(coins);
+      expect(sold(hour)).toBe(loot);
+      // Better than an hour's gathering sold, but not by a mile.
+      const gathered = gatheringHour(level);
+      expect(coins / gathered).toBeGreaterThan(1.2);
+      expect(coins / gathered).toBeLessThan(1.6);
+    },
+  );
 });

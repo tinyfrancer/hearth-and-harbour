@@ -35,6 +35,10 @@ describe('newGame', () => {
       eatAt: 50,
       rng: seedFrom(1000),
       bestiary: {},
+      marks: {},
+      bounty: null,
+      bountyPoints: 0,
+      health: null,
     });
   });
 

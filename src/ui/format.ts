@@ -19,6 +19,11 @@ export function formatDuration(ms: number): string {
   return `${seconds}s`;
 }
 
+/** "1 Dock rat", "4 Dock rats": a count of something, with an s for more than one. */
+export function counted(count: number, name: string): string {
+  return `${formatNumber(count)} ${name}${count === 1 ? '' : 's'}`;
+}
+
 /** "a", "a and b", "a, b and c". */
 export function listed(words: readonly string[]): string {
   return words.length < 2

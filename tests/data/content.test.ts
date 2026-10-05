@@ -27,7 +27,9 @@ describe('the content tables', () => {
       expect(action.level).toBeLessThanOrEqual(MAX_LEVEL);
       expect(action.durationMs).toBeGreaterThan(0);
       expect(action.xp).toBeGreaterThan(0);
-      expect(action.gives.length).toBeGreaterThan(0);
+      // A theft gives nothing for certain: what it may give is in its `steal`.
+      if (action.steal) expect(action.gives, action.id).toEqual([]);
+      else expect(action.gives.length, action.id).toBeGreaterThan(0);
       for (const { item, qty } of action.gives) {
         expect(CONTENT.items[item], `${action.id} gives ${item}`).toBeDefined();
         expect(Number.isInteger(qty) && qty > 0).toBe(true);
@@ -178,8 +180,15 @@ describe('the content tables', () => {
       'grey_wolf',
       'smuggler',
       'marsh_troll',
+      'goblin_poacher',
+      'bramble_wyrm',
     ]);
-    expect(Object.keys(CONTENT.areas!)).toEqual(['docks', 'north_road', 'saltmarsh']);
+    expect(Object.keys(CONTENT.areas!)).toEqual([
+      'docks',
+      'north_road',
+      'saltmarsh',
+      'blackthorn_wood',
+    ]);
     for (const monster of Object.values(CONTENT.monsters!)) {
       expect(CONTENT.areas![monster.area], monster.id).toBeDefined();
       for (const amount of [
@@ -204,6 +213,95 @@ describe('the content tables', () => {
     // One rare thing each worth chasing, at the far end of the marsh.
     expect(CONTENT.monsters!.smuggler!.rare.map((d) => d.item)).toContain('smugglers_cutlass');
     expect(CONTENT.monsters!.marsh_troll!.rare.map((d) => d.item)).toContain('trollstone');
+  });
+
+  it('has marks for Thieving across tier 1, each with a description and sane numbers', () => {
+    const marks = Object.values(CONTENT.actions).filter((action) => action.skill === 'thieving');
+    expect(CONTENT.skills.thieving).toMatchObject({ group: 'Roguery' });
+    expect(marks.length).toBeGreaterThanOrEqual(4);
+    expect(marks.map((mark) => mark.level)[0]).toBe(1);
+    expect(Math.max(...marks.map((mark) => mark.level))).toBeLessThanOrEqual(20);
+    for (const mark of marks) {
+      const steal = mark.steal!;
+      expect(steal, mark.id).toBeDefined();
+      expect(steal.description.length, mark.id).toBeGreaterThan(10);
+      expect(Number.isInteger(steal.difficulty) && steal.difficulty > 0, mark.id).toBe(true);
+      // A short stun: a few seconds, not a punishment.
+      expect(steal.stunMs, mark.id).toBeGreaterThanOrEqual(1000);
+      expect(steal.stunMs, mark.id).toBeLessThanOrEqual(6000);
+      const [least, most] = steal.coins;
+      expect(Number.isInteger(least) && least > 0 && most >= least, mark.id).toBe(true);
+      for (const drop of steal.loot) {
+        expect(CONTENT.items[drop.item], `${mark.id} gives ${drop.item}`).toBeDefined();
+        expect(Number.isInteger(drop.min) && drop.min > 0 && drop.max >= drop.min).toBe(true);
+        expect(drop.oneIn).toBeGreaterThan(1);
+      }
+    }
+    // Only marks are thefts, and no potion helps one.
+    for (const action of Object.values(CONTENT.actions)) {
+      expect(Boolean(action.steal), action.id).toBe(action.skill === 'thieving');
+    }
+    for (const item of Object.values(CONTENT.items)) {
+      expect(item.potion?.skills ?? [], item.id).not.toContain('thieving');
+    }
+  });
+
+  it('posts a bounty on every monster, and keeps two for bounty hunters alone', () => {
+    for (const monster of Object.values(CONTENT.monsters!)) {
+      const { kills, points } = monster.bounty!;
+      expect(Number.isInteger(kills[0]) && kills[0] > 0 && kills[1] >= kills[0], monster.id).toBe(
+        true,
+      );
+      expect(Number.isInteger(points) && points > 0, monster.id).toBe(true);
+    }
+    const hunted = Object.values(CONTENT.monsters!).filter((monster) => monster.bountyOnly);
+    expect(hunted.map((monster) => [monster.id, monster.level])).toEqual([
+      ['goblin_poacher', 10],
+      ['bramble_wyrm', 18],
+    ]);
+    for (const monster of hunted) {
+      // In an area of their own, with a drop worth the trip: something to wear.
+      expect(monster.area).toBe('blackthorn_wood');
+      expect(
+        monster.rare.some(({ item }) => CONTENT.items[item]?.equip),
+        monster.id,
+      ).toBe(true);
+    }
+    expect(
+      Object.values(CONTENT.monsters!).filter(
+        (monster) => monster.area === 'blackthorn_wood' && !monster.bountyOnly,
+      ),
+    ).toEqual([]);
+  });
+
+  it('stocks the bounty shop with real things nothing else gives', () => {
+    const shop = Object.values(CONTENT.shop!);
+    expect(shop.length).toBeGreaterThanOrEqual(3);
+    const elsewhere = new Set([
+      ...Object.values(CONTENT.actions).flatMap((action) => [
+        ...action.gives.map(({ item }) => item),
+        ...(action.steal?.loot ?? []).map(({ item }) => item),
+      ]),
+      ...Object.values(CONTENT.monsters!).flatMap((monster) =>
+        [...monster.always, ...monster.rare].map(({ item }) => item),
+      ),
+    ]);
+    for (const entry of shop) {
+      expect(CONTENT.shop![entry.id], entry.id).toBe(entry);
+      expect(CONTENT.items[entry.item], entry.id).toBeDefined();
+      expect(Number.isInteger(entry.qty) && entry.qty > 0, entry.id).toBe(true);
+      expect(Number.isInteger(entry.cost) && entry.cost > 0, entry.id).toBe(true);
+      expect(elsewhere.has(entry.item), `${entry.item} comes from elsewhere too`).toBe(false);
+    }
+    // A charm a shade above shell, a quiver, and something to wear for the look.
+    const sum = (id: string): number => {
+      const def = CONTENT.items[id]!.equip!;
+      return (def.attack ?? 0) + (def.strength ?? 0) + (def.armour ?? 0);
+    };
+    expect(sum('hunters_charm')).toBeGreaterThan(sum('shell_necklace'));
+    expect(sum('hunters_charm')).toBeLessThanOrEqual(sum('shell_necklace') + 2);
+    expect(CONTENT.items.barbed_arrows!.equip!.slot).toBe('ammo');
+    expect(CONTENT.shop!.feathered_hat).toMatchObject({ once: true });
   });
 
   it('feeds Crafting with hides, and gives leather a small set of armour', () => {

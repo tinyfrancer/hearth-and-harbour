@@ -4,7 +4,7 @@ import {
   STORAGE_KEY,
 } from '../../src/persistence/LocalStorageSaveService';
 import { writeSaveExport } from '../../src/persistence/saveFile';
-import { newGame } from '../../src/core/state';
+import { GAME_STATE_VERSION, newGame } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 import { mountApp } from '../../src/ui/app';
 import { CONTENT } from '../../src/data';
@@ -358,7 +358,7 @@ describe('the app shell', () => {
       mount();
       create('Cody');
       const headings = [...root.querySelectorAll('.group-heading')].map((el) => el.textContent);
-      expect(headings).toEqual(['Gathering', 'Artisan', 'Combat']);
+      expect(headings).toEqual(['Gathering', 'Artisan', 'Combat', 'Roguery']);
       const artisan = [...root.querySelectorAll('[data-group="Artisan"] [data-skill] h2')].map(
         (el) => el.textContent,
       );
@@ -930,7 +930,7 @@ describe('the app shell', () => {
       const slots = [...root.querySelectorAll('[data-slot]')];
       expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
       expect(new LocalStorageSaveService().load()).toMatchObject({
-        version: 6,
+        version: GAME_STATE_VERSION,
         look: {},
         equipment: {},
         bank: { bronze_sword: 1, bronze_shield: 1 },

@@ -75,7 +75,12 @@ export function characterAt(
 }
 
 export function fight(state: GameState, monster: string): GameState {
-  const result = startFight(state, monster, CONTENT);
+  // The way to a monster only bounty hunters go after is a bounty on it.
+  const hunted =
+    CONTENT.monsters![monster]?.bountyOnly && state.bounty?.monster !== monster
+      ? { ...state, bounty: { monster, count: 1_000_000, done: 0 } }
+      : state;
+  const result = startFight(hunted, monster, CONTENT);
   if (!result.ok) throw new Error(result.reason);
   return result.state;
 }
@@ -148,10 +153,13 @@ export function hourOf(
   };
 }
 
-/** The strongest monster a character should take on at their level: the highest at or below it. */
+/**
+ * The strongest monster a character should take on at their level: the
+ * highest at or below it, of those anyone may fight without a bounty.
+ */
 export function monsterFor(level: number): string {
   return Object.values(CONTENT.monsters!)
-    .filter((monster) => monster.level <= level)
+    .filter((monster) => monster.level <= level && !monster.bountyOnly)
     .sort((a, b) => b.level - a.level)[0]!.id;
 }
 

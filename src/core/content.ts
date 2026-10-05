@@ -114,6 +114,29 @@ export interface ActionDef {
    * ("Bronze"). Groups appear in table order.
    */
   group?: string;
+  /**
+   * For a theft: an attempt on a mark, which works by chance instead of
+   * always (src/core/thieving.ts). Its `gives` is empty, its `xp` is paid for
+   * a success only, and mastery of the mark makes success likelier instead
+   * of making attempts quicker. Potions do not help it.
+   */
+  steal?: StealDef;
+}
+
+/**
+ * A mark: someone (or something) to rob. An attempt takes the action's
+ * `durationMs`; it succeeds with a chance set by the thief's rating against
+ * `difficulty`, and pays coins and maybe something from `loot`. Failure is
+ * being caught: a stun of `stunMs` in which nothing happens, and no other cost.
+ */
+export interface StealDef {
+  description: string;
+  difficulty: number;
+  stunMs: number;
+  /** Coins every success pays, from the first number to the second. */
+  coins: readonly [number, number];
+  /** What a success may also bring: each rolled on its own, one chance in `oneIn`. */
+  loot: readonly (DropDef & { oneIn: number })[];
 }
 
 /** Somewhere to fight, holding the monsters whose `area` names it. Listed in table order. */
@@ -154,6 +177,30 @@ export interface MonsterDef {
   always: readonly DropDef[];
   /** What a kill may drop: each rolled on its own, one chance in `oneIn`. */
   rare: readonly (DropDef & { oneIn: number })[];
+  /**
+   * What the notice board asks for this monster (src/core/bounty.ts): between
+   * the two numbers of kills, and the bounty points it pays. A monster
+   * without one is never posted.
+   */
+  bounty?: BountyDef;
+  /** Only to be fought while the bounty held names it. */
+  bountyOnly?: boolean;
+}
+
+export interface BountyDef {
+  kills: readonly [number, number];
+  points: number;
+}
+
+/** Something the bounty shop sells for points: `qty` of an item at a time. */
+export interface ShopEntry {
+  id: string;
+  item: string;
+  qty: number;
+  /** Bounty points. */
+  cost: number;
+  /** Sold only to a character who holds none, in the bank or worn. */
+  once?: boolean;
 }
 
 export interface Content {
@@ -164,4 +211,6 @@ export interface Content {
   areas?: Readonly<Record<string, AreaDef>>;
   /** Who to fight there. Tables made for a test of something else may leave it out. */
   monsters?: Readonly<Record<string, MonsterDef>>;
+  /** What bounty points buy, in the order the shop lists it. */
+  shop?: Readonly<Record<string, ShopEntry>>;
 }

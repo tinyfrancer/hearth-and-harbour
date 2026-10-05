@@ -109,6 +109,7 @@ describe('the formulas', () => {
       defence: 13,
       maxHit: 6,
       maxHp: 20,
+      hp: 20,
     });
     const bow = {
       ...state,

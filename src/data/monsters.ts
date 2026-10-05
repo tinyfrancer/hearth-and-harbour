@@ -17,6 +17,12 @@ export const AREAS = {
     name: 'The Saltmarsh',
     description: 'Reeds, mud and channels that move about when nobody is looking.',
   },
+  // Its monsters are only for bounty hunters (`bountyOnly`): the way in is a bounty on one.
+  blackthorn_wood: {
+    id: 'blackthorn_wood',
+    name: 'Blackthorn Wood',
+    description: 'Thick, thorny and well off the road. Nobody goes in without being paid to.',
+  },
 } satisfies Record<string, AreaDef>;
 
 type Row = Omit<MonsterDef, 'id' | 'area' | 'always' | 'rare'> & {
@@ -54,6 +60,7 @@ const ALL: MonsterDef[] = [
       coins: [1, 3],
       always: [{ item: 'hide', min: 1, max: 1 }],
       rare: [{ item: 'raw_herring', min: 1, max: 1, oneIn: 8 }],
+      bounty: { kills: [50, 90], points: 2 },
     },
     sand_crab: {
       name: 'Sand crab',
@@ -67,6 +74,7 @@ const ALL: MonsterDef[] = [
       coins: [1, 4],
       always: [{ item: 'seashells', min: 2, max: 4 }],
       rare: [{ item: 'pearl', min: 1, max: 1, oneIn: 64 }],
+      bounty: { kills: [28, 50], points: 3 },
     },
     thieving_gull: {
       name: 'Thieving gull',
@@ -80,6 +88,7 @@ const ALL: MonsterDef[] = [
       coins: [2, 8],
       always: [{ item: 'feathers', min: 1, max: 3 }],
       rare: [{ item: 'shell_necklace', min: 1, max: 1, oneIn: 40 }],
+      bounty: { kills: [40, 65], points: 4 },
     },
   }),
   ...monsters('north_road', {
@@ -95,6 +104,7 @@ const ALL: MonsterDef[] = [
       coins: [0, 0],
       always: [{ item: 'hide', min: 1, max: 2 }],
       rare: [{ item: 'glowcap', min: 1, max: 2, oneIn: 10 }],
+      bounty: { kills: [21, 34], points: 5 },
     },
     footpad: {
       name: 'Footpad',
@@ -108,6 +118,7 @@ const ALL: MonsterDef[] = [
       coins: [8, 25],
       always: [{ item: 'cudgel', min: 1, max: 1 }],
       rare: [{ item: 'iron_sword', min: 1, max: 1, oneIn: 50 }],
+      bounty: { kills: [20, 34], points: 7 },
     },
     grey_wolf: {
       name: 'Grey wolf',
@@ -121,6 +132,7 @@ const ALL: MonsterDef[] = [
       coins: [0, 0],
       always: [{ item: 'hide', min: 1, max: 2 }],
       rare: [{ item: 'sageleaf', min: 2, max: 4, oneIn: 8 }],
+      bounty: { kills: [18, 30], points: 8 },
     },
   }),
   ...monsters('saltmarsh', {
@@ -139,6 +151,7 @@ const ALL: MonsterDef[] = [
         { item: 'iron_arrows', min: 10, max: 25, oneIn: 10 },
         { item: 'smugglers_cutlass', min: 1, max: 1, oneIn: 120 },
       ],
+      bounty: { kills: [16, 27], points: 10 },
     },
     marsh_troll: {
       name: 'Marsh troll',
@@ -155,6 +168,41 @@ const ALL: MonsterDef[] = [
         { item: 'iron_ore', min: 2, max: 5, oneIn: 6 },
         { item: 'trollstone', min: 1, max: 1, oneIn: 150 },
       ],
+      bounty: { kills: [14, 21], points: 12 },
+    },
+  }),
+  ...monsters('blackthorn_wood', {
+    goblin_poacher: {
+      name: 'Goblin poacher',
+      description:
+        'Wanted for eleven chickens, a goat and the vicar’s hat. Has returned none of them.',
+      level: 10,
+      hp: 36,
+      attack: 46,
+      defence: 30,
+      maxHit: 8,
+      speedMs: 2200,
+      coins: [5, 20],
+      always: [{ item: 'feathers', min: 2, max: 4 }],
+      rare: [{ item: 'poachers_longbow', min: 1, max: 1, oneIn: 30 }],
+      bountyOnly: true,
+      bounty: { kills: [23, 38], points: 9 },
+    },
+    bramble_wyrm: {
+      name: 'Bramble wyrm',
+      description:
+        'A long, low dragon with no wings and less patience. Nests in thorns and resents visitors.',
+      level: 18,
+      hp: 76,
+      attack: 62,
+      defence: 46,
+      maxHit: 14,
+      speedMs: 2800,
+      coins: [10, 35],
+      always: [{ item: 'hide', min: 2, max: 3 }],
+      rare: [{ item: 'wyrmscale_shield', min: 1, max: 1, oneIn: 30 }],
+      bountyOnly: true,
+      bounty: { kills: [15, 24], points: 15 },
     },
   }),
 ];
