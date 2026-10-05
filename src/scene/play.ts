@@ -5,7 +5,7 @@
  * canvas.
  */
 import { approach, footprintCentreX, panelFor, thingAt, usable, type Scene } from './things';
-import { centreOf, type Point } from './tileMap';
+import { cellAt, centreOf, type Cell, type Point } from './tileMap';
 import { step, walkTo, type Walker } from './walker';
 
 export type Facing = 'left' | 'right';
@@ -67,6 +67,19 @@ export function facingToward(facing: Facing, from: Point, x: number): Facing {
   return facing;
 }
 
+/** How near the walker must come, in art pixels each way, for someone standing about to turn to him. */
+export const NOTICE = 40;
+
+/**
+ * Which way someone standing with their feet at `at` faces: as drawn
+ * (`right`) unless the walker is near and off to their left, when they turn
+ * to look at him. A walker straight in front of them is looked at as drawn.
+ */
+export function turnedTo(at: Point, walker: Point): Facing {
+  if (Math.abs(walker.x - at.x) > NOTICE || Math.abs(walker.y - at.y) > NOTICE) return 'right';
+  return walker.x < at.x - 2 ? 'left' : 'right';
+}
+
 /** Art pixels per half-step: the walker rises a pixel every other one. */
 export const STRIDE = 6;
 
@@ -122,6 +135,40 @@ export function advancePlay(scene: Scene, play: Play, ms: number): Play {
   }
   if (moved === play.walker) return play;
   return { ...play, walker: moved, facing, walked };
+}
+
+/** How long a finger must stay down, in ms, before a press on the ground becomes steering. */
+export const HOLD_MS = 220;
+/** How far a finger must move, in CSS pixels, before a press on the ground becomes steering. */
+export const DRAG_CSS = 12;
+
+/**
+ * Whether a press on the ground has become steering: held a moment, or
+ * dragged. Until then it is a tap, which walks to where it landed and no
+ * further, however the camera moves under the finger.
+ */
+export function steering(heldMs: number, movedCss: number): boolean {
+  return heldMs >= HOLD_MS || movedCss >= DRAG_CSS;
+}
+
+/**
+ * A finger held on the ground at `point`: the walker heads for it, re-aiming
+ * as it moves. `aimed` is the tile the last re-aim was for; while the finger
+ * stays over the same tile the walk is left alone rather than planned again
+ * every frame. Holding closes any panel, as a tap on the ground does.
+ */
+export function steer(
+  scene: Scene,
+  play: Play,
+  point: Point,
+  aimed: Cell | null,
+): { play: Play; aimed: Cell } {
+  const cell = cellAt(point);
+  if (aimed && aimed.col === cell.col && aimed.row === cell.row) return { play, aimed };
+  return {
+    play: { ...play, walker: walkTo(scene.map, play.walker, point), heading: null, open: null },
+    aimed: cell,
+  };
 }
 
 /** Closes whatever panel is open. */

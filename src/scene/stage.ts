@@ -17,10 +17,21 @@ import {
   type Standing,
 } from './draw';
 import { usePanel } from './panel';
-import { advancePlay, bob, closePanel, tapAt, visitsTo, type Facing, type Play } from './play';
+import {
+  advancePlay,
+  bob,
+  closePanel,
+  steer,
+  steering,
+  tapAt,
+  turnedTo,
+  visitsTo,
+  type Facing,
+  type Play,
+} from './play';
 import { canvasFit, cssToArt, sceneScale, tapToWorld, viewSize } from './scale';
-import type { Box, Opens, Scene } from './things';
-import { mapSize, type Point } from './tileMap';
+import { footprintCentreX, thingAt, usable, type Box, type Opens, type Scene } from './things';
+import { cellAt, mapSize, type Cell, type Point } from './tileMap';
 
 /**
  * The longest frame the walk takes in one go. A page coming back from the
@@ -77,7 +88,8 @@ function stillOf(
   if (groundImage) {
     const standing: Standing[] = [];
     for (const t of scene.things) {
-      if (!t.sprite) continue;
+      // Someone who turns is drawn as they face, each frame, not baked in.
+      if (!t.sprite || t.sprite.turned) continue;
       const image = canvasOf(t.sprite.picture, palette);
       if (image) standing.push({ image, x: t.sprite.at.x, y: t.sprite.at.y, base: t.base });
     }
@@ -142,6 +154,16 @@ export interface Light {
   flip(): void;
 }
 
+/** Room kept clear at each edge of the canvas, in CSS pixels, for buttons laid over the scene. */
+export interface Insets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+
 export interface StageOptions {
   readonly scene: Scene;
   readonly art: StageArt;
@@ -149,7 +171,18 @@ export interface StageOptions {
   readonly play: Play;
   /** Told after every change, so a rebuilt stage can carry on from there. */
   readonly keep: (play: Play) => void;
-  readonly light: Light;
+  /** Day and dusk, with the sun-and-moon button to flip them. Without it, always day and no button. */
+  readonly light?: Light;
+  /** How many device pixels an art pixel takes on a canvas this size. The town's rule by default. */
+  readonly scaleOf?: (device: Size) => number;
+  /**
+   * Room the camera keeps clear at the edges for buttons over the scene: the
+   * walker is centred in what is left, and a map smaller than that is centred
+   * in it. Nothing by default.
+   */
+  readonly insets?: Insets;
+  /** While true, time does not move the walker: a run paused, a door being gone through. */
+  readonly frozen?: () => boolean;
   /** A panel's button was pressed. */
   readonly press: (opens: Opens) => void;
   /** What a screen reader hears for the canvas. */
@@ -170,8 +203,13 @@ const round = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) });
  * when something moved, resized or changed.
  */
 export function stage(options: StageOptions): View {
-  const { scene, art, light } = options;
+  const { scene, art } = options;
+  const light: Light = options.light ?? { current: () => 'day', flip: () => {} };
+  const scaleOf = options.scaleOf ?? sceneScale;
+  const insets = options.insets ?? NO_INSETS;
   const world = mapSize(scene.map);
+  // People who turn to look at the walker, drawn each frame as they face.
+  const turners = scene.things.filter((t) => t.sprite?.turned);
   const canvas = h(
     'canvas',
     { class: 'scene-canvas', attrs: { role: 'img', 'aria-label': options.label } },
@@ -187,7 +225,7 @@ export function stage(options: StageOptions): View {
       },
     },
   });
-  const el = h('div', { class: 'scene' }, [canvas, lightButton]);
+  const el = h('div', { class: 'scene' }, [canvas, options.light ? lightButton : null]);
 
   let play = options.play;
   let time = light.current();
@@ -200,6 +238,19 @@ export function stage(options: StageOptions): View {
   let css: Size = { width: 0, height: 0 };
   let ctx: CanvasRenderingContext2D | null = null;
   let last: number | null = null;
+  /**
+   * A finger held on the ground: where it is on the canvas, in CSS pixels,
+   * and the tile the walk was last aimed at. The walker keeps heading for it.
+   */
+  let held: {
+    readonly id: number;
+    /** Where the finger went down, and when, to tell a tap from a hold. */
+    readonly from: Point;
+    readonly since: number;
+    readonly at: Point;
+    readonly aimed: Cell | null;
+    readonly steering: boolean;
+  } | null = null;
 
   const showTime = (): void => {
     lightButton.dataset.time = time;
@@ -245,10 +296,27 @@ export function stage(options: StageOptions): View {
     syncPanel();
   };
 
+  /** The insets in whole art pixels at this scale. */
+  const inset = (scale: number): Insets => {
+    const art = (cssPixels: number): number => Math.round(cssToArt(cssPixels, css, device, scale));
+    return {
+      top: art(insets.top),
+      right: art(insets.right),
+      bottom: art(insets.bottom),
+      left: art(insets.left),
+    };
+  };
+
   const camera = (scale: number): Point => {
     const view = viewSize(device, scale);
+    const room = inset(scale);
     const focus = { x: play.walker.at.x, y: play.walker.at.y - FOCUS_RISE };
-    return cameraFor(focus, { width: view.width, height: Math.max(1, view.height - lift) }, world);
+    const inner = {
+      width: Math.max(1, view.width - room.left - room.right),
+      height: Math.max(1, view.height - room.top - room.bottom - lift),
+    };
+    const cam = cameraFor(focus, inner, world);
+    return { x: cam.x - room.left, y: cam.y - room.top };
   };
 
   /** Sizes the canvas to the scene's box: whole CSS pixels, whole device pixels, never stretched. */
@@ -276,26 +344,64 @@ export function stage(options: StageOptions): View {
     observer.observe(el);
   }
 
+  /** Where a point on the canvas, in CSS pixels from its top-left, is in the scene. */
+  const cssSize = (): Size => {
+    if (css.width) return css;
+    const rect = canvas.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  };
+
+  const toWorld = (offset: Point): Point => {
+    const scale = scaleOf(device);
+    return tapToWorld(offset, cssSize(), device, scale, camera(scale));
+  };
+
+  const offsetOf = (event: PointerEvent): Point => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
   canvas.addEventListener('pointerdown', (event) => {
     if (event.isPrimary === false || device.width === 0) return;
     event.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const scale = sceneScale(device);
-    const cssSize = css.width ? css : { width: rect.width, height: rect.height };
-    const tap = tapToWorld(
-      { x: event.clientX - rect.left, y: event.clientY - rect.top },
-      cssSize,
-      device,
-      scale,
-      camera(scale),
-    );
-    change(tapAt(scene, play, tap, cssToArt(MIN_TAP_CSS, cssSize, device, scale)));
+    held = null;
+    const at = offsetOf(event);
+    const tap = toWorld(at);
+    const scale = scaleOf(device);
+    const min = cssToArt(MIN_TAP_CSS, cssSize(), device, scale);
+    const thing = thingAt(scene.things, tap, min);
+    change(tapAt(scene, play, tap, min));
+    // A press on the ground can be held and dragged to steer; one on a thing is only a tap.
+    if (thing && usable(thing)) return;
+    held = {
+      id: event.pointerId,
+      from: at,
+      since: performance.now(),
+      at,
+      aimed: cellAt(tap),
+      steering: false,
+    };
+    // Keeps the finger's moves coming when it slides off the canvas onto a button.
+    try {
+      canvas.setPointerCapture?.(event.pointerId);
+    } catch {
+      // A pointer the browser no longer knows: steering still works while it is over the canvas.
+    }
   });
+  canvas.addEventListener('pointermove', (event) => {
+    if (held && event.pointerId === held.id) held = { ...held, at: offsetOf(event) };
+  });
+  const letGo = (event: PointerEvent): void => {
+    if (held && event.pointerId === held.id) held = null;
+  };
+  canvas.addEventListener('pointerup', letGo);
+  canvas.addEventListener('pointercancel', letGo);
+  canvas.addEventListener('lostpointercapture', letGo);
 
   /** How far the view must slide up for the walker to stay clear of the open panel, in art pixels. */
   const panelLift = (): number => {
     if (!panel || device.height === 0 || css.height === 0) return 0;
-    const scale = sceneScale(device);
+    const scale = scaleOf(device);
     return cssToArt(panel.offsetHeight + PANEL_MARGIN, css, device, scale);
   };
 
@@ -317,7 +423,7 @@ export function stage(options: StageOptions): View {
     }
     ctx ??= canvas.getContext('2d');
     if (!ctx) return;
-    const scale = sceneScale(device);
+    const scale = scaleOf(device);
     const cam = camera(scale);
     const feet = round(play.walker.at);
     const left = play.facing === 'left';
@@ -353,6 +459,16 @@ export function stage(options: StageOptions): View {
       moving.set('shadow', { image: shadowImage, box: boxOf(placed) });
     }
     if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
+    const actors: Standing[] = walker ? [walker] : [];
+    for (const t of turners) {
+      const sprite = t.sprite!;
+      const facing = turnedTo({ x: footprintCentreX(t), y: t.base }, play.walker.at);
+      const image = canvasOf(facing === 'left' ? sprite.turned! : sprite.picture, palette);
+      if (!image) continue;
+      const person: Standing = { image, x: sprite.at.x, y: sprite.at.y, base: t.base };
+      actors.push(person);
+      moving.set(`person ${t.id}`, { image, box: boxOf(person) });
+    }
     const target = play.heading === null ? (play.walker.path.at(-1) ?? null) : null;
     if (target) moving.set('target', { image: made.still, box: markerBox(target) });
 
@@ -365,7 +481,7 @@ export function stage(options: StageOptions): View {
       underfoot,
       target,
       marker: { light: palette.colours.gold1, ink: palette.colours.ink1 },
-      walker,
+      actors,
       above,
     };
     const view = viewSize(device, scale);
@@ -401,8 +517,18 @@ export function stage(options: StageOptions): View {
     el,
     update: () => {
       const now = performance.now();
-      const ms = last === null ? 0 : Math.min(Math.max(now - last, 0), MAX_FRAME_MS);
+      const still = options.frozen?.() ?? false;
+      const ms = last === null || still ? 0 : Math.min(Math.max(now - last, 0), MAX_FRAME_MS);
       last = now;
+      if (held && !held.steering) {
+        const moved = Math.hypot(held.at.x - held.from.x, held.at.y - held.from.y);
+        if (steering(now - held.since, moved)) held = { ...held, steering: true };
+      }
+      if (held?.steering && !still && device.width > 0) {
+        const steered = steer(scene, play, toWorld(held.at), held.aimed);
+        held = { ...held, aimed: steered.aimed };
+        change(steered.play);
+      }
       change(advancePlay(scene, play, ms));
       changeTime(light.current());
       const target = panelLift();

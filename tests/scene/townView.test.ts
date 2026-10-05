@@ -75,13 +75,9 @@ function tap(view: View, at: Point, hero: Point): void {
     { width: TOWN_WIDTH, height: TOWN_HEIGHT },
   );
   const canvas = view.el.querySelector('canvas')!;
-  canvas.dispatchEvent(
-    new MouseEvent('pointerdown', {
-      bubbles: true,
-      clientX: (at.x - camera.x) * K,
-      clientY: (at.y - camera.y) * K,
-    }),
-  );
+  const where = { bubbles: true, clientX: (at.x - camera.x) * K, clientY: (at.y - camera.y) * K };
+  canvas.dispatchEvent(new MouseEvent('pointerdown', where));
+  canvas.dispatchEvent(new MouseEvent('pointerup', where));
 }
 
 /** Lets `ms` pass a frame at a time. */

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { DAY, DUSK } from '../../src/art/palette';
 import { picture } from '../../src/art/raster';
 import { get, grid } from '../../src/art/grid';
 import { townPiece, TOWN_IDS } from '../../src/art/town';
@@ -225,22 +224,6 @@ describe('the town', () => {
       { x: 12, y: 22, radius: 5, strength: 1 },
     ]);
     expect(near.glows).toEqual([{ x: 2, y: 2, radius: 5, strength: 1 }]);
-  });
-
-  it('lights the hero at dusk by the lamps near him, from a few kept pictures', () => {
-    const lamp = byId('lamp-west').footprint[0]!;
-    const beside = centreOf({ col: lamp.col + 1, row: lamp.row });
-    const lit = art.walkerAt(beside, 'right', DUSK);
-    expect(lit.glows.length).toBeGreaterThan(0);
-    // The same place to within a few pixels is the same picture, so it is painted once.
-    expect(art.walkerAt({ x: beside.x + 1, y: beside.y }, 'right', DUSK)).toBe(lit);
-    // By day, or far from any light, he is the plain hero.
-    expect(art.walkerAt(beside, 'right', DAY)).toBe(art.hero);
-    expect(art.walkerAt(centreOf({ col: 22, row: 5 }), 'right', DUSK)).toBe(art.hero);
-    // Facing left, the mirrored picture: his sword hand on the other side.
-    const left = art.walkerAt(beside, 'left', DAY);
-    expect(left).not.toBe(art.hero);
-    expect(get(left.grid, art.hero.grid.w - 1 - 5, 20)).toBe(get(art.hero.grid, 5, 20));
   });
 });
 

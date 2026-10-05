@@ -17,8 +17,11 @@ export interface Box {
   readonly h: number;
 }
 
-/** Where a button in a scene takes the player: a tab, or one skill's page. */
-export type Opens = { readonly tab: Parameters<Shell['openTab']>[0] } | { readonly skill: string };
+/** Where a button in a scene takes the player: a tab, one skill's page, or a dungeon by its id. */
+export type Opens =
+  | { readonly tab: Parameters<Shell['openTab']>[0] }
+  | { readonly skill: string }
+  | { readonly dungeon: string };
 
 /** What walking up to a thing shows: its name, a line or two, and perhaps a button. */
 export interface Use {
@@ -35,12 +38,20 @@ export interface Use {
   /** Said after dark before going round `says`, so the first visit of an evening hears one of these. */
   readonly duskSays?: readonly string[];
   readonly button?: { readonly label: string; readonly opens: Opens };
+  /** Whose face to show beside the words, by the art lane's portrait id, when it has drawn one. */
+  readonly portrait?: string;
 }
 
 /** How a thing looks: a picture with its top-left at `at`, in art pixels. */
 export interface Sprite {
   readonly picture: Picture;
   readonly at: Point;
+  /**
+   * The picture facing the other way, for someone who turns to look at the
+   * walker when he comes near. Such a thing is drawn as it faces each frame,
+   * not composed into the still picture of the map.
+   */
+  readonly turned?: Picture;
 }
 
 export interface Thing {

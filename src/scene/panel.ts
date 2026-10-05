@@ -4,6 +4,7 @@
  * styled like the menus, so it reads as part of the app rather than the
  * picture.
  */
+import { portrait } from '../art/portraits';
 import { button, h } from '../ui/dom';
 import type { TimeOfDay } from './daylight';
 import type { Opens, Use } from './things';
@@ -39,9 +40,12 @@ export function usePanel(use: Use, time: TimeOfDay, actions: PanelActions, visit
   });
   const opens = use.button?.opens;
   const say = sayingFor(use, time, visit);
+  // A face beside the name once the art lane has drawn one; until then, just the name.
+  const face = use.portrait ? portrait(use.portrait) : null;
+  const title = h('h2', { text: use.name });
   return h('section', { class: 'scene-panel', attrs: { 'aria-label': use.name } }, [
     close,
-    h('h2', { text: use.name }),
+    face ? h('div', { class: 'scene-panel-head' }, [face, title]) : title,
     ...linesFor(use, time).map((line) => h('p', { text: line })),
     say ? h('p', { class: 'scene-say', text: say }) : null,
     use.button && opens ? button(use.button.label, () => actions.press(opens), 'primary') : null,

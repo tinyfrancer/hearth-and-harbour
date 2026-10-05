@@ -7,9 +7,9 @@
  * Everything that never moves (the ground and every thing standing on it) is
  * composed once per palette into one picture of the whole map. A frame copies
  * the part of it the camera sees, then draws over it only what moves (the
- * walker, his shadow, smoke, gulls) and the few standing things that must be
- * drawn again because they stand in front of the walker where he overlaps
- * them. A patch of the frame can be redrawn the same way on its own, so a gull
+ * walker, his shadow, people who turn to look at him, smoke, gulls) and the
+ * few standing things that must be drawn again because they stand in front of
+ * someone who moves where they overlap. A patch of the frame can be redrawn the same way on its own, so a gull
  * crossing the sky repaints a few pixels round the gull, not the screen.
  */
 import type { Palette } from '../art/palette';
@@ -104,8 +104,11 @@ export interface Frame {
   /** Where a walk on open ground ends, if one is under way. */
   readonly target: Point | null;
   readonly marker: { readonly light: string; readonly ink: string };
-  /** The walker, and the line their feet are on. */
-  readonly walker: Standing | null;
+  /**
+   * Whoever is not in `still` because they move or turn: the walker, people
+   * who face him. Each with the line their feet are on.
+   */
+  readonly actors: readonly Standing[];
   /** Over everything: smoke, gulls. */
   readonly above: readonly Placed[];
 }
@@ -121,8 +124,8 @@ export function overlaps(a: Box, b: Box): boolean {
 
 /**
  * What must be drawn again over a patch: the boxes where the still picture
- * is wrong there (under the walker and whatever is laid on the ground), and
- * the standing things that cross those boxes, with the walker among them in
+ * is wrong there (under the actors and whatever is laid on the ground), and
+ * the standing things that cross those boxes, with the actors among them in
  * depth order. They are drawn clipped to those boxes, so a thing drawn again
  * never lands on one in front of it anywhere else.
  */
@@ -130,17 +133,18 @@ export function redrawn(frame: Frame, patch: Box): { boxes: Box[]; list: Standin
   const boxes: Box[] = [
     ...frame.underfoot.map(boxOf),
     ...(frame.target ? [markerBox(frame.target)] : []),
-    ...(frame.walker ? [boxOf(frame.walker)] : []),
+    ...frame.actors.map(boxOf),
   ].filter((b) => overlaps(b, patch));
   if (boxes.length === 0) return { boxes, list: [] };
   const list: Standing[] = frame.standing.filter((s) => {
     const box = boxOf(s);
     return overlaps(box, patch) && boxes.some((m) => overlaps(m, box));
   });
-  if (frame.walker && overlaps(boxOf(frame.walker), patch)) {
-    // After anything level with the walker's feet, so the walker is in front.
-    const at = list.findIndex((s) => s.base > frame.walker!.base);
-    list.splice(at === -1 ? list.length : at, 0, frame.walker);
+  for (const actor of frame.actors) {
+    if (!overlaps(boxOf(actor), patch)) continue;
+    // After anything level with the actor's feet, so the actor is in front.
+    const at = list.findIndex((s) => s.base > actor.base);
+    list.splice(at === -1 ? list.length : at, 0, actor);
   }
   return { boxes, list };
 }
