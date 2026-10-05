@@ -130,7 +130,10 @@ drawn to.
   midrib, with a point, a guard wider than the blade and a grip in the fist. An axe's head sits at
   the very top of the haft with a little haft above it, much heavier than the haft is wide, with a
   curved bit, a bright edge and a dark socket where the wood goes in; a pale rectangle off the side
-  of a stick reads as a flag. `tests/art/pieces.test.ts` holds these.
+  of a stick reads as a flag. An axe head is a solid wedge, never an outline: narrow where the
+  haft passes through it, filling out to a cutting edge about as tall as the head is long; a
+  thin bar hooking off the haft reads as a hook or a pick (B4 redrew the hatchet for this).
+  `tests/art/pieces.test.ts` holds these.
 - **An empty hand rests.** With nothing held, the character stands in `standard_at_ease`: the
   standard body with the weapon forearm bent up so the hand rests at the belt, instead of a closed
   fist hanging by the hip. Sleeves and the bracelet on that forearm have an at-ease version that
@@ -176,6 +179,47 @@ What grows from rung to rung, and the rules that hold it:
   specular on every plate; tier 4 adds glows at dusk.
 - **A rung never borrows the next one's signature.** Pauldrons, a cloak and gold trim belong to
   tier 2 and above; plumes and devices to tier 3 and above; glows to tier 4.
+
+## Icons
+
+Drawn in B4; not yet reviewed by Cody. The icons are the most-seen art in the game (every bank row,
+every action card), so they follow the same hand as the town and the figures.
+
+- **24 × 24 with the outline**: the object is drawn in the 22 × 22 inside and set in the middle;
+  the automatic outline goes round it. It fills most of the square (at least 16 pixels in one
+  direction, most 18 or more).
+- **Shown at 32 CSS pixels**: 4 device pixels per art pixel on a 3x phone, the same pixel size as
+  the town, and never a fraction (`iconScale` in `src/art/icons.ts`). At 24 CSS pixels they were
+  crisp but too small to tell a herring from a cod at a glance.
+- **Their own drawings**, never shrunken gear or scenery: an object alone, turned to show its best
+  side (blades and arrows on the diagonal, point up and right; fish facing left; tools and
+  vessels upright), lit from the upper left, three or four steps per ramp, no stray single pixels.
+  Written as rows of characters with a legend, like every other sprite (`itemIcons.ts`,
+  `gearIcons.ts`, `skillIcons.ts`).
+- **Families are drawn together** so members read as kin and differ by design:
+  - logs: one drawing; the three woods differ by bark (pine warm red-brown, oak grey-brown,
+    willow grey-green) and by the cut end (yellow, tan, cream);
+  - fish: raw is cool and silver with a dark eye; cooked is the same fish browned, two grill marks
+    and the eye gone white (herring dark and crisp, cod pale and golden). Raw and cooked share no
+    ramp;
+  - ore is a faceted lump with what makes it ore set in it: copper's green crust and red-gold
+    glints on warm grey, tin's pale crystals on cool grey, iron's rust nuggets on brown-grey;
+  - bronze and iron follow the gear ladder: bronze is plain, leathery and olive (a hatchet, a
+    leaf blade, a cap, a wooden buckler, a hide jerkin with one disc); iron is solid and grey (a
+    bearded axe, a long sword, a nasal helm, a heater, mail). Neither uses the other's metal;
+  - the three bows are one drawing in three woods; arrows are two, head up and right;
+  - potions are the shell vial with the liquid showing through the thin shell, one hue each
+    (green, amber, pale cyan, midnight), and each its own stopper: cork, red wax, a little
+    glowcap, a lit wick.
+- **An icon and its worn layer are the same object**: the hatchet's icon is the worn head's
+  wedge, larger, with the same flat top, bright bit and socket round the haft.
+- **Skills** are one clear object each: an axe in a stump, a fish on a line, a pick, a basket of
+  greens, a pot over a fire, an anvil and hammer, a needle and spool, a feather, a mortar and
+  pestle, crossed swords, a drawn bow, a shield, a heart. The defence shield is plain red with a
+  boss: no cross or device, which belong to tier 2 and above.
+- New ramps for icons only: `oakbark`, `willowbark`, `scales`, `herring`, `cod`, `shrimpraw`,
+  `shrimp`, `cooked`, `verdigris`, `copper`, `rust`, `sage`, `glowcap`, `shelldark`, and the four
+  potion liquids. No existing colour changed.
 
 ## Portraits
 

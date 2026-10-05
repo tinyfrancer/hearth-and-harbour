@@ -60,6 +60,27 @@
   font-size: 16px;
 }
 
+/* Icons in their families: a grid of cells, each the icon over its id. */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px 8px;
+}
+
+.icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  text-align: center;
+}
+
+.icon-cell figcaption {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
 .palette {
   display: grid;
   grid-template-columns: max-content max-content max-content;

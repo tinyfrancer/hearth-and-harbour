@@ -1,6 +1,18 @@
 # Lane B: art
 
-**Next session: B4: Icons, and the hatchet** (brief in `docs/lanes.md`, wave 4).
+**Next session: B5: Portraits; icons for S8's new items; dungeon tiles** (brief to come in
+`docs/lanes.md`, wave 5).
+
+## Icons, for lanes A and C (`src/art/icons.ts`)
+
+`itemIcon(id)` and `skillIcon(id)` return a `<canvas class="pixel-art icon">` (aria-hidden: the name
+always sits beside it) showing the thing's 24 × 24 icon at 32 CSS pixels, a whole number of device
+pixels per art pixel (`iconScale(dpr)`: 4 at 3x, 3 at 2x, 1 at 1x). Every item in
+`src/data/items.ts` and every skill in `src/data/skills.ts` has one, and so do the combat skills
+`melee`, `ranged`, `defence` and `vitality`. Any other id (S8's leather, hides and drops, which art
+has not seen yet) is null, never an error. Also exported: `itemIconPicture(id)` and
+`skillIconPicture(id)` (the `Picture`, for drawing onto a canvas of your own, as the town does),
+`ITEM_ICON_IDS`, `SKILL_ICON_IDS` and `ICON_FAMILIES`.
 
 ## The character, for lanes A and C (`src/art/character.ts`)
 
@@ -123,6 +135,30 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   foam along the shore row.
 
 ## Done
+
+- **B4: Icons, and the hatchet.** New art, not yet reviewed by Cody. Review sheets are outside
+  the repo in `/home/claude/lane-shots/wave4-b/`.
+  - The hatchet (`bronze_axe` worn, layer `bronze_hatchet`): five candidates in two rounds,
+    compared on the character beside the iron axe at game scale and close, day and dusk. Chosen:
+    a solid wedge (flat top, filled down to a curved bit edged in the polished step, a socket
+    wrapped round the haft, a pixel of haft above), replacing B3c's thin bar that hooked off the
+    haft. The B3c tests for it pass unchanged.
+  - Icons: 48 items and 13 skills, every one hand-drawn as rows of characters
+    (`itemIcons.ts` for what is gathered, cooked and smelted; `gearIcons.ts` for gear, arrows,
+    bows, cloth, the vial and potions; `skillIcons.ts`; `iconKit.ts` centres and outlines them).
+    Families and how they differ are in the style guide's new "Icons" section. New ramps for
+    icons only; no existing colour changed.
+  - Gallery: an "Icons" section first, every icon labelled in its family at menu size.
+  - Tests (`tests/art/icons.test.ts`): every id in the test's own copy of the item and skill ids
+    gives an icon and a canvas; unknown ids (and `toString`, `__proto__`) give null; no two
+    icons are the same picture; each is 24 × 24, outlined, filling at least 16 pixels; every icon
+    is in exactly one family; the scale is whole and about 32 CSS pixels; logs differ by bark and
+    end; raw and cooked share no ramp; bronze gear uses no iron and iron no bronze; each potion
+    has its own liquid and stopper; the hatchet's icon is a solid wedge with a bright curved bit
+    and haft above, like the worn one.
+  - Not done: portraits (all still null); the tab icons stay the S1 placeholders, because the
+    tab bar draws them as one-colour SVG glyphs (`pixelSvg` in `src/ui/app.ts`), so real icons
+    would need a change in `src/ui`.
 
 - **B3c: The wardrobe's third pass.** Cody looked at B3b and asked for work on what was still
   weak. Four pieces redrawn, each chosen from three or more candidates compared side by side at
@@ -249,8 +285,16 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
-- Portraits (48 × 48): not started (B4).
-- Item and skill icons (24 × 24): not started (B4). B3 did not reach them.
+- Portraits (48 × 48): not started. B4 spent its time on icons; the eight monsters, then the
+  three townsfolk, are B5's.
+- Icons for S8's new items (leather, the leather set, hides and other drops): B5, once their ids
+  are on `main`. Until then `itemIcon` answers null for them.
+- Icon weak spots for Cody's review (B4): `linen` (a folded stack with a hanging corner; reads
+  as cloth more than as a bolt), `shell_bracelet` (small: a cord ring with three shells),
+  `arrow_shafts` (three sticks bound with hide), the bronze sword's guard (busy where it crosses
+  the blade), `bronze_breastplate` (a hide jerkin with one disc, true to the ladder, but more
+  leather than bronze), the raw shrimp (the curl reads; the head is small) and `crafting` (the
+  spool can read as a red book).
 - The tab icons and home-screen icon are still the S1 placeholders.
 - Wardrobe weak spots for Cody's review (after B3c): the shell bracelet is still the weakest
   piece. At game scale it is a pale speck on a dark cord at the wrist: findable, and no longer a
@@ -264,7 +308,15 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
-- Nothing.
+- **Lane A (`src/ui/styles.css`): `.card-head { align-items: center; }`** (it is `baseline`).
+  An icon is a canvas, which has no text baseline, so a heading with an icon in front takes its
+  baseline from the icon's bottom edge, and the count, level or rate on the right of the
+  card-head (bank rows, skill cards, action cards, the potion panel) now sits visibly below the
+  name. Centring the row fixes every one; nothing in `src/art` can.
+- Lane A, optional: with a 32px icon in front, long names on the action cards wrap sooner
+  ("Steady-hand draught", and its "3.5s · 23 XP" beside it wraps to two lines), and the
+  character sheet's slots truncate a little more ("Linen trou…"). If that bothers Cody, the
+  icon size is one constant (`ICON_CSS` in `src/art/icons.ts`); 24 is the other whole size.
 
 ## Notes for this lane's next session
 

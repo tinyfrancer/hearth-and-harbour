@@ -28,6 +28,7 @@ import {
 } from './plates';
 import { DAY, DUSK, GUIDE_RAMPS, RAMPS, type Palette, type RampName } from './palette';
 import type { Picture } from './raster';
+import { ICON_FAMILIES, itemIcon, skillIcon } from './icons';
 import { townPicture } from './town';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
@@ -145,6 +146,24 @@ export function artGallery(): HTMLElement {
       'gallery-intro',
       'The approved town mock-up, rebuilt as the game’s own drawing engine. Day and dusk are the same drawing in two palettes.',
     ),
+  );
+
+  // Icons come first: they are the newest art and the most seen.
+  const families = ICON_FAMILIES.flatMap((family) => {
+    const grid = el('div', 'icon-grid');
+    for (const id of family.ids) {
+      const cell = el('figure', 'icon-cell');
+      const icon = family.kind === 'item' ? itemIcon(id) : skillIcon(id);
+      if (icon) cell.append(icon);
+      cell.append(el('figcaption', 'muted', id.replace(/_/g, ' ')));
+      grid.append(cell);
+    }
+    return [el('h3', 'gallery-subhead', family.name), grid];
+  });
+  part(
+    'Icons',
+    'New art, not yet approved. Every item and skill, at the size the menus show them, in their families: bark and wood tell the logs apart, raw fish are silver and cooked ones brown, bronze is plain and leathery and iron solid and grey.',
+    ...families,
   );
 
   const lookRow = (which: keyof Look, base: Look) => {
@@ -308,7 +327,7 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  part('Still to come', 'Item and skill icons, and portraits. Nothing drawn yet.');
+  part('Still to come', 'Portraits. Nothing drawn yet.');
 
   const draw = () => {
     const screen = measure(page);

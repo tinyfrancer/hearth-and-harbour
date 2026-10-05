@@ -8,6 +8,7 @@ describe('artGallery', () => {
     const page = artGallery();
     const titles = [...page.querySelectorAll('h2')].map((h) => h.textContent);
     expect(titles).toEqual([
+      'Icons',
       'Wardrobe',
       'The town',
       'Townsfolk',
@@ -24,7 +25,9 @@ describe('artGallery', () => {
   });
 
   it('shows the gear ladder, every look choice and every set in the wardrobe, by day and dusk', () => {
-    const wardrobe = artGallery().querySelector('.gallery-part')!;
+    const wardrobe = [...artGallery().querySelectorAll('.gallery-part')].find(
+      (part) => part.querySelector('h2')?.textContent === 'Wardrobe',
+    )!;
     const heads = [...wardrobe.querySelectorAll('h3')].map((h) => h.textContent);
     expect(heads.slice(0, 2)).toEqual(['The gear ladder', 'Each item alone']);
     expect(heads.indexOf('Skin')).toBeGreaterThan(heads.indexOf('Each item alone'));
@@ -50,6 +53,19 @@ describe('artGallery', () => {
     const page = artGallery();
     const steps = Object.values(RAMPS).reduce((n, ramp) => n + ramp.length, 0);
     expect(page.querySelectorAll('.swatch').length).toBe(steps * 2);
+  });
+
+  it('shows every icon in its family, labelled', () => {
+    const icons = [...artGallery().querySelectorAll('.gallery-part')].find(
+      (part) => part.querySelector('h2')?.textContent === 'Icons',
+    )!;
+    const heads = [...icons.querySelectorAll('h3')].map((h) => h.textContent);
+    expect(heads[0]).toBe('Logs');
+    expect(heads).toContain('Skills');
+    const cells = [...icons.querySelectorAll('.icon-cell')];
+    expect(cells.length).toBe(48 + 13);
+    for (const cell of cells) expect(cell.querySelector('canvas')).not.toBeNull();
+    expect(cells.map((c) => c.textContent)).toContain('pine logs');
   });
 
   it('says what has not been drawn yet', () => {
