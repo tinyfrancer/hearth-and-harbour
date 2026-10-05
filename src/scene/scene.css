@@ -410,10 +410,11 @@
 
 .fight-fill {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
+  inset: 0;
   background: var(--green);
+  transform: scaleX(1);
+  transform-origin: left;
+  will-change: transform;
 }
 
 .fight-target .fight-fill {
@@ -457,6 +458,9 @@
   display: block;
   height: 100%;
   background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
 }
 
 .fight-face {
@@ -557,11 +561,11 @@
 
 .fight-shade {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 0;
+  inset: 0;
   background: var(--scrim);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  will-change: transform;
 }
 
 .fight-count {

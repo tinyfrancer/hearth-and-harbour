@@ -83,6 +83,7 @@ const melee = (over: Partial<Fighter> = {}): Fighter => ({
   food: { item: 'cooked_cod', qty: 3, heals: 20 },
   arrows: 0,
   ...over,
+  hp: over.hp ?? over.maxHp ?? 60,
 });
 
 const archer = (over: Partial<Fighter> = {}): Fighter =>
@@ -450,6 +451,20 @@ describe('a run with something to fight', () => {
     const spoils = spoilsOf(r.battle!);
     expect(spoils.loot).toEqual({});
     expect(spoils.xp![DEFENCE]).toBeGreaterThan(0);
+  });
+
+  it('starts with the hit points the character rowed out with, and takes home what is left', () => {
+    const hurt = startBattle(melee({ hp: 25 }), monsters, [], 1);
+    expect(hurt.hp).toBe(25);
+    expect(spoilsOf({ ...hurt, hp: 13 }).hp).toBe(13);
+    const state = { ...newGame('Cody', 0), health: { hp: 9, regenMs: 0 } };
+    const fighter = fighterOf(state, CONTENT);
+    expect(fighter.hp).toBe(9);
+    expect(startBattle(fighter, monsters, [], 1).hp).toBe(9);
+    // Down is 0, and the character comes round as from an idle knock-out.
+    const after = settleRun(state, spoilsOf({ ...startBattle(fighter, monsters, [], 1), hp: 0 }));
+    expect(after.health!.hp).toBeGreaterThan(0);
+    expect(after.health!.hp).toBeLessThan(fighter.maxHp);
   });
 
   it('settles into the save as `settleRun` takes it: XP and loot in, food and arrows out', () => {

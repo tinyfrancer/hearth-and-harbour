@@ -78,17 +78,22 @@ export function secondsLeft(ms: number): string {
   return ms > 0 ? String(Math.ceil(ms / 1000)) : '';
 }
 
-/** A bar's fill as a CSS width, in whole percent. */
-const percent = (part: number, whole: number): string =>
-  `${Math.round((100 * Math.max(0, Math.min(part, whole))) / Math.max(1, whole))}%`;
+/** How full a bar is, in hundredths: a bar moves only when this does. */
+const fraction = (part: number, whole: number): number =>
+  Math.round((100 * Math.max(0, Math.min(part, whole))) / Math.max(1, whole)) / 100;
 
 /** Sets text only when it changes, so a frame does not touch the page for nothing. */
 function setText(el: HTMLElement, text: string): void {
   if (el.textContent !== text) el.textContent = text;
 }
 
-function setStyle(el: HTMLElement, name: 'width' | 'height', value: string): void {
-  if (el.style[name] !== value) el.style[name] = value;
+/**
+ * Fills a bar (across) or a shade (upwards) by a transform rather than its
+ * size, so a bar moving every frame costs no layout, only the compositor.
+ */
+function fill(el: HTMLElement, axis: 'X' | 'Y', k: number): void {
+  const value = `scale${axis}(${k})`;
+  if (el.style.transform !== value) el.style.transform = value;
 }
 
 /** A picture for a button, two CSS pixels to the art pixel. */
@@ -369,10 +374,10 @@ export function dungeonView(options: DungeonViewOptions): View {
     const battle = run.battle;
     if (!battle) return;
     const me = battle.fighter;
-    setStyle(heroFill, 'width', percent(battle.hp, me.maxHp));
+    fill(heroFill, 'X', fraction(battle.hp, me.maxHp));
     setText(heroNumbers, `${battle.hp}/${me.maxHp}`);
     heroPanel.classList.toggle('low', battle.hp * 4 <= me.maxHp);
-    setStyle(heroSwing, 'width', percent(PLAYER_ATTACK_MS - battle.blowMs, PLAYER_ATTACK_MS));
+    fill(heroSwing, 'X', fraction(PLAYER_ATTACK_MS - battle.blowMs, PLAYER_ATTACK_MS));
 
     const target = battle.foes.find((f) => f.key === battle.target && alive(f)) ?? null;
     targetPanel.hidden = !target;
@@ -385,7 +390,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         targetFace.replaceChildren(...(face ? [face] : []));
         targetFace.hidden = !face;
       }
-      setStyle(targetFill, 'width', percent(target.hp, def.hp));
+      fill(targetFill, 'X', fraction(target.hp, def.hp));
       setText(targetNumbers, `${target.hp}/${def.hp}`);
     }
 
@@ -396,7 +401,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       const ability = abilities[slot];
       const problem = abilityProblem(battle, place, run.play, slot);
       b.el.dataset.state = left > 0 ? 'cooling' : problem ? 'idle' : 'ready';
-      setStyle(b.shade, 'height', percent(left, ability.cooldownMs));
+      fill(b.shade, 'Y', fraction(left, ability.cooldownMs));
       setText(b.count, secondsLeft(left));
     });
     if (style === 'ranged') {
@@ -408,7 +413,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       const problem = foodProblem(battle);
       foodButton.el.dataset.state =
         problem === 'none' ? 'empty' : left > 0 ? 'cooling' : problem ? 'idle' : 'ready';
-      setStyle(foodButton.shade, 'height', percent(left, FOOD_MS));
+      fill(foodButton.shade, 'Y', fraction(left, FOOD_MS));
       setText(foodButton.count, String(foodLeft(battle)));
     }
   };

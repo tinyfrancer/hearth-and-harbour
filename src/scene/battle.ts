@@ -82,7 +82,10 @@ export const ABILITIES: Readonly<Record<CombatStyle, readonly [Ability, Ability]
   ],
 };
 
-/** The character as a run reads them when it starts: what the sheet shows, the food and the arrows carried. */
+/**
+ * The character as a run reads them when it starts: what the sheet shows,
+ * the hit points they have now, the food and the arrows carried.
+ */
 export interface Fighter extends PlayerCombat {
   readonly food: { readonly item: string; readonly qty: number; readonly heals: number } | null;
   /** Arrows carried; none counted for a weapon that does not shoot. */
@@ -252,7 +255,8 @@ export function startBattle(
     monsters,
     seed: seed >>> 0,
     clock: 0,
-    hp: fighter.maxHp,
+    // As hurt as the character rowed out (hit points last between fights), never more than whole.
+    hp: fighter.hp > 0 ? Math.min(fighter.hp, fighter.maxHp) : fighter.maxHp,
     blowMs: 0,
     struckAt: -Infinity,
     target: null,
@@ -339,7 +343,8 @@ export function foeAt(battle: Battle, room: string, point: Point, min = 0): Foe 
 /** What a run has come to, as `settleRun` takes it. */
 export function spoilsOf(battle: Battle): RunSpoils {
   const { xp, loot, coins, eaten, shot } = battle.tally;
-  return { xp, loot, coins, foodEaten: eaten, arrowsUsed: shot };
+  // The hit points come home too: 0 is a knock-out, and the character comes round as from any other.
+  return { xp, loot, coins, foodEaten: eaten, arrowsUsed: shot, hp: battle.hp };
 }
 
 /** A button's state: ready, or how long until it is. */

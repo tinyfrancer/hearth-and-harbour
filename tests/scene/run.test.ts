@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hitPoints } from '../../src/core/combat';
 import { newGame, type GameState } from '../../src/core/state';
 import { alive } from '../../src/scene/battle';
 import { CONTENT } from '../../src/data';
@@ -217,7 +218,7 @@ describe('the way into the grotto', () => {
     expect(shell.calls).toEqual([
       'full:true',
       'pause:true',
-      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0}',
+      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20}',
       'full:false',
       'pause:false',
     ]);
@@ -465,6 +466,7 @@ describe('a run’s spoils in the real app', () => {
       frames(4000);
     }
     const tally = runNow()!.battle!.tally;
+    const hpLeft = runNow()!.battle!.hp;
     expect(runNow()!.battle!.piles).toEqual([]);
     expect(tally.loot.hide).toBe(2);
     root.querySelector<HTMLButtonElement>('.dungeon-leave')!.click();
@@ -475,6 +477,8 @@ describe('a run’s spoils in the real app', () => {
     expect(saved.skills.melee).toBe(start.skills.melee! + tally.xp.melee!);
     expect(saved.skills.vitality).toBe(start.skills.vitality! + tally.xp.vitality!);
     expect(saved.food).toEqual({ item: 'cooked_cod', qty: 4 - tally.eaten });
+    // Hurt in the grotto is hurt in town.
+    expect(hitPoints(saved)).toBe(hpLeft);
     root.querySelector<HTMLElement>('.tab[data-tab="bank"]')!.click();
     expect(root.textContent).toMatch(/Hide/);
     root.querySelector<HTMLElement>('.tab[data-tab="skills"]')!.click();
