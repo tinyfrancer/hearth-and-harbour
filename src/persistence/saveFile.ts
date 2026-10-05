@@ -113,6 +113,18 @@ function saveProblem(state: Record<string, unknown>): string | null {
   ) {
     return 'the current action is not one';
   }
+  const { potion } = state;
+  if (
+    potion !== null &&
+    !(
+      isRecord(potion) &&
+      typeof potion.item === 'string' &&
+      isWhole(potion.charges) &&
+      potion.charges > 0
+    )
+  ) {
+    return 'the potion should be a potion and a whole number of charges';
+  }
   return null;
 }
 

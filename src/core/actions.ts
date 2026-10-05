@@ -1,4 +1,5 @@
-import type { ActionDef, Content } from './content';
+import type { ActionDef, Content, PotionDef } from './content';
+import { extrasIn, potionFor } from './potions';
 import { bankCount, masteryLevel, masteryXp, skillLevel, type GameState } from './state';
 import { MAX_LEVEL, xpForLevel } from './xp';
 
@@ -15,17 +16,36 @@ export function masteryXpPer(action: ActionDef): number {
 }
 
 /**
- * How long one completion takes at a mastery level. A whole number of
- * milliseconds, so that sums of them are exact and time cut into frames adds
- * up to the same as time taken whole.
+ * How long one completion takes at a mastery level, under a potion if one is
+ * helping. A whole number of milliseconds, rounded once, so that sums of them
+ * are exact and time cut into frames adds up to the same as time taken whole.
  */
-export function durationAt(action: ActionDef, mastery: number): number {
-  return Math.max(1, Math.round(action.durationMs * (1 - MASTERY_SPEED_PER_LEVEL * (mastery - 1))));
+export function durationAt(
+  action: ActionDef,
+  mastery: number,
+  potion: PotionDef | null = null,
+): number {
+  const quicker = potion?.effect.kind === 'speed' ? potion.effect.percent : 0;
+  return Math.max(
+    1,
+    Math.round(
+      (action.durationMs * (1 - MASTERY_SPEED_PER_LEVEL * (mastery - 1)) * (100 - quicker)) / 100,
+    ),
+  );
+}
+
+/**
+ * Skill XP for one completion, under a potion if one is helping. Rounded here,
+ * once per completion, so a potion's bonus is never a fraction carried along.
+ */
+export function xpPerCompletion(action: ActionDef, potion: PotionDef | null = null): number {
+  const more = potion?.effect.kind === 'xp' ? potion.effect.percent : 0;
+  return Math.round((action.xp * (100 + more)) / 100);
 }
 
 /** How long one completion takes this character right now. */
-export function actionDuration(state: GameState, action: ActionDef): number {
-  return durationAt(action, masteryLevel(state, action.id));
+export function actionDuration(state: GameState, action: ActionDef, content: Content): number {
+  return durationAt(action, masteryLevel(state, action.id), potionFor(state, action, content));
 }
 
 /**
@@ -74,8 +94,19 @@ export function missingInput(
   return (action.uses ?? []).find(({ item, qty }) => bankCount(state, item) < qty) ?? null;
 }
 
-/** Pay `count` completions of an action: materials out, items, XP and mastery in. */
-function complete(state: GameState, action: ActionDef, count: number): GameState {
+/**
+ * Pay `count` completions of an action: materials out, items, XP and mastery
+ * in, and a charge of the potion helping it (if any) for each.
+ */
+function complete(
+  state: GameState,
+  action: ActionDef,
+  count: number,
+  potion: PotionDef | null,
+): GameState {
+  const charges = potion ? state.potion!.charges : 0;
+  const extras =
+    potion?.effect.kind === 'extra' ? extrasIn(charges, count, potion.effect.every) : 0;
   const bank = { ...state.bank };
   for (const { item, qty } of action.uses ?? []) {
     const left = (bank[item] ?? 0) - qty * count;
@@ -83,19 +114,24 @@ function complete(state: GameState, action: ActionDef, count: number): GameState
     else delete bank[item];
   }
   for (const { item, qty } of action.gives) {
-    bank[item] = (bank[item] ?? 0) + qty * count;
+    bank[item] = (bank[item] ?? 0) + qty * (count + extras);
   }
   return {
     ...state,
     bank,
     skills: {
       ...state.skills,
-      [action.skill]: (state.skills[action.skill] ?? 0) + action.xp * count,
+      [action.skill]: (state.skills[action.skill] ?? 0) + xpPerCompletion(action, potion) * count,
     },
     mastery: {
       ...state.mastery,
       [action.id]: masteryXp(state, action.id) + masteryXpPer(action) * count,
     },
+    potion: !potion
+      ? state.potion
+      : charges > count
+        ? { ...state.potion!, charges: charges - count }
+        : null,
   };
 }
 
@@ -106,9 +142,12 @@ function complete(state: GameState, action: ActionDef, count: number): GameState
  * completions by arithmetic, never by looping over ticks, and
  * advance(a) then advance(b) always equals advance(a + b).
  *
- * The one thing that changes as it goes is mastery, which makes the action
- * quicker. So the time is spent in stretches, each at one mastery level and
- * each ending on the completion that reaches the next: at most 98 of them.
+ * Two things change as it goes: mastery, which makes the action quicker, and
+ * a potion, which helps until its charges are spent. So the time is spent in
+ * stretches, each at one mastery level under one potion (or none), each ending
+ * on the completion that reaches the next level or uses the last charge: at
+ * most 99 of them. Time left over at a boundary carries into the next stretch
+ * as milliseconds, so it does not matter where a cut fell.
  */
 export function advance(state: GameState, ms: number, content: Content): GameState {
   if (!state.action || !(ms > 0)) {
@@ -125,16 +164,18 @@ export function advance(state: GameState, ms: number, content: Content): GameSta
   let next = state;
   for (;;) {
     const mastery = masteryLevel(next, action.id);
-    const duration = durationAt(action, mastery);
+    const potion = potionFor(next, action, content);
+    const duration = durationAt(action, mastery, potion);
     const byTime = Math.floor(time / duration);
     const canPay = affordable(next, action);
     const toNextMastery =
       mastery >= MAX_LEVEL
         ? Infinity
         : Math.ceil((xpForLevel(mastery + 1) - masteryXp(next, action.id)) / perCompletion);
-    const count = Math.min(byTime, canPay, toNextMastery);
+    const toPotionEnd = potion ? next.potion!.charges : Infinity;
+    const count = Math.min(byTime, canPay, toNextMastery, toPotionEnd);
     if (count > 0) {
-      next = complete(next, action, count);
+      next = complete(next, action, count, potion);
       time -= count * duration;
     }
     // Out of materials: the action ends on the completion that used the last
@@ -144,7 +185,7 @@ export function advance(state: GameState, ms: number, content: Content): GameSta
     if (count === canPay) {
       return { ...next, action: null };
     }
-    if (count < toNextMastery) {
+    if (count < toNextMastery && count < toPotionEnd) {
       // Time ran out partway through a bar.
       return { ...next, action: { id: action.id, progressMs: time } };
     }

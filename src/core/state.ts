@@ -7,13 +7,21 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 3;
+export const GAME_STATE_VERSION = 4;
 
 export interface ActiveAction {
   /** An ActionDef id. */
   id: string;
   /** Time already put into the completion under way. */
   progressMs: number;
+}
+
+/** The potion last drunk, while it has charges left. */
+export interface ActivePotion {
+  /** The ItemDef id of the potion, whose `potion` says what it does. */
+  item: string;
+  /** Completions it has left to help with: a whole number, never zero. */
+  charges: number;
 }
 
 export interface GameState {
@@ -32,6 +40,8 @@ export interface GameState {
   mastery: Record<string, number>;
   /** The one thing the character is doing, or null when idle. */
   action: ActiveAction | null;
+  /** One potion at a time; null when none is working. */
+  potion: ActivePotion | null;
 }
 
 export const NAME_MAX_LENGTH = 16;
@@ -64,6 +74,7 @@ export function newGame(name: string, now: number): GameState {
     coins: 0,
     mastery: {},
     action: null,
+    potion: null,
   };
 }
 

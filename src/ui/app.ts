@@ -3,6 +3,7 @@ import { pixelSvg } from '../art/pixelSvg';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
 import { sell } from '../core/bank';
+import { drinkPotion } from '../core/potions';
 import type { Content } from '../core/content';
 import { newGame, skillLevel, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
@@ -98,11 +99,18 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     setTimeout(() => note.remove(), TOAST_MS);
   };
 
-  /** A change the player made: take it, keep it, and redraw the screen. */
+  /**
+   * A change the player made: take it, keep it, and redraw the screen. The
+   * screen is the same one, so it stays scrolled where the thumb left it: a
+   * card tapped low on a long page should still be under the thumb after.
+   */
   const act = (next: GameState): void => {
     state = next;
     save();
+    const top = root.querySelector('#screen')?.scrollTop ?? 0;
     render();
+    const screen = root.querySelector('#screen');
+    if (screen) screen.scrollTop = top;
   };
 
   const buildView = (game: GameState): View => {
@@ -170,6 +178,16 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           // A card for a stack that is gone would reopen by itself the next time one is gathered.
           if (!sold.bank[itemId]) openItem = null;
           act(sold);
+        },
+        drink: (itemId) => {
+          const result = drinkPotion(state ?? game, itemId, content);
+          if (!result.ok) {
+            toast(result.reason);
+            return;
+          }
+          if (!result.state.bank[itemId]) openItem = null;
+          toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
+          act(result.state);
         },
       });
     }
@@ -274,6 +292,12 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         // A level can unlock an action, and what is on screen was built for the old one.
         redraw = true;
       }
+    }
+    if (before.potion && !state.potion) {
+      const name = content.items[before.potion.item]?.name ?? 'potion';
+      toast(`Your ${name} has worn off.`);
+      // Its panel goes, and the action's numbers go back to plain.
+      redraw = true;
     }
     if (!state.action) {
       const short = missingInput(state, content.actions[before.action!.id]!);

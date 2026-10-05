@@ -1,14 +1,17 @@
-import type { Content, ItemDef } from '../core/content';
+import type { Content, ItemDef, PotionDef } from '../core/content';
 import { bankCount, type GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
 import { button, h, titled } from './dom';
+import { activePotion } from '../core/potions';
 import { formatNumber } from './format';
+import { potionEffectText, potionSkillsText } from './potionPanel';
 import type { View } from './view';
 
 interface BankActions {
   /** Open an item's card, or close it with null. */
   open(itemId: string | null): void;
   sell(itemId: string, qty: number): void;
+  drink(itemId: string): void;
 }
 
 const coins = (amount: number): string =>
@@ -30,6 +33,54 @@ function provenance(item: ItemDef, content: Content): { from: string[]; usedIn: 
   return { from, usedIn };
 }
 
+/** What a potion does, as rows for the item card's facts. */
+function potionFacts(potion: PotionDef, content: Content): HTMLElement[] {
+  return [
+    h('dt', { text: 'Does' }),
+    h('dd', { class: 'potion-text', text: potionEffectText(potion) }),
+    h('dt', { text: 'For' }),
+    h('dd', { text: potionSkillsText(potion, content) }),
+    h('dt', { text: 'Lasts' }),
+    h('dd', { text: `${formatNumber(potion.charges)} actions` }),
+  ];
+}
+
+/**
+ * The button to drink a potion. Drinking pours away whatever charges the
+ * potion already working has left, so then it asks first, with a second tap.
+ */
+function drinkButton(
+  item: ItemDef,
+  content: Content,
+  actions: BankActions,
+  latest: () => GameState,
+): HTMLElement {
+  const confirm = h('div', { class: 'stack tight' });
+  const drink = button(
+    `Drink ${item.name}`,
+    () => {
+      const working = activePotion(latest(), content);
+      if (!working) {
+        actions.drink(item.id);
+        return;
+      }
+      const left = `${formatNumber(working.charges)} ${working.charges === 1 ? 'charge' : 'charges'}`;
+      confirm.replaceChildren(
+        h('p', {
+          class: 'small',
+          text: `Your ${working.item.name} still has ${left} left. Drinking this pours them away.`,
+        }),
+        h('div', { class: 'row' }, [
+          button(`Replace ${working.item.name}`, () => actions.drink(item.id), 'primary'),
+          button('Cancel', () => confirm.replaceChildren()),
+        ]),
+      );
+    },
+    'primary',
+  );
+  return h('div', { class: 'stack tight' }, [drink, confirm]);
+}
+
 /** The item card: what a thing is, where it comes from, what it is for, and selling it. */
 function itemCard(
   state: GameState,
@@ -45,7 +96,8 @@ function itemCard(
   const sellButton = button('', () => {
     actions.sell(item.id, chosen === 'all' ? Infinity : chosen);
   });
-  sellButton.classList.add('primary');
+  // On a potion the thing to do is drink it, so selling steps back.
+  if (!item.potion) sellButton.classList.add('primary');
   const choices = ([1, 10, 100, 'all'] as const).map((amount) =>
     h('button', {
       class: 'btn choice',
@@ -77,6 +129,7 @@ function itemCard(
     h('div', { class: 'card-head' }, [titled(itemIcon(item.id), item.name), held]),
     h('p', { class: 'muted', text: item.description }),
     h('dl', { class: 'facts small' }, [
+      ...(item.potion ? potionFacts(item.potion, content) : []),
       h('dt', { text: 'From' }),
       h('dd', { text: from.join(', ') || 'Nowhere yet' }),
       h('dt', { text: 'Used in' }),
@@ -84,6 +137,7 @@ function itemCard(
       h('dt', { text: 'Worth' }),
       h('dd', { text: `${coins(item.value)} each` }),
     ]),
+    item.potion && drinkButton(item, content, actions, () => latest),
     h('div', { class: 'row' }, choices),
     sellButton,
     button('Close', () => actions.open(null)),

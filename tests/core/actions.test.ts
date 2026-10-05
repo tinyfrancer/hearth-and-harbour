@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { advance, durationAt, masteryXpPer, startAction, stopAction } from '../../src/core/actions';
+import {
+  advance,
+  durationAt,
+  masteryXpPer,
+  startAction,
+  stopAction,
+  xpPerCompletion,
+} from '../../src/core/actions';
 import type { Content } from '../../src/core/content';
 import { masteryLevel, newGame, type GameState } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
@@ -11,6 +18,35 @@ const content: Content = {
     brick: { id: 'brick', name: 'Brick', description: '', value: 1 },
     mud: { id: 'mud', name: 'Mud', description: '', value: 1 },
     worm: { id: 'worm', name: 'Worm', description: '', value: 1 },
+    // Potions that help digging, each with a different effect, and one that helps something else.
+    quick: {
+      id: 'quick',
+      name: 'Quick',
+      description: '',
+      value: 1,
+      potion: { charges: 25, skills: ['digging'], effect: { kind: 'speed', percent: 10 } },
+    },
+    clever: {
+      id: 'clever',
+      name: 'Clever',
+      description: '',
+      value: 1,
+      potion: { charges: 25, skills: ['digging'], effect: { kind: 'xp', percent: 15 } },
+    },
+    lucky: {
+      id: 'lucky',
+      name: 'Lucky',
+      description: '',
+      value: 1,
+      potion: { charges: 25, skills: ['digging'], effect: { kind: 'extra', every: 3 } },
+    },
+    elsewhere: {
+      id: 'elsewhere',
+      name: 'Elsewhere',
+      description: '',
+      value: 1,
+      potion: { charges: 25, skills: ['sailing'], effect: { kind: 'speed', percent: 50 } },
+    },
   },
   actions: {
     dig: {
@@ -57,6 +93,10 @@ const start = (state: GameState, id: string): GameState => {
   return result.state;
 };
 const digging = start(fresh, 'dig');
+const DIG = content.actions.dig!;
+const potionOf = (item: string) => content.items[item]!.potion!;
+/** Baking with ten mud and five worms: three bricks' worth. */
+const stockedBaking = (): GameState => start({ ...fresh, bank: { mud: 10, worm: 5 } }, 'bake');
 
 describe('startAction and stopAction', () => {
   it('starts from zero', () => {
@@ -224,5 +264,147 @@ describe('an action that uses things', () => {
       stepped = advance(stepped, 7, content);
     }
     expect(stepped).toEqual(advance(baking, 20_000, content));
+  });
+});
+
+describe('a potion inside advance', () => {
+  /** Digging from scratch with a potion of `charges` already drunk. */
+  const dosed = (item: string, charges: number): GameState => ({
+    ...digging,
+    potion: { item, charges },
+  });
+
+  it('makes completions quicker in whole milliseconds, using a charge for each', () => {
+    expect(durationAt(DIG, 1, potionOf('quick'))).toBe(900);
+    // Mastery and potion are rounded together, once: 998 x 0.9 is 898.2.
+    expect(durationAt(DIG, 2, potionOf('quick'))).toBe(898);
+    const state = advance(dosed('quick', 25), 2700, content);
+    expect(state.bank.worm).toBe(3);
+    expect(state.potion).toEqual({ item: 'quick', charges: 22 });
+    expect(state.action).toEqual({ id: 'dig', progressMs: 0 });
+  });
+
+  it('pays more XP, rounded once a completion and never carried as a fraction', () => {
+    expect(xpPerCompletion(DIG, potionOf('clever'))).toBe(6); // 5 x 1.15 = 5.75
+    expect(xpPerCompletion(DIG, null)).toBe(5);
+    // Ten completions are 60, not 57.5 rounded, and not 57 and a bit carried.
+    expect(advance(dosed('clever', 25), 10_000, content).skills.digging).toBe(60);
+  });
+
+  it('gives a completion over again on every third charge, counted from the charges', () => {
+    // Charges 25 down to 16 are used; 24, 21 and 18 are multiples of three.
+    const state = advance(dosed('lucky', 25), 10_000, content);
+    expect(state.bank).toEqual({ worm: 13, mud: 26 });
+    expect(state.potion).toEqual({ item: 'lucky', charges: 15 });
+  });
+
+  it('ends on the completion that uses the last charge, and the action carries on without it', () => {
+    // Four at 900 ms reach mastery 2, the fifth takes 898 and the last charge; then 998 unaided.
+    const five = advance(dosed('quick', 5), 4498, content);
+    expect(five.potion).toBeNull();
+    expect(five.bank.worm).toBe(5);
+    expect(five.action).toEqual({ id: 'dig', progressMs: 0 });
+    expect(advance(five, 997, content).bank.worm).toBe(5);
+    expect(advance(five, 998, content).bank.worm).toBe(6);
+  });
+
+  it('carries time left at the boundary into the slower bar as milliseconds', () => {
+    // The five aided digs use 4,498 ms, and the other 102 go into the unaided sixth.
+    const state = advance(dosed('quick', 5), 4600, content);
+    expect(state.potion).toBeNull();
+    expect(state.action).toEqual({ id: 'dig', progressMs: 102 });
+  });
+
+  it('runs out on the same completion as a mastery level, and both take effect from the next', () => {
+    // The fourth dig reaches mastery 2 and uses the fourth and last charge.
+    const state = advance(dosed('quick', 4), 3600, content);
+    expect(masteryLevel(state, 'dig')).toBe(2);
+    expect(state.potion).toBeNull();
+    expect(advance(state, 997, content).bank.worm).toBe(4);
+    expect(advance(state, 998, content).bank.worm).toBe(5);
+  });
+
+  it('crosses a mastery level partway through its charges', () => {
+    // Four at 900 ms reach mastery 2; six more at 898 ms spend the charges; then 998 ms each.
+    const state = advance(dosed('quick', 10), 3600 + 6 * 898, content);
+    expect(state.bank.worm).toBe(10);
+    expect(state.potion).toBeNull();
+    expect(advance(state, 998, content).bank.worm).toBe(11);
+  });
+
+  it('spends no charges on an action of a skill it does not help', () => {
+    const state = advance(dosed('elsewhere', 25), 10_000, content);
+    expect(state.bank.worm).toBe(10);
+    expect(state.potion).toEqual({ item: 'elsewhere', charges: 25 });
+  });
+
+  it('keeps its charges while nothing is running', () => {
+    const idle = { ...fresh, potion: { item: 'quick', charges: 25 } };
+    expect(advance(idle, 60_000, content)).toBe(idle);
+  });
+
+  it('stops with the materials even if charges are left', () => {
+    const state = advance(
+      { ...stockedBaking(), potion: { item: 'clever', charges: 25 } },
+      60 * 60 * 1000,
+      content,
+    );
+    expect(state.action).toBeNull();
+    expect(state.bank.brick).toBe(3);
+    expect(state.potion).toEqual({ item: 'clever', charges: 22 });
+    expect(state.skills.digging).toBe(3 * 8); // 7 x 1.15 = 8.05
+  });
+
+  it('runs out on the same completion as the materials', () => {
+    const state = advance(
+      { ...stockedBaking(), potion: { item: 'clever', charges: 3 } },
+      60 * 60 * 1000,
+      content,
+    );
+    expect(state.action).toBeNull();
+    expect(state.potion).toBeNull();
+    expect(state.bank.brick).toBe(3);
+  });
+
+  it.each(['quick', 'clever', 'lucky'])(
+    'lands in the same place however the time is cut up, with %s running out mid-span',
+    (item) => {
+      // Twenty-five charges cross mastery 2 (at four digs) and 3 (at nineteen)
+      // before running out, then digging goes on unaided past mastery 4.
+      const start = dosed(item, 25);
+      const total = 90_000;
+      const whole = advance(start, total, content);
+      expect(whole.potion).toBeNull();
+      expect(masteryLevel(whole, 'dig')).toBeGreaterThan(3);
+
+      let seed = 11;
+      const random = (): number => (seed = (seed * 48271) % 2147483647) / 2147483647;
+      let stepped = start;
+      let spent = 0;
+      while (spent < total) {
+        const step = Math.min(1 + Math.floor(random() * 40), total - spent);
+        stepped = advance(stepped, step, content);
+        spent += step;
+      }
+      expect(stepped).toEqual(whole);
+
+      // And in two pieces cut at every awkward place near the boundaries.
+      for (const cut of [1, 899, 900, 3599, 3600, 3601, 17_000, 22_449, 22_450, 22_451]) {
+        expect(advance(advance(start, cut, content), total - cut, content)).toEqual(whole);
+      }
+    },
+  );
+
+  it('lands in the same place however the time is cut up when it runs out with a mastery level', () => {
+    const start = dosed('quick', 4);
+    const whole = advance(start, 20_000, content);
+    for (let cut = 3590; cut <= 3610; cut += 1) {
+      expect(advance(advance(start, cut, content), 20_000 - cut, content)).toEqual(whole);
+    }
+    let stepped = start;
+    for (let spent = 0; spent < 20_000; spent += 16) {
+      stepped = advance(stepped, Math.min(16, 20_000 - spent), content);
+    }
+    expect(stepped).toEqual(whole);
   });
 });

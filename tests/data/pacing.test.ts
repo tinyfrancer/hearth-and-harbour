@@ -55,7 +55,7 @@ describe('pacing', () => {
     },
   );
 
-  it.each(['cooking', 'smithing'])(
+  it.each(['cooking', 'smithing', 'crafting', 'fletching', 'alchemy'])(
     'takes %s through tier 1 in about two hours with the materials on hand',
     (skill) => {
       const hours = hoursToLevel(skill, 20);
@@ -63,4 +63,46 @@ describe('pacing', () => {
       expect(hours).toBeLessThan(2.4);
     },
   );
+});
+
+// A potion's strength is a number held here, beside what it costs to make:
+// a dozen or so seconds of Foraging, Crafting and Alchemy for one. Each case is a
+// fresh character doing a level-1 action for an hour, once with the potion
+// drunk at the start and once without; the potion runs out within the hour.
+describe('what a potion is worth', () => {
+  const hourOf = (actionId: string, potion: string | null): GameState => {
+    const action = CONTENT.actions[actionId]!;
+    const plenty = Object.fromEntries((action.uses ?? []).map(({ item }) => [item, 1_000_000]));
+    const state: GameState = {
+      ...newGame('Sim', 0),
+      bank: plenty,
+      potion: potion ? { item: potion, charges: CONTENT.items[potion]!.potion!.charges } : null,
+    };
+    const started = startAction(state, actionId, CONTENT);
+    if (!started.ok) throw new Error(started.reason);
+    return advance(started.state, HOUR, CONTENT);
+  };
+  const gained = (actionId: string, potion: string) => {
+    const [aided, plain] = [hourOf(actionId, potion), hourOf(actionId, null)];
+    const action = CONTENT.actions[actionId]!;
+    const item = action.gives[0]!.item;
+    expect(aided.potion, `${potion} lasts less than the hour`).toBeNull();
+    return {
+      items: (aided.bank[item] ?? 0) - (plain.bank[item] ?? 0),
+      xp: (aided.skills[action.skill] ?? 0) - (plain.skills[action.skill] ?? 0),
+    };
+  };
+
+  it.each([
+    // 150 chops at 2.7s instead of 3s: the time saved chops sixteen more.
+    ['sage_tonic', 'chop_pine', { items: 16, xp: 160 }],
+    // 150 shrimp at 11 XP instead of 10.
+    ['steady_draught', 'cook_shrimp', { items: 0, xp: 150 }],
+    // A log over again on every fifth of 150 charges.
+    ['glowcap_tincture', 'chop_pine', { items: 30, xp: 0 }],
+    // 200 chops at 12 XP instead of 10: 10 x 1.15 rounds up.
+    ['midnight_oil', 'chop_pine', { items: 0, xp: 400 }],
+  ])('pins %s at a fixed gain over an hour of %s', (potion, actionId, expected) => {
+    expect(gained(actionId, potion)).toEqual(expected);
+  });
 });

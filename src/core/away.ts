@@ -23,6 +23,11 @@ export interface AwayReport {
   mastery: Record<string, { from: number; to: number }>;
   /** Why the action is no longer running, or null if it still is. */
   stopped: null | { reason: 'ran_out'; item: string } | { reason: 'gone' };
+  /**
+   * What became of the potion: charges used and whether that was the last of
+   * them. Null when no potion helped with anything.
+   */
+  potion: null | { item: string; used: number; ranOut: boolean };
 }
 
 /**
@@ -74,6 +79,12 @@ export function catchUp(
     stopped = short ? { reason: 'ran_out', item: short.item } : { reason: 'gone' };
   }
 
+  // Only `advance` ran, and it never swaps one potion for another, so what is
+  // left (if anything) is the same potion with fewer charges.
+  const used = state.potion ? state.potion.charges - (after.potion?.charges ?? 0) : 0;
+  const potion: AwayReport['potion'] =
+    state.potion && used > 0 ? { item: state.potion.item, used, ranOut: !after.potion } : null;
+
   return {
     state: after,
     report: {
@@ -85,6 +96,7 @@ export function catchUp(
       levels,
       mastery,
       stopped,
+      potion,
     },
   };
 }

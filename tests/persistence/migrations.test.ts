@@ -31,7 +31,28 @@ describe('migrateGameState', () => {
       bank: { pine_logs: 50 },
       action: { id: 'chop_pine', progressMs: 100 },
     };
-    expect(migrateGameState(v2)).toEqual({ ...v2, version: 3, coins: 0, mastery: {} });
+    expect(migrateGameState(v2)).toEqual({
+      ...v2,
+      version: GAME_STATE_VERSION,
+      coins: 0,
+      mastery: {},
+      potion: null,
+    });
+  });
+
+  it('brings a version 3 save (S4 and S5) up to date with no potion drunk', () => {
+    const v3 = {
+      version: 3,
+      name: 'Cody',
+      createdAt: 5,
+      savedAt: 9,
+      skills: { cooking: 900 },
+      bank: { raw_shrimp: 12, sageleaf: 3 },
+      coins: 40,
+      mastery: { cook_shrimp: 120 },
+      action: { id: 'cook_shrimp', progressMs: 250 },
+    };
+    expect(migrateGameState(v3)).toEqual({ ...v3, version: 4, potion: null });
   });
 
   it('walks every step in order and stamps the version as it goes', () => {
