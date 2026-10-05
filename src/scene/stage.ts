@@ -156,18 +156,36 @@ function union(a: Box, b: Box): Box {
   };
 }
 
-/** Boxes that overlap or touch merged into one, so a patch is never drawn twice. */
+const area = (b: Box): number => b.w * b.h;
+
+/** How much of two boxes' shared area they both cover. */
+function shared(a: Box, b: Box): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/**
+ * Boxes that overlap or touch merged into one, so a patch is seldom drawn
+ * twice, unless the one box would be mostly empty: two figures at opposite
+ * corners of a room are two small patches, not one the size of the room.
+ * Patches that overlap are each drawn whole, so leaving some apart is only
+ * a little work done twice, never a wrong picture.
+ */
 export function mergeBoxes(boxes: readonly Box[]): Box[] {
   const out: Box[] = [];
   for (const box of boxes) {
     let merged = box;
     for (let i = out.length - 1; i >= 0; i--) {
+      const other = out[i]!;
       const grown = { x: merged.x - 1, y: merged.y - 1, w: merged.w + 2, h: merged.h + 2 };
-      if (overlaps(out[i]!, grown)) {
-        merged = union(merged, out[i]!);
-        out.splice(i, 1);
-        i = out.length;
-      }
+      if (!overlaps(other, grown)) continue;
+      const joined = union(merged, other);
+      const waste = area(joined) - area(merged) - area(other) + shared(merged, other);
+      if (waste > Math.max(64, (area(merged) + area(other)) / 2)) continue;
+      merged = joined;
+      out.splice(i, 1);
+      i = out.length;
     }
     out.push(merged);
   }

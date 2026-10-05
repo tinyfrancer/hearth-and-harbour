@@ -59,5 +59,7 @@ describe('Brinebeard’s Grotto, played through', () => {
       expect(home.bank[item]).toBe((state.bank[item] ?? 0) + qty);
     }
     expect(home.food?.qty ?? 0).toBe(20 - battle.tally.eaten);
+    // The grotto's own loot, now the tables know it: every one of the cast drops doubloons.
+    expect(home.bank.doubloon).toBeGreaterThanOrEqual(battle.tally.kills);
   }, 120_000);
 });

@@ -88,6 +88,14 @@ describe('mergeBoxes', () => {
     ]);
     expect(merged).toEqual([{ x: 0, y: 0, w: 25, h: 5 }]);
   });
+
+  it('keeps apart boxes that only touch at a corner, when the one box would be mostly empty', () => {
+    const apart = mergeBoxes([
+      { x: 0, y: 0, w: 40, h: 40 },
+      { x: 39, y: 39, w: 40, h: 40 },
+    ]);
+    expect(apart).toHaveLength(2);
+  });
 });
 
 describe('ambient motion', () => {

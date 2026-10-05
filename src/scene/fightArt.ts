@@ -114,20 +114,80 @@ function ring(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, 
   }
 }
 
-/** A flat ellipse's edge, for the target's mark at its feet. */
+/** Each oval's edge as runs along its rows, worked out once per size. */
+const ovals = new Map<string, readonly [number, number, number][]>();
+
+/** A flat ellipse's edge, for the marks at someone's feet: a few runs of pixels a row. */
 function oval(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {
+  const key = `${rx} ${ry}`;
+  let runs = ovals.get(key);
+  if (!runs) {
+    const rows = new Map<number, Set<number>>();
+    for (let a = 0; a < 64; a++) {
+      const t = (a / 64) * Math.PI * 2;
+      const y = Math.round(Math.sin(t) * ry);
+      const row = rows.get(y) ?? new Set<number>();
+      row.add(Math.round(Math.cos(t) * rx));
+      rows.set(y, row);
+    }
+    const made: [number, number, number][] = [];
+    for (const [dy, xs] of rows) {
+      const sorted = [...xs].sort((a, b) => a - b);
+      let from = sorted[0]!;
+      let to = from;
+      for (const x of sorted.slice(1)) {
+        if (x === to + 1) to = x;
+        else {
+          made.push([dy, from, to - from + 1]);
+          from = to = x;
+        }
+      }
+      made.push([dy, from, to - from + 1]);
+    }
+    runs = made;
+    ovals.set(key, runs);
+  }
   const x0 = Math.round(cx);
   const y0 = Math.round(cy);
-  for (let a = 0; a < 64; a++) {
-    const t = (a / 64) * Math.PI * 2;
-    ctx.fillRect(Math.round(x0 + Math.cos(t) * rx), Math.round(y0 + Math.sin(t) * ry), 1, 1);
-  }
+  for (const [dy, from, length] of runs) ctx.fillRect(x0 + from, y0 + dy, length, 1);
 }
 
 /** Whether a pixel is inside an arc's wedge (an angle within half its spread of its facing). */
 function inWedge(dx: number, dy: number, facing: number, half: number): boolean {
   const turn = Math.atan2(dy, dx) - facing;
   return Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn))) <= half;
+}
+
+/** A wedge's rows: for each, where a run of its pixels starts and how long it is. */
+type Spans = readonly (readonly [dy: number, from: number, length: number])[];
+
+/** Wedges worked out already, by their shape: a swing draws the same few every frame. */
+const spansMade = new Map<string, Spans>();
+const SPANS_KEPT = 96;
+
+function wedgeSpans(r: number, facing: number, half: number, inner: number): Spans {
+  const key = `${r} ${facing.toFixed(4)} ${half.toFixed(4)} ${inner}`;
+  let spans = spansMade.get(key);
+  if (spans) return spans;
+  const out: [number, number, number][] = [];
+  const R = Math.ceil(r);
+  for (let dy = -R; dy <= R; dy++) {
+    // Where the current stretch of the row began; null between stretches.
+    let run: number | null = null;
+    for (let dx = -R; dx <= R + 1; dx++) {
+      const d = Math.hypot(dx, dy);
+      const inside = dx <= R && d <= r && d >= inner && inWedge(dx, dy, facing, half);
+      if (inside && run === null) run = dx;
+      if (!inside && run !== null) {
+        out.push([dy, run, dx - run]);
+        run = null;
+      }
+    }
+  }
+  spans = out;
+  if (spansMade.size >= SPANS_KEPT) spansMade.delete(spansMade.keys().next().value!);
+  spansMade.set(key, spans);
+  return spans;
 }
 
 /** A filled wedge of a disc, row by row: the pixels within `r` and the angle. */
@@ -142,20 +202,8 @@ function wedge(
 ): void {
   const x0 = Math.round(cx);
   const y0 = Math.round(cy);
-  const R = Math.ceil(r);
-  for (let dy = -R; dy <= R; dy++) {
-    // Where the current stretch of the row began; null between stretches.
-    let run: number | null = null;
-    for (let dx = -R; dx <= R + 1; dx++) {
-      const d = Math.hypot(dx, dy);
-      const inside = dx <= R && d <= r && d >= inner && inWedge(dx, dy, facing, half);
-      if (inside && run === null) run = dx;
-      if (!inside && run !== null) {
-        ctx.fillRect(x0 + run, y0 + dy, dx - run, 1);
-        run = null;
-      }
-    }
-  }
+  for (const [dy, from, length] of wedgeSpans(r, facing, half, inner))
+    ctx.fillRect(x0 + from, y0 + dy, length, 1);
 }
 
 /** How far through its warning a heavy attack is, 0 to 1. */
@@ -231,7 +279,8 @@ function drawLine(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number, p:
  */
 function drawArc(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number, p: Palette): void {
   const c = p.colours;
-  const k = telegraphProgress(t, clock);
+  // The swing's progress in sixteenths, so its wedges are the same few each swing.
+  const k = Math.round(telegraphProgress(t, clock) * 16) / 16;
   const facing = t.facing ?? 0;
   const half = (t.spread ?? Math.PI) / 2;
   ctx.globalAlpha = 0.28;
@@ -622,17 +671,18 @@ function fightBoxes(
 ): Box[] {
   const boxes: Box[] = [];
   for (const foe of here) {
+    // The figure, its health and marks over it, and the rings at its feet; numbers have boxes of their own.
     const tall = standsOf(foe);
     const wide = Math.max(
-      53,
       foeKind(foe.monster).box.w + 12,
-      foeSprite(foe.monster, 'right').picture.grid.w + 8,
+      foeSprite(foe.monster, 'right').picture.grid.w + 4,
+      Math.min(36, foeKind(foe.monster).box.w) + 32,
     );
     boxes.push({
-      x: Math.floor(foe.at.x - wide / 2),
-      y: Math.floor(foe.at.y) - tall - 44,
-      w: wide + 12,
-      h: tall + 50,
+      x: Math.floor(foe.at.x - wide / 2) - 2,
+      y: Math.floor(foe.at.y) - tall - 24,
+      w: wide + 22,
+      h: tall + 30,
     });
     const t = foe.heavy;
     if (t) {
@@ -652,8 +702,14 @@ function fightBoxes(
       boxes.push(around({ x: foe.at.x, y: foe.at.y - riseOf(foe) - 8 }, 36));
   }
   for (const t of battle.volleys) boxes.push(markBox(t));
-  // The hero's numbers, heals and brace, over his head.
-  boxes.push({ x: Math.floor(hero.x) - 34, y: Math.floor(hero.y) - 78, w: 69, h: 30 });
+  // The hero's numbers, heals and brace, over his head, while there are any.
+  const overHero =
+    battle.braceUntil > battle.clock ||
+    battle.effects.some(
+      (e) => e.kind === 'heal' || e.kind === 'empty' || ('on' in e && e.on === 'hero'),
+    );
+  if (overHero)
+    boxes.push({ x: Math.floor(hero.x) - 34, y: Math.floor(hero.y) - 78, w: 69, h: 30 });
   for (const e of battle.effects) {
     if (e.kind === 'landed')
       boxes.push(
@@ -805,7 +861,6 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
           // The parrot's work, at his feet too: a green ring, pulsing.
           ctx.fillStyle = Math.floor(clock / 200) % 2 === 0 ? c.grass1 : c.pine1;
           oval(ctx, foe.at.x, foe.at.y, rx + 4, 5);
-          oval(ctx, foe.at.x, foe.at.y + 1, rx + 4, 5);
         }
         if (foe.key === battle.target) {
           ctx.fillStyle = c.gold1;
@@ -834,12 +889,10 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
       for (const foe of here) {
         if (!alive(foe) || !foe.aware || !foeKind(foe.monster).rally) continue;
         if (!here.some((f) => alive(f) && f.rallied)) continue;
-        for (const lag of [0, 350]) {
-          const k = ((clock + lag) % 700) / 700;
-          ctx.globalAlpha = 0.9 * (1 - k);
-          ctx.fillStyle = c.grass1;
-          ring(ctx, foe.at.x, foe.at.y - riseOf(foe) - 8, 6 + k * 26, 2);
-        }
+        const k = (clock % 500) / 500;
+        ctx.globalAlpha = 0.9 * (1 - k);
+        ctx.fillStyle = c.grass1;
+        ring(ctx, foe.at.x, foe.at.y - riseOf(foe) - 8, 6 + k * 24, 2);
         ctx.globalAlpha = 1;
       }
     },
