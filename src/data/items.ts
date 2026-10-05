@@ -2,6 +2,11 @@ import type { ItemDef } from '../core/content';
 import { skillsIn } from './skills';
 
 // In the order the bank lists them: what is gathered, then what is made from it.
+//
+// What a thing gives when worn is its `equip`: the three totals S8's combat
+// reads. Iron is about two thirds better than bronze; cloth and shells barely
+// count, and are there for the look. A bow takes both hands, so it gives up a
+// shield's armour and, with arrows, hits harder for it.
 export const ITEMS = {
   pine_logs: {
     id: 'pine_logs',
@@ -116,60 +121,70 @@ export const ITEMS = {
     name: 'Bronze axe',
     description: 'Holds an edge for about a morning. A good morning, though.',
     value: 12,
+    equip: { slot: 'main_hand', style: 'melee', attack: 4, strength: 6 },
   },
   bronze_sword: {
     id: 'bronze_sword',
     name: 'Bronze sword',
     description: 'Short, honest and a bit soft. Better than a stick.',
     value: 24,
+    equip: { slot: 'main_hand', style: 'melee', attack: 6, strength: 5 },
   },
   bronze_helmet: {
     id: 'bronze_helmet',
     name: 'Bronze helmet',
     description: 'Rings like a bell when struck. Try not to find out.',
     value: 25,
+    equip: { slot: 'head', armour: 4 },
   },
   bronze_shield: {
     id: 'bronze_shield',
     name: 'Bronze shield',
     description: 'Round, dented on purpose, and heavier every hour you carry it.',
     value: 36,
+    equip: { slot: 'off_hand', armour: 6 },
   },
   bronze_breastplate: {
     id: 'bronze_breastplate',
     name: 'Bronze breastplate',
     description: 'Gleams nicely until the first rain. Then it goes green and thoughtful.',
     value: 50,
+    equip: { slot: 'body', armour: 9 },
   },
   iron_axe: {
     id: 'iron_axe',
     name: 'Iron axe',
     description: 'Bites deep and stays sharp. Trees have started to talk about you.',
     value: 16,
+    equip: { slot: 'main_hand', style: 'melee', attack: 7, strength: 10 },
   },
   iron_sword: {
     id: 'iron_sword',
     name: 'Iron sword',
     description: 'Plain, grey and properly sharp. Nobody laughs at this one.',
     value: 32,
+    equip: { slot: 'main_hand', style: 'melee', attack: 10, strength: 9 },
   },
   iron_helmet: {
     id: 'iron_helmet',
     name: 'Iron helmet',
     description: 'A cold, snug fit. Muffles the world, and most of its opinions.',
     value: 33,
+    equip: { slot: 'head', armour: 7 },
   },
   iron_shield: {
     id: 'iron_shield',
     name: 'Iron shield',
     description: 'Solid enough to hide behind, which is most of the job.',
     value: 48,
+    equip: { slot: 'off_hand', armour: 10 },
   },
   iron_breastplate: {
     id: 'iron_breastplate',
     name: 'Iron breastplate',
     description: 'Takes two people to buckle on and a third to say it suits you.',
     value: 65,
+    equip: { slot: 'body', armour: 15 },
   },
   bronze_arrowheads: {
     id: 'bronze_arrowheads',
@@ -207,24 +222,28 @@ export const ITEMS = {
     description:
       'Seashells on a string. Clacks pleasantly when you walk and alarmingly when you run.',
     value: 12,
+    equip: { slot: 'neck', attack: 2 },
   },
   shell_bracelet: {
     id: 'shell_bracelet',
     name: 'Shell bracelet',
     description: 'Small pink shells, carefully matched. The gulls look at it with open envy.',
     value: 18,
+    equip: { slot: 'wrist', attack: 1, strength: 2 },
   },
   linen_hood: {
     id: 'linen_hood',
     name: 'Linen hood',
     description: 'Keeps off the rain or the sun, though rarely both on the same day.',
     value: 15,
+    equip: { slot: 'head', armour: 1 },
   },
   linen_trousers: {
     id: 'linen_trousers',
     name: 'Linen trousers',
     description: 'Light, loose and breezy. Very breezy, in a high wind.',
     value: 22,
+    equip: { slot: 'legs', armour: 1 },
   },
   linen_tunic: {
     id: 'linen_tunic',
@@ -232,6 +251,7 @@ export const ITEMS = {
     description:
       'Plain, cool and neatly stitched. It has never stopped a blade and does not pretend to.',
     value: 30,
+    equip: { slot: 'body', armour: 2 },
   },
   arrow_shafts: {
     id: 'arrow_shafts',
@@ -244,30 +264,35 @@ export const ITEMS = {
     name: 'Bronze arrows',
     description: 'They fly true, mostly. Count them before and after.',
     value: 2,
+    equip: { slot: 'ammo', style: 'ranged', strength: 3 },
   },
   iron_arrows: {
     id: 'iron_arrows',
     name: 'Iron arrows',
     description: 'Heavy-headed and businesslike. They land like the last word in an argument.',
     value: 3,
+    equip: { slot: 'ammo', style: 'ranged', strength: 6 },
   },
   pine_shortbow: {
     id: 'pine_shortbow',
     name: 'Pine shortbow',
     description: 'Light, cheap and a little bendy in the wrong places. A start.',
     value: 10,
+    equip: { slot: 'main_hand', twoHanded: true, style: 'ranged', attack: 5, strength: 3 },
   },
   oak_shortbow: {
     id: 'oak_shortbow',
     name: 'Oak shortbow',
     description: 'Stiff to draw and steady to shoot. Your arm will have opinions.',
     value: 20,
+    equip: { slot: 'main_hand', twoHanded: true, style: 'ranged', attack: 8, strength: 6 },
   },
   willow_shortbow: {
     id: 'willow_shortbow',
     name: 'Willow shortbow',
     description: 'Supple, quick and quiet. It hums a little when you let go.',
     value: 35,
+    equip: { slot: 'main_hand', twoHanded: true, style: 'ranged', attack: 12, strength: 9 },
   },
   // Potions: what each does is in its `potion`, and the screens describe it from there.
   sage_tonic: {

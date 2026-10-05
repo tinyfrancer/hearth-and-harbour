@@ -13,6 +13,9 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   2: (state) => ({ ...state, coins: 0, mastery: {} }),
   // Potions (S6): nobody made before them has drunk one.
   3: (state) => ({ ...state, potion: null }),
+  // Looks and equipment (S7b): nobody made before them has worn anything, and
+  // a look with nothing chosen is drawn as the art's first choice of each part.
+  4: (state) => ({ ...state, look: {}, equipment: {} }),
 };
 
 /**
