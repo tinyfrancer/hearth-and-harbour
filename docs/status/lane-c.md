@@ -1,6 +1,6 @@
 # Lane C: scenes
 
-**Next session: S15: Brinebeard's Grotto** (wave 6; brief to come in `docs/lanes.md`).
+**Next session: S15: Brinebeard's Grotto** (brief in `docs/lanes.md`, wave 6).
 
 ## The town's map
 

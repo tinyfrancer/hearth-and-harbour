@@ -1,6 +1,6 @@
 # Lane A: idle rules
 
-**Next session: S10: Shop, collection log, achievements** (brief to be written for wave 6).
+**Next session: S10: Shop, collection log, achievements** (brief in `docs/lanes.md`, wave 6).
 
 ## Done
 

@@ -61,15 +61,12 @@ Paste one of these into a new Claude Code session attached to `tinyfrancer/heart
 `docs/plan.md` lists the sessions in their original single-file order. Lanes change the order and
 split S7 in two; where the two disagree, this file wins.
 
-| Wave     | Lane A                                                                                | Lane B                                                      | Lane C                                                    |
-| -------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- |
-| 1 (done) | S5 Cooking and Smithing                                                               | S7a Art pipeline                                            | S11 Scene engine                                          |
-| 2 (done) | S6 Crafting, Fletching, Alchemy                                                       | B2 The rest of the town's art                               | S12a The town on the engine                               |
-| 3 (done) | S7b Equipment and character                                                           | B3 The character's wardrobe (three passes)                  | S12b The whole town                                       |
-| 4 (done) | S8 Idle combat                                                                        | B4 Icons; the hatchet                                       | S12c Your own character in town; S14a the dungeon's shell |
-| 5        | S9 Thieving and Bounties                                                              | B5 How things sit in the hand; the new items; portraits     | S14b Fighting in dungeons                                 |
-| 6        | S10 Shop, collection log, achievements                                                | B6 Dungeon tiles and monster sprites; what B5 did not reach | S15 Brinebeard's Grotto                                   |
-| then     | **Milestone A review**: Cody plays for a few days; pacing and art direction revisited |                                                             |                                                           |
+| Wave          | Lane A                                                    | Lane B                                        | Lane C                             |
+| ------------- | --------------------------------------------------------- | --------------------------------------------- | ---------------------------------- |
+| 1 to 4 (done) | S5, S6, S7b, S8                                           | S7a, B2, B3 (three passes), B4                | S11, S12a to S12c, S14a            |
+| 5 (done)      | S9 Thieving and Bounties                                  | B5 Things in hands; combat's items; portraits | S14b Fighting in dungeons          |
+| 6             | S10 Shop, collection log, achievements; the grotto's loot | B6 The grotto's look: tiles, cast, props      | S15 Brinebeard's Grotto            |
+| then          | **Milestone A review with Cody**                          | art passes are review sessions with Cody      | S16 Dungeon progression and replay |
 
 A lane that reaches a session whose needs have not landed stops and says so in its status file.
 Lanes do not wait for a whole wave: each takes its next session as soon as what it needs is on
@@ -79,7 +76,206 @@ Lanes do not wait for a whole wave: each takes its next session as soon as what 
 that was meant to come first. The scene engine does not depend on idle pacing, so the risk is
 wasted polish on the town if the review changes direction, not rework of the engine.
 
-## Wave 5 briefs
+## Wave 6 briefs
+
+This wave builds the first real dungeon, across all three lanes at once. Ids are fixed here so
+nobody waits for anybody; each lane builds against the ids and the doors, and everything meets on
+`main`. Whatever another lane has not landed yet shows as a placeholder or is skipped, never as an
+error.
+
+New since wave 5:
+
+- `src/art/dungeonArt.ts`: three new art doors, null for everything today. `foePicture(id)` is a
+  monster's sprite; `dungeonTile(theme, kind, variant)` a 16 x 16 tile; `dungeonProp(theme, id)`
+  something standing in a room.
+- `RunSpoils` (`src/core/run.ts`) has two new optional fields, `kills` and `cleared`. A scene may
+  fill them now; lane A makes them count this wave.
+- Anything held is now drawn with a fist over its grip (the rule is in the style guide's Figures
+  section). New held things follow it.
+
+**Brinebeard's Grotto, the fixed ids.**
+
+The cast (dungeon-only; their numbers live with the dungeon in `src/scene`, not in the idle
+tables, until a later session makes the dungeon idle-able):
+
+| Id              | Who                                             | Behaviour in a fight                                                       |
+| --------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `deckhand`      | a pirate with a boathook                        | walks up and hits                                                          |
+| `powder_monkey` | a small, gleeful pirate with an armful of fuses | keeps away and lobs lit kegs (telegraphed)                                 |
+| `giant_crab`    | a crab the size of a rowing boat                | slow; a wide telegraphed slam                                              |
+| `ships_parrot`  | the ship's parrot                               | stays out of reach; makes nearby pirates hit faster until it is dealt with |
+| `brinebeard`    | Captain Brinebeard, the boss                    | cannon volleys and a rising tide, in phases                                |
+
+The loot (items; lane A adds them to the tables, lane B draws them, lane C drops them):
+
+| Id                   | What                                                  | Worn                         |
+| -------------------- | ----------------------------------------------------- | ---------------------------- |
+| `doubloon`           | old gold; sells well                                  | no                           |
+| `pirate_cutlass`     | a deckhand's blade                                    | main hand, melee             |
+| `boarding_axe`       | a long-hafted axe with a spike                        | main hand, melee             |
+| `tricorn`            | a three-cornered hat                                  | head                         |
+| `captains_coat`      | Brinebeard's coat                                     | body                         |
+| `spyglass`           | brass, dented                                         | off hand                     |
+| `brinebeards_anchor` | rare: the captain's own anchor, swung with both hands | main hand, both hands, melee |
+| `ships_figurehead`   | rare: a trophy for the house, later                   | no                           |
+
+The tiles (`dungeonTile('grotto', kind, variant)`, 16 x 16): `sand`, `wet_sand`, `rock_floor`,
+`wall_top`, `wall_face`, `shallows`, `deep_water`, `planks`, `door_barred`, `door_open`.
+
+The props (`dungeonProp('grotto', id)`): `powder_keg`, `treasure_chest`, `brig_bars`, `lantern`
+(glows), `anchor`, `rope_coil`, `cannon`.
+
+### Lane A · S10: Shop, collection log, achievements
+
+Read: `docs/design.md` sections 7, 9 and 10; `docs/status/lane-a.md`.
+
+The last pieces of the idle game before Cody plays it for a few days and judges its pace.
+
+- **First, the grotto's loot, as data.** Add the eight items in the table above to
+  `src/data/items.ts` with names, descriptions, sale values and `equip` rows. They come from the
+  dungeon that gates tier 2, so they sit just above iron: the cutlass and boarding axe a clear
+  step up from the iron sword and axe; the tricorn and coat about iron's armour with a little
+  attack on top; the spyglass an off-hand that gives ranged attack and no armour; the anchor the
+  strongest melee weapon in the game so far, two-handed and slow to earn. All need level 18 to 20
+  in the relevant skill. A doubloon sells for a satisfying sum; the figurehead sells for little
+  and says it belongs on a wall. Land this early in the session (its own commit, pushed) so the
+  other lanes can rebase onto it.
+- **Runs that count.** `settleRun` now also takes `kills` (by monster id) and `cleared` (a
+  dungeon id). Make kills count towards the bestiary and a held bounty exactly as idle kills do
+  (an id that is not in the monster tables counts for nothing and is not an error), and record
+  dungeon clears in the save (how many, and the best time if `RunSpoils` is given one; add a
+  field for it). Nothing unlocks by a clear yet; that is S16.
+- **Coins and the general shop.** A shop in the Bank tab (and so, later, behind the trader's
+  stall): buys anything at its sale value, as now, and sells a small, useful stock for coins:
+  the first tools of each trade so a new player is never stuck (a few vials, basic arrows, cooked
+  shrimp), and one or two dear things to save for (an extra food slot is a good one if S9's shop
+  did not use it; a bigger potion charge; a cosmetic). Prices are a pass over every item's sale
+  value at the same time: they were placeholders, and now coins have a use, so set them by what
+  an hour of the skill that makes the thing should earn, and pin the result in the pacing tests
+  beside thieving's.
+- **The collection log.** Every item the character has ever held, by where it comes from
+  (gathering, artisan, each monster, each mark, the bounty shop, the grotto), shown as found or
+  not, with a count of how many of each source's things have been found. Start recording from
+  now; fill in what an existing save already proves (what is in the bank and worn, what the
+  bestiary and thieving tallies show as seen).
+- **Achievements.** A framework (an achievement is an id, a name, a line of text, and a rule
+  that reads the state) and a first set of about twenty-five across everything that exists:
+  first of each kind of thing, level milestones, mastery, a bounty streak, a potion drunk, a
+  full set worn, a monster's rare drop, a dungeon cleared. A toast when one is earned, live or
+  on return; a page listing them, earned and not. Hidden ones are welcome. No rewards yet beyond
+  the having of them; the house (S18) will give them somewhere to live.
+- **Tab icons.** Make the tab bar show `tabIcon(id)` from `src/art/icons.ts` when it gives one,
+  falling back to the old glyph when it gives null (as it does today).
+- **The notice board.** Add `openBounties()` to the `Shell` (and implement it), so the town can
+  lead there. Lane C will call it next wave.
+- **Save.** Version 8, with a migration, `saveProblem` checks and tests.
+
+Minimum: the grotto's items; kills and clears from runs counting; the shop buying and selling
+with the price pass.
+Done when: `npm run check` passes; a phone-sized run shows something bought, the collection log
+filling as a thing is found, and an achievement earned with its toast; the status file gives a
+table of what an hour of each skill earns in coins at levels 1, 10 and 20.
+
+### Lane B · B6: The grotto's look
+
+Read: `docs/style-guide.md`; `docs/status/lane-b.md`; `docs/design.md` section 8 (the grotto);
+`src/art/dungeonArt.ts` (the doors to fill); `src/scene/foes.ts` (read only: how the scene uses a
+foe's picture and what size it expects).
+
+The dungeon is being built right now by lane C in flat colours with marked shapes for enemies.
+Give it its look, through the doors, in this order.
+
+1. **The grotto's tiles** (`dungeonTile('grotto', kind, variant)`): the ten kinds listed above.
+   A sea cave at dusk: the style guide gives dungeons the dusk mood, lit by lanterns. Sand and
+   rock floors with wear and a few variants each so a floor is not one tile repeated; walls with
+   a top face and a front face, so rooms read as hollowed out of rock; shallows you could wade
+   in and deep water you could not, plainly different; planks for the pier and bridge; a barred
+   door and an open one. Tiles must join without seams in any arrangement, including the edges
+   between sand and water and between floor and wall (give `wall_face` a dark foot so anything
+   reads against it). Show them assembled as a room in the gallery.
+2. **The cast** (`foePicture(id)`), figures in the game's own hand, facing right, feet marked:
+   the three already in the test dungeon (`dock_rat`, `sand_crab`, `smuggler`), then the grotto's
+   five. Creatures are their own drawings at whatever size suits (the scene's notes say up to
+   about 26 x 36 drops in for ordinary foes; the giant crab and Brinebeard should be bigger, and
+   say how big in your status file for lane C). People are posed bodies, by the figure rules:
+   arms doing something, weapons held by the hand rule, eyes mirrored unless deliberately not.
+   Brinebeard is the boss of the first dungeon and the game's first real villain: he gets
+   attitude from silhouette (hat, coat, beard, the anchor), bigger than the hero, unmistakable
+   at a glance, menacing and a little ridiculous. He is not the captain on the town's pier.
+3. **Props** (`dungeonProp('grotto', id)`): the seven listed above, the lantern with a glow.
+4. **What S9 and this wave added to the menus:** the `thieving` skill icon; icons and worn
+   layers for `poachers_longbow`, `wyrmscale_shield`, `barbed_arrows`, `hunters_charm` and
+   `feathered_hat`; icons and worn layers for the grotto's eight loot items (the worn ones sit on
+   the gear ladder between iron and the knight: a pirate's finery, salt-stained, a little showy).
+   Their ids are fixed in the table above; lane A is adding them to the game's tables this wave.
+5. **Faces** (`portrait(id)`) for `goblin_poacher`, `bramble_wyrm` and the grotto's five.
+6. **The five tab icons** (`tabIcon(id)`), if anything is left.
+
+Minimum: the ten tiles, and sprites for the three test-dungeon foes and the grotto's five.
+Done when: `npm run check` passes; the gallery shows a grotto room assembled from the tiles with
+the cast standing in it, in the dusk palette with a lantern lit; nothing outside `src/art`,
+`tests/art`, `docs/style-guide.md` and this lane's status file changed.
+
+### Lane C · S15: Brinebeard's Grotto
+
+Read: `docs/design.md` section 8 (all of it, and the grotto's own part twice);
+`docs/status/lane-c.md`; `src/art/dungeonArt.ts` (the doors art will fill).
+
+Replace the grey-box test dungeon with the real first dungeon: seven to ten minutes, five rooms,
+one idea (the tide), four kinds of enemy and a boss. It should be beatable by a character at the
+end of tier 1 (levels about 18 to 20 in iron, with a slot of cooked cod) who plays it properly,
+and should send a level 10 character home wet.
+
+- **Five rooms,** in order, each teaching one thing: the tide pools (the tide, with crabs), the
+  smugglers' store (deckhands among crates and kegs; the powder monkey's lobbed kegs), the
+  rope-bridge cavern (a narrow way across deep water, a parrot making everyone faster), the brig
+  (a locked-in fight: the doors bar behind you until it is cleared), the captain's cove (the
+  boss). Hand-made layouts; the design calls for hand-designed, not generated.
+- **The tide** is the dungeon's gimmick: on a slow clock the water rises and falls, and where
+  you can stand changes with it. Low tide opens sandbars and short cuts; high tide covers them.
+  Shallows slow the hero and can be fought in; deep water cannot be entered. The tide's state and
+  what is coming must be readable at a glance (the waterline moving, wet sand darkening before it
+  floods, a small tide gauge on screen). Being on a sandbar when it floods pushes the hero to the
+  nearest dry ground and costs a little health; never an instant loss. Enemies obey the same
+  water.
+- **The cast** (ids and behaviours fixed in the table above). Their numbers (hit points, attack,
+  defence, max hit, speed, heavy attack) are yours, in a table of your own in `src/scene`, since
+  these are dungeon-only for now. Keep using the idle game's formulas for who hits whom.
+- **Brinebeard,** in phases: first he fights in person while cannon volleys land in marked lines
+  across the cove; at two thirds of his health the tide begins rising and the fight moves to
+  what is left of the dry ground, with deckhands arriving; in the last third the volleys come
+  faster and he swings the anchor in a wide telegraphed arc. Every big hit is telegraphed and
+  walkable-out-of, by the fairness rule S14b set and tests. He should take a prepared character
+  two or three minutes.
+- **Loot.** Each of the cast drops doubloons and, sometimes, the item that suits it (ids in the
+  table above: a deckhand the cutlass or the boarding axe, the powder monkey the tricorn, and so
+  on); Brinebeard drops the coat or the spyglass, and rarely the anchor or the figurehead. Rolled
+  by the run's own dice. An item id the game's tables do not know yet (lane A is adding them this
+  wave) is skipped, not an error, so the dungeon works whichever lane lands first.
+- **Spoils.** Fill `kills` (by monster id) and, when the boss falls and the end is reached,
+  `cleared: 'brinebeards_grotto'`, in what goes to `shell.settleRun`.
+- **Art through the doors.** Draw tiles with `dungeonTile('grotto', kind, variant)`, props with
+  `dungeonProp('grotto', id)` and enemies with `foePicture(id)`, each falling back to what you
+  draw today (a flat base-ramp colour, a marked shape) when the door answers null. Lane B is
+  drawing all of them this wave; whichever of you lands second should find the dungeon dressed
+  without either changing a line. The dungeon is in the dusk palette, lit by lanterns.
+- **The way in** stays the rowing boat; its panel no longer says unfinished. Say on the panel what
+  a sensible character brings. The grey-box rooms go.
+- **Fair and readable.** Everything S14b held still holds: telegraphs, one thumb, sixty frames a
+  second with a full room on a throttled CPU (measure the bridge room and the boss).
+- Tests: the tide's cycle and what is walkable at each stage; being flooded off a sandbar; the
+  parrot's effect and its ending; the boss's phases changing at the right health; every heavy
+  attack's walk-out time; loot ids unknown to the tables skipped; the spoils of a clear; and a
+  played-through run by a scripted hero of the intended strength finishing inside ten minutes
+  and one of half that strength failing.
+
+Minimum: the five rooms with the tide working, the deckhand, powder monkey and crab, and a
+one-phase Brinebeard.
+Done when: `npm run check` passes; a run at 844 x 390 shows each room, the tide low and high in
+the same place, a keg dodged, the parrot's effect, each boss phase, and the results of a clear;
+nothing outside `src/scene`, `tests/scene` and this lane's status file changed.
+
+## Wave 5 briefs (done)
 
 New since wave 4:
 
@@ -806,6 +1002,7 @@ nothing outside `src/scene`, `tests/scene` and this lane's status file changed.
 Written when their wave is next, by Cody's orchestrating session, from `docs/plan.md` and what the
 lanes' status files say they left behind:
 
-- **S10** (A): coins and the general shop, the collection log, achievements.
-- **B6** (B): tiles for the first dungeon, sprites for monsters in scenes, whatever B5 left.
-- **S15** (C): Brinebeard's Grotto: its five rooms, the tide, its enemies and boss.
+- **Milestone A review** (Cody plays for a few days): pacing, prices, the art direction.
+- **S16** (C, with A): first-clear unlock of tier 2, the idle-able dungeon, daily modifier,
+  challenges; the notice board opening bounties.
+- **B7** (B): whatever of B6's list was not reached; walk cycle; the hero's portrait.
