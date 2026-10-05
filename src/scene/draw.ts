@@ -1,134 +1,114 @@
 /*
  * The part of the scene engine that touches a canvas. It is kept thin: where
- * things are, what the camera sees and how big a pixel is are all worked out
- * by pure functions elsewhere, and this only puts colour where they say.
+ * things are, what order they stand in, what the camera sees and how big a
+ * pixel is are all worked out by pure functions elsewhere, and this only puts
+ * pixels where they say.
  */
-import { SCENE_COLOURS, type SceneColour } from './colours';
-import { TILE, type Point, type TileMap } from './tileMap';
-
-/** How a placeholder tile is filled: a base, a second colour for texture, and a darker lip at its foot. */
-export interface TileLook {
-  readonly base: SceneColour;
-  readonly fleck: SceneColour;
-  readonly lip?: SceneColour;
-}
-
-export type Looks<K extends string> = Readonly<Record<K, { readonly look: TileLook }>>;
-
-/** A small fixed hash, so the ground's speckle is the same every time it is drawn. */
-function speckle(col: number, row: number, i: number): number {
-  let n = (col * 374761393 + row * 668265263 + i * 2147483647) | 0;
-  n = Math.imul(n ^ (n >>> 13), 1274126177);
-  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
-}
+import type { Palette } from '../art/palette';
+import { rasterize, type Picture } from '../art/raster';
+import type { Point } from './tileMap';
 
 /**
- * Paints the whole map once, one canvas pixel per art pixel. Each frame then
- * copies the part in view, scaled by a whole number, rather than redrawing
- * every tile.
+ * Each picture becomes pixels once per palette, one canvas pixel per art
+ * pixel, and is then copied at the scene's scale every frame. Kept for the
+ * page's life, so coming back to a scene does not paint it again.
  */
-export function paintGround<K extends string>(
-  map: TileMap<K>,
-  looks: Looks<K>,
-  ground: HTMLCanvasElement,
-): boolean {
-  ground.width = map.cols * TILE;
-  ground.height = map.rows * TILE;
-  const ctx = ground.getContext('2d');
-  if (!ctx) return false;
-  for (let row = 0; row < map.rows; row++) {
-    for (let col = 0; col < map.cols; col++) {
-      const kind = map.tiles[row]![col]!;
-      const { base, fleck, lip } = looks[kind].look;
-      const x = col * TILE;
-      const y = row * TILE;
-      ctx.fillStyle = SCENE_COLOURS[base];
-      ctx.fillRect(x, y, TILE, TILE);
-      ctx.fillStyle = SCENE_COLOURS[fleck];
-      for (let i = 0; i < 6; i++) {
-        const fx = Math.floor(speckle(col, row, i) * (TILE - 1));
-        const fy = Math.floor(speckle(col, row, i + 6) * (TILE - 1));
-        ctx.fillRect(x + fx, y + fy, 2, 1);
-      }
-      // A solid tile with open ground below it shows a face, so walls read as standing up.
-      const below = map.tiles[row + 1]?.[col];
-      if (lip && below !== kind) {
-        ctx.fillStyle = SCENE_COLOURS[lip];
-        ctx.fillRect(x, y + TILE - 4, TILE, 4);
-      }
-    }
+const painted = new WeakMap<Picture, Map<Palette['name'], HTMLCanvasElement | null>>();
+
+/** A picture in a palette, on a canvas of its own; null where the browser cannot draw. */
+export function canvasOf(pic: Picture, palette: Palette): HTMLCanvasElement | null {
+  let byPalette = painted.get(pic);
+  if (!byPalette) {
+    byPalette = new Map();
+    painted.set(pic, byPalette);
   }
-  return true;
+  if (byPalette.has(palette.name)) return byPalette.get(palette.name)!;
+  const canvas = paint(pic, palette);
+  byPalette.set(palette.name, canvas);
+  return canvas;
+}
+
+function paint(pic: Picture, palette: Palette): HTMLCanvasElement | null {
+  if (typeof ImageData === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = pic.grid.w;
+  canvas.height = pic.grid.h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const image = rasterize(pic, palette, 1);
+  // A light around a standing thing also lights the empty pixels about it (a
+  // halo). The same light is already on the ground beneath, so the halo is
+  // dropped here rather than added twice.
+  pic.grid.d.forEach((cell, i) => {
+    if (!cell) image.data[i * 4 + 3] = 0;
+  });
+  ctx.putImageData(new ImageData(image.data as Uint8ClampedArray<ArrayBuffer>, image.width), 0, 0);
+  return canvas;
+}
+
+const mirrors = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+/** The same canvas flipped left to right: a walker facing the other way. */
+export function mirrorOf(source: HTMLCanvasElement): HTMLCanvasElement {
+  let flipped = mirrors.get(source);
+  if (!flipped) {
+    flipped = document.createElement('canvas');
+    flipped.width = source.width;
+    flipped.height = source.height;
+    const ctx = flipped.getContext('2d');
+    if (ctx) {
+      ctx.setTransform(-1, 0, 0, 1, source.width, 0);
+      ctx.drawImage(source, 0, 0);
+    }
+    mirrors.set(source, flipped);
+  }
+  return flipped;
+}
+
+/** Something to copy onto the frame, with its top-left at whole art pixels. */
+export interface Placed {
+  readonly image: HTMLCanvasElement;
+  readonly x: number;
+  readonly y: number;
 }
 
 export interface Frame {
-  readonly ground: HTMLCanvasElement;
+  /** What shows past the map's edges. */
+  readonly backdrop: string;
   readonly scale: number;
   readonly camera: Point;
-  /** The walker's feet. */
-  readonly walker: Point;
-  /** Where the walker is heading, if anywhere. */
+  readonly ground: HTMLCanvasElement;
+  /** Laid on the ground under everything that stands: the walker's shadow. */
+  readonly underfoot: readonly Placed[];
+  /** Where a walk on open ground ends, if one is under way. */
   readonly target: Point | null;
+  readonly marker: { readonly light: string; readonly ink: string };
+  /** Everything that stands, back to front. */
+  readonly standing: readonly Placed[];
 }
 
-const colour = (ctx: CanvasRenderingContext2D, name: SceneColour): void => {
-  ctx.fillStyle = SCENE_COLOURS[name];
-};
-
-/** Draws one frame. The camera and the walker are rounded to whole art pixels, so nothing shimmers. */
+/** Draws one frame. Every position is a whole art pixel and the scale whole, so nothing blurs or shimmers. */
 export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame): void {
   const { scale, camera } = frame;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  colour(ctx, 'navy1');
+  ctx.fillStyle = frame.backdrop;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.setTransform(scale, 0, 0, scale, -camera.x * scale, -camera.y * scale);
   ctx.drawImage(frame.ground, 0, 0);
-  if (frame.target) drawTarget(ctx, round(frame.target));
-  drawWalker(ctx, round(frame.walker));
+  for (const p of frame.underfoot) ctx.drawImage(p.image, p.x, p.y);
+  if (frame.target) drawTarget(ctx, frame.target, frame.marker);
+  for (const p of frame.standing) ctx.drawImage(p.image, p.x, p.y);
 }
 
-const round = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) });
-
-/** A small gold cross where the walk ends. */
-function drawTarget(ctx: CanvasRenderingContext2D, { x, y }: Point): void {
-  colour(ctx, 'ink');
+/** A small cross on the ground where the walk ends. */
+function drawTarget(ctx: CanvasRenderingContext2D, at: Point, colours: Frame['marker']): void {
+  const x = Math.round(at.x);
+  const y = Math.round(at.y);
+  ctx.fillStyle = colours.ink;
   ctx.fillRect(x - 3, y - 1, 7, 3);
   ctx.fillRect(x - 1, y - 3, 3, 7);
-  colour(ctx, 'gold1');
+  ctx.fillStyle = colours.light;
   ctx.fillRect(x - 2, y, 5, 1);
   ctx.fillRect(x, y - 2, 1, 5);
-}
-
-/**
- * A placeholder figure standing with its feet at the point: just enough of a
- * person to see where they are and which way the camera goes. The real hero
- * comes from the art lane.
- */
-function drawWalker(ctx: CanvasRenderingContext2D, { x, y }: Point): void {
-  // Ground shadow.
-  ctx.globalAlpha = 0.35;
-  colour(ctx, 'ink');
-  ctx.fillRect(x - 5, y - 1, 11, 2);
-  ctx.fillRect(x - 4, y - 2, 9, 4);
-  ctx.globalAlpha = 1;
-  // Outline first, then the parts over it.
-  colour(ctx, 'ink');
-  ctx.fillRect(x - 4, y - 7, 9, 7); // legs
-  ctx.fillRect(x - 6, y - 17, 13, 11); // body
-  ctx.fillRect(x - 5, y - 26, 11, 10); // head
-  colour(ctx, 'navy2');
-  ctx.fillRect(x - 3, y - 6, 3, 5);
-  ctx.fillRect(x + 1, y - 6, 3, 5);
-  colour(ctx, 'red2');
-  ctx.fillRect(x - 5, y - 16, 11, 9);
-  colour(ctx, 'red1');
-  ctx.fillRect(x - 5, y - 16, 3, 9);
-  colour(ctx, 'skin1');
-  ctx.fillRect(x - 4, y - 24, 9, 7);
-  colour(ctx, 'wood4');
-  ctx.fillRect(x - 4, y - 25, 9, 3);
-  colour(ctx, 'ink');
-  ctx.fillRect(x - 2, y - 21, 1, 2);
-  ctx.fillRect(x + 2, y - 21, 1, 2);
 }

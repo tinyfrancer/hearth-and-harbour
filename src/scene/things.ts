@@ -1,0 +1,170 @@
+/*
+ * Things that stand in a scene: buildings, props, trees. Where each one is
+ * solid, where it can be tapped, where a person stands to use it and what it
+ * says are all data here, never measured from its picture, so the art can be
+ * redrawn without moving a wall or a tap target.
+ */
+import type { Picture } from '../art/raster';
+import type { Shell } from '../ui/view';
+import { cheapest } from './path';
+import { TILE, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
+
+/** A box in art pixels. */
+export interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** Where a button in a scene takes the player: a tab, or one skill's page. */
+export type Opens = { readonly tab: Parameters<Shell['openTab']>[0] } | { readonly skill: string };
+
+/** What walking up to a thing shows: its name, a line or two, and perhaps a button. */
+export interface Use {
+  readonly name: string;
+  readonly lines: readonly string[];
+  /** What it says instead after dark, if that is different. */
+  readonly duskLines?: readonly string[];
+  readonly button?: { readonly label: string; readonly opens: Opens };
+}
+
+/** How a thing looks: a picture with its top-left at `at`, in art pixels. */
+export interface Sprite {
+  readonly picture: Picture;
+  readonly at: Point;
+}
+
+export interface Thing {
+  readonly id: string;
+  /** The tiles it makes solid. */
+  readonly footprint: readonly Cell[];
+  /**
+   * The row its feet or foundations stand on, in art pixels. Everything that
+   * stands is drawn in order of this line, so someone whose feet are above it
+   * is drawn behind the thing and someone below it in front.
+   */
+  readonly base: number;
+  /** Where a tap picks it, in art pixels. Without one it cannot be tapped. */
+  readonly tap?: Box;
+  /** Where a person stands to use it. Without them, any open tile beside its footprint. */
+  readonly spots?: readonly Cell[];
+  readonly use?: Use;
+  readonly sprite?: Sprite;
+}
+
+/** The ground and what stands on it: everything the rules of walking need. */
+export interface Scene {
+  /** The ground with every footprint made solid. */
+  readonly map: TileMap;
+  readonly things: readonly Thing[];
+}
+
+/** One entry in the order things are drawn: a thing, or the walker. */
+export type Drawn = Thing | 'walker';
+
+/**
+ * The order to draw things in, back to front: by base line, the walker
+ * standing at `walkerBase` (its feet). A thing whose base is exactly level
+ * with the walker's feet goes first, so the walker is in front.
+ */
+export function drawOrder(things: readonly Thing[], walkerBase: number): Drawn[] {
+  const order: Drawn[] = [...things];
+  order.push('walker');
+  const baseOf = (d: Drawn): number => (d === 'walker' ? walkerBase : d.base);
+  // A stable sort keeps the walker after anything level with it.
+  return order.sort((a, b) => baseOf(a) - baseOf(b));
+}
+
+/** The kind a footprint's tiles become. */
+export const BLOCKED = 'blocked';
+
+/** The map with every thing's footprint made solid. Things off the map are ignored. */
+export function blockFootprints<K extends string>(
+  map: TileMap<K>,
+  things: readonly Thing[],
+): TileMap<K | typeof BLOCKED> {
+  const tiles = map.tiles.map((row) => [...row] as (K | typeof BLOCKED)[]);
+  for (const thing of things)
+    for (const cell of thing.footprint) if (inMap(map, cell)) tiles[cell.row]![cell.col] = BLOCKED;
+  return {
+    cols: map.cols,
+    rows: map.rows,
+    tiles,
+    kinds: { ...map.kinds, [BLOCKED]: { solid: true } } as TileMap<K | typeof BLOCKED>['kinds'],
+  };
+}
+
+const SIDES: readonly [number, number][] = [
+  [0, 1],
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+];
+
+/** The open tiles a person could stand on to use a thing: its own spots, or those beside its footprint. */
+export function spotsBeside(map: TileMap, thing: Thing): Cell[] {
+  const own = new Set(thing.footprint.map((c) => `${c.col},${c.row}`));
+  const seen = new Set<string>();
+  const spots: Cell[] = [];
+  const candidates =
+    thing.spots ??
+    thing.footprint.flatMap((c) => SIDES.map(([dc, dr]) => ({ col: c.col + dc, row: c.row + dr })));
+  for (const cell of candidates) {
+    const key = `${cell.col},${cell.row}`;
+    if (own.has(key) || seen.has(key) || isSolid(map, cell)) continue;
+    seen.add(key);
+    spots.push(cell);
+  }
+  return spots;
+}
+
+/**
+ * Where a walker at `from` should go to use a thing: of the spots beside it,
+ * the one it can walk to soonest. Null when none can be reached.
+ */
+export function approach(map: TileMap, from: Point, thing: Thing): Cell | null {
+  return cheapest(map, from, spotsBeside(map, thing));
+}
+
+/** The middle of a thing's footprint, across: which way to face it. */
+export function footprintCentreX(thing: Thing): number {
+  const cols = thing.footprint.map((c) => c.col);
+  return ((Math.min(...cols) + Math.max(...cols) + 1) * TILE) / 2;
+}
+
+/** A box grown about its centre to at least `min` art pixels each way. */
+export function grown(box: Box, min: number): Box {
+  const w = Math.max(box.w, min);
+  const h = Math.max(box.h, min);
+  return { x: box.x - (w - box.w) / 2, y: box.y - (h - box.h) / 2, w, h };
+}
+
+const inside = (box: Box, p: Point): boolean =>
+  p.x >= box.x && p.x < box.x + box.w && p.y >= box.y && p.y < box.y + box.h;
+
+/**
+ * The thing a tap at `point` picks. A tap inside a thing's own tap box picks
+ * it (the front one, where boxes overlap). A tap just outside still picks the
+ * nearest thing whose box, grown to `min` art pixels, holds it, so a small
+ * barrel is still a target a thumb can hit.
+ */
+export function thingAt(things: readonly Thing[], point: Point, min = 0): Thing | null {
+  let best: Thing | null = null;
+  for (const thing of things) {
+    if (thing.tap && inside(thing.tap, point) && (!best || thing.base >= best.base)) best = thing;
+  }
+  if (best) return best;
+  let bestDistance = Infinity;
+  for (const thing of things) {
+    if (!thing.tap) continue;
+    const box = grown(thing.tap, min);
+    if (!inside(box, point)) continue;
+    const distance = Math.hypot(box.x + box.w / 2 - point.x, box.y + box.h / 2 - point.y);
+    if (distance < bestDistance) {
+      best = thing;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
