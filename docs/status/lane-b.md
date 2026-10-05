@@ -1,8 +1,8 @@
 # Lane B: art
 
 **Next session:** art passes are review sessions with Cody (`docs/lanes.md`, "then"). Before
-that, what B6 did not reach (below, "Deferred"): faces for `goblin_poacher`, `bramble_wyrm` and
-the grotto's five, and the five tab icons.
+that, what B6 did not reach (below, "Deferred"): faces for `goblin_poacher` and `bramble_wyrm`,
+and the five tab icons.
 
 ## Dungeon art, for lane C (`src/art/dungeonArt.ts`)
 
@@ -137,8 +137,9 @@ the same 40 × 50 outlined figure, base 47, so the hero's index entry (shadow, b
 
 `portrait(id)` gives a face for the eight monsters (`dock_rat`, `sand_crab`, `thieving_gull`,
 `bramble_boar`, `footpad`, `grey_wolf`, `smuggler`, `marsh_troll`) and the three townsfolk
-(`smith`, `trader`, `pirate`), and null for anything else (S9's bounty-only monsters are next
-session's). The element is a `div.portrait-art` holding two canvases, the face at 3 and at 2 CSS
+(`smith`, `trader`, `pirate`), and, as of B6, the grotto's `deckhand`, `powder_monkey`, `giant_crab`,
+`ships_parrot` and `brinebeard` (for the dungeon's target panel); null for anything else, S9's
+bounty-only monsters included (see "Deferred"). The element is a `div.portrait-art` holding two canvases, the face at 3 and at 2 CSS
 pixels per art pixel (144 and 96 CSS pixels at whole device ratios); it fills whatever frame it is
 put in, and a container query in `art.css` shows the canvas that fits that frame, so the fight
 screen's 148px frame shows the 3x face and its lists' 100px frames the 2x one, never resized.
@@ -267,6 +268,10 @@ from world position, so painting in pieces still lines up; only flecks and wear 
     loot items, and the `thieving` skill icon (a purse with its string cut); worn layers
     (`armoury.ts`, mapped in `ITEM_LAYERS`) for the eleven wearables, held things by the hand
     rule; a longbow shape for `bow()`; twelve new `FIGURE_LEGEND` characters for the new ramps.
+  - **Faces** (`faces.ts`) for the grotto's five, which the dungeon's target panel shows:
+    the deckhand, the powder monkey, the giant crab, the ship's parrot and Brinebeard, each on a
+    disc of its own, sketched with the grid's shapes and hand stamps, then kept as rows like the
+    others. The bounty-only monsters' faces were not reached (below).
   - **Gallery**: a "Brinebeard's Grotto" section first: the test room at dusk with the cast, the
     hero and two lanterns lit, the same room by day, every tile kind, the cast beside the hero,
     the props. The new icons are in two new families.
@@ -511,9 +516,11 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
-- **Not reached in B6** (parts 5 and 6 of its brief): faces (`portrait(id)`) for
-  `goblin_poacher`, `bramble_wyrm`, `deckhand`, `powder_monkey`, `giant_crab`, `ships_parrot` and
-  `brinebeard`, which stay null; the five tab icons (`tabIcon(id)` stays null).
+- **Not reached in B6**: faces for S9's bounty-only monsters, `goblin_poacher` and
+  `bramble_wyrm` (part 5 of its brief), which stay null; and the five tab icons (part 6;
+  `tabIcon(id)` stays null). Drawing the goblin's face will need lane A's
+  `tests/ui/combat.test.ts` (line 79), which expects `goblin_poacher`'s portrait to be the blank
+  "G", changed to expect `.portrait-art` as the dock rat's line above it does.
 - Weak spots for Cody's review (B6), weakest first:
   - The joins between kinds are straight tile edges (sand to wet sand, shallows to deep water):
     clean, but the shore is a staircase, not a curve. Softening it needs edge tiles the doors do
@@ -526,6 +533,9 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   - The tricorn icon (a black hat with brass points, better than its first bowl-like draft) and
     the boarding axe's small head, worn.
   - The wall's face is one tile tall, so a wall is a third of the hero's height.
+  - Faces: the giant crab's is the weakest (stalk eyes over its shell's edge, the disc showing
+    between the stalks so it can look like a mask); the powder monkey's round bald head is
+    close to cheerful rather than gleeful.
 - Brinebeard's coat is purple (to keep him apart from the town's red-coated captain); lane A's
   item text for `captains_coat` says red. See "Needs from another lane".
 - The hero's own portrait (for the character sheet) is not drawn.

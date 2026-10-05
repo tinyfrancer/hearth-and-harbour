@@ -324,6 +324,10 @@ dusk (`glass` and `lamp` switch on). Faces are drawn for daylight; the menus hav
 - **People** are the town's own figures, recognisable from their sprites: the smith bald and
   bearded in his apron, the trader's auburn hair and purple dress, the pirate's tricorn and patch
   on the same eye as in town.
+- **The grotto's cast** (B6) match their sprites: the deckhand's red bandana and striped
+  jersey, the powder monkey bald and grinning with his lit keg (a grown man, stubbled), the giant
+  crab's barnacled shell and stalk eyes, the parrot side-on with one eye and its beak open,
+  Brinebeard's tricorn and skull, brows and beard, filling the frame.
 - **How they are shown.** The fight screen frames a portrait at 3 CSS pixels per art pixel and
   its lists at 2, and never resizes it. `portrait(id)` is told only the id, so it returns both
   canvases, each a whole number of device pixels per art pixel (rounded down, so a face never
