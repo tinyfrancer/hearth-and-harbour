@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFENCE, MELEE, RANGED, VITALITY } from '../../src/core/combat';
 import { SLOTS } from '../../src/core/content';
 import { MAX_LEVEL } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
@@ -6,7 +7,13 @@ import { CONTENT } from '../../src/data';
 // The tables are typed, but a type cannot see a typo in an id.
 describe('the content tables', () => {
   it('keys every row by its own id', () => {
-    for (const table of [CONTENT.skills, CONTENT.items, CONTENT.actions]) {
+    for (const table of [
+      CONTENT.skills,
+      CONTENT.items,
+      CONTENT.actions,
+      CONTENT.areas!,
+      CONTENT.monsters!,
+    ]) {
       for (const [key, row] of Object.entries(table)) {
         expect(row.id).toBe(key);
       }
@@ -28,10 +35,13 @@ describe('the content tables', () => {
     }
   });
 
-  it('has recipes that use real items, each of which something makes', () => {
-    const made = new Set(
-      Object.values(CONTENT.actions).flatMap((action) => action.gives.map(({ item }) => item)),
-    );
+  it('has recipes that use real items, each of which something makes or a monster drops', () => {
+    const made = new Set([
+      ...Object.values(CONTENT.actions).flatMap((action) => action.gives.map(({ item }) => item)),
+      ...Object.values(CONTENT.monsters!).flatMap((monster) =>
+        [...monster.always, ...monster.rare].map(({ item }) => item),
+      ),
+    ]);
     for (const action of Object.values(CONTENT.actions)) {
       for (const { item, qty } of action.uses ?? []) {
         expect(CONTENT.items[item], `${action.id} uses ${item}`).toBeDefined();
@@ -140,12 +150,101 @@ describe('the content tables', () => {
     ]);
   });
 
-  it('gives every skill something to do at level 1', () => {
+  it('gives every skill something to do at level 1, except those trained by fighting', () => {
     for (const skill of Object.values(CONTENT.skills)) {
+      if (skill.group === 'Combat') continue;
       const first = Object.values(CONTENT.actions).filter(
         (action) => action.skill === skill.id && action.level === 1,
       );
       expect(first.length, skill.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('has the four combat skills combat reads, under one heading, with nothing to do but fight', () => {
+    const combat = Object.values(CONTENT.skills).filter((skill) => skill.group === 'Combat');
+    expect(combat.map((skill) => skill.id)).toEqual([MELEE, RANGED, DEFENCE, VITALITY]);
+    for (const skill of combat) {
+      expect(Object.values(CONTENT.actions).filter((a) => a.skill === skill.id)).toEqual([]);
+    }
+  });
+
+  it('has the monsters of tier 1 by the ids art draws them by, in real areas, with sane numbers', () => {
+    expect(Object.keys(CONTENT.monsters!)).toEqual([
+      'dock_rat',
+      'sand_crab',
+      'thieving_gull',
+      'bramble_boar',
+      'footpad',
+      'grey_wolf',
+      'smuggler',
+      'marsh_troll',
+    ]);
+    expect(Object.keys(CONTENT.areas!)).toEqual(['docks', 'north_road', 'saltmarsh']);
+    for (const monster of Object.values(CONTENT.monsters!)) {
+      expect(CONTENT.areas![monster.area], monster.id).toBeDefined();
+      for (const amount of [
+        monster.level,
+        monster.hp,
+        monster.attack,
+        monster.defence,
+        monster.maxHit,
+        monster.speedMs,
+      ]) {
+        expect(Number.isInteger(amount) && amount > 0, monster.id).toBe(true);
+      }
+      const [least, most] = monster.coins;
+      expect(Number.isInteger(least) && least >= 0 && most >= least, monster.id).toBe(true);
+      expect(monster.always.length, `${monster.id} always drops something`).toBeGreaterThan(0);
+      for (const drop of [...monster.always, ...monster.rare]) {
+        expect(CONTENT.items[drop.item], `${monster.id} drops ${drop.item}`).toBeDefined();
+        expect(Number.isInteger(drop.min) && drop.min > 0 && drop.max >= drop.min).toBe(true);
+      }
+      for (const { oneIn } of monster.rare) expect(oneIn).toBeGreaterThan(1);
+    }
+    // One rare thing each worth chasing, at the far end of the marsh.
+    expect(CONTENT.monsters!.smuggler!.rare.map((d) => d.item)).toContain('smugglers_cutlass');
+    expect(CONTENT.monsters!.marsh_troll!.rare.map((d) => d.item)).toContain('trollstone');
+  });
+
+  it('feeds Crafting with hides, and gives leather a small set of armour', () => {
+    const drops = (item: string) =>
+      Object.values(CONTENT.monsters!).filter((m) => m.always.some((d) => d.item === item));
+    expect(drops('hide').length).toBeGreaterThanOrEqual(2);
+    const tanning = Object.values(CONTENT.actions).find((a) =>
+      a.uses?.some(({ item }) => item === 'hide'),
+    );
+    expect(tanning).toMatchObject({ skill: 'crafting', gives: [{ item: 'leather', qty: 1 }] });
+    for (const piece of ['leather_cap', 'leather_jerkin', 'leather_bracers']) {
+      expect(CONTENT.items[piece]?.equip, piece).toBeDefined();
+      expect(
+        Object.values(CONTENT.actions).some((a) => a.gives.some(({ item }) => item === piece)),
+        `nothing makes ${piece}`,
+      ).toBe(true);
+    }
+  });
+
+  it('heals with the cooked fish, more for the better fish, and with nothing raw', () => {
+    const heals = (id: string) => CONTENT.items[id]!.heals ?? 0;
+    expect(heals('cooked_shrimp')).toBeGreaterThan(0);
+    expect(heals('cooked_herring')).toBeGreaterThan(heals('cooked_shrimp'));
+    expect(heals('cooked_cod')).toBeGreaterThan(heals('cooked_herring'));
+    for (const raw of ['raw_shrimp', 'raw_herring', 'raw_cod']) expect(heals(raw)).toBe(0);
+  });
+
+  it('asks levels to wear things: bronze at 1, iron at 10, bows by Ranged', () => {
+    const needs = (id: string) => CONTENT.items[id]!.equip!.requires;
+    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate']) {
+      expect(needs(`bronze_${piece}`), piece).toBeUndefined();
+      expect(needs(`iron_${piece}`)?.level, piece).toBe(10);
+    }
+    expect(needs('iron_sword')?.skill).toBe(MELEE);
+    expect(needs('iron_helmet')?.skill).toBe(DEFENCE);
+    expect(needs('pine_shortbow')).toBeUndefined();
+    expect(needs('oak_shortbow')).toEqual({ skill: RANGED, level: 10 });
+    expect(needs('willow_shortbow')?.skill).toBe(RANGED);
+    for (const item of Object.values(CONTENT.items)) {
+      const requires = item.equip?.requires;
+      if (requires) expect(CONTENT.skills[requires.skill], item.id).toBeDefined();
     }
   });
 });

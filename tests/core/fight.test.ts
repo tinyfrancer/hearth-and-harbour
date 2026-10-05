@@ -234,15 +234,20 @@ describe('a fight, blow by blow', () => {
     expect(next.fight).toMatchObject({ foeHp: 8, playerMs: PLAYER_ATTACK_MS, foeMs: 2400 });
   });
 
-  it('splits XP: 4 a point of damage dealt, 2 a point of max hit a monster attack, half of both to Vitality', () => {
+  it('splits XP: per point of damage dealt, per point of max hit attacked with, and half to Vitality', () => {
     const hour = advance(ratFight, HOUR, content);
     const { melee = 0, defence = 0, vitality = 0, ranged } = hour.skills;
     expect(ranged).toBeUndefined();
-    // Every rat's eight hit points were dealt, plus the one under way.
-    const dealt = 8 * hour.fight!.kills + (8 - hour.fight!.foeHp) * Number(hour.fight!.foeHp > 0);
+    // Every rat's eight hit points were dealt, plus whatever of the one under way.
+    const { kills, foeHp } = hour.fight!;
+    const dealt = 8 * kills + (foeHp > 0 ? 8 - foeHp : 0);
     expect(melee).toBe(XP_PER_DAMAGE * dealt);
+    // The rat's max hit is 2: the same XP for each of its attacks, hit or miss.
     expect(defence % (DEFENCE_XP_PER_MAX_HIT * 2)).toBe(0);
-    expect(vitality).toBe((melee + defence) / 2);
+    // Half, rounded down blow by blow: never more, and short by at most half a point a blow.
+    const half = (melee + defence) / 2;
+    expect(vitality).toBeLessThanOrEqual(half);
+    expect(vitality).toBeGreaterThanOrEqual(half - dealt / 2);
   });
 
   it('never keeps a skill at no XP, nor touches another activity', () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { advance, startAction } from '../../src/core/actions';
 import { newGame, skillLevel, type GameState } from '../../src/core/state';
 import { CONTENT } from '../../src/data';
+import { hoursToLevel as hoursOfFighting } from './fighting';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -63,6 +64,27 @@ describe('pacing', () => {
       expect(hours).toBeLessThan(2.4);
     },
   );
+});
+
+// A combat skill is paced like a gathering one: about three hours to level 20,
+// fighting the strongest monster of the character's level in that level's
+// gear with food on hand (tests/data/fighting.ts). Melee or Ranged follows the
+// weapon; Defence and Vitality come along with either.
+describe('pacing of combat', () => {
+  it.each([
+    ['melee', 'melee'],
+    ['defence', 'melee'],
+    ['vitality', 'melee'],
+    ['ranged', 'ranged'],
+    ['defence', 'ranged'],
+    ['vitality', 'ranged'],
+  ] as const)('takes %s through tier 1 in about three hours, fighting with %s', (skill, style) => {
+    const { hours, deaths } = hoursOfFighting(skill, 20, style);
+    expect(hours).toBeGreaterThan(2.5);
+    expect(hours).toBeLessThan(3.5);
+    // A sensible player at their own level does not die on the way.
+    expect(deaths).toBe(0);
+  });
 });
 
 // A potion's strength is a number held here, beside what it costs to make:

@@ -4,6 +4,7 @@ import { OFFLINE_CAP_MS, catchUp } from '../../src/core/away';
 import type { Content } from '../../src/core/content';
 import { newGame, type GameState } from '../../src/core/state';
 import { CONTENT } from '../../src/data';
+import { characterAt, fight } from '../data/fighting';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -133,6 +134,37 @@ describe('catchUp', () => {
     expect(catchUp(orphan, HOUR, CONTENT).report).toMatchObject({
       items: {},
       stopped: { reason: 'gone' },
+    });
+  });
+
+  describe('with a fight, on the real tables', () => {
+    // A level-5 character at the gulls with shrimp: it levels, eats and loots as it goes.
+    const gulls = fight(characterAt(5, { food: 400 }), 'thieving_gull');
+
+    it('gives two hours away exactly what two hours of live frames give', () => {
+      const span = 2 * HOUR + 777;
+      let live = gulls;
+      for (let spent = 0; spent < span; spent += 16) {
+        live = advance(live, Math.min(16, span - spent), CONTENT);
+      }
+      const away = catchUp(gulls, span, CONTENT);
+      expect(away.state).toEqual(live);
+      expect(away.report?.fight?.eaten).toBeGreaterThan(0);
+      expect(away.report?.levels.melee).toBeDefined();
+      expect(away.report?.items.feathers).toBeGreaterThan(0);
+    });
+
+    it('pays a whole day of fighting in well under a second', () => {
+      // A day at the dock rats is the most events tier 1 has: a kill every
+      // eight seconds or so. Measured at about 35 ms on a desktop and kept
+      // under a quarter of a second here so a slow test machine does not fail it.
+      const rats = fight(characterAt(1), 'dock_rat');
+      const started = performance.now();
+      const { state, report } = catchUp(rats, OFFLINE_CAP_MS, CONTENT);
+      const took = performance.now() - started;
+      expect(report?.fight?.kills).toBeGreaterThan(10_000);
+      expect(state.fight).not.toBeNull();
+      expect(took).toBeLessThan(250);
     });
   });
 });

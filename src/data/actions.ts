@@ -155,11 +155,13 @@ const ALL: ActionDef[] = [
       ],
     ]),
   ]),
-  // Leather (hides into armour) waits for combat (S8) to bring in the hides.
+  // Hides come from fighting (src/data/monsters.ts): tanned into leather, then
+  // the archer's armour.
   ...recipe('crafting', [
     // The vial is cheap on purpose: it is the potion's bottle, not a craft of its own.
     ['craft_shell_vial', 'Shell vial', 1, 2, 10, { seashells: 1 }, 'shell_vial'],
     ['craft_bowstring', 'Bowstring', 2, 2, 11, { flax: 1 }, 'bowstring'],
+    ['craft_leather', 'Leather', 3, 2.5, 15, { hide: 1 }, 'leather'],
     [
       'craft_shell_necklace',
       'Shell necklace',
@@ -171,6 +173,7 @@ const ALL: ActionDef[] = [
     ],
     ['craft_linen', 'Linen', 6, 2.5, 17, { flax: 2 }, 'linen'],
     ['craft_linen_hood', 'Linen hood', 8, 3, 23, { linen: 2 }, 'linen_hood'],
+    ['craft_leather_bracers', 'Leather bracers', 9, 3, 25, { leather: 1 }, 'leather_bracers'],
     [
       'craft_shell_bracelet',
       'Shell bracelet',
@@ -180,8 +183,10 @@ const ALL: ActionDef[] = [
       { seashells: 6, bowstring: 1 },
       'shell_bracelet',
     ],
+    ['craft_leather_cap', 'Leather cap', 12, 3.5, 33, { leather: 2 }, 'leather_cap'],
     ['craft_linen_trousers', 'Linen trousers', 13, 4, 40, { linen: 3 }, 'linen_trousers'],
     ['craft_linen_tunic', 'Linen tunic', 16, 5, 58, { linen: 4 }, 'linen_tunic'],
+    ['craft_leather_jerkin', 'Leather jerkin', 18, 5, 62, { leather: 4 }, 'leather_jerkin'],
   ]),
   // Arrows are made ten at a time, from ten shafts and ten heads; a bow is two
   // logs and a string.

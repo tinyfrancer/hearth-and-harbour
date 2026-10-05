@@ -20,7 +20,7 @@ export const PLAYER_ATTACK_MS = 2400;
 /** A monster killed is followed by the next of its kind three seconds later. */
 export const RESPAWN_MS = 3000;
 /** The attacking skill earns this much XP for each point of damage dealt. */
-export const XP_PER_DAMAGE = 4;
+export const XP_PER_DAMAGE = 5;
 /** Defence earns this much XP for each point of a monster's max hit, every time it attacks. */
 export const DEFENCE_XP_PER_MAX_HIT = 2;
 
