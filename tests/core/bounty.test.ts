@@ -226,6 +226,21 @@ describe('handing in', () => {
     expect(['mole', 'bogle']).toContain(paid.bounty!.monster);
   });
 
+  it('counts bounties handed in, and the run of them since the last swap', () => {
+    const first = ok(handInBounty(holding('rat', 6, 6), content));
+    expect(first.stats).toEqual({ bounties: 1, streak: 1, bestStreak: 1 });
+    const done = (state: GameState): GameState => ({
+      ...state,
+      bounty: { ...state.bounty!, done: state.bounty!.count },
+    });
+    const second = ok(handInBounty(done(first), content));
+    expect(second.stats).toEqual({ bounties: 2, streak: 2, bestStreak: 2 });
+    const swapped = ok(swapBounty({ ...second, bountyPoints: 10 }, content));
+    expect(swapped.stats).toEqual({ bounties: 2, streak: 0, bestStreak: 2 });
+    const third = ok(handInBounty(done(swapped), content));
+    expect(third.stats).toEqual({ bounties: 3, streak: 1, bestStreak: 2 });
+  });
+
   it('ends a fight with a bounty-only monster the next bounty does not name', () => {
     const fighting = advance(ok(startFight(holding('bogle', 5), 'bogle', content)), HOUR, content);
     expect(fighting.fight?.monster).toBe('bogle');

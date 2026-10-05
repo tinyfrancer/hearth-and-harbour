@@ -149,4 +149,50 @@ describe('the shell a scene is given', () => {
       action: { id: 'chop_pine' },
     });
   });
+
+  it("counts a run's kills towards the bestiary and the bounty held, and keeps a clear", () => {
+    const app = inTown();
+    app.save();
+    const before = saved()!;
+    new LocalStorageSaveService().save({
+      ...before,
+      bounty: { monster: 'dock_rat', count: 10, done: 8 },
+    });
+    root.replaceChildren();
+    const again = mountApp(root, {
+      saves: new LocalStorageSaveService(),
+      content: CONTENT,
+      now: () => clock,
+    });
+    click('.tab[data-tab="town"]');
+    shell!.settleRun({
+      kills: { dock_rat: 3, deckhand: 4 },
+      cleared: 'brinebeards_grotto',
+      timeMs: 432_100,
+    });
+    again.save();
+    expect(saved()).toMatchObject({
+      bestiary: { dock_rat: { kills: 3, seen: [] } },
+      bounty: { monster: 'dock_rat', count: 10, done: 10 },
+      dungeons: { brinebeards_grotto: { clears: 1, bestMs: 432_100 } },
+    });
+    // The grotto's own cast is not in the tables yet, so counts for nothing.
+    expect(saved()!.bestiary.deckhand).toBeUndefined();
+    expect(root.querySelector('.toast')?.textContent).toBe(
+      'Bounty done: 10 Dock rats. Hand it in.',
+    );
+    // A clear is an achievement, said at once.
+    expect(root.querySelector('[data-award="grotto_cleared"]')).not.toBeNull();
+  });
+
+  it('opens the notice board from town', () => {
+    inTown();
+    expect(shell!.openBounties).toBeDefined();
+    shell!.openBounties!();
+    expect(root.querySelector('.tab[aria-current="page"]')?.getAttribute('data-tab')).toBe(
+      'skills',
+    );
+    expect(root.querySelector('[data-bounty]')).not.toBeNull();
+    expect(root.textContent).toContain('Bounty points');
+  });
 });

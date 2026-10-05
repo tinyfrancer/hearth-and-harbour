@@ -9,7 +9,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 7;
+export const GAME_STATE_VERSION = 8;
 
 export interface ActiveAction {
   /** An ActionDef id. */
@@ -120,6 +120,29 @@ export interface Health {
   regenMs: number;
 }
 
+/** What the character has done in one dungeon. */
+export interface DungeonRecord {
+  /** Runs that reached the end with the boss down. */
+  clears: number;
+  /** The quickest of those, in milliseconds, when a run said how long it took. */
+  bestMs?: number;
+}
+
+/**
+ * Running counts of things the rest of the state does not keep, for
+ * achievements to read. A count never begun reads as 0 and is left out.
+ */
+export type StatId =
+  /** Bounties handed in. */
+  | 'bounties'
+  /** Bounties handed in since the last swap, and the most there have ever been. */
+  | 'streak'
+  | 'bestStreak'
+  /** Potions drunk. */
+  | 'potions'
+  /** Things bought from the general store. */
+  | 'bought';
+
 export interface GameState {
   version: number;
   name: string;
@@ -165,6 +188,18 @@ export interface GameState {
    * fight the fight's own `hp` is the truth and this is always null.
    */
   health: Health | null;
+  /**
+   * Every item id the character has ever held (in the bank, worn, in the food
+   * slot or drunk), in the order first found: the collection log.
+   */
+  collection: string[];
+  /** The ids of the achievements earned, in the order they were earned. */
+  achievements: string[];
+  /** What the character has done in each dungeon, by dungeon id. Never cleared reads as nothing. */
+  dungeons: Record<string, DungeonRecord>;
+  stats: Partial<Record<StatId, number>>;
+  /** The general store's lasting things bought (StoreEntry ids with a `perk`), in order bought. */
+  perks: string[];
 }
 
 /** Eat below half health, unless the player says otherwise. */
@@ -212,7 +247,16 @@ export function newGame(name: string, now: number, look: Look = {}): GameState {
     bounty: null,
     bountyPoints: 0,
     health: null,
+    collection: [],
+    achievements: [],
+    dungeons: {},
+    stats: {},
+    perks: [],
   };
+}
+
+export function stat(state: GameState, id: StatId): number {
+  return state.stats[id] ?? 0;
 }
 
 export function skillXp(state: GameState, skill: string): number {

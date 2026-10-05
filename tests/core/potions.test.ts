@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { actionDuration } from '../../src/core/actions';
 import type { Content } from '../../src/core/content';
 import { activePotion, drinkPotion, extrasIn, potionFor } from '../../src/core/potions';
-import { newGame } from '../../src/core/state';
+import { newGame, type GameState } from '../../src/core/state';
 
 const content: Content = {
   skills: {
@@ -48,7 +48,7 @@ const content: Content = {
   },
 };
 const stocked = { ...newGame('Cody', 0), bank: { quick: 2, clever: 1, mud: 4 } };
-const drink = (state: typeof stocked, item: string) => {
+const drink = (state: GameState, item: string) => {
   const result = drinkPotion(state, item, content);
   if (!result.ok) throw new Error(result.reason);
   return result.state;
@@ -88,6 +88,34 @@ describe('drinking a potion', () => {
     const before = structuredClone(stocked);
     drink(stocked, 'quick');
     expect(stocked).toEqual(before);
+  });
+
+  it('counts the potions drunk', () => {
+    expect(drink(stocked, 'quick').stats).toEqual({ potions: 1 });
+    expect(drink(drink(stocked, 'quick'), 'clever').stats).toEqual({ potions: 2 });
+  });
+
+  it('gives more charges for each lasting thing from the store that stretches them, rounded down', () => {
+    const stretched: Content = {
+      ...content,
+      store: {
+        case: { id: 'case', price: 1, perk: { name: '', description: '', potionCharges: 50 } },
+        cork: { id: 'cork', price: 1, perk: { name: '', description: '', potionCharges: 15 } },
+        hat: { id: 'hat', price: 1, item: 'mud', qty: 1 },
+      },
+    };
+    const sip = (perks: string[], item: string) => {
+      const result = drinkPotion({ ...stocked, perks }, item, stretched);
+      if (!result.ok) throw new Error(result.reason);
+      return result.state.potion!.charges;
+    };
+    expect(sip([], 'quick')).toBe(30);
+    expect(sip(['case'], 'quick')).toBe(45);
+    // 30 x 1.65 is 49.5: rounded down once, never up.
+    expect(sip(['case', 'cork'], 'quick')).toBe(49);
+    expect(sip(['case'], 'clever')).toBe(75);
+    // A perk the store no longer sells, or an entry that is no perk, stretches nothing.
+    expect(sip(['gone', 'hat'], 'quick')).toBe(30);
   });
 });
 

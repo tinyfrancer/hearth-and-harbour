@@ -1,7 +1,7 @@
 import { DEFENCE, MELEE, RANGED, VITALITY, leaveFight, monsterDef } from './combat';
 import type { Content, MonsterDef, ShopEntry } from './content';
 import { Dice } from './rng';
-import { bankCount, skillLevel, type GameState } from './state';
+import { bankCount, skillLevel, stat, type GameState } from './state';
 
 /**
  * Bounties: the notice board asks for so many kills of one monster. Each rule
@@ -14,7 +14,7 @@ import { bankCount, skillLevel, type GameState } from './state';
  *   likely; then the number of kills, between the row's two numbers.
  * - Kills of that monster count while the bounty is held, live or away, until
  *   it asks for no more (src/core/fight.ts counts them, blow by blow).
- * - Handing it in pays the row's points and ten coins a point, and posts the
+ * - Handing it in pays the row's points and a hundred coins a point, and posts the
  *   next.
  * - Swapping it for another costs three points, or what there is if fewer,
  *   so nobody is ever stuck with one.
@@ -30,7 +30,7 @@ export type BountyResult = { ok: true; state: GameState } | { ok: false; reason:
 
 /** How far below the character's combat level a bounty may be posted. */
 export const BOUNTY_BELOW = 6;
-export const COINS_PER_POINT = 10;
+export const COINS_PER_POINT = 100;
 export const SWAP_COST = 3;
 
 export function combatLevel(state: GameState): number {
@@ -108,10 +108,17 @@ export function handInBounty(state: GameState, content: Content): BountyResult {
     return { ok: false, reason: `Not yet: ${left} more to go.` };
   }
   const { points, coins } = bountyReward(state, content);
+  const streak = stat(state, 'streak') + 1;
   const paid: GameState = {
     ...state,
     bountyPoints: state.bountyPoints + points,
     coins: state.coins + coins,
+    stats: {
+      ...state.stats,
+      bounties: stat(state, 'bounties') + 1,
+      streak,
+      bestStreak: Math.max(stat(state, 'bestStreak'), streak),
+    },
   };
   return { ok: true, state: stillAllowed(post(paid, content, bounty.monster), content) };
 }
@@ -128,12 +135,17 @@ export function swapBounty(state: GameState, content: Content): BountyResult {
   if (bountyChoices(state, content).every((monster) => monster.id === bounty.monster)) {
     return { ok: false, reason: 'There is nothing else on the board for you yet.' };
   }
-  const paid = { ...state, bountyPoints: state.bountyPoints - swapCost(state) };
+  // A swap breaks the run of bounties seen through.
+  const paid = {
+    ...state,
+    bountyPoints: state.bountyPoints - swapCost(state),
+    stats: { ...state.stats, streak: 0 },
+  };
   return { ok: true, state: stillAllowed(post(paid, content, bounty.monster), content) };
 }
 
 /** How many of an item the character has, in the bank or worn. */
-function held(state: GameState, item: string): number {
+export function held(state: GameState, item: string): number {
   const worn = Object.values(state.equipment).filter((slot) => slot?.item === item);
   return bankCount(state, item) + worn.reduce((sum, slot) => sum + (slot?.qty ?? 0), 0);
 }

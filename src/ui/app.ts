@@ -1,5 +1,7 @@
+import { tabIcon } from '../art/icons';
 import { TAB_ICONS } from '../art/tabIcons';
 import { pixelSvg } from '../art/pixelSvg';
+import { takeStock } from '../core/achievements';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
 import { sell } from '../core/bank';
@@ -27,7 +29,8 @@ import { equip, unequip } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
 import { settleRun } from '../core/run';
-import { SLOTS, type Content } from '../core/content';
+import { buyFromStore } from '../core/store';
+import { SLOTS, type AchievementDef, type Content } from '../core/content';
 import { newGame, skillLevel, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
 import { awayReportOverlay } from './awayReport';
@@ -38,10 +41,12 @@ import { bountiesView, type BountyActions } from './bountyScreen';
 import { characterView, type SheetPanel } from './characterScreen';
 import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
 import { createScreen } from './createScreen';
+import { achievementsView, collectionView } from './logScreen';
 import { button, h } from './dom';
 import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
 import { skillListView, skillPageView } from './skillsScreen';
+import { entryName, storeView } from './storeScreen';
 import { TABS, type TabId } from './tabs';
 import type { View } from './view';
 
@@ -67,6 +72,10 @@ const AUTOSAVE_MS = 10_000;
  */
 const AWAY_MS = 60_000;
 const TOAST_MS = 3000;
+/** An achievement's note stays a little longer than a toast: it is worth reading. */
+const AWARD_MS = 4500;
+/** At most this many achievement notes at once; more are summed up in the last. */
+const AWARDS_SHOWN = 2;
 /** The skills trained by fighting, which have a Combat page instead of actions. */
 const COMBAT_SKILLS: readonly string[] = [MELEE, RANGED, DEFENCE, VITALITY];
 
@@ -107,6 +116,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let fightOver: FightOver | null = null;
   /** The item whose card is open on the Bank tab, if any. */
   let openItem: string | null = null;
+  /** Whether the Bank tab is showing the general store. */
+  let storeOpen = false;
+  /** Which of the records is open on the Character tab, if one is. */
+  let records: 'log' | 'achievements' | null = null;
   /** A scene has stopped the idle clock (a dungeon run is on). */
   let idlePaused = false;
   /** Whether Menu is showing the art gallery. */
@@ -118,12 +131,44 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let view: View | null = null;
   let lastTick = now();
   let lastSave = now();
-  /** The away report on screen, until it is dismissed. */
+  /** The away report on screen, until it is dismissed, and the achievements it earned. */
   let away: AwayReport | null = null;
+  let awayEarned: string[] = [];
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
+  // Achievements have notes of their own, above the toasts, so an achievement
+  // earned by the same moment as a level or the end of a fight hides neither.
+  const awards = h('div', { class: 'awards', attrs: { role: 'status' } });
+
+  /** Say what was just earned: a note each, stacked, gone after a while. */
+  const announce = (earned: readonly AchievementDef[]): void => {
+    const shown = earned.slice(0, AWARDS_SHOWN);
+    const more = earned.length - shown.length;
+    shown.forEach((def, index) => {
+      const extra = index === shown.length - 1 && more > 0 ? ` And ${more} more.` : '';
+      const note = h('div', { class: 'award', attrs: { 'data-award': def.id } }, [
+        h('p', { class: 'award-name', text: `Achievement: ${def.name}` }),
+        h('p', { class: 'small', text: `${def.text}${extra}` }),
+      ]);
+      awards.append(note);
+      setTimeout(() => note.remove(), AWARD_MS);
+    });
+    // Old notes give way to new ones rather than pile up the screen.
+    while (awards.childElementCount > AWARDS_SHOWN) awards.firstElementChild!.remove();
+  };
+
+  /**
+   * Bring the collection log and achievements up to date with whatever just
+   * happened, live or away, and say what was earned.
+   */
+  const takeStockOf = (next: GameState): GameState => {
+    const stocked = takeStock(next, content);
+    if (stocked.earned.length > 0) announce(stocked.earned);
+    return stocked.state;
+  };
 
   const save = (): boolean => {
     if (!state) return false;
+    state = takeStockOf(state);
     lastSave = now();
     state = { ...state, savedAt: lastSave };
     return saves.save(state);
@@ -136,11 +181,16 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   const returnFrom = (ms: number): void => {
     if (!state) return;
     const result = catchUp(state, ms, content);
+    const had = state.achievements.length;
     state = result.state;
-    // A quick reload is paid like any other gap but is not worth a report.
-    // Coming back twice before reading the first report keeps the newer one.
-    if (ms >= AWAY_MS) away = result.report ?? away;
     save();
+    // A quick reload is paid like any other gap but is not worth a report.
+    // Coming back twice before reading the first report keeps the newer one,
+    // and everything both earned.
+    if (ms >= AWAY_MS && result.report) {
+      awayEarned = [...(away ? awayEarned : []), ...state.achievements.slice(had)];
+      away = result.report;
+    }
   };
 
   // A loaded or imported file is not paid for the time since it was written:
@@ -149,6 +199,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     state = next;
     away = null;
     openItem = null;
+    storeOpen = false;
+    records = null;
     sheetPanel = null;
     tab = 'skills';
     openSkill = null;
@@ -411,8 +463,35 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         openGroups,
       );
     }
+    if (tab === 'bank' && storeOpen) {
+      return storeView(game, content, {
+        back: () => {
+          storeOpen = false;
+          turnTo();
+        },
+        buy: (entryId) => {
+          const entry = content.store?.[entryId];
+          const result = buyFromStore(state ?? game, entryId, content);
+          if (!result.ok) {
+            toast(result.reason);
+            return;
+          }
+          toast(
+            entry?.perk
+              ? `Bought: the ${entry.perk.name}. Yours for good.`
+              : `Bought: ${entry ? entryName(entry, content) : entryId}. It is in the bank.`,
+          );
+          act(result.state);
+        },
+      });
+    }
     if (tab === 'bank') {
       return bankView(game, content, openItem, {
+        store: () => {
+          storeOpen = true;
+          openItem = null;
+          turnTo();
+        },
         open: (itemId) => {
           openItem = itemId;
           render();
@@ -448,8 +527,22 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         },
       });
     }
+    if (tab === 'character' && records) {
+      const back = (): void => {
+        records = null;
+        turnTo();
+      };
+      return records === 'log'
+        ? collectionView(game, content, back)
+        : achievementsView(game, content, back);
+    }
     if (tab === 'character') {
       return characterView(game, content, sheetPanel, {
+        records: (page) => {
+          records = page;
+          sheetPanel = null;
+          turnTo();
+        },
         open: (panel) => {
           sheetPanel = panel;
           render();
@@ -492,8 +585,21 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         if (!state) return;
         // Paid and saved on the spot, without rebuilding the tab: the scene
         // that called this is still showing its results.
-        state = settleRun(state, spoils);
+        const before = state;
+        state = settleRun(state, spoils, content);
+        if (bountyReady(state) && !bountyReady(before)) {
+          toast(
+            `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
+          );
+        }
         save();
+      },
+      openBounties: () => {
+        tab = 'skills';
+        openSkill = null;
+        combatPage = 'bounties';
+        fightOver = null;
+        turnTo();
       },
     });
   };
@@ -522,13 +628,20 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         h('span', { class: 'who', text: state.name }),
       ]),
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
+      awards,
       toasts,
       ...(away
         ? [
-            awayReportOverlay(away, content, () => {
-              away = null;
-              render();
-            }),
+            awayReportOverlay(
+              away,
+              content,
+              () => {
+                away = null;
+                awayEarned = [];
+                render();
+              },
+              awayEarned,
+            ),
           ]
         : []),
       h(
@@ -552,6 +665,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                     combatPage = null;
                     fightOver = null;
                     openItem = null;
+                    storeOpen = false;
+                    records = null;
                     galleryOpen = false;
                     sheetPanel = null;
                   }
@@ -560,7 +675,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                 },
               },
             },
-            [pixelSvg(TAB_ICONS[id]!), h('span', { text: label })],
+            // Art's own picture for the tab when it has drawn one; the old glyph until then.
+            [tabIcon(id) ?? pixelSvg(TAB_ICONS[id]!), h('span', { text: label })],
           ),
         ),
       ),
@@ -592,7 +708,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     }
 
     const before = state;
-    state = advance(state, elapsed, content);
+    state = takeStockOf(advance(state, elapsed, content));
     let redraw = false;
     for (const skill of Object.values(content.skills)) {
       const level = skillLevel(state, skill.id);

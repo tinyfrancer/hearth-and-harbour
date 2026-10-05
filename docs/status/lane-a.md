@@ -1,8 +1,7 @@
 # Lane A: idle rules
 
-**Next session: S10: Shop, collection log, achievements** (brief in `docs/lanes.md`, wave 6).
-In progress: the grotto's eight loot items are in `src/data/items.ts` by their fixed ids (landed
-first, on their own, so lanes B and C can build against them); the rest of S10 follows.
+**Next: the Milestone A review with Cody** (`docs/lanes.md`, "The order of work"). Nothing of
+lane A's is waiting on another lane; the next building session is whatever the review decides.
 
 ## Done
 
@@ -283,35 +282,160 @@ first, on their own, so lanes B and C can build against them); the rest of S10 f
   - `settleRun` takes an optional `hp` (see below). `Trained` and `masteryXpPer` moved to
     `src/core/xp.ts` (re-exported where they were) so the two walks share them.
 
+- S10 Shop, collection log, achievements (PRs #30 and #31). The grotto's loot first, on its own
+  (#30), so lanes B and C could build against real items; then runs that count, the price pass,
+  the general store, the collection log, achievements, tab icons and the notice board's door.
+  - **The grotto's loot** (`src/data/items.ts`, ids fixed in `docs/lanes.md`):
+
+    | Item                | Worn                         | Attack | Strength | Armour | Needs      | Sells for |
+    | ------------------- | ---------------------------- | -----: | -------: | -----: | ---------- | --------: |
+    | Doubloon            |                              |        |          |        |            |       250 |
+    | Pirate cutlass      | main hand, melee             |     13 |       11 |        | Melee 18   |       600 |
+    | Boarding axe        | main hand, melee             |      9 |       14 |        | Melee 19   |       600 |
+    | Tricorn             | head                         |      2 |          |      6 | Defence 18 |       500 |
+    | Captain's coat      | body                         |      3 |          |     14 | Defence 20 |     1,200 |
+    | Spyglass            | off hand                     |      5 |          |        | Melee 18   |       700 |
+    | Brinebeard's anchor | main hand, both hands, melee |     15 |       21 |        | Melee 20   |     3,000 |
+    | Ship's figurehead   |                              |        |          |        |            |        50 |
+
+    The spyglass's attack carries no style: every bow takes both hands, so a "ranged" off hand
+    could never be held by an archer. As it is, it is a melee character's choice between a
+    shield's armour and a surer blow, and it would help a one-handed ranged weapon if one came.
+    Pinned in `tests/data/content.test.ts` (a clear step above iron; the anchor out-hits every
+    melee weapon; levels 18 to 20).
+
+  - **Runs that count** (`settleRun(state, spoils, content?)`, `src/core/run.ts`): `kills` go to
+    the bestiary and to a bounty held on that monster, up to its count, exactly as idle kills
+    do; an id the monster tables do not hold (the grotto's own cast, today) counts for nothing,
+    as does an odd amount, and nothing is rolled. `cleared` (a dungeon id in the new `dungeons`
+    table) adds a clear to `GameState.dungeons`, with the best time when `RunSpoils.timeMs` (new,
+    optional) says how long the run took. Without `content` (as lane C's own tests call it) kills
+    and clears count for nothing and everything else settles as before. The shell's `settleRun`
+    passes the tables, and toasts a bounty done by a run.
+  - **The price pass, by simulation** (`tests/data/economy.ts`, pinned in
+    `tests/data/pacing.test.ts`). Every price went up tenfold first, because a pine log at 1 coin
+    left no room for an arrow shaft (ten from a log) to be worth anything but more than the log;
+    old saves get their coins times ten in the migration, so a purse is worth what it was.
+    Monster and theft coins and bounty coins (now 100 a point) went up with them. Then:
+    - gathering: each tier pays more the further up a skill, and the four skills pay within 1.3
+      times of each other at any level (herring, cod, flax, sageleaf and glowcap came down;
+      oak, willow, tin and iron ore went up);
+    - made things: every recipe sells for more than its materials, and gathering and making the
+      whole chain pays 1.04 to 1.24 times selling what was gathered (rising with the recipe's
+      level), so selling raw goods is never foolish. A made thing's price is the gathered
+      value behind it times its time, times 1.05 + 1% a level, rounded; leather, from fighting,
+      is priced as if a hide were a four-second gather;
+    - Thieving: still 1.39 to 1.49 times gathering (the strongbox's purse came down a little);
+    - fighting for money (the best-paying fight open, melee, after the fish eaten) sits between
+      gathering and Thieving: 1.16 to 1.24 times gathering;
+    - the store's tools cost about twice what they sell back for, and its two dear things a few
+      hours' earnings.
+
+    What an hour earns, from levels 1, 10 and 20 (an hour from a level, playing for coins:
+    the best-paying thing open, looked at again each minute; artisan skills with materials on
+    hand, counted as what they add to their materials):
+
+    | An hour of                                       |             L1 |            L10 |               L20 |
+    | ------------------------------------------------ | -------------: | -------------: | ----------------: |
+    | Woodcutting                                      |         23,050 |         31,500 |            50,400 |
+    | Fishing                                          |         25,920 |         32,710 |            51,000 |
+    | Mining                                           |         24,940 |         33,000 |            48,000 |
+    | Foraging                                         |         28,530 |         38,685 |            54,000 |
+    | Cooking (over its materials)                     |         36,720 |         55,380 |            78,000 |
+    | Smithing (over its materials)                    |         44,955 |         59,400 |            84,000 |
+    | Crafting (over its materials)                    |         43,620 |         50,400 |            61,200 |
+    | Fletching (over its materials)                   |         42,450 |         51,000 |            81,000 |
+    | Alchemy (over its materials)                     |         60,958 |         69,864 |            79,560 |
+    | Thieving: coins (and loot sold)                  | 39,532 (6,237) | 56,760 (6,290) |   80,562 (22,368) |
+    | Fighting for money, melee, after fish            |  32,953 (rats) | 47,020 (gulls) | 67,024 (footpads) |
+    | Strongest monster, melee, after fish             |   32,953 (rat) |   2,625 (boar) |    56,305 (troll) |
+    | Strongest monster, ranged, after fish and arrows |         16,718 |        -33,271 |            14,771 |
+
+    Gross for the artisan skills (what the hour's goods sell for, materials and all) is about
+    two and a half to six times the figure above. Each monster at its own level, melee, after fish:
+    rat 32,953, crab 30,680, gull 30,811, boar -3,275, footpad 33,364, wolf -13,340, smuggler
+    51,777, troll 56,305; the two bounty-only monsters about 19,000 to 20,000 (plus points).
+
+  - **The general store** (`src/core/store.ts`, `src/data/store.ts`; the Bank tab's "The general
+    store" card). It buys anything at its worth (the bank's Sell, as before) and sells, for
+    coins: a bronze sword (500), a pine shortbow (200), bronze arrows ×50 (1,500), cooked shrimp
+    ×10 (600), shell vials ×5 (180); and, to save for, the cork-lined potion case (150,000, a
+    lasting perk: every potion drunk lasts half as long again, rounded down once) and a velvet
+    cap (75,000, one to a customer, head, armour 1, for the look). A perk is a `StoreEntry` with
+    a `perk` instead of an item, kept in `GameState.perks`. An extra food slot was not used: the
+    food slot already takes a whole stack of any size, so a second one would only let two kinds
+    of fish be carried, which is a change to the fight walk for very little.
+  - **The collection log** (`src/core/collection.ts`; Character tab, "Collection log"). Every item
+    ever held (bank, worn, food slot, the potion working), in `GameState.collection`, noted after
+    every change, live or away, by the app (never inside `advance`): things only ever arrive in
+    those places, and nothing made in a stretch of time is used up in the same stretch, so
+    looking after each change misses nothing however time is cut (a test cuts it). Listed by
+    source: Gathering, Artisan, each monster, each mark, the bounty shop, the grotto, and the
+    store for what it alone sells; an item from several places shows under each. Found things
+    show their icon (a dashed square while art has none) and name; the rest a "?". 73 things in
+    all. A page left open turns things over in place as they are found.
+  - **Achievements** (`src/core/achievements.ts`, `src/data/achievements.ts`; Character tab,
+    "Achievements"). An achievement is an id, a name, a line and a rule; rules are data, ten
+    kinds (`AchievementRule` in `src/core/content.ts`: a level, total level, mastery, things in
+    the log, number of things in the log, kills, gear worn at once, clears, coins held, thefts
+    or times caught, and running counts kept in `GameState.stats`: bounties handed in, the run of
+    them without a swap and its best, potions drunk, store purchases). 28 of them: eleven
+    firsts (log, fish, ore, find, cooked fish, bar, kill, theft, bounty, potion, purchase), four
+    of levels (any skill at 10, any at 20, every gathering skill at 20, total 100), two of
+    mastery (10, 20), a hundred
+    rats, a monster's rarest prize, two full sets worn (iron, leather), a bounty streak of five,
+    100,000 coins held, fifty things logged, the grotto cleared, and three hidden ones. Earned
+    for good the moment the state shows them; a note each (two at most at once, "and N more")
+    above the toasts, so neither hides the other; on return they are in the away report too.
+    The page lists them in order, earned in gold, hidden ones as "???" until earned.
+  - **Tab icons**: the tab bar shows `tabIcon(id)` from `src/art/icons.ts` when it gives one, and
+    the old glyph while it gives null.
+  - **The notice board's door**: `Shell.openBounties?()` opens the Skills tab's Bounties page. It
+    is optional on the interface so lane C's stand-in shells need not change.
+  - **Save version 8** (`collection`, `achievements`, `dungeons`, `stats`, `perks`; coins times
+    ten): the migration fills the log from what a version 7 save proves (bank, worn, food slot,
+    potion, every drop the bestiary and marks have seen); achievements come on first load like
+    any other change. `saveProblem` checks each (lists of ids none twice, clears above 0 with a
+    positive best time, known running counts with the streak no longer than the best).
+  - The bank card's "From" now names the dungeon and the shops too.
+
 ## Deferred
 
-- Nothing from the brief; it was all built, past the minimum line. Not built, by choice: Magic,
-  a food slot holding anything but cooked fish, uses for feathers and pearls, bounty kills in
-  dungeon runs (a run does not report kills by monster yet), and a way from the town's notice
-  board to the bounties page (see below).
+- Nothing from S10's brief; it was all built, past the minimum line. Not built, by choice: an
+  extra food slot (see the store), rewards for achievements (the house, S18), unlocks by a
+  clear (S16), uses for feathers and pearls, and arrows that can be picked up again (see the
+  notes).
 
 ## Needs from another lane
 
-- Nothing blocking. **For B6 (lane B), new ids with no picture yet:** skill `thieving` (a skill
-  icon; the Thieving page and list look tidy without one); items `poachers_longbow` (two-handed
-  bow, worn), `wyrmscale_shield` (shield, worn), `barbed_arrows` (ammo; icon only),
-  `hunters_charm` (neck, worn) and `feathered_hat` (head, worn; cosmetic, so it should look like
-  something); monsters `goblin_poacher` and `bramble_wyrm` (portraits; until then a framed
-  initial). Marks have no picture door; they read as text cards.
-- **For S14b/S15 (lane C):** a dungeon run should start the hero at
-  `playerCombat(state, content).hp` (a new field; every other field is unchanged), which is the
-  fight's hit points if an idle fight is paused under the run, otherwise the carried health. To
-  bring the damage home, pass `hp` in the spoils to `shell.settleRun` (0 for a knock-out: the
-  character comes round with a tenth, as from an idle knock-out); leaving it out changes nothing,
-  so a run that ignores it still works. If an idle fight is paused under the run, `hp` is
-  ignored and the fight keeps its own.
-- **For the town (lane C), when wanted:** the notice board could lead to the bounties page. That
-  needs a `Shell` call (say `openBounties()`), which lane A will add on request; it was left out
-  so as not to change the `Shell` type under lane C mid-wave.
+- Nothing blocking. **For lane B, ids with no picture yet** (all look tidy without one): the
+  eight grotto items (icons; worn layers for the six wearables), `velvet_cap` (icon and a worn
+  layer: head, a plum velvet cap with a gold pin, the store's cosmetic), and still from S9
+  anything B6 has not reached. The tab bar takes `tabIcon(id)` the moment it returns one.
+- **For lane C:** `shell.openBounties?.()` opens the notice board's page (optional on `Shell`,
+  so stand-ins need not change). `settleRun` now counts `kills` (monsters in the tables only;
+  the grotto's own cast count for nothing until they are in them) and `cleared` (use
+  `'brinebeards_grotto'`, the id in `src/data/dungeons.ts`), and keeps a best time if the
+  spoils carry `timeMs` (the run's length in milliseconds, new and optional). **Coins are ten
+  times what they were**: a doubloon sells for 250, and the test dungeon's monsters drop their
+  table coins (a rat 50 to 110). A cleared grotto run should come to something like ten to
+  fifteen minutes of good play, roughly 10,000 to 15,000 coins in doubloons and coins together;
+  the grotto's coin and doubloon numbers are yours.
 
 ## Notes for this lane's next session
 
-- Save is version 7. The next shape change is 8.
+- Save is version 8. The next shape change is 9.
+- **Prices are held by `tests/data/pacing.test.ts`**, through `tests/data/economy.ts`: a new
+  gathered thing is priced by the hour of its skill, a new made thing by the chain behind it
+  (the content tests also want it dearer than its materials), a new monster's coins by its hour
+  for money. The exact pins will move with any number; the bounds are the story.
+- Decisions from S10 Cody may want to reverse: prices tenfold; a spyglass that helps melee; the
+  animals (boar, wolf) carry no coins, so an hour at their own level costs more in fish than
+  their hides fetch (they are for XP and hides); **ranged costs about as much in arrows as it
+  earns** (a bow shoots 900 to 1,400 arrows an hour, each worth what an hour of making them is
+  worth), so archers earn about half what melee does, or less: arrows that can be picked up
+  again, or more arrows a bar, would be the fix and is a rule change; achievements on first load
+  of an old save arrive in a burst; the collection log names nothing not yet found.
 - Combat's skill ids are constants in core (`MELEE`, `RANGED`, `DEFENCE`, `VITALITY` in
   `src/core/combat.ts`); `tests/data/content.test.ts` checks the tables match.
 - A new monster needs a `bounty` row (a test says every monster is posted) and a fish pin in
@@ -342,6 +466,5 @@ percent: number }`, and `actionDuration` would fold the worn tool's percent in b
 - An artisan skill is paced as if its materials were on hand: about two hours to level 20. The
   pacing sim tops up whatever a skill's recipes use, so a new artisan skill only needs adding to
   the `it.each` list.
-- Item sale values are placeholders until the shop (S10).
 - Open with Cody, none blocking: the level curve, three-hour tiers, speed-only mastery, VT323
   digits beside Pixelify Sans letters, the potion numbers above, and the equipment numbers.

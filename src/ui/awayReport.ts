@@ -3,11 +3,15 @@ import type { Content } from '../core/content';
 import { button, h } from './dom';
 import { formatDuration, formatNumber } from './format';
 
-/** The away report: what the character got done while the game was shut. */
+/**
+ * The away report: what the character got done while the game was shut, and
+ * the achievements (by id) that time earned.
+ */
 export function awayReportOverlay(
   report: AwayReport,
   content: Content,
   dismiss: () => void,
+  earned: readonly string[] = [],
 ): HTMLElement {
   const action = report.actionId ? content.actions[report.actionId] : undefined;
   const skill = action && content.skills[action.skill];
@@ -138,6 +142,13 @@ export function awayReportOverlay(
         ...unlocked,
         ...mastery,
         potion && h('p', { class: 'potion-text', text: potion }),
+        ...earned.map((id) =>
+          h('p', {
+            class: 'award-name',
+            attrs: { 'data-away-award': id },
+            text: `Achievement: ${content.achievements?.[id]?.name ?? id}`,
+          }),
+        ),
         stopped && h('p', { class: 'problem', text: stopped }),
         button('Carry on', dismiss, 'primary'),
       ]),

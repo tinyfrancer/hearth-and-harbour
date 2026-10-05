@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFENCE, MELEE, RANGED, VITALITY } from '../../src/core/combat';
 import { SLOTS } from '../../src/core/content';
+import { meets } from '../../src/core/achievements';
+import { collectable, collectionSources } from '../../src/core/collection';
 import { equip } from '../../src/core/equipment';
 import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
@@ -392,6 +394,92 @@ describe('the content tables', () => {
     expect(equip(at(17), 'pirate_cutlass', CONTENT).ok).toBe(false);
     expect(equip(at(19), 'captains_coat', CONTENT).ok).toBe(false);
     expect(equip(at(20), 'captains_coat', CONTENT).ok).toBe(true);
+  });
+
+  it('lists the grotto as a dungeon whose loot is the grotto’s eight items', () => {
+    expect(Object.keys(CONTENT.dungeons!)).toEqual(['brinebeards_grotto']);
+    expect(CONTENT.dungeons!.brinebeards_grotto!.loot).toEqual(GROTTO_LOOT);
+  });
+
+  it('stocks the general store with real things, each dearer than it sells back for', () => {
+    const store = Object.values(CONTENT.store!);
+    for (const entry of store) {
+      expect(CONTENT.store![entry.id], entry.id).toBe(entry);
+      expect(Number.isInteger(entry.price) && entry.price > 0, entry.id).toBe(true);
+      if (entry.perk) {
+        expect(entry.perk.description.length, entry.id).toBeGreaterThan(10);
+        continue;
+      }
+      const item = CONTENT.items[entry.item];
+      expect(item, entry.id).toBeDefined();
+      expect(Number.isInteger(entry.qty) && entry.qty > 0, entry.id).toBe(true);
+      // Buying to sell straight back never pays, and making it yourself is cheaper.
+      expect(entry.price, entry.id).toBeGreaterThan(entry.qty * item!.value * 1.5);
+    }
+    // A way into every style of fighting, food, and the bottles Alchemy needs.
+    const sold = store.flatMap((entry) => (entry.item ? [entry.item] : []));
+    const worn = (style: string) =>
+      sold.some(
+        (id) =>
+          CONTENT.items[id]!.equip?.style === style &&
+          CONTENT.items[id]!.equip?.slot === 'main_hand',
+      );
+    expect(worn('melee') && worn('ranged')).toBe(true);
+    expect(sold.some((id) => CONTENT.items[id]!.equip?.slot === 'ammo')).toBe(true);
+    expect(sold.some((id) => CONTENT.items[id]!.heals)).toBe(true);
+    expect(sold).toContain('shell_vial');
+    // And something dear to save for: a lasting thing and something to wear for the look.
+    expect(store.some((entry) => entry.perk?.potionCharges)).toBe(true);
+    expect(store.some((entry) => entry.once && entry.price >= 50_000)).toBe(true);
+  });
+
+  it('lists every item in the collection log under where it comes from', () => {
+    const listed = new Set(collectable(CONTENT));
+    for (const id of Object.keys(CONTENT.items)) {
+      expect(listed.has(id), `${id} comes from nowhere the log knows`).toBe(true);
+    }
+    const sources = collectionSources(CONTENT);
+    expect(sources[0]).toMatchObject({ id: 'skills:Gathering' });
+    expect(sources.map((source) => source.id)).toContain('dungeon:brinebeards_grotto');
+    expect(sources.map((source) => source.id)).toContain('bounty_shop');
+  });
+
+  it('has about twenty-five achievements over real things, with names and lines', () => {
+    const all = Object.values(CONTENT.achievements!);
+    expect(all.length).toBeGreaterThanOrEqual(22);
+    expect(all.length).toBeLessThanOrEqual(30);
+    expect(all.some((def) => def.hidden)).toBe(true);
+    const names = new Set<string>();
+    for (const def of all) {
+      expect(CONTENT.achievements![def.id], def.id).toBe(def);
+      expect(def.name.length, def.id).toBeGreaterThan(2);
+      expect(def.text.length, def.id).toBeGreaterThan(8);
+      expect(names.has(def.name), `${def.name} twice`).toBe(false);
+      names.add(def.name);
+      const rule = def.rule;
+      if (rule.kind === 'found' || rule.kind === 'worn') {
+        for (const item of rule.items)
+          expect(CONTENT.items[item], `${def.id}: ${item}`).toBeDefined();
+      }
+      if (rule.kind === 'level') {
+        if (rule.skill) expect(CONTENT.skills[rule.skill], def.id).toBeDefined();
+        if (rule.group) {
+          expect(
+            Object.values(CONTENT.skills).some((skill) => skill.group === rule.group),
+            def.id,
+          ).toBe(true);
+        }
+      }
+      if (rule.kind === 'kills' && rule.monster) {
+        expect(CONTENT.monsters![rule.monster], def.id).toBeDefined();
+      }
+      if (rule.kind === 'cleared') expect(CONTENT.dungeons![rule.dungeon], def.id).toBeDefined();
+      if (rule.kind === 'collected') {
+        expect(rule.count, def.id).toBeLessThanOrEqual(collectable(CONTENT).length);
+      }
+      // Nobody has one at the start.
+      expect(meets(newGame('Cody', 0), rule, CONTENT), def.id).toBe(false);
+    }
   });
 
   it('feeds Crafting with hides, and gives leather a small set of armour', () => {

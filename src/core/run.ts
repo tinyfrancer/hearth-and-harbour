@@ -1,5 +1,6 @@
 import { comeRound, hurt, maxHp } from './combat';
-import type { GameState } from './state';
+import type { Content } from './content';
+import type { GameState, MonsterRecord } from './state';
 
 /**
  * What a dungeon run came to. A run is played by hand in a scene, with its
@@ -23,15 +24,19 @@ export interface RunSpoils {
    */
   hp?: number;
   /**
-   * Kills in the run, by monster id. Not counted yet: S10 makes them count
-   * towards the bestiary and a held bounty.
+   * Kills in the run, by monster id. They count towards the bestiary and a
+   * bounty held, as idle kills do. An id the monster tables do not hold (a
+   * dungeon's own cast, until it is in them) counts for nothing.
    */
   kills?: Readonly<Record<string, number>>;
   /**
    * The dungeon's id, if the run cleared it (reached the end with the boss
-   * down). Not recorded yet: S10 keeps the clears, and S16 unlocks by them.
+   * down). Kept in the save as a clear (S16 unlocks by them). An id the
+   * dungeon tables do not hold counts for nothing.
    */
   cleared?: string;
+  /** How long the run took, in milliseconds: the dungeon's best time, if it was cleared. */
+  timeMs?: number;
 }
 
 const whole = (value: number | undefined): number =>
@@ -48,7 +53,12 @@ const whole = (value: number | undefined): number =>
  * (A run happens with the idle clock paused, so no idle fight is under way to
  * own the hit points; if one somehow is, its hit points stand.)
  */
-export function settleRun(state: GameState, spoils: RunSpoils): GameState {
+/**
+ * Kills and a clear count only against the tables in `content`: without them
+ * (as a scene's own test may call it) they count for nothing, and everything
+ * else settles the same.
+ */
+export function settleRun(state: GameState, spoils: RunSpoils, content?: Content): GameState {
   const skills = { ...state.skills };
   for (const [skill, amount] of Object.entries(spoils.xp ?? {})) {
     const gained = whole(amount);
@@ -76,7 +86,7 @@ export function settleRun(state: GameState, spoils: RunSpoils): GameState {
     else delete equipment.ammo;
   }
 
-  const settled = {
+  const settled: GameState = {
     ...state,
     skills,
     bank,
@@ -84,6 +94,37 @@ export function settleRun(state: GameState, spoils: RunSpoils): GameState {
     food,
     equipment,
   };
+  let bestiary = state.bestiary;
+  let bounty = state.bounty;
+  for (const [monster, amount] of Object.entries(spoils.kills ?? {})) {
+    const killed = whole(amount);
+    // Own rows only: an id like `constructor` is no monster.
+    if (killed === 0 || !content?.monsters || !Object.hasOwn(content.monsters, monster)) continue;
+    const known: MonsterRecord = bestiary[monster] ?? { kills: 0, seen: [] };
+    bestiary = { ...bestiary, [monster]: { ...known, kills: known.kills + killed } };
+    // As in an idle fight: kills count while the bounty is held, up to what it asks.
+    if (bounty?.monster === monster && bounty.done < bounty.count) {
+      bounty = { ...bounty, done: Math.min(bounty.count, bounty.done + killed) };
+    }
+  }
+  if (bestiary !== state.bestiary) settled.bestiary = bestiary;
+  if (bounty !== state.bounty) settled.bounty = bounty;
+
+  const cleared = spoils.cleared;
+  if (
+    typeof cleared === 'string' &&
+    content?.dungeons &&
+    Object.hasOwn(content.dungeons, cleared)
+  ) {
+    const record = state.dungeons[cleared] ?? { clears: 0 };
+    const time = whole(spoils.timeMs);
+    const best = time > 0 ? Math.min(record.bestMs ?? time, time) : record.bestMs;
+    settled.dungeons = {
+      ...state.dungeons,
+      [cleared]: { clears: record.clears + 1, ...(best !== undefined ? { bestMs: best } : {}) },
+    };
+  }
+
   // Read after the XP is in: a Vitality level from the run raises the most there can be.
   if (typeof spoils.hp === 'number' && Number.isFinite(spoils.hp) && !state.fight) {
     const most = maxHp(settled);

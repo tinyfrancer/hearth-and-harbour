@@ -3,8 +3,19 @@ import { advance, startAction } from '../../src/core/actions';
 import type { ActionDef } from '../../src/core/content';
 import { markChance } from '../../src/core/thieving';
 import { newGame, skillLevel, type GameState } from '../../src/core/state';
-import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
+import {
+  GATHERING,
+  bestFightHour,
+  bestGatheringHour,
+  chainOf,
+  chainPremium,
+  fightHour,
+  skillHour,
+  thievingHour,
+  usedWorth,
+  madeWorth,
+} from './economy';
 import { hoursToLevel as hoursOfFighting } from './fighting';
 
 const HOUR = 60 * 60 * 1000;
@@ -159,15 +170,6 @@ describe('pacing of Thieving', () => {
     }
     return state;
   };
-  const at = (skill: string, level: number): GameState => ({
-    ...newGame('Sim', 0),
-    skills: level > 1 ? { [skill]: xpForLevel(level) } : {},
-  });
-  const sold = (state: GameState): number =>
-    Object.entries(state.bank).reduce(
-      (sum, [item, qty]) => sum + qty * CONTENT.items[item]!.value,
-      0,
-    );
 
   it('takes Thieving through tier 1 in about three hours', () => {
     let state = newGame('Sim', 0);
@@ -181,36 +183,138 @@ describe('pacing of Thieving', () => {
     expect(hours).toBeLessThan(3.5);
   });
 
-  /** An hour of the gathering skill whose goods sell best, from a level, all of it sold. */
-  const gatheringHour = (level: number): number =>
-    Math.max(
-      ...['woodcutting', 'fishing', 'mining', 'foraging'].map((skill) => {
-        const actions = Object.values(CONTENT.actions).filter((action) => action.skill === skill);
-        const pays = (action: ActionDef): number =>
-          CONTENT.items[action.gives[0]!.item]!.value / action.durationMs;
-        const best = (state: GameState): string =>
-          actions
-            .filter((action) => action.level <= skillLevel(state, skill))
-            .sort((a, b) => pays(b) - pays(a))[0]!.id;
-        return sold(minutes(at(skill, level), 60, best));
-      }),
-    );
-
   it.each([
     // Coins in the hour, and what the loot that came with them would sell for.
-    [1, 3959, 605],
-    [10, 5671, 578],
-    [20, 9736, 2322],
+    [1, 39532, 6237],
+    [10, 56760, 6290],
+    [20, 80562, 22368],
   ])(
     'pays a fixed purse in an hour from level %i: %i coins, and loot worth %i',
     (level, coins, loot) => {
-      const hour = minutes(at('thieving', level), 60, (now) => bestMark(now, 'coins'));
-      expect(hour.coins).toBe(coins);
-      expect(sold(hour)).toBe(loot);
+      expect(thievingHour(level)).toEqual({ coins, loot });
       // Better than an hour's gathering sold, but not by a mile.
-      const gathered = gatheringHour(level);
+      const gathered = bestGatheringHour(level);
       expect(coins / gathered).toBeGreaterThan(1.2);
       expect(coins / gathered).toBeLessThan(1.6);
     },
   );
+});
+
+// What things sell for (src/data/items.ts) is set by what an hour of the
+// skill that makes them should earn, and held here. Each case is an hour from
+// a level, played for coins: the best-paying thing open, looked at again each
+// minute (tests/data/economy.ts). The story the numbers tell:
+// - gathering pays more the further up a skill you are, and the four
+//   gathering skills pay about the same as each other;
+// - a made thing sells for more than what went into it, so an hour of an
+//   artisan skill with the materials on hand earns something of its own; but
+//   gathering and making the whole chain pays only a little better than
+//   selling what was gathered, so selling the raw goods is never foolish;
+// - Thieving pays somewhat better than gathering (above);
+// - fighting, for money, sits between the two, after the fish it eats.
+describe('what an hour earns', () => {
+  it.each([
+    // Coins an hour of each gathering skill brings in, sold, from levels 1, 10 and 20.
+    ['woodcutting', [23050, 31500, 50400]],
+    ['fishing', [25920, 32710, 51000]],
+    ['mining', [24940, 33000, 48000]],
+    ['foraging', [28530, 38685, 54000]],
+  ] as const)('pins %s at a fixed purse from levels 1, 10 and 20', (skill, purses) => {
+    const hours = [1, 10, 20].map((level) => skillHour(skill, level).gross);
+    expect(hours).toEqual(purses);
+    expect(hours[1]!).toBeGreaterThan(hours[0]!);
+    expect(hours[2]!).toBeGreaterThan(hours[1]! * 1.3);
+  });
+
+  it('pays the four gathering skills about the same at the same level', () => {
+    for (const level of [1, 10, 20]) {
+      const hours = GATHERING.map((skill) => skillHour(skill, level).gross);
+      expect(Math.max(...hours) / Math.min(...hours), `level ${level}`).toBeLessThan(1.3);
+    }
+  });
+
+  it.each([
+    // What an hour of each artisan skill adds to its materials, from levels 1, 10 and 20.
+    ['cooking', [36720, 55380, 78000]],
+    ['smithing', [44955, 59400, 84000]],
+    ['crafting', [43620, 50400, 61200]],
+    ['fletching', [42450, 51000, 81000]],
+    ['alchemy', [60958, 69864, 79560]],
+  ] as const)('pins what an hour of %s earns over its materials', (skill, earned) => {
+    const hours = [1, 10, 20].map((level) => skillHour(skill, level));
+    expect(hours.map((hour) => hour.earned)).toEqual(earned);
+    expect(earned[1]).toBeGreaterThan(earned[0]);
+    expect(earned[2]).toBeGreaterThan(earned[1]);
+    // Something of its own, but not so much that gathering is the poor relation.
+    for (const [index, level] of [1, 10, 20].entries()) {
+      const ratio = earned[index]! / bestGatheringHour(level);
+      expect(ratio, `level ${level}`).toBeGreaterThan(1);
+      expect(ratio, `level ${level}`).toBeLessThan(2.2);
+    }
+  });
+
+  it('sells every made thing for more than what went into it', () => {
+    for (const action of Object.values(CONTENT.actions)) {
+      if (!action.uses) continue;
+      expect(madeWorth(action), action.id).toBeGreaterThan(usedWorth(action));
+    }
+  });
+
+  it('pays a whole chain from gathering a little better than selling what was gathered', () => {
+    const made = [
+      ...new Set(
+        Object.values(CONTENT.actions)
+          .filter((action) => action.uses)
+          .map((action) => action.gives[0]!.item),
+      ),
+    ];
+    let chains = 0;
+    for (const item of made) {
+      const premium = chainPremium(item);
+      // Leather and its goods come from fighting, not gathering.
+      if (premium === null) {
+        expect(chainOf(item), item).toBeNull();
+        continue;
+      }
+      chains += 1;
+      expect(premium, item).toBeGreaterThan(1);
+      expect(premium, item).toBeLessThan(1.25);
+    }
+    expect(chains).toBeGreaterThan(30);
+  });
+
+  it.each([
+    // The best-paying fight for money at a level, with melee, after the fish eaten.
+    [1, 'dock_rat', 32953],
+    [10, 'thieving_gull', 47020],
+    [20, 'footpad', 67024],
+  ] as const)(
+    'pays a fight for money at level %i (%s) between gathering and thieving: %i',
+    (level, monster, earned) => {
+      const best = bestFightHour(level);
+      expect([best.monster, best.earned]).toEqual([monster, earned]);
+      expect(earned / bestGatheringHour(level)).toBeGreaterThan(1);
+      expect(earned).toBeLessThan(thievingHour(level).coins);
+    },
+  );
+
+  it('prices the store’s dear things at a few hours’ earnings, mid-tier', () => {
+    const hour = bestGatheringHour(10);
+    const dear = Object.values(CONTENT.store!).filter((entry) => entry.price > hour);
+    expect(dear.map((entry) => entry.id)).toEqual(['potion_case', 'velvet_cap']);
+    for (const entry of dear) {
+      expect(entry.price / hour, entry.id).toBeGreaterThan(1.5);
+      expect(entry.price / hour, entry.id).toBeLessThan(5);
+    }
+  });
+
+  it('makes the strongest monster at a level pay its way, unless it is an animal', () => {
+    // Animals carry no purse: a boar or a wolf is fought for XP and hides.
+    for (const level of [1, 20]) {
+      const hour = fightHour(level);
+      expect(hour.earned / bestGatheringHour(level), hour.monster).toBeGreaterThan(1);
+    }
+    expect(fightHour(10).monster).toBe('bramble_boar');
+    expect(fightHour(10).coins).toBe(0);
+  });
 });

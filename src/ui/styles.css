@@ -948,3 +948,122 @@ button.card:active {
   border-color: var(--line);
   opacity: 0.6;
 }
+
+/* Achievements: a note when one is earned, above the toasts, and the page of them. */
+/* A line of no height under the screen: notes stack upwards from it, the
+   newest on top, clear of where toasts appear. */
+.awards {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column-reverse;
+  height: 0;
+  padding: 0 16px;
+  /* Clear of a toast two lines high. */
+  transform: translateY(-104px);
+  pointer-events: none;
+}
+
+.award {
+  flex: none;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: var(--px) solid var(--gold-bright);
+  text-align: center;
+}
+
+/* Stacked notes share a border, so nothing behind shows between them. */
+.award + .award {
+  margin-bottom: calc(-1 * var(--px));
+}
+
+.award-name {
+  color: var(--gold-bright);
+  font-weight: 700;
+}
+
+.achievements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.achievement {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--line);
+}
+
+.achievement > .stack {
+  flex: 1;
+}
+
+.achievement h2 {
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+.achievement.earned {
+  border-color: var(--gold);
+}
+
+.achievement.earned h2,
+.achievement.earned .mark {
+  color: var(--gold-bright);
+}
+
+.achievement .mark {
+  width: 18px;
+  text-align: center;
+  color: var(--line);
+}
+
+/* The collection log: a chip for each thing, named once found, a "?" until then. */
+.log-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.log-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 10px 4px 6px;
+  border: var(--px) solid var(--line);
+  background: var(--panel);
+  font-size: 15px;
+}
+
+.log-item.found {
+  border-color: var(--gold);
+}
+
+.log-item .unknown {
+  min-width: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Where an icon will go once art has drawn the thing. */
+.log-blank {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: var(--px) dashed var(--line);
+}
+
+/* The general store: the dear things stand out a little. */
+.panel.dear {
+  border-color: var(--gold-bright);
+}

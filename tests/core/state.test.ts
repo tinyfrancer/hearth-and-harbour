@@ -39,6 +39,11 @@ describe('newGame', () => {
       bounty: null,
       bountyPoints: 0,
       health: null,
+      collection: [],
+      achievements: [],
+      dungeons: {},
+      stats: {},
+      perks: [],
     });
   });
 

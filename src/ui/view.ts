@@ -39,9 +39,16 @@ export interface Shell {
   fullScreen(on: boolean): void;
   /**
    * Bring a dungeon run's spoils home: XP, loot and coins in, food eaten and
-   * arrows shot out (`settleRun` in `src/core/run.ts`), saved at once. Call
+   * arrows shot out, kills to the bestiary and a bounty held, a clear and its
+   * time kept (`settleRun` in `src/core/run.ts`), saved at once. Call
    * it exactly once when a run ends, however it ends. This is the only way a
    * scene changes the save.
    */
   settleRun(spoils: RunSpoils): void;
+  /**
+   * Open the notice board's page: the bounty held, or one to take, and the
+   * bounty shop (the Skills tab's Bounties page). Optional so that a scene's
+   * own stand-in shells need not have it; call it as `shell.openBounties?.()`.
+   */
+  openBounties?(): void;
 }

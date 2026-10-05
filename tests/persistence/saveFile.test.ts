@@ -45,10 +45,16 @@ const unfought = {
   rng: seedFrom(state.createdAt),
   bestiary: {},
 };
+/** A purse from before version 8, when every price went up tenfold. */
+const tenfold = { coins: 770 };
+/** What version 8 adds to a save from before it, but for the log of what it proves was held. */
+const V8_FIELDS = ['collection', 'achievements', 'dungeons', 'stats', 'perks'];
 /** A save as a version before 6 wrote it. */
 const before6 = (version: number): Record<string, unknown> => {
   const old: Record<string, unknown> = { ...state, version };
-  for (const field of ['fight', 'food', 'eatAt', 'rng', 'bestiary']) delete old[field];
+  for (const field of ['fight', 'food', 'eatAt', 'rng', 'bestiary', ...V8_FIELDS]) {
+    delete old[field];
+  }
   return old;
 };
 
@@ -89,7 +95,15 @@ describe('save export and import', () => {
     delete v3.equipment;
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v3 }))).toEqual({
       ok: true,
-      state: { ...state, potion: null, look: {}, equipment: {}, ...unfought },
+      state: {
+        ...state,
+        potion: null,
+        look: {},
+        equipment: {},
+        ...unfought,
+        ...tenfold,
+        collection: ['pine_logs'],
+      },
     });
   });
 
@@ -99,24 +113,85 @@ describe('save export and import', () => {
     delete v4.equipment;
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v4 }))).toEqual({
       ok: true,
-      state: { ...state, look: {}, equipment: {}, ...unfought },
+      state: {
+        ...state,
+        look: {},
+        equipment: {},
+        ...unfought,
+        ...tenfold,
+        collection: ['pine_logs', 'sage_tonic'],
+      },
     });
   });
 
   it('loads a version 5 save, from before combat, still wearing its gear', () => {
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: before6(5) }))).toEqual({
       ok: true,
-      state: { ...state, ...unfought },
+      state: {
+        ...state,
+        ...unfought,
+        ...tenfold,
+        collection: ['pine_logs', 'pine_shortbow', 'bronze_arrows', 'sage_tonic'],
+      },
     });
   });
 
   it('loads a version 6 save, from before thieving, unrobbed, with no bounty and at full health', () => {
     const v6: Record<string, unknown> = { ...fighting, version: 6 };
-    for (const field of ['marks', 'bounty', 'bountyPoints', 'health']) delete v6[field];
+    for (const field of ['marks', 'bounty', 'bountyPoints', 'health', ...V8_FIELDS]) {
+      delete v6[field];
+    }
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v6 }))).toEqual({
       ok: true,
-      state: { ...fighting, marks: {}, bounty: null, bountyPoints: 0, health: null },
+      state: {
+        ...fighting,
+        marks: {},
+        bounty: null,
+        bountyPoints: 0,
+        health: null,
+        ...tenfold,
+        collection: [
+          'pine_logs',
+          'pine_shortbow',
+          'bronze_arrows',
+          'cooked_herring',
+          'sage_tonic',
+          'rat_hide',
+        ],
+      },
     });
+  });
+
+  it('loads a version 7 save, from before the log, with what it proves was held found', () => {
+    const v7: Record<string, unknown> = { ...state, version: 7 };
+    for (const field of V8_FIELDS) delete v7[field];
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v7 }))).toEqual({
+      ok: true,
+      state: {
+        ...state,
+        ...tenfold,
+        collection: [
+          'pine_logs',
+          'pine_shortbow',
+          'bronze_arrows',
+          'cooked_herring',
+          'sage_tonic',
+          'rat_hide',
+        ],
+      },
+    });
+  });
+
+  it('round-trips a log, achievements, clears, counts and perks', () => {
+    const seasoned: GameState = {
+      ...state,
+      collection: ['pine_logs', 'doubloon'],
+      achievements: ['first_log'],
+      dungeons: { brinebeards_grotto: { clears: 2, bestMs: 412_000 }, test_cave: { clears: 1 } },
+      stats: { bounties: 4, streak: 2, bestStreak: 3, potions: 1, bought: 7 },
+      perks: ['potion_case'],
+    };
+    expect(readSave(writeSaveExport('code', seasoned).text)).toEqual({ ok: true, state: seasoned });
   });
 
   it('round-trips a stunned thief, hurt, holding a bounty and points', () => {
@@ -217,6 +292,23 @@ describe('save export and import', () => {
       { ...state, health: { hp: 5.5, regenMs: 0 } },
       // Hurt out of a fight while in one.
       { ...fighting, health: { hp: 5, regenMs: 0 } },
+      { ...state, collection: undefined },
+      { ...state, collection: 'pine_logs' },
+      { ...state, collection: ['pine_logs', 'pine_logs'] },
+      { ...state, collection: [3] },
+      { ...state, achievements: undefined },
+      { ...state, achievements: ['first_log', 'first_log'] },
+      { ...state, dungeons: undefined },
+      { ...state, dungeons: { brinebeards_grotto: 2 } },
+      { ...state, dungeons: { brinebeards_grotto: { clears: 0 } } },
+      { ...state, dungeons: { brinebeards_grotto: { clears: 1, bestMs: 0 } } },
+      { ...state, dungeons: { brinebeards_grotto: { clears: 1.5 } } },
+      { ...state, stats: undefined },
+      { ...state, stats: { bounties: -1 } },
+      { ...state, stats: { luck: 3 } },
+      { ...state, stats: { streak: 4, bestStreak: 3 } },
+      { ...state, perks: undefined },
+      { ...state, perks: [null] },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,
