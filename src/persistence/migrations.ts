@@ -11,6 +11,8 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   1: (state) => ({ ...state, skills: {}, bank: {}, action: null }),
   // Coins and mastery (S4): nobody made before them has sold or mastered anything.
   2: (state) => ({ ...state, coins: 0, mastery: {} }),
+  // Potions (S6): nobody made before them has drunk one.
+  3: (state) => ({ ...state, potion: null }),
 };
 
 /**

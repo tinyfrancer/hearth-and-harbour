@@ -18,6 +18,35 @@ export interface ItemDef {
   description: string;
   /** Coins for selling one. */
   value: number;
+  /** What drinking one does, for an item that is a potion. */
+  potion?: PotionDef;
+}
+
+/**
+ * What a potion does to each completion it lasts for. Every kind is a whole
+ * number per completion, so there is never a fraction left over for time cut
+ * up differently to round another way.
+ */
+export type PotionEffect =
+  /** This much more skill XP per completion, in percent, rounded once per completion. */
+  | { kind: 'xp'; percent: number }
+  /** Completions this much quicker, in percent, rounded to whole milliseconds. */
+  | { kind: 'speed'; percent: number }
+  /** A completion's items over again on the completion that uses every Nth charge. */
+  | { kind: 'extra'; every: number };
+
+/**
+ * A potion lasts a number of completions, not a length of time: drinking one
+ * gives `charges`, each completion of an action it helps uses one, and it ends
+ * on the completion that uses the last. Counted that way it changes only on a
+ * completion, as `advance` needs, so an hour away spends exactly what an hour
+ * of play would.
+ */
+export interface PotionDef {
+  charges: number;
+  /** The skills whose actions it helps, by skill id. */
+  skills: readonly string[];
+  effect: PotionEffect;
 }
 
 /** One repeatable thing to do: the row format every idle skill is written in. */

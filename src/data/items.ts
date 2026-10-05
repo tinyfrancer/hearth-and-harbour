@@ -1,4 +1,5 @@
 import type { ItemDef } from '../core/content';
+import { skillsIn } from './skills';
 
 // In the order the bank lists them: what is gathered, then what is made from it.
 export const ITEMS = {
@@ -169,5 +170,134 @@ export const ITEMS = {
     name: 'Iron breastplate',
     description: 'Takes two people to buckle on and a third to say it suits you.',
     value: 65,
+  },
+  bronze_arrowheads: {
+    id: 'bronze_arrowheads',
+    name: 'Bronze arrowheads',
+    description: 'Small, sharp and pointed in every sense. Each one is waiting for a shaft.',
+    value: 1,
+  },
+  iron_arrowheads: {
+    id: 'iron_arrowheads',
+    name: 'Iron arrowheads',
+    description: 'Heavier points that mean it. They rattle in a pouch like loose teeth.',
+    value: 2,
+  },
+  shell_vial: {
+    id: 'shell_vial',
+    name: 'Shell vial',
+    description: 'A long whelk shell, scrubbed out and stoppered. Holds a mouthful, most of it.',
+    value: 1,
+  },
+  bowstring: {
+    id: 'bowstring',
+    name: 'Bowstring',
+    description: 'Flax, twisted until it gave up and agreed to be strong.',
+    value: 4,
+  },
+  linen: {
+    id: 'linen',
+    name: 'Linen',
+    description: 'A length of pale cloth. Creases if you so much as look at it.',
+    value: 7,
+  },
+  shell_necklace: {
+    id: 'shell_necklace',
+    name: 'Shell necklace',
+    description: 'Seashells on a string. Clacks pleasantly when you walk and alarmingly when you run.',
+    value: 12,
+  },
+  shell_bracelet: {
+    id: 'shell_bracelet',
+    name: 'Shell bracelet',
+    description: 'Small pink shells, carefully matched. The gulls look at it with open envy.',
+    value: 18,
+  },
+  linen_hood: {
+    id: 'linen_hood',
+    name: 'Linen hood',
+    description: 'Keeps off the rain or the sun, though rarely both on the same day.',
+    value: 15,
+  },
+  linen_trousers: {
+    id: 'linen_trousers',
+    name: 'Linen trousers',
+    description: 'Light, loose and breezy. Very breezy, in a high wind.',
+    value: 22,
+  },
+  linen_tunic: {
+    id: 'linen_tunic',
+    name: 'Linen tunic',
+    description: 'Plain, cool and neatly stitched. It has never stopped a blade and does not pretend to.',
+    value: 30,
+  },
+  arrow_shafts: {
+    id: 'arrow_shafts',
+    name: 'Arrow shafts',
+    description: 'Straight sticks with ambitions.',
+    value: 1,
+  },
+  bronze_arrows: {
+    id: 'bronze_arrows',
+    name: 'Bronze arrows',
+    description: 'They fly true, mostly. Count them before and after.',
+    value: 2,
+  },
+  iron_arrows: {
+    id: 'iron_arrows',
+    name: 'Iron arrows',
+    description: 'Heavy-headed and businesslike. They land like the last word in an argument.',
+    value: 3,
+  },
+  pine_shortbow: {
+    id: 'pine_shortbow',
+    name: 'Pine shortbow',
+    description: 'Light, cheap and a little bendy in the wrong places. A start.',
+    value: 10,
+  },
+  oak_shortbow: {
+    id: 'oak_shortbow',
+    name: 'Oak shortbow',
+    description: 'Stiff to draw and steady to shoot. Your arm will have opinions.',
+    value: 20,
+  },
+  willow_shortbow: {
+    id: 'willow_shortbow',
+    name: 'Willow shortbow',
+    description: 'Supple, quick and quiet. It hums a little when you let go.',
+    value: 35,
+  },
+  // Potions: what each does is in its `potion`, and the screens describe it from there.
+  sage_tonic: {
+    id: 'sage_tonic',
+    name: 'Sage tonic',
+    description: 'Bitter, green and gone in one gulp. Your hands hurry, mostly to find a drink.',
+    value: 8,
+    potion: { charges: 150, skills: skillsIn('Gathering'), effect: { kind: 'speed', percent: 10 } },
+  },
+  steady_draught: {
+    id: 'steady_draught',
+    name: 'Steady-hand draught',
+    description: 'A calm, grassy brew. Nothing shakes, nothing spills, and the lesson sticks.',
+    value: 14,
+    potion: { charges: 150, skills: skillsIn('Artisan'), effect: { kind: 'xp', percent: 10 } },
+  },
+  glowcap_tincture: {
+    id: 'glowcap_tincture',
+    name: 'Glowcap tincture',
+    description: 'Faintly luminous. Everything you pick seems to have a friend hiding behind it.',
+    value: 18,
+    potion: { charges: 150, skills: skillsIn('Gathering'), effect: { kind: 'extra', every: 5 } },
+  },
+  midnight_oil: {
+    id: 'midnight_oil',
+    name: 'Midnight oil',
+    description: 'Smells of lamp smoke and late nights. Everything sinks in a little deeper.',
+    value: 25,
+    potion: {
+      charges: 200,
+      skills: skillsIn('Gathering', 'Artisan'),
+      effect: { kind: 'xp', percent: 15 },
+    },
   },
 } satisfies Record<string, ItemDef>;

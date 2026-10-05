@@ -9,6 +9,7 @@ const state: GameState = {
   coins: 77,
   mastery: { chop_pine: 480 },
   action: { id: 'chop_pine', progressMs: 1500.5 },
+  potion: { item: 'sage_tonic', charges: 87 },
 };
 
 describe('save export and import', () => {
@@ -39,6 +40,14 @@ describe('save export and import', () => {
     });
   });
 
+  it('loads a version 3 save, from before potions, with none drunk', () => {
+    const { potion: _, ...v3 } = { ...state, version: 3 };
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v3 }))).toEqual({
+      ok: true,
+      state: { ...state, potion: null },
+    });
+  });
+
   it('says so when the text is not a save', () => {
     for (const text of ['', 'hello', '{"game":"other","save":{}}', '[]']) {
       expect(readSave(text)).toEqual({ ok: false, reason: "That isn't a Hearth & Harbour save." });
@@ -63,6 +72,12 @@ describe('save export and import', () => {
       { ...state, coins: 1.5 },
       { ...state, coins: -1 },
       { ...state, mastery: { chop_pine: 'lots' } },
+      { ...state, potion: 'sage_tonic' },
+      { ...state, potion: { item: 'sage_tonic' } },
+      { ...state, potion: { item: 'sage_tonic', charges: 0 } },
+      { ...state, potion: { item: 'sage_tonic', charges: 2.5 } },
+      { ...state, potion: { item: 7, charges: 10 } },
+      { ...state, potion: undefined },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,

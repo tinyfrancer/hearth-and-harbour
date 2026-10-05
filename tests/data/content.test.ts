@@ -40,6 +40,33 @@ describe('the content tables', () => {
     }
   });
 
+  it('has potions that help real skills, in whole numbers, and that something brews', () => {
+    const potions = Object.values(CONTENT.items).filter((item) => item.potion);
+    expect(potions.length).toBeGreaterThanOrEqual(3);
+    for (const item of potions) {
+      const { charges, skills, effect } = item.potion!;
+      expect(Number.isInteger(charges) && charges > 0, item.id).toBe(true);
+      expect(skills.length, item.id).toBeGreaterThan(0);
+      for (const skill of skills) expect(CONTENT.skills[skill], `${item.id} helps ${skill}`).toBeDefined();
+      const amount = effect.kind === 'extra' ? effect.every : effect.percent;
+      expect(Number.isInteger(amount) && amount > 0, item.id).toBe(true);
+      if (effect.kind === 'speed') expect(effect.percent).toBeLessThan(100);
+      // An extra item from a recipe would be something made from nothing.
+      if (effect.kind === 'extra') {
+        for (const skill of skills) {
+          const recipes = Object.values(CONTENT.actions).filter(
+            (action) => action.skill === skill && action.uses?.length,
+          );
+          expect(recipes, `${item.id} doubles ${skill}'s recipes`).toEqual([]);
+        }
+      }
+      const brewedBy = Object.values(CONTENT.actions).filter((action) =>
+        action.gives.some((entry) => entry.item === item.id),
+      );
+      expect(brewedBy.length, `nothing makes ${item.id}`).toBeGreaterThan(0);
+    }
+  });
+
   it('gives every skill something to do at level 1', () => {
     for (const skill of Object.values(CONTENT.skills)) {
       const first = Object.values(CONTENT.actions).filter(

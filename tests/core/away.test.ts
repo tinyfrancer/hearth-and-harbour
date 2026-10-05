@@ -47,6 +47,7 @@ describe('catchUp', () => {
       levels: { woodcutting: { from: 1, to: 14 } },
       mastery: { chop_pine: { from: 1, to: 22 } },
       stopped: null,
+      potion: null,
     });
     expect(state.bank).toEqual({ pine_logs: 2474 });
     expect(state.action?.id).toBe('chop_pine');
@@ -87,6 +88,39 @@ describe('catchUp', () => {
       items: { raw: -30, cooked: 30 },
       xp: { cooking: 150 },
       stopped: { reason: 'ran_out', item: 'raw' },
+    });
+  });
+
+  describe('with a potion', () => {
+    const tonic = { ...chopping, potion: { item: 'sage_tonic', charges: 150 } };
+
+    it('gives a night away with a potion running out exactly what live frames give', () => {
+      const night = 8 * HOUR + 1234;
+      let live = tonic;
+      for (let spent = 0; spent < night; spent += 16) {
+        live = advance(live, Math.min(16, night - spent), CONTENT);
+      }
+      const away = catchUp(tonic, night, CONTENT);
+      expect(away.state).toEqual(live);
+      expect(away.state.potion).toBeNull();
+      expect(away.report?.potion).toEqual({ item: 'sage_tonic', used: 150, ranOut: true });
+      // The tonic was worth the logs its quicker chops left time for.
+      expect(away.state.bank.pine_logs).toBeGreaterThan(catchUp(chopping, night, CONTENT).state.bank.pine_logs!);
+    });
+
+    it('says how many charges were used when some are left', () => {
+      // Two minutes of chops at 2.7s or a shade under, as mastery comes.
+      const { state, report } = catchUp(tonic, 2 * 60 * 1000, CONTENT);
+      expect(report?.potion).toEqual({ item: 'sage_tonic', used: 44, ranOut: false });
+      expect(state.potion).toEqual({ item: 'sage_tonic', charges: 106 });
+      expect(state.bank.pine_logs).toBe(44);
+    });
+
+    it('says nothing of a potion that helped with nothing', () => {
+      const other = { ...chopping, potion: { item: 'steady_draught', charges: 150 } };
+      const { state, report } = catchUp(other, HOUR, CONTENT);
+      expect(report?.potion).toBeNull();
+      expect(state.potion).toEqual(other.potion);
     });
   });
 

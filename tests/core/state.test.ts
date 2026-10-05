@@ -26,6 +26,7 @@ describe('newGame', () => {
       coins: 0,
       mastery: {},
       action: null,
+      potion: null,
     });
   });
 });
