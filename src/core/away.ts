@@ -1,5 +1,7 @@
 import { advance, missingInput } from './actions';
+import { busy } from './combat';
 import type { Content } from './content';
+import { fightEnded } from './fight';
 import { masteryLevel, skillLevel, type GameState } from './state';
 
 /** The most time away that is ever paid for. */
@@ -11,18 +13,38 @@ export interface AwayReport {
   awayMs: number;
   /** How much of that was paid for: `awayMs`, or the cap. */
   countedMs: number;
-  /** The action that was running when the game was left. */
-  actionId: string;
-  /** Items gained (or, for something an action uses, lost) by item id. Nothing at zero. */
+  /** The action that was running when the game was left, or null if it was a fight. */
+  actionId: string | null;
+  /** What came of the fight that was running when the game was left, or null if it was an action. */
+  fight: null | {
+    /** A MonsterDef id. */
+    monster: string;
+    kills: number;
+    /** Food eaten from the food slot. */
+    eaten: number;
+    /** Arrows shot. */
+    arrows: number;
+  };
+  /**
+   * Items gained (or, for something an action uses, lost) by item id. Nothing
+   * at zero. Food and arrows a fight uses are not in the bank, so not here.
+   */
   items: Record<string, number>;
+  /** Coins gained. */
+  coins: number;
   /** XP gained by skill id. */
   xp: Record<string, number>;
   /** Skills that gained levels. */
   levels: Record<string, { from: number; to: number }>;
   /** Actions whose mastery level rose, by action id. */
   mastery: Record<string, { from: number; to: number }>;
-  /** Why the action is no longer running, or null if it still is. */
-  stopped: null | { reason: 'ran_out'; item: string } | { reason: 'gone' };
+  /** Why the action or fight is no longer running, or null if it still is. */
+  stopped:
+    | null
+    | { reason: 'ran_out'; item: string }
+    | { reason: 'gone' }
+    | { reason: 'died' }
+    | { reason: 'no_arrows' };
   /**
    * What became of the potion: charges used and whether that was the last of
    * them. Null when no potion helped with anything.
@@ -44,7 +66,7 @@ export function catchUp(
 ): { state: GameState; report: AwayReport | null } {
   // A clock set backwards makes a negative gap; it pays nothing.
   const away = Number.isFinite(awayMs) ? Math.max(awayMs, 0) : 0;
-  if (!state.action || away === 0) {
+  if (!busy(state) || away === 0) {
     return { state, report: null };
   }
   const countedMs = Math.min(away, OFFLINE_CAP_MS);
@@ -73,7 +95,22 @@ export function catchUp(
   }
 
   let stopped: AwayReport['stopped'] = null;
-  if (!after.action) {
+  let fight: AwayReport['fight'] = null;
+  if (state.fight) {
+    const { monster } = state.fight;
+    const ended = fightEnded(state, after, content);
+    if (ended) stopped = { reason: ended };
+    const left = (worn: { item: string; qty: number } | null | undefined, item: string): number =>
+      worn?.item === item ? worn.qty : 0;
+    fight = {
+      monster,
+      kills: (after.bestiary[monster]?.kills ?? 0) - (state.bestiary[monster]?.kills ?? 0),
+      eaten: state.food ? state.food.qty - left(after.food, state.food.item) : 0,
+      arrows: state.equipment.ammo
+        ? state.equipment.ammo.qty - left(after.equipment.ammo, state.equipment.ammo.item)
+        : 0,
+    };
+  } else if (state.action && !after.action) {
     const action = content.actions[state.action.id];
     const short = action && missingInput(after, action);
     stopped = short ? { reason: 'ran_out', item: short.item } : { reason: 'gone' };
@@ -90,8 +127,10 @@ export function catchUp(
     report: {
       awayMs: away,
       countedMs,
-      actionId: state.action.id,
+      actionId: state.action?.id ?? null,
+      fight,
       items,
+      coins: after.coins - state.coins,
       xp,
       levels,
       mastery,

@@ -41,6 +41,8 @@ describe('catchUp', () => {
       awayMs: 2 * HOUR,
       countedMs: 2 * HOUR,
       actionId: 'chop_pine',
+      fight: null,
+      coins: 0,
       // 2,400 at the base three seconds; the rest is mastery quickening the axe.
       items: { pine_logs: 2474 },
       xp: { woodcutting: 24_740 },

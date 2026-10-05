@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { seedFrom } from '../../src/core/rng';
 import { GAME_STATE_VERSION, cleanName, nameProblem, newGame } from '../../src/core/state';
 
 describe('names', () => {
@@ -29,7 +30,16 @@ describe('newGame', () => {
       potion: null,
       look: {},
       equipment: {},
+      fight: null,
+      food: null,
+      eatAt: 50,
+      rng: seedFrom(1000),
+      bestiary: {},
     });
+  });
+
+  it('gives characters made at different moments different dice', () => {
+    expect(newGame('Cody', 1000).rng).not.toBe(newGame('Cody', 1001).rng);
   });
 
   it('keeps the look it was made with, whatever ids the art offers', () => {

@@ -22,6 +22,8 @@ export interface ItemDef {
   potion?: PotionDef;
   /** Where it is worn and what it gives, for an item that can be worn or wielded. */
   equip?: EquipDef;
+  /** Hit points one restores, for something that can go in the food slot and be eaten. */
+  heals?: number;
 }
 
 /** Where the character wears things, in the order the character sheet lists them. */
@@ -55,6 +57,11 @@ export interface EquipDef {
   attack?: number;
   strength?: number;
   armour?: number;
+  /**
+   * The level needed to put it on. Checked only when it is put on: whatever
+   * a character already wears stays worn.
+   */
+  requires?: { skill: string; level: number };
 }
 
 /**
@@ -109,8 +116,52 @@ export interface ActionDef {
   group?: string;
 }
 
+/** Somewhere to fight, holding the monsters whose `area` names it. Listed in table order. */
+export interface AreaDef {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/** Something a monster leaves behind: between `min` and `max` of an item, each equally likely. */
+export interface DropDef {
+  item: string;
+  min: number;
+  max: number;
+}
+
+/**
+ * A monster, as numbers on the same scale as the character's (src/core/combat.ts):
+ * `attack` against the character's defence rating, `defence` against the
+ * character's attack rating, and blows of 1 to `maxHit` every `speedMs`.
+ */
+export interface MonsterDef {
+  id: string;
+  name: string;
+  description: string;
+  /** The AreaDef it is found in. */
+  area: string;
+  /** Its combat level, to show beside it: roughly the level a character should be to take it on. */
+  level: number;
+  hp: number;
+  attack: number;
+  defence: number;
+  maxHit: number;
+  speedMs: number;
+  /** Coins every kill drops, from the first number to the second. */
+  coins: readonly [number, number];
+  /** What every kill drops. */
+  always: readonly DropDef[];
+  /** What a kill may drop: each rolled on its own, one chance in `oneIn`. */
+  rare: readonly (DropDef & { oneIn: number })[];
+}
+
 export interface Content {
   skills: Readonly<Record<string, SkillDef>>;
   items: Readonly<Record<string, ItemDef>>;
   actions: Readonly<Record<string, ActionDef>>;
+  /** Where to fight. Tables made for a test of something else may leave it out. */
+  areas?: Readonly<Record<string, AreaDef>>;
+  /** Who to fight there. Tables made for a test of something else may leave it out. */
+  monsters?: Readonly<Record<string, MonsterDef>>;
 }

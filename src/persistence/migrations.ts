@@ -1,4 +1,5 @@
-import { GAME_STATE_VERSION, type GameState } from '../core/state';
+import { seedFrom } from '../core/rng';
+import { DEFAULT_EAT_AT, GAME_STATE_VERSION, type GameState } from '../core/state';
 
 // Harvested from untitled-boomer-mmo. Each step upgrades a save from exactly
 // `fromVersion` to `fromVersion + 1`. A step is owed whenever the *shape or
@@ -16,6 +17,17 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   // Looks and equipment (S7b): nobody made before them has worn anything, and
   // a look with nothing chosen is drawn as the art's first choice of each part.
   4: (state) => ({ ...state, look: {}, equipment: {} }),
+  // Combat (S8): nobody made before it has fought, fed the food slot or met a
+  // monster. Their dice are seeded from when they were made, so each
+  // character's are their own and a save migrated twice rolls the same.
+  5: (state) => ({
+    ...state,
+    fight: null,
+    food: null,
+    eatAt: DEFAULT_EAT_AT,
+    rng: seedFrom(typeof state.createdAt === 'number' ? state.createdAt : 0),
+    bestiary: {},
+  }),
 };
 
 /**

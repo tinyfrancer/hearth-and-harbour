@@ -923,7 +923,7 @@ describe('the app shell', () => {
       const slots = [...root.querySelectorAll('[data-slot]')];
       expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
       expect(new LocalStorageSaveService().load()).toMatchObject({
-        version: 5,
+        version: 6,
         look: {},
         equipment: {},
         bank: { bronze_sword: 1, bronze_shield: 1 },

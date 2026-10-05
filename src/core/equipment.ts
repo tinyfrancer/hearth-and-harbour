@@ -1,5 +1,5 @@
 import { SLOTS, type CombatStyle, type Content, type ItemDef, type Slot } from './content';
-import { bankCount, type GameState, type Worn } from './state';
+import { bankCount, skillLevel, type GameState, type Worn } from './state';
 
 export type EquipResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
@@ -59,6 +59,10 @@ export function equip(state: GameState, itemId: string, content: Content): Equip
   if (held < 1) {
     return { ok: false, reason: 'You have none of those.' };
   }
+  const short = unmetRequirement(state, itemId, content);
+  if (short) {
+    return { ok: false, reason: short };
+  }
   const { slot } = def;
   let bank = state.bank;
   let equipment = state.equipment;
@@ -77,6 +81,17 @@ export function equip(state: GameState, itemId: string, content: Content): Equip
   bank = withdraw(bank, itemId, qty + already);
   equipment = { ...equipment, [slot]: { item: itemId, qty: qty + already } };
   return { ok: true, state: { ...state, bank, equipment } };
+}
+
+/**
+ * What stops the character putting an item on, in words, or null if nothing
+ * does. Only putting on is checked: what is already worn stays worn.
+ */
+export function unmetRequirement(state: GameState, itemId: string, content: Content): string | null {
+  const needs = content.items[itemId]?.equip?.requires;
+  if (!needs || skillLevel(state, needs.skill) >= needs.level) return null;
+  const skill = content.skills[needs.skill]?.name ?? needs.skill;
+  return `Needs ${skill} level ${needs.level}.`;
 }
 
 /** Take off whatever is in a slot and put it in the bank. An empty slot changes nothing. */

@@ -9,7 +9,7 @@ export function awayReportOverlay(
   content: Content,
   dismiss: () => void,
 ): HTMLElement {
-  const action = content.actions[report.actionId];
+  const action = report.actionId ? content.actions[report.actionId] : undefined;
   const skill = action && content.skills[action.skill];
   const itemName = (id: string): string => content.items[id]?.name ?? id;
 

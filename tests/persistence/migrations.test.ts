@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { seedFrom } from '../../src/core/rng';
 import { GAME_STATE_VERSION, newGame } from '../../src/core/state';
 import { migrateGameState } from '../../src/persistence/migrations';
+
+/** What version 6 adds to a save made at `createdAt`: no fight, no food, dice of its own. */
+const unfought = (createdAt: number) => ({
+  fight: null,
+  food: null,
+  eatAt: 50,
+  rng: seedFrom(createdAt),
+  bestiary: {},
+});
 
 describe('migrateGameState', () => {
   it('passes a current save through untouched', () => {
@@ -39,6 +49,7 @@ describe('migrateGameState', () => {
       potion: null,
       look: {},
       equipment: {},
+      ...unfought(5),
     });
   });
 
@@ -60,6 +71,7 @@ describe('migrateGameState', () => {
       potion: null,
       look: {},
       equipment: {},
+      ...unfought(5),
     });
   });
 
@@ -77,7 +89,36 @@ describe('migrateGameState', () => {
       potion: { item: 'steady_draught', charges: 40 },
     };
     // Gear in the bank stays in the bank: a migration puts nothing on.
-    expect(migrateGameState(v4)).toEqual({ ...v4, version: 5, look: {}, equipment: {} });
+    expect(migrateGameState(v4)).toEqual({
+      ...v4,
+      version: GAME_STATE_VERSION,
+      look: {},
+      equipment: {},
+      ...unfought(5),
+    });
+  });
+
+  it('brings a version 5 save (S7b) up to date with no fight, no food and dice of its own', () => {
+    const v5 = {
+      version: 5,
+      name: 'Cody',
+      createdAt: 1_700_000_000_000,
+      savedAt: 1_700_000_009_000,
+      skills: { smithing: 4000 },
+      bank: { cooked_shrimp: 20 },
+      coins: 12,
+      mastery: {},
+      action: { id: 'cook_shrimp', progressMs: 10 },
+      potion: null,
+      look: { hair: 'long' },
+      equipment: { main_hand: { item: 'bronze_sword', qty: 1 } },
+    };
+    // Gear stays worn and food stays in the bank: a migration feeds nobody.
+    const v6 = migrateGameState(v5);
+    expect(v6).toEqual({ ...v5, version: 6, ...unfought(v5.createdAt) });
+    expect(Number.isInteger(v6!.rng) && v6!.rng >= 0 && v6!.rng < 2 ** 32).toBe(true);
+    // Two characters made at different times roll different dice.
+    expect(migrateGameState({ ...v5, createdAt: 1 })!.rng).not.toBe(v6!.rng);
   });
 
   it('walks every step in order and stamps the version as it goes', () => {
