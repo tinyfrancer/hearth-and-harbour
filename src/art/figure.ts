@@ -58,6 +58,20 @@ export const FIGURE_LEGEND: Legend = {
   y: 'auburn1',
   Y: 'auburn2',
   N: 'auburn3',
+  // Added for the character's wardrobe (armoury.ts).
+  '1': 'bronze1',
+  '2': 'bronze2',
+  '3': 'bronze3',
+  '4': 'bronze4',
+  l: 'linen1',
+  L: 'linen2',
+  I: 'linen3',
+  b: 'shell1',
+  P: 'shell2',
+  J: 'pinewood1',
+  K: 'pinewood2',
+  Q: 'willow1',
+  S: 'willow2',
 };
 
 /** Part of a figure: rows of legend characters placed at `at` on the figure canvas. */

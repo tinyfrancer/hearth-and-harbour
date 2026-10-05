@@ -3,6 +3,7 @@
  * so it can be judged as it will look in the world rather than floating on a
  * menu panel. Pure, like the rest of the engine.
  */
+import { DEFAULT_LOOK, characterPicture, type Look } from './character';
 import {
   FIGURE_H,
   HERO_OUTFIT,
@@ -153,6 +154,90 @@ export const TOWNSFOLK: readonly {
   { id: 'smith', body: 'smith', gear: SMITH_OUTFIT },
   { id: 'trader', body: 'trader', gear: TRADER_OUTFIT },
 ];
+
+/** Characters side by side on grass, each on the hero's ground shadow. */
+export function lineupPlate(people: readonly Picture[]): Picture {
+  const step = 42;
+  const p = new Plate(people.length * step + 4, 56);
+  grass(p.g, seeded(13), whole(p.g.w, p.g.h));
+  const shadow = townPiece('hero').shadow;
+  people.forEach((who, i) => {
+    const x = 3 + i * step;
+    if (shadow) groundShadow(p.g, x + shadow.cx, 3 + shadow.cy, 'grass3', shadow.rx, shadow.ry);
+    p.place(who, x, 3);
+  });
+  return p.done();
+}
+
+/** A look and what is worn with it: one character in the wardrobe's gallery. */
+export interface Outfit {
+  readonly name: string;
+  readonly look: Look;
+  readonly items: readonly string[];
+}
+
+/** The full sets, each in a different look, so looks are seen in gear too. */
+export const WARDROBE_SETS: readonly Outfit[] = [
+  {
+    name: 'Bronze',
+    look: { skin: 'brown', hair: 'braid', hairColour: 'black' },
+    items: ['bronze_helmet', 'bronze_breastplate', 'bronze_sword', 'bronze_shield'],
+  },
+  {
+    name: 'Iron',
+    look: DEFAULT_LOOK,
+    items: ['iron_helmet', 'iron_breastplate', 'iron_sword', 'iron_shield'],
+  },
+  {
+    name: 'Linen',
+    look: { skin: 'pale', hair: 'long', hairColour: 'blonde' },
+    items: ['linen_hood', 'linen_tunic', 'linen_trousers', 'shell_necklace', 'shell_bracelet'],
+  },
+];
+
+/** Each bow, with arrows (a quiver) and linen, in three more looks. */
+export const WARDROBE_BOWS: readonly Outfit[] = [
+  {
+    name: 'Pine shortbow',
+    look: { skin: 'golden', hair: 'shaggy', hairColour: 'chestnut' },
+    items: ['pine_shortbow', 'bronze_arrows', 'linen_tunic', 'linen_trousers'],
+  },
+  {
+    name: 'Oak shortbow',
+    look: { skin: 'deep', hair: 'short', hairColour: 'grey' },
+    items: ['oak_shortbow', 'iron_arrows', 'linen_tunic', 'linen_trousers'],
+  },
+  {
+    name: 'Willow shortbow',
+    look: { skin: 'fair', hair: 'long', hairColour: 'auburn' },
+    items: ['willow_shortbow', 'iron_arrows', 'linen_tunic', 'linen_trousers'],
+  },
+];
+
+/** Every wearable item the wardrobe draws, each worn alone, in the order the gallery shows them. */
+export const WARDROBE_ITEMS: readonly string[] = [
+  'bronze_sword',
+  'iron_sword',
+  'bronze_axe',
+  'iron_axe',
+  'bronze_shield',
+  'iron_shield',
+  'bronze_helmet',
+  'iron_helmet',
+  'linen_hood',
+  'bronze_breastplate',
+  'iron_breastplate',
+  'linen_tunic',
+  'linen_trousers',
+  'shell_necklace',
+  'shell_bracelet',
+  'pine_shortbow',
+  'oak_shortbow',
+  'willow_shortbow',
+  'iron_arrows',
+];
+
+export const outfitPicture = (o: Outfit): Picture => characterPicture(o.look, o.items);
 
 /** The hero and the three townsfolk side by side on grass, each on their mock-up shadow. */
 export function townsfolkPlate(): Picture {

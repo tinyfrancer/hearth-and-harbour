@@ -1,6 +1,8 @@
 import { gameScale, pixelCanvas } from './canvas';
 import { WARDROBE, figure } from './figure';
-import { DAY } from './palette';
+import type { Grid } from './grid';
+import { HAIRSTYLES } from './hair';
+import { DAY, type Shade } from './palette';
 import { picture, type Picture } from './raster';
 
 /**
@@ -24,11 +26,37 @@ export interface LookChoice {
   name: string;
 }
 
+/**
+ * A skin tone: the steps the body's light, shadow and mouth are drawn in.
+ * Each tone is a palette ramp of its own, so day and dusk shift it like any
+ * other colour.
+ */
+const SKIN_TONES: readonly (LookChoice & { steps: readonly [Shade, Shade, Shade] })[] = [
+  { id: 'fair', name: 'Fair', steps: ['skin1', 'skin2', 'lips2'] },
+  { id: 'pale', name: 'Pale', steps: ['skinpale1', 'skinpale2', 'skinpale3'] },
+  { id: 'golden', name: 'Golden', steps: ['skingolden1', 'skingolden2', 'skingolden3'] },
+  { id: 'brown', name: 'Brown', steps: ['skinbrown1', 'skinbrown2', 'skinbrown3'] },
+  { id: 'deep', name: 'Deep', steps: ['skindeep1', 'skindeep2', 'skindeep3'] },
+];
+
+/** A hair colour: the steps hair and brows are drawn in, highlight to shadow. */
+const HAIR_COLOURS: readonly (LookChoice & { steps: readonly [Shade, Shade, Shade] })[] = [
+  { id: 'brown', name: 'Brown', steps: ['hair1', 'hair2', 'hair3'] },
+  { id: 'black', name: 'Black', steps: ['hairblack1', 'hairblack2', 'hairblack3'] },
+  { id: 'chestnut', name: 'Chestnut', steps: ['hairchestnut1', 'hairchestnut2', 'hairchestnut3'] },
+  { id: 'auburn', name: 'Auburn', steps: ['auburn1', 'auburn2', 'auburn3'] },
+  { id: 'blonde', name: 'Blonde', steps: ['hairblonde1', 'hairblonde2', 'hairblonde3'] },
+  { id: 'grey', name: 'Grey', steps: ['hairgrey1', 'hairgrey2', 'hairgrey3'] },
+];
+
+const choices = (list: readonly LookChoice[]): readonly LookChoice[] =>
+  list.map(({ id, name }) => ({ id, name }));
+
 /** Every look the player may choose, per part. The first of each is the default. */
 export const LOOK_CHOICES: Readonly<Record<keyof Look, readonly LookChoice[]>> = {
-  skin: [{ id: 'fair', name: 'Fair' }],
-  hair: [{ id: 'short', name: 'Short' }],
-  hairColour: [{ id: 'brown', name: 'Brown' }],
+  skin: choices(SKIN_TONES),
+  hair: choices(HAIRSTYLES),
+  hairColour: choices(HAIR_COLOURS),
 };
 
 export const DEFAULT_LOOK: Look = {
@@ -37,32 +65,89 @@ export const DEFAULT_LOOK: Look = {
   hairColour: LOOK_CHOICES.hairColour[0]!.id,
 };
 
-/** What everyone has on under their gear. */
+/**
+ * The gear layer each wearable item is drawn with. Several items may share a
+ * layer (both kinds of arrow show as the same quiver). The approved hero's
+ * sword and plate are the iron sword and breastplate.
+ */
+export const ITEM_LAYERS: Readonly<Record<string, string>> = {
+  bronze_sword: 'bronze_leaf_sword',
+  iron_sword: 'iron_sword',
+  bronze_axe: 'bronze_crescent_axe',
+  iron_axe: 'iron_bearded_axe',
+  bronze_helmet: 'bronze_cheek_helm',
+  iron_helmet: 'iron_nasal_helm',
+  bronze_shield: 'bronze_round_shield',
+  iron_shield: 'iron_heater_shield',
+  bronze_breastplate: 'bronze_cuirass',
+  iron_breastplate: 'iron_plate',
+  linen_tunic: 'linen_tunic',
+  linen_hood: 'linen_hood',
+  linen_trousers: 'linen_trousers',
+  shell_necklace: 'shell_necklace',
+  shell_bracelet: 'shell_bracelet',
+  pine_shortbow: 'pine_shortbow',
+  oak_shortbow: 'oak_shortbow',
+  willow_shortbow: 'willow_shortbow',
+  bronze_arrows: 'arrow_quiver',
+  iron_arrows: 'arrow_quiver',
+};
+
+/**
+ * What everyone has on under their gear: the tunic unless a body item
+ * replaces it, the trousers unless a legs item does, and always boots and a
+ * belt (until the game has boots).
+ */
 const EVERYDAY: readonly string[] = [
-  'short_hair',
   'teal_tunic',
   'grey_trousers',
   'leather_boots',
   'leather_belt',
 ];
 
+const find = <T extends LookChoice>(list: readonly T[], id: string): T =>
+  list.find((choice) => choice.id === id) ?? list[0]!;
+
+/** The gear ids for a look and worn items, one per slot, worn items first. */
+export function characterGear(look: Look, wornItemIds: readonly string[]): string[] {
+  const slots = new Set<string>();
+  const gear: string[] = [];
+  const wear = (gearId: string | null | undefined) => {
+    if (!gearId) return;
+    const def = WARDROBE.gear.find((entry) => entry.id === gearId);
+    if (!def || slots.has(def.slot)) return;
+    slots.add(def.slot);
+    gear.push(gearId);
+  };
+  for (const id of wornItemIds) wear(ITEM_LAYERS[id]);
+  // A helmet or hood covers the crown of the head; only what hangs below it shows.
+  const style = find(HAIRSTYLES, look.hair);
+  wear(slots.has('head') ? style.under : style.gear);
+  for (const id of EVERYDAY) wear(id);
+  return gear;
+}
+
+/** The figure in this look's skin tone and hair colour: each step swapped for its ramp's. */
+function inLook(g: Grid, look: Look): Grid {
+  const swap = new Map<Shade, Shade>();
+  const tone = find(SKIN_TONES, look.skin).steps;
+  const hair = find(HAIR_COLOURS, look.hairColour).steps;
+  (['skin1', 'skin2', 'lips2'] as const).forEach((step, i) => swap.set(step, tone[i]!));
+  (['hair1', 'hair2', 'hair3'] as const).forEach((step, i) => swap.set(step, hair[i]!));
+  return { w: g.w, h: g.h, d: g.d.map((cell) => (cell && swap.get(cell)) ?? cell) };
+}
+
 /**
  * The character with this look, wearing these items. Unknown looks fall back
  * to the default and unknown items are left off; it never throws.
- *
- * Placeholder until the art lane's B3: the look is ignored, and an item shows
- * only if a gear layer happens to share its id.
  */
-export function characterPicture(_look: Look, wornItemIds: readonly string[]): Picture {
-  const slots = new Set<string>();
-  const gear: string[] = [];
-  for (const id of [...wornItemIds, ...EVERYDAY]) {
-    const def = WARDROBE.gear.find((entry) => entry.id === id);
-    if (!def || slots.has(def.slot)) continue;
-    slots.add(def.slot);
-    gear.push(id);
+export function characterPicture(look: Look, wornItemIds: readonly string[]): Picture {
+  const safeLook: Look = { ...DEFAULT_LOOK, ...look };
+  try {
+    return picture(inLook(figure('standard', characterGear(safeLook, wornItemIds)), safeLook));
+  } catch {
+    return picture(figure('standard', characterGear(DEFAULT_LOOK, [])));
   }
-  return picture(figure('standard', gear));
 }
 
 /**

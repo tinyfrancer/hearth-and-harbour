@@ -54,6 +54,27 @@ export const RAMPS = {
   blue: ['#7fa9ea', '#4c7fd0'],
   apron: ['#8a6a4a', '#6a4e36'],
   dress: ['#7a5aa0', '#5a407c'],
+
+  // The character's looks (character.ts). A skin tone is light, shadow and
+  // mouth; the first tone is `skin` with `lips2` for its mouth. A hair colour
+  // is highlight, mid and shadow (brows too); the first is `hair`, and
+  // `auburn` above is another.
+  skinpale: ['#ffe6d2', '#eeb49c', '#b45a56'],
+  skingolden: ['#d9a06c', '#b06c40', '#7a3a2c'],
+  skinbrown: ['#ac7450', '#83492e', '#5a2a24'],
+  skindeep: ['#7e4e38', '#5a3020', '#3a1a18'],
+  hairblack: ['#4a4a60', '#2a2834', '#16141c'],
+  hairblonde: ['#f6dc96', '#d4aa5e', '#9c7036'],
+  hairchestnut: ['#9a5434', '#6e3420', '#481e16'],
+  hairgrey: ['#e2dcd6', '#ada59e', '#78706c'],
+
+  // Gear. Bronze is copper-red with a pale highlight, so it reads as neither
+  // gold (yellow) nor iron (blue-grey): `metal` is iron.
+  bronze: ['#ffd8a8', '#d47a40', '#8e4428', '#55261c'],
+  linen: ['#d8caa6', '#ad9d7a', '#7e705a'],
+  shell: ['#fff2ea', '#e8aea4'],
+  pinewood: ['#f0d08a', '#c4964e'],
+  willow: ['#e4ddcc', '#aca390'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;
@@ -219,6 +240,8 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   gold1: '#ffcf5a',
   gold2: '#d99a2b',
   metal1: '#e6dcf0',
+  bronze1: '#f0a878',
+  bronze2: '#a85c38',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
 });

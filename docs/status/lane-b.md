@@ -1,7 +1,28 @@
 # Lane B: art
 
-**Next session: B3: The character's wardrobe** (brief in `docs/lanes.md`, wave 3). Icons moved to
-B4.
+**Next session: B4: Icons for every item and skill; portraits** (wave 4, brief still to be
+written). B3 did not reach icons.
+
+## The character, for lanes A and C (`src/art/character.ts`)
+
+`characterPicture(look, wornItemIds)` draws the player in any look wearing any items, by the
+game's own item ids; `characterCanvas` gives it as an element. Unknown ids are ignored and an
+unknown look part falls back to its default, so it never throws. Nothing it exported before
+changed its name or shape. New exports: `ITEM_LAYERS` (item id to gear layer) and
+`characterGear(look, items)` (the gear ids a picture is dressed in). For S12c, draw the town's
+hero with `characterPicture(look, equippedIds)` instead of `figure('standard', HERO_OUTFIT)`; it is
+the same 40 × 50 outlined figure, base 47, so the hero's index entry (shadow, base) still applies.
+
+- `LOOK_CHOICES`: skin `fair`, `pale`, `golden`, `brown`, `deep`; hair `short`, `long`, `braid`,
+  `shaggy`, `bald`; hair colour `brown`, `black`, `chestnut`, `auburn`, `blonde`, `grey`. The
+  first of each is the default, and the default character with nothing worn is pixel for pixel
+  what it was before.
+- Every wearable in the tables draws: both metals' sword, axe, helmet, shield and breastplate,
+  the linen hood, tunic and trousers, the shell necklace and bracelet, the three shortbows, and
+  either kind of arrow (a quiver). `iron_sword` and `iron_breastplate` are the approved hero's
+  sword and plate.
+- One item per slot: if two items share a slot (a sword and an axe), the first listed is drawn.
+  A bow and a shield together both draw; emptying the off hand is lane A's rule.
 
 ## The town index, for lane C (`src/art/town.ts`)
 
@@ -102,6 +123,28 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B3: The character's wardrobe.** New art in the approved style, not yet reviewed by Cody.
+  - Looks (`character.ts`, `hair.ts`): five skin tones and six hair colours as palette ramps (the
+    body's skin and hair steps are swapped for the chosen ramp, brows included); five hairstyles
+    drawn to the standard head, each split into a crown and what hangs below it.
+  - Gear (`armoury.ts`): every wearable item as a layer on the standard body, rows of characters
+    fitted to its pose. Bronze is a new ramp (copper-orange, hand-set at dusk like gold and
+    polished iron); linen, shell, pine and willow are new ramps too. Depths moved to `depth.ts`
+    (same values; the hero is unchanged, its test untouched).
+  - Helmets and hair: under a helmet or hood only the hanging part of a hairstyle is worn (long
+    locks, the braid, a shaggy cut's ends), so nothing pokes through; the braid lies over a hood's
+    cape. Short and bald show nothing under one.
+  - Under the gear: the everyday teal tunic unless a body item replaces it (armour goes over it,
+    the linen tunic replaces it), grey trousers unless the linen ones replace them, boots and belt
+    always.
+  - Gallery: a "Wardrobe" section first: every skin, hairstyle and hair colour side by side at game
+    scale; the bronze, iron and linen sets close up by day and at dusk and at game scale; each bow
+    with a quiver; iron close up day and dusk; every item worn alone.
+  - Tests: every wearable id maps to a drawn layer and changes the picture; bronze uses no iron
+    steps and iron no bronze; the bows differ; every look choice draws differently; skin tones
+    come from their own ramps; brows follow the hair; in every look under every helmet and the
+    hood both eyes stay open and mirrored and no hair shows above the eyes; the default character
+    is unchanged.
 - **B2: The rest of the town's art.**
   - `harbour.ts`: the smithy (forge lit by day and brighter at dusk, lit window), market stall,
     pier, ship (lit cabin window, black flag), rowing boat, buoy, rock with its wreck, signpost,
@@ -133,7 +176,11 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 ## Deferred
 
 - Portraits (48 × 48): not started (B4).
+- Item and skill icons (24 × 24): not started (B4). B3 did not reach them.
 - The tab icons and home-screen icon are still the S1 placeholders.
+- Wardrobe weak spots for Cody's review: bronze helmet with auburn hair (both copper, they run
+  together); the linen tunic and trousers are plain; the quiver is a few pixels; the standard
+  body's empty left fist still hangs straight when nothing is held.
 - No walk cycle; figures face one way (mirror for the other).
 - The townsfolk bodies are drawn only where they show, so they cannot be dressed in other gear.
 
@@ -151,4 +198,9 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   wear in other places.
 - At a fractional device pixel ratio (2.625 on many Androids) pictures are close to exact but not
   always pixel-perfect; at whole ratios they are exact.
-- Gear ids are art ids. B3 maps lane A's item ids onto them.
+- Gear ids are art ids; `ITEM_LAYERS` in `character.ts` maps the game's item ids onto them. A new
+  wearable item needs a layer in `armoury.ts`, a row there, and its id in the list in
+  `tests/art/character.test.ts`.
+- Scratch renders: a vitest file under `.shots/` with its own config (environment `node`) can
+  rasterize pictures and write PNGs without a browser, which is much faster for iterating on a
+  sprite than the gallery.

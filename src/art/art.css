@@ -34,6 +34,13 @@
   font-size: 16px;
 }
 
+.gallery-subhead {
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 /* Left-aligned with whole-pixel gaps, so every canvas starts on a device pixel. */
 .gallery-row {
   display: flex;

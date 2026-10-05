@@ -92,6 +92,33 @@ that pose. Its hero outfit is the mock-up's hero, pixel for pixel. Townsfolk who
 (the pirate captain, the smith, the trader) each have a posed body of their own
 (`src/art/townsfolk.ts`), drawn only where it shows, with what they hold as gear.
 
+### The player's character (`src/art/character.ts`)
+
+Drawn in B3, not yet reviewed by Cody; the rules here are what it was drawn to.
+
+- **Looks are ramps, not repaints.** The body is drawn once in the `skin` and `hair` steps; a
+  skin tone or hair colour swaps those steps for its own ramp (`skinpale`, `skindeep`,
+  `hairblonde`, ...). A skin ramp is light, shadow and mouth; its shadow step leans warmer and more
+  saturated than its light step so it never goes muddy. Brows are drawn in the hair's dark step
+  and follow the hair colour.
+- **Hair is a crown and what hangs.** The crown (top of the head, fringe) is what a helmet or hood
+  covers; what hangs (locks beside the face, the mass behind the neck, a braid) still shows below
+  one. Under head gear only what hangs is worn, so hair never pokes through, and the helmet is
+  drawn over the top of the hanging hair so it seems to come out from under the rim. A braid falls
+  over the hood's cape. Hair never covers an eye or a brow; faces stay symmetric.
+- **Bronze is copper-orange, iron is blue-grey.** Bronze (`bronze1`–`bronze4`) has a pale peach
+  specular step over a saturated copper mid, so it reads as metal rather than wood or leather, and
+  is redder than gold. Like gold and polished iron, its highlight and mid are set by hand at dusk,
+  or it goes brown and reads as skin. The two metals also differ in shape: a leaf blade against a
+  straight one, a fan-headed axe against a bearded one, a round shield against a heater, a domed
+  helm with cheek plates against a conical one with a nasal, a cuirass with leather strips against
+  plate with pauldrons.
+- **Held things sit in the left fist**, along the approved sword's line: a blade or haft rises
+  behind the shoulder and the grip shows where the fist is. A bow is held at its grip, string
+  outward, so the whole stave shows beside the body; the three bows are one drawing in three woods.
+- **Small things must be findable.** A necklace or bracelet sits over clothes, armour and a hood's
+  cape, in shell white and pink.
+
 ## Portraits
 
 - 48 × 48 bust on a dark tinted disc, in a gold-edged frame.
