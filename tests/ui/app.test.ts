@@ -308,10 +308,12 @@ describe('the app shell', () => {
   });
 
   describe('the other gathering skills', () => {
-    it('lists all four and lets each be trained', () => {
+    it('lists all four under Gathering and lets each be trained', () => {
       const app = mount();
       create('Cody');
-      const names = [...root.querySelectorAll('[data-skill] h2')].map((el) => el.textContent);
+      const names = [...root.querySelectorAll('[data-group="Gathering"] [data-skill] h2')].map(
+        (el) => el.textContent,
+      );
       expect(names).toEqual(['Woodcutting', 'Fishing', 'Mining', 'Foraging']);
 
       q<HTMLButtonElement>('[data-skill="fishing"]').click();
@@ -336,6 +338,122 @@ describe('the app shell', () => {
       expect(q('[data-skill="fishing"]').textContent).not.toContain('Catching');
       app.save();
       expect(new LocalStorageSaveService().load()?.bank).toEqual({ copper_ore: 1 });
+    });
+  });
+
+  describe('artisan skills', () => {
+    /** A character who already has some things in the bank, as if they had been gathering. */
+    const stocked = (bank: Record<string, number>, skills: Record<string, number> = {}) => {
+      new LocalStorageSaveService().save({ ...newGame('Cody', clock), bank, skills });
+      return mount();
+    };
+    const card = (id: string): HTMLElement => q(`[data-action="${id}"]`);
+
+    it('lists Cooking and Smithing under their own heading', () => {
+      mount();
+      create('Cody');
+      const headings = [...root.querySelectorAll('.group-heading')].map((el) => el.textContent);
+      expect(headings).toEqual(['Gathering', 'Artisan']);
+      const artisan = [...root.querySelectorAll('[data-group="Artisan"] [data-skill] h2')].map(
+        (el) => el.textContent,
+      );
+      expect(artisan).toEqual(['Cooking', 'Smithing']);
+    });
+
+    it('cooks shrimp until the raw ones run out, and says so', () => {
+      const app = stocked({ raw_shrimp: 3 });
+      q<HTMLButtonElement>('[data-skill="cooking"]').click();
+      expect(card('cook_shrimp').textContent).toContain('Raw shrimp × 1');
+      expect(q('[data-action="cook_shrimp"] [data-input="raw_shrimp"] .qty').textContent).toBe('3');
+      expect(card('cook_shrimp').textContent).toContain('Enough for 3');
+
+      card('cook_shrimp').click();
+      clock += 2000;
+      app.tick();
+      expect(card('cook_shrimp').textContent).toContain('Enough for 2');
+      expect(card('cook_shrimp').textContent).toContain('Cooked shrimp: 1');
+
+      clock += 5000;
+      app.tick();
+      expect(q('.toast').textContent).toBe('Out of Raw shrimp.');
+      expect(card('cook_shrimp').getAttribute('aria-pressed')).toBe('false');
+      expect(card('cook_shrimp').classList).toContain('short');
+      expect(card('cook_shrimp').textContent).toContain('Not enough Raw shrimp');
+      expect(card('cook_shrimp').textContent).toContain('Cooked shrimp: 3');
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ cooked_shrimp: 3 });
+    });
+
+    it('will not smelt without tin, and says what is short', () => {
+      stocked({ copper_ore: 5 });
+      q<HTMLButtonElement>('[data-skill="smithing"]').click();
+      const bronze = card('smelt_bronze');
+      expect(bronze.classList).toContain('short');
+      expect(bronze.getAttribute('aria-disabled')).toBe('true');
+      expect(bronze.textContent).toContain('Not enough Tin ore');
+      expect(bronze.textContent).not.toContain('Tap to start');
+      expect(q('[data-input="copper_ore"]').classList).not.toContain('short');
+      expect(q('[data-input="tin_ore"]').classList).toContain('short');
+      bronze.click();
+      expect(q('.toast').textContent).toBe('Needs 1 Tin ore.');
+      expect(card('smelt_bronze').getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('smelts bars and then makes something of them', () => {
+      const app = stocked({ copper_ore: 4, tin_ore: 2 });
+      q<HTMLButtonElement>('[data-skill="smithing"]').click();
+      expect(card('smelt_bronze').textContent).toContain('Enough for 2');
+      expect(card('smith_bronze_axe').textContent).toContain('Not enough Bronze bar');
+      card('smelt_bronze').click();
+      clock += 3000;
+      app.tick();
+      // The axe card comes good as the first bar lands, without leaving the page.
+      expect(card('smith_bronze_axe').classList).not.toContain('short');
+      expect(card('smith_bronze_axe').textContent).toContain('Enough for 1');
+      clock += 3000;
+      app.tick();
+      expect(q('.toast').textContent).toBe('Out of Tin ore.');
+      card('smith_bronze_axe').click();
+      clock += 6000;
+      app.tick();
+      app.save();
+      expect(new LocalStorageSaveService().load()?.bank).toEqual({ copper_ore: 2, bronze_axe: 2 });
+    });
+
+    it('reports a night of cooking that ran out of fish', () => {
+      const app = stocked({ raw_shrimp: 100 });
+      q<HTMLButtonElement>('[data-skill="cooking"]').click();
+      card('cook_shrimp').click();
+      app.save();
+      root.replaceChildren();
+      clock += 8 * 60 * 60 * 1000;
+      mount();
+      const report = q('[role="dialog"]').textContent;
+      expect(report).toContain('cooking Shrimp');
+      expect(report).toContain('Raw shrimp−100');
+      expect(report).toContain('Cooked shrimp+100');
+      expect(report).toContain('Stopped: you ran out of Raw shrimp.');
+    });
+
+    it("names the new recipes on the bank's item cards", () => {
+      stocked({ raw_cod: 1, copper_ore: 1, bronze_bar: 1 });
+      tab('bank');
+      q<HTMLButtonElement>('[data-item="raw_cod"]').click();
+      expect(q('[data-card="raw_cod"]').textContent).toContain('Used inCooking (Cod)');
+      press('Close');
+      q<HTMLButtonElement>('[data-item="copper_ore"]').click();
+      expect(q('[data-card="copper_ore"]').textContent).toContain('Used inSmithing (Bronze bar)');
+      press('Close');
+      q<HTMLButtonElement>('[data-item="bronze_bar"]').click();
+      const bar = q('[data-card="bronze_bar"]').textContent;
+      expect(bar).toContain('FromSmithing (Bronze bar)');
+      expect(bar).toContain('Smithing (Bronze axe), Smithing (Bronze sword)');
+    });
+
+    it('keeps a recipe locked until its level, whatever is in the bank', () => {
+      stocked({ raw_cod: 10 }, { cooking: 0 });
+      q<HTMLButtonElement>('[data-skill="cooking"]').click();
+      expect(card('cook_cod').tagName).toBe('DIV');
+      expect(card('cook_cod').textContent).toContain('Level 15');
     });
   });
 
@@ -408,13 +526,18 @@ describe('the app shell', () => {
     });
   });
 
+  // What is behind a door belongs to its lane and changes without this file
+  // knowing, so these check that the door opens, not what it shows.
   describe("the lanes' doors", () => {
     it('opens the art gallery from Menu and comes back', () => {
       mount();
       create('Cody');
       tab('menu');
       press('Art gallery');
-      expect(q('#screen').textContent).toContain('Nothing drawn yet.');
+      const page = q('#screen > .stack');
+      expect(page.children).toHaveLength(2);
+      expect(page.firstElementChild?.textContent).toBe('‹ Menu');
+      expect(q('#screen').textContent).not.toContain('Save now');
       press('‹ Menu');
       expect(q('#screen').textContent).toContain('Save now');
     });
@@ -423,7 +546,7 @@ describe('the app shell', () => {
       mount();
       create('Cody');
       tab('town');
-      expect(q('#screen').textContent).toContain('The road into town is not open yet.');
+      expect(q('#screen[data-tab="town"]').children).toHaveLength(1);
       tab('character');
       expect(q('#screen h2').textContent).toBe('Cody');
     });

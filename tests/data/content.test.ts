@@ -27,6 +27,19 @@ describe('the content tables', () => {
     }
   });
 
+  it('has recipes that use real items, each of which something makes', () => {
+    const made = new Set(
+      Object.values(CONTENT.actions).flatMap((action) => action.gives.map(({ item }) => item)),
+    );
+    for (const action of Object.values(CONTENT.actions)) {
+      for (const { item, qty } of action.uses ?? []) {
+        expect(CONTENT.items[item], `${action.id} uses ${item}`).toBeDefined();
+        expect(made.has(item), `nothing makes ${item}`).toBe(true);
+        expect(Number.isInteger(qty) && qty > 0).toBe(true);
+      }
+    }
+  });
+
   it('gives every skill something to do at level 1', () => {
     for (const skill of Object.values(CONTENT.skills)) {
       const first = Object.values(CONTENT.actions).filter(

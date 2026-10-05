@@ -6,7 +6,7 @@ import { xpForLevel } from '../../src/core/xp';
 
 // Tables of the test's own: the rules are checked apart from the game's numbers.
 const content: Content = {
-  skills: { digging: { id: 'digging', name: 'Digging', verb: 'Digging' } },
+  skills: { digging: { id: 'digging', name: 'Digging', verb: 'Digging', group: 'Gathering' } },
   items: {
     brick: { id: 'brick', name: 'Brick', description: '', value: 1 },
     mud: { id: 'mud', name: 'Mud', description: '', value: 1 },

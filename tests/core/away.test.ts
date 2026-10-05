@@ -61,7 +61,7 @@ describe('catchUp', () => {
 
   it('stops when materials run out, and says which', () => {
     const content: Content = {
-      skills: { cooking: { id: 'cooking', name: 'Cooking', verb: 'Cooking' } },
+      skills: { cooking: { id: 'cooking', name: 'Cooking', verb: 'Cooking', group: 'Artisan' } },
       items: {
         raw: { id: 'raw', name: 'Raw fish', description: '', value: 1 },
         cooked: { id: 'cooked', name: 'Cooked fish', description: '', value: 1 },

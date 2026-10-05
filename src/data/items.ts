@@ -1,6 +1,6 @@
 import type { ItemDef } from '../core/content';
 
-// In the order the bank lists them.
+// In the order the bank lists them: what is gathered, then what is made from it.
 export const ITEMS = {
   pine_logs: {
     id: 'pine_logs',
@@ -79,5 +79,95 @@ export const ITEMS = {
     name: 'Glowcap',
     description: 'A pale mushroom that shines a little in the dark. Do not eat it raw.',
     value: 9,
+  },
+  cooked_shrimp: {
+    id: 'cooked_shrimp',
+    name: 'Cooked shrimp',
+    description: 'Pink, curled and gone in one bite. Mind the legs.',
+    value: 3,
+  },
+  cooked_herring: {
+    id: 'cooked_herring',
+    name: 'Cooked herring',
+    description: 'Crisp skin, a lot of small bones, and worth every one of them.',
+    value: 7,
+  },
+  cooked_cod: {
+    id: 'cooked_cod',
+    name: 'Cooked cod',
+    description: 'Flakes apart at a look. It seems more at peace now.',
+    value: 12,
+  },
+  bronze_bar: {
+    id: 'bronze_bar',
+    name: 'Bronze bar',
+    description: 'Copper and tin, talked into getting along.',
+    value: 9,
+  },
+  iron_bar: {
+    id: 'iron_bar',
+    name: 'Iron bar',
+    description: 'Dark, dense and stubborn. Wants a lot of hitting.',
+    value: 12,
+  },
+  bronze_axe: {
+    id: 'bronze_axe',
+    name: 'Bronze axe',
+    description: 'Holds an edge for about a morning. A good morning, though.',
+    value: 12,
+  },
+  bronze_sword: {
+    id: 'bronze_sword',
+    name: 'Bronze sword',
+    description: 'Short, honest and a bit soft. Better than a stick.',
+    value: 24,
+  },
+  bronze_helmet: {
+    id: 'bronze_helmet',
+    name: 'Bronze helmet',
+    description: 'Rings like a bell when struck. Try not to find out.',
+    value: 25,
+  },
+  bronze_shield: {
+    id: 'bronze_shield',
+    name: 'Bronze shield',
+    description: 'Round, dented on purpose, and heavier every hour you carry it.',
+    value: 36,
+  },
+  bronze_breastplate: {
+    id: 'bronze_breastplate',
+    name: 'Bronze breastplate',
+    description: 'Gleams nicely until the first rain. Then it goes green and thoughtful.',
+    value: 50,
+  },
+  iron_axe: {
+    id: 'iron_axe',
+    name: 'Iron axe',
+    description: 'Bites deep and stays sharp. Trees have started to talk about you.',
+    value: 16,
+  },
+  iron_sword: {
+    id: 'iron_sword',
+    name: 'Iron sword',
+    description: 'Plain, grey and properly sharp. Nobody laughs at this one.',
+    value: 32,
+  },
+  iron_helmet: {
+    id: 'iron_helmet',
+    name: 'Iron helmet',
+    description: 'A cold, snug fit. Muffles the world, and most of its opinions.',
+    value: 33,
+  },
+  iron_shield: {
+    id: 'iron_shield',
+    name: 'Iron shield',
+    description: 'Solid enough to hide behind, which is most of the job.',
+    value: 48,
+  },
+  iron_breastplate: {
+    id: 'iron_breastplate',
+    name: 'Iron breastplate',
+    description: 'Takes two people to buckle on and a third to say it suits you.',
+    value: 65,
   },
 } satisfies Record<string, ItemDef>;

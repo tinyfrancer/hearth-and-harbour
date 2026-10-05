@@ -8,16 +8,24 @@ const HOUR = 60 * 60 * 1000;
 /**
  * Plays a skill the way a sensible player would: always the best action open,
  * looked at again once a minute. Returns the hours it took to reach `target`.
+ *
+ * Whatever the skill's recipes use is kept topped up, so an artisan skill is
+ * timed with its materials on hand, as its pacing assumes.
  */
 function hoursToLevel(skill: string, target: number): number {
+  const actions = Object.values(CONTENT.actions).filter((action) => action.skill === skill);
   const best = (state: GameState): string =>
-    Object.values(CONTENT.actions)
-      .filter((action) => action.skill === skill && action.level <= skillLevel(state, skill))
+    actions
+      .filter((action) => action.level <= skillLevel(state, skill))
       .sort((a, b) => b.xp / b.durationMs - a.xp / a.durationMs)[0]!.id;
+  const plenty = Object.fromEntries(
+    actions.flatMap((action) => action.uses ?? []).map(({ item }) => [item, 1_000_000]),
+  );
 
   let state = newGame('Sim', 0);
   let elapsed = 0;
   while (skillLevel(state, skill) < target) {
+    state = { ...state, bank: { ...state.bank, ...plenty } };
     const started = startAction(state, best(state), CONTENT);
     if (!started.ok) throw new Error(started.reason);
     state = advance(started.state, 60_000, CONTENT);
@@ -44,6 +52,15 @@ describe('pacing', () => {
       const hours = hoursToLevel(skill, 20);
       expect(hours).toBeGreaterThan(2.5);
       expect(hours).toBeLessThan(3.5);
+    },
+  );
+
+  it.each(['cooking', 'smithing'])(
+    'takes %s through tier 1 in about two hours with the materials on hand',
+    (skill) => {
+      const hours = hoursToLevel(skill, 20);
+      expect(hours).toBeGreaterThan(1.6);
+      expect(hours).toBeLessThan(2.4);
     },
   );
 });

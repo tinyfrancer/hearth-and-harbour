@@ -8,6 +8,8 @@ export interface SkillDef {
   name: string;
   /** The doing word for an action of this skill: "Chopping". */
   verb: string;
+  /** The heading the Skills tab lists it under: "Gathering". Groups appear in table order. */
+  group: string;
 }
 
 export interface ItemDef {

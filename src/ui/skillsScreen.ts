@@ -1,5 +1,5 @@
 import type { ActionDef, Content, SkillDef } from '../core/content';
-import { MASTERY_SPEED_PER_LEVEL, actionDuration } from '../core/actions';
+import { MASTERY_SPEED_PER_LEVEL, actionDuration, affordable } from '../core/actions';
 import {
   bankCount,
   masteryLevel,
@@ -21,14 +21,14 @@ function doing(state: GameState, skill: SkillDef, content: Content): string {
   return action && action.skill === skill.id ? `${skill.verb} ${action.name}` : '';
 }
 
-/** The Skills tab: every skill with its level, to tap into. */
+/** The Skills tab: every skill with its level, to tap into, under its group's heading. */
 export function skillListView(
   state: GameState,
   content: Content,
   open: (skillId: string) => void,
 ): View {
   const updates: ((state: GameState) => void)[] = [];
-  const rows = Object.values(content.skills).map((skill) => {
+  const row = (skill: SkillDef): HTMLElement => {
     const xp = bar('xp', `${skill.name} experience`);
     const status = h('span', { class: 'doing' });
     updates.push((now) => {
@@ -51,10 +51,67 @@ export function skillListView(
         status,
       ],
     );
-  });
+  };
+  const groups = new Map<string, SkillDef[]>();
+  for (const skill of Object.values(content.skills)) {
+    groups.set(skill.group, [...(groups.get(skill.group) ?? []), skill]);
+  }
+  const sections = [...groups].map(([group, skills]) =>
+    h('section', { class: 'stack', attrs: { 'data-group': group } }, [
+      h('h2', { class: 'group-heading', text: group }),
+      ...skills.map(row),
+    ]),
+  );
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
-  return { el: h('div', { class: 'stack' }, rows), update };
+  return { el: h('div', { class: 'stack groups' }, sections), update };
+}
+
+/**
+ * What a recipe takes, how many of each the bank holds, and how many times
+ * over it can be made. Updated in place, since the counts move as it runs.
+ */
+function recipeNeeds(
+  action: ActionDef,
+  content: Content,
+  updates: ((state: GameState) => void)[],
+): { el: HTMLElement; short(state: GameState): boolean } {
+  const uses = action.uses ?? [];
+  const name = (item: string): string => content.items[item]?.name ?? item;
+  const shortOf = (now: GameState): string[] =>
+    uses.filter(({ item, qty }) => bankCount(now, item) < qty).map(({ item }) => name(item));
+  const rows = uses.map(({ item, qty }) => {
+    const held = h('span', { class: 'qty' });
+    const el = h('li', { attrs: { 'data-input': item } }, [
+      h('span', { class: 'titled' }, [itemIcon(item), `${name(item)} × ${qty}`]),
+      held,
+    ]);
+    updates.push((now) => {
+      const have = bankCount(now, item);
+      held.textContent = formatNumber(have);
+      el.classList.toggle('short', have < qty);
+    });
+    return el;
+  });
+  const verdict = h('p', { class: 'small afford' });
+  updates.push((now) => {
+    const short = shortOf(now);
+    verdict.classList.toggle('problem', short.length > 0);
+    verdict.textContent =
+      short.length > 0
+        ? `Not enough ${short.join(' or ')}`
+        : `Enough for ${formatNumber(affordable(now, action))}`;
+  });
+  return {
+    el: h('div', { class: 'needs small' }, [
+      h('ul', { class: 'inputs' }, [
+        h('li', { class: 'muted' }, [h('span', { text: 'Uses' }), h('span', { text: 'Held' })]),
+        ...rows,
+      ]),
+      verdict,
+    ]),
+    short: (now) => shortOf(now).length > 0,
+  };
 }
 
 interface SkillPageActions {
@@ -94,6 +151,8 @@ export function skillPageView(
       ]);
     }
     const active = state.action?.id === action.id;
+    const needs = action.uses?.length ? recipeNeeds(action, content, updates) : null;
+    const hint = h('span', { class: 'small hint' });
     const progress = bar('action', `${action.name} progress`);
     const mastery = bar('mastery', `${action.name} mastery`);
     const rate = h('span', { class: 'muted' });
@@ -115,11 +174,12 @@ export function skillPageView(
         )
         .join(' · ');
     });
-    return h(
+    const el = h(
       'button',
       {
         class: `panel card${active ? ' active' : ''}`,
         attrs: { type: 'button', 'data-action': action.id, 'aria-pressed': String(active) },
+        // A recipe that cannot be paid for still answers a tap, with what is short.
         on: { click: () => (active ? actions.stop() : actions.start(action.id)) },
       },
       [
@@ -128,13 +188,18 @@ export function skillPageView(
           rate,
         ]),
         progress.el,
-        h('div', { class: 'card-head' }, [
-          owned,
-          h('span', { class: 'small hint', text: active ? 'Tap to stop' : 'Tap to start' }),
-        ]),
+        needs?.el,
+        h('div', { class: 'card-head' }, [owned, hint]),
         h('div', { class: 'mastery-row' }, [masteryText, mastery.el]),
       ],
     );
+    updates.push((now) => {
+      const short = !active && (needs?.short(now) ?? false);
+      el.classList.toggle('short', short);
+      el.setAttribute('aria-disabled', String(short));
+      hint.textContent = active ? 'Tap to stop' : short ? '' : 'Tap to start';
+    });
+    return el;
   };
 
   const cards = Object.values(content.actions)
