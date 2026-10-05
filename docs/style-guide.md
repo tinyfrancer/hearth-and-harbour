@@ -32,7 +32,9 @@ a dusk mood for evenings and dungeons.
 | Building                                                | 96–150 wide                                       |
 
 Scaling: art pixels are always drawn at a whole number of device pixels (on a typical phone, 4
-device pixels each). Never scale by a fraction.
+device pixels each). Never scale by a fraction. A canvas is also padded, by under one CSS pixel on
+most phones, so its CSS size is a whole number: browsers stretch a canvas whose CSS size is
+fractional by a hair, and that blurs it.
 
 ## Colour
 
@@ -49,6 +51,13 @@ device pixels each). Never scale by a fraction.
   cobble #c2b9a6 #9d9484 #7a7268 · pine #4a9a62 #2f744e #1e523c · skin #f8cda4 #e0a27c · metal
   #eef3f8 #b9c6d6 #7f8ca3 · gold #ffd34d #d99a2b · navy #232a45 #38426a · fire #ffe27a #ff8a30
   #d8442a.
+- In code (`src/art/palette.ts`, the only file that names a colour), steps are named ramp plus
+  number, lightest first: `wood1` to `wood4`. Navy is stored lightest first (`navy1` #38426a,
+  `navy2` #232a45). The mock-up's other colours (hair, tunic teal, cloak crimson, glass, lamp,
+  foam, sail and so on) are ramps there too, some of only one or two steps.
+- Dusk keeps the mock-up's hand-set values for lights and highlights: windows and lamps are lit
+  (glass #fff2b0 #ffd34d, lamp #ffe08a), and foam, the sea's light step, gold, polished metal,
+  white and sail light are set by hand so they still catch the light.
 
 ## Line and light
 
@@ -73,6 +82,13 @@ These rules exist because the first drafts broke them.
 5. Gear shows: armour, cloak, weapon and shield are each readable at a glance, and each is a layer
    drawn to fit the posed body.
 6. Villains get attitude from silhouette (hat, coat, hook), not from gore.
+
+In code (`src/art/figure.ts`, `src/art/wardrobe.ts`): a figure is a posed body plus gear layers
+chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a depth (cloak and a
+held blade behind the body, clothes and armour on it, shield in front), and the outline goes round
+the dressed figure. The standard body stands in linen smallclothes, left fist at the hip where a
+weapon goes and right hand on the hip where a shield goes; every new piece of gear is drawn to fit
+that pose. Its hero outfit is the mock-up's hero, pixel for pixel.
 
 ## Portraits
 

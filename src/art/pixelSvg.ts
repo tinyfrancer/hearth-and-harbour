@@ -4,8 +4,8 @@
  * '.' is empty; any other character is a filled pixel.
  *
  * This is the placeholder path for menu glyphs only. The real pixel engine
- * (palette ramps, automatic outlines, day and dusk) arrives in S7 from
- * docs/art-reference.
+ * (palette ramps, automatic outlines, day and dusk) is grid.ts and its
+ * neighbours.
  */
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

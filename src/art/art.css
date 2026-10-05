@@ -1,5 +1,87 @@
-/* Styles for drawn things (icons, portraits, the gallery). Owned by the art lane. */
+/* Styles for drawn things (icons, portraits, the gallery). Owned by the art lane.
+   Colours come from the menu's custom properties or the art palette, never from here. */
 .icon {
   flex: none;
   image-rendering: pixelated;
+}
+
+/* Canvases are sized to land on whole device pixels; never let layout stretch them. */
+.pixel-art {
+  display: block;
+  flex: none;
+  max-width: none;
+  image-rendering: pixelated;
+}
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-bottom: 24px;
+}
+
+.gallery-intro {
+  color: var(--text);
+}
+
+.gallery-part {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gallery-caption {
+  font-size: 16px;
+}
+
+/* Left-aligned with whole-pixel gaps, so every canvas starts on a device pixel. */
+.gallery-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.gallery-shot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.gallery-shot figcaption {
+  font-size: 16px;
+}
+
+.palette {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  gap: 6px 14px;
+  align-items: center;
+}
+
+.palette-title {
+  grid-column: 1;
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.palette-head {
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+.palette-name {
+  font-size: 16px;
+}
+
+.palette-steps {
+  display: flex;
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
 }
