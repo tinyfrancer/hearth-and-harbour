@@ -1,4 +1,5 @@
 import type { ActionDef, Content, PotionDef } from './content';
+import { advanceFight } from './fight';
 import { extrasIn, potionFor } from './potions';
 import { bankCount, masteryLevel, masteryXp, skillLevel, type GameState } from './state';
 import { MAX_LEVEL, xpForLevel } from './xp';
@@ -70,7 +71,7 @@ export function startAction(state: GameState, actionId: string, content: Content
     const item = content.items[short.item]?.name ?? short.item;
     return { ok: false, reason: `Needs ${short.qty} ${item}.` };
   }
-  return { ok: true, state: { ...state, action: { id: actionId, progressMs: 0 } } };
+  return { ok: true, state: { ...state, fight: null, action: { id: actionId, progressMs: 0 } } };
 }
 
 export function stopAction(state: GameState): GameState {
@@ -148,8 +149,15 @@ function complete(
  * on the completion that reaches the next level or uses the last charge: at
  * most 99 of them. Time left over at a boundary carries into the next stretch
  * as milliseconds, so it does not matter where a cut fell.
+ *
+ * A fight is the other thing the character can be doing, and it goes by
+ * chance: `advanceFight` (src/core/fight.ts) walks it event by event with
+ * seeded dice instead, under the same rule.
  */
 export function advance(state: GameState, ms: number, content: Content): GameState {
+  if (state.fight) {
+    return advanceFight(state, ms, content);
+  }
   if (!state.action || !(ms > 0)) {
     return state;
   }

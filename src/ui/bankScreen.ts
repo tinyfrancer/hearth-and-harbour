@@ -1,5 +1,5 @@
 import type { Content, ItemDef, PotionDef } from '../core/content';
-import { bankCount, type GameState } from '../core/state';
+import { bankCount, skillLevel, type GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
 import { button, h, titled } from './dom';
 import { activePotion } from '../core/potions';
@@ -14,15 +14,27 @@ interface BankActions {
   sell(itemId: string, qty: number): void;
   drink(itemId: string): void;
   equip(itemId: string): void;
+  /** Put a food's whole stack in the food slot. */
+  feed(itemId: string): void;
 }
 
 const coins = (amount: number): string =>
   `${formatNumber(amount)} ${amount === 1 ? 'coin' : 'coins'}`;
 
-/** Where an item comes from and what it goes into, read off the action tables. */
-function provenance(item: ItemDef, content: Content): { from: string[]; usedIn: string[] } {
+/**
+ * Where an item comes from and what it goes into, read off the action tables,
+ * and the monsters the character has seen drop it.
+ */
+function provenance(
+  item: ItemDef,
+  content: Content,
+  state: GameState,
+): { from: string[]; usedIn: string[] } {
   const from: string[] = [];
   const usedIn: string[] = [];
+  for (const monster of Object.values(content.monsters ?? {})) {
+    if (state.bestiary[monster.id]?.seen.includes(item.id)) from.push(monster.name);
+  }
   for (const action of Object.values(content.actions)) {
     const skill = content.skills[action.skill]?.name ?? action.skill;
     if (action.gives.some((entry) => entry.item === item.id)) {
@@ -91,7 +103,8 @@ function itemCard(
   actions: BankActions,
   updates: ((state: GameState) => void)[],
 ): HTMLElement {
-  const { from, usedIn } = provenance(item, content);
+  const { from, usedIn } = provenance(item, content, state);
+  const needs = item.equip?.requires;
   const held = h('span', { class: 'qty' });
   // How many the sell button will sell: a number, or everything held.
   let chosen: number | 'all' = 1;
@@ -99,7 +112,7 @@ function itemCard(
     actions.sell(item.id, chosen === 'all' ? Infinity : chosen);
   });
   // On a potion the thing to do is drink it, and on gear to wear it, so selling steps back.
-  if (!item.potion && !item.equip) sellButton.classList.add('primary');
+  if (!item.potion && !item.equip && !item.heals) sellButton.classList.add('primary');
   const choices = ([1, 10, 100, 'all'] as const).map((amount) =>
     h('button', {
       class: 'btn choice',
@@ -138,7 +151,19 @@ function itemCard(
             h('dd', { text: slotText(item.equip) }),
             h('dt', { text: 'Gives' }),
             h('dd', { text: gearText(item.equip) }),
+            ...(needs
+              ? [
+                  h('dt', { text: 'Needs' }),
+                  h('dd', {
+                    class: skillLevel(state, needs.skill) < needs.level ? 'problem' : '',
+                    text: `${content.skills[needs.skill]?.name ?? needs.skill} level ${needs.level}`,
+                  }),
+                ]
+              : []),
           ]
+        : []),
+      ...(item.heals
+        ? [h('dt', { text: 'Heals' }), h('dd', { text: `${item.heals} hit points` })]
         : []),
       h('dt', { text: 'From' }),
       h('dd', { text: from.join(', ') || 'Nowhere yet' }),
@@ -149,6 +174,7 @@ function itemCard(
     ]),
     item.potion && drinkButton(item, content, actions, () => latest),
     item.equip && button(`Equip ${item.name}`, () => actions.equip(item.id), 'primary'),
+    Boolean(item.heals) && button('Put in the food slot', () => actions.feed(item.id), 'primary'),
     h('div', { class: 'row' }, choices),
     sellButton,
     button('Close', () => actions.open(null)),

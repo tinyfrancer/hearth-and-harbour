@@ -9,9 +9,16 @@ export function awayReportOverlay(
   content: Content,
   dismiss: () => void,
 ): HTMLElement {
-  const action = content.actions[report.actionId];
+  const action = report.actionId ? content.actions[report.actionId] : undefined;
   const skill = action && content.skills[action.skill];
+  const monster = report.fight ? content.monsters?.[report.fight.monster] : undefined;
   const itemName = (id: string): string => content.items[id]?.name ?? id;
+  const doing =
+    action && skill
+      ? `, ${skill.verb.toLowerCase()} ${action.name}`
+      : monster
+        ? `, fighting the ${monster.name}`
+        : '';
 
   const gains = [
     ...Object.entries(report.items).map(([item, qty]) =>
@@ -20,6 +27,14 @@ export function awayReportOverlay(
         h('span', { class: 'qty', text: `${qty > 0 ? '+' : '−'}${formatNumber(Math.abs(qty))}` }),
       ]),
     ),
+    ...(report.coins > 0
+      ? [
+          h('li', {}, [
+            h('span', { text: 'Coins' }),
+            h('span', { class: 'qty', text: `+${formatNumber(report.coins)}` }),
+          ]),
+        ]
+      : []),
     ...Object.entries(report.xp).map(([id, xp]) =>
       h('li', {}, [
         h('span', { text: `${content.skills[id]?.name ?? id} XP` }),
@@ -54,9 +69,24 @@ export function awayReportOverlay(
     } used${ranOut ? ', and it has worn off.' : '.'}`;
   }
 
+  // A fight's own account: how many fell, and what it cost to keep going.
+  const fight: string[] = [];
+  if (report.fight) {
+    const { kills, eaten, arrows, food } = report.fight;
+    const name = monster?.name ?? 'monster';
+    fight.push(`${formatNumber(kills)} ${name} ${kills === 1 ? 'kill' : 'kills'}.`);
+    if (eaten > 0) fight.push(`${formatNumber(eaten)} ${food ? itemName(food) : 'food'} eaten.`);
+    if (arrows > 0)
+      fight.push(`${formatNumber(arrows)} ${arrows === 1 ? 'arrow' : 'arrows'} shot.`);
+  }
+
   let stopped = '';
   if (report.stopped?.reason === 'ran_out') {
     stopped = `Stopped: you ran out of ${itemName(report.stopped.item)}.`;
+  } else if (report.stopped?.reason === 'died') {
+    stopped = `Knocked out by the ${monster?.name ?? 'monster'}. No harm done: you are back at full health, resting.`;
+  } else if (report.stopped?.reason === 'no_arrows') {
+    stopped = 'Stopped: your last arrow is gone, and the fight with it.';
   } else if (report.stopped) {
     stopped = 'Stopped: that is no longer something you can do.';
   }
@@ -69,9 +99,7 @@ export function awayReportOverlay(
         h('h2', { text: 'While you were away' }),
         h('p', {
           class: 'muted',
-          text: `${formatDuration(report.awayMs)}${
-            action && skill ? `, ${skill.verb.toLowerCase()} ${action.name}` : ''
-          }`,
+          text: `${formatDuration(report.awayMs)}${doing}`,
         }),
         report.awayMs > report.countedMs &&
           h('p', {
@@ -81,6 +109,7 @@ export function awayReportOverlay(
         gains.length > 0
           ? h('ul', { class: 'gains' }, gains)
           : h('p', { class: 'muted', text: 'Nothing finished in that time.' }),
+        ...fight.map((text) => h('p', { class: 'fight-text', text })),
         ...levels,
         ...unlocked,
         ...mastery,

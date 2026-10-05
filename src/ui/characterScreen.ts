@@ -1,7 +1,7 @@
 import { characterCanvas, type Look as DrawnLook } from '../art/character';
 import { itemIcon } from '../art/icons';
 import { SLOTS, type Content, type Slot } from '../core/content';
-import { equipmentTotals, wearablesFor, wornItemIds } from '../core/equipment';
+import { equipmentTotals, unmetRequirement, wearablesFor, wornItemIds } from '../core/equipment';
 import { bankCount, type GameState } from '../core/state';
 import { button, h, titled } from './dom';
 import { formatNumber } from './format';
@@ -52,6 +52,7 @@ function slotPicker(
   const held = state.equipment.main_hand;
   const heldDef = held && content.items[held.item];
   const choices = wearablesFor(state, slot, content).map((item) => {
+    const short = unmetRequirement(state, item.id, content);
     const count = h('span', { class: 'qty' });
     updates.push((now) => {
       count.textContent = formatNumber(bankCount(now, item.id));
@@ -69,6 +70,8 @@ function slotPicker(
           class: 'small muted',
           text: `${gearText(item.equip!)}${item.equip!.twoHanded ? ' · both hands' : ''}`,
         }),
+        // Still offered when the level is short, so the player can see what to aim for.
+        short && h('p', { class: 'small problem', text: short }),
       ],
     );
   });

@@ -789,3 +789,122 @@ button.card:active {
   font-size: 24px;
   border-color: var(--line);
 }
+
+/* Combat. */
+
+/*
+ * A monster's face: 48 art pixels shown at 3x on the fight screen and 2x in
+ * the lists, on a dark disc in a gold frame. Until art has drawn one, the
+ * frame holds the monster's initial, at the same size, so a face arriving
+ * moves nothing.
+ */
+.portrait {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--backdrop);
+  border: var(--px) solid var(--gold);
+}
+
+.portrait.large {
+  width: 148px;
+  height: 148px;
+}
+
+.portrait.small {
+  width: 100px;
+  height: 100px;
+}
+
+.portrait.blank > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: 40px;
+}
+
+.portrait.small.blank > span {
+  font-size: 28px;
+}
+
+.card.monster {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.monster-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.foe-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bar.health .bar-fill {
+  background: var(--green);
+}
+
+.bar.foe .bar-fill {
+  background: var(--danger);
+}
+
+.bar.swing {
+  height: 6px;
+}
+
+.bar.swing .bar-fill {
+  background: var(--text-muted);
+}
+
+/* The line the character eats below, marked on their health bar. */
+.health-wrap {
+  position: relative;
+}
+
+.eat-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: var(--px);
+  background: var(--gold-bright);
+}
+
+.eat-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eat-line > span {
+  flex: 1;
+}
+
+.btn.step {
+  width: 48px;
+  flex: none;
+  padding: 0;
+  font-size: 22px;
+}
+
+.btn.choice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.fight-text {
+  color: var(--text);
+}

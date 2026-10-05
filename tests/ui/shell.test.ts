@@ -97,4 +97,42 @@ describe('the shell a scene is given', () => {
     app.save();
     expect(saved()?.bank).toEqual({ pine_logs: 1 });
   });
+
+  it('holds a fight still while paused: no blows, no dice, nothing owed afterwards', () => {
+    const app = mountApp(root, {
+      saves: new LocalStorageSaveService(),
+      content: CONTENT,
+      now: () => clock,
+    });
+    root.querySelector<HTMLInputElement>('input[name="character-name"]')!.value = 'Cody';
+    root.querySelector<HTMLFormElement>('form')!.requestSubmit();
+    click('[data-combat]');
+    click('[data-monster="dock_rat"]');
+    click('.tab[data-tab="town"]');
+    clock += 1000;
+    app.tick();
+    shell!.pauseIdle(true);
+    app.save();
+    const before = saved()!;
+    for (let i = 0; i < 40; i += 1) {
+      clock += 30_000;
+      app.tick();
+    }
+    app.save();
+    const during = saved()!;
+    expect(during.fight).toEqual(before.fight);
+    expect(during.rng).toBe(before.rng);
+    expect(during.skills).toEqual(before.skills);
+    shell!.pauseIdle(false);
+    // The first blow, 2.4 seconds in, falls 1.4 seconds after the pause ends.
+    clock += 1399;
+    app.tick();
+    app.save();
+    expect(saved()!.rng).toBe(before.rng);
+    clock += 1;
+    app.tick();
+    app.save();
+    expect(saved()!.rng).not.toBe(before.rng);
+    expect(root.querySelector('[role="dialog"]')).toBeNull();
+  });
 });

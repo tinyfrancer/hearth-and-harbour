@@ -5,6 +5,7 @@ import {
 } from '../../src/persistence/LocalStorageSaveService';
 import { writeSaveExport } from '../../src/persistence/saveFile';
 import { newGame } from '../../src/core/state';
+import { xpForLevel } from '../../src/core/xp';
 import { mountApp } from '../../src/ui/app';
 import { CONTENT } from '../../src/data';
 import { LOOK_CHOICES } from '../../src/art/character';
@@ -357,7 +358,7 @@ describe('the app shell', () => {
       mount();
       create('Cody');
       const headings = [...root.querySelectorAll('.group-heading')].map((el) => el.textContent);
-      expect(headings).toEqual(['Gathering', 'Artisan']);
+      expect(headings).toEqual(['Gathering', 'Artisan', 'Combat']);
       const artisan = [...root.querySelectorAll('[data-group="Artisan"] [data-skill] h2')].map(
         (el) => el.textContent,
       );
@@ -769,8 +770,14 @@ describe('the app shell', () => {
   });
 
   describe('equipment', () => {
+    /** A character with the levels to wear iron, and `bank`. */
     const geared = (bank: Record<string, number>) => {
-      new LocalStorageSaveService().save({ ...newGame('Cody', clock), bank });
+      const ten = xpForLevel(10);
+      new LocalStorageSaveService().save({
+        ...newGame('Cody', clock),
+        bank,
+        skills: { melee: ten, ranged: ten, defence: ten },
+      });
       return mount();
     };
     const slot = (id: string): HTMLButtonElement => q(`[data-slot="${id}"]`);
@@ -923,7 +930,7 @@ describe('the app shell', () => {
       const slots = [...root.querySelectorAll('[data-slot]')];
       expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
       expect(new LocalStorageSaveService().load()).toMatchObject({
-        version: 5,
+        version: 6,
         look: {},
         equipment: {},
         bank: { bronze_sword: 1, bronze_shield: 1 },

@@ -5,6 +5,7 @@ import {
   affordable,
   xpPerCompletion,
 } from '../core/actions';
+import { DEFENCE, VITALITY, monsterDef, playerCombat } from '../core/combat';
 import { potionFor } from '../core/potions';
 import {
   bankCount,
@@ -24,8 +25,36 @@ import type { View } from './view';
 
 /** What the character is doing in this skill right now, or nothing. */
 function doing(state: GameState, skill: SkillDef, content: Content): string {
+  if (state.fight) {
+    const monster = monsterDef(content, state.fight.monster);
+    const trains = [playerCombat(state, content).skill, DEFENCE, VITALITY];
+    return monster && trains.includes(skill.id) ? `${skill.verb} the ${monster.name}` : '';
+  }
   const action = state.action && content.actions[state.action.id];
   return action && action.skill === skill.id ? `${skill.verb} ${action.name}` : '';
+}
+
+/** The way into combat, at the head of the Combat skills: what is being fought, if anything. */
+function combatEntry(state: GameState, content: Content, open: () => void): HTMLElement {
+  const fighting = state.fight && monsterDef(content, state.fight.monster);
+  return h(
+    'button',
+    {
+      class: `panel card${fighting ? ' active' : ''}`,
+      attrs: { type: 'button', 'data-combat': '' },
+      on: { click: open },
+    },
+    [
+      h('div', { class: 'card-head' }, [
+        h('h2', { text: 'Fight' }),
+        h('span', { class: 'hint', text: fighting ? 'Watch' : 'Choose' }),
+      ]),
+      h('span', {
+        class: fighting ? 'doing' : 'muted small',
+        text: fighting ? `Fighting the ${fighting.name}` : 'Pick an area and a monster.',
+      }),
+    ],
+  );
 }
 
 /** The Skills tab: every skill with its level, to tap into, under its group's heading. */
@@ -33,6 +62,7 @@ export function skillListView(
   state: GameState,
   content: Content,
   open: (skillId: string) => void,
+  openCombat: () => void = () => {},
 ): View {
   const updates: ((state: GameState) => void)[] = [];
   const row = (skill: SkillDef): HTMLElement => {
@@ -66,6 +96,7 @@ export function skillListView(
   const sections = [...groups].map(([group, skills]) =>
     h('section', { class: 'stack', attrs: { 'data-group': group } }, [
       h('h2', { class: 'group-heading', text: group }),
+      group === 'Combat' && combatEntry(state, content, openCombat),
       ...skills.map(row),
     ]),
   );

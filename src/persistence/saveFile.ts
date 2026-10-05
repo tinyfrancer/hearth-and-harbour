@@ -147,7 +147,59 @@ function saveProblem(state: Record<string, unknown>): string | null {
   ) {
     return 'the equipment should be one thing a slot, or a stack of ammunition';
   }
+  const { fight } = state;
+  if (fight !== null && !isFight(fight)) {
+    return 'the fight under way is not one';
+  }
+  if (fight !== null && action !== null) {
+    return 'it is fighting and doing something else at once';
+  }
+  const { food } = state;
+  if (
+    food !== null &&
+    !(isRecord(food) && typeof food.item === 'string' && isWhole(food.qty) && food.qty > 0)
+  ) {
+    return 'the food slot should hold a stack of one kind of food';
+  }
+  if (!isWhole(state.eatAt) || state.eatAt > 100) {
+    return 'the line to eat at should be a percentage';
+  }
+  if (!isWhole(state.rng) || state.rng >= 2 ** 32) {
+    return 'the dice should be a whole number below 2^32';
+  }
+  const { bestiary } = state;
+  if (
+    !isRecord(bestiary) ||
+    !Object.values(bestiary).every(
+      (record) =>
+        isRecord(record) &&
+        isWhole(record.kills) &&
+        Array.isArray(record.seen) &&
+        record.seen.every((item) => typeof item === 'string'),
+    )
+  ) {
+    return 'what is known of monsters should be kills and drops seen';
+  }
   return null;
+}
+
+/** A fight: a monster, both sides' hit points, both waits, and the tally so far. */
+function isFight(fight: unknown): boolean {
+  return (
+    isRecord(fight) &&
+    typeof fight.monster === 'string' &&
+    isWhole(fight.hp) &&
+    fight.hp > 0 &&
+    isWhole(fight.foeHp) &&
+    // The next blow is always ahead: a wait of nothing has already happened.
+    isWhole(fight.playerMs) &&
+    fight.playerMs > 0 &&
+    isWhole(fight.foeMs) &&
+    fight.foeMs > 0 &&
+    ['kills', 'coins', 'eaten', 'arrows'].every((count) => isWhole(fight[count])) &&
+    isRecord(fight.loot) &&
+    Object.values(fight.loot).every(isWhole)
+  );
 }
 
 /** The parts of a look a save may name. Their values are the art's to judge. */
