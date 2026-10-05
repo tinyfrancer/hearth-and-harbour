@@ -66,7 +66,14 @@ export function settleRun(state: GameState, spoils: RunSpoils): GameState {
     else delete equipment.ammo;
   }
 
-  const settled = { ...state, skills, bank, coins: state.coins + whole(spoils.coins), food, equipment };
+  const settled = {
+    ...state,
+    skills,
+    bank,
+    coins: state.coins + whole(spoils.coins),
+    food,
+    equipment,
+  };
   // Read after the XP is in: a Vitality level from the run raises the most there can be.
   if (typeof spoils.hp === 'number' && Number.isFinite(spoils.hp) && !state.fight) {
     const most = maxHp(settled);

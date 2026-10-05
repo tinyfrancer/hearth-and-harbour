@@ -10,8 +10,8 @@ import { bankCount, skillLevel, type GameState } from './state';
  *   and Vitality, averaged and rounded down.
  * - A bounty is posted on a monster with a bounty row whose level is from six
  *   below that combat level to the level itself (or, when none is, the
- *   nearest), chosen with the save's dice, every one equally likely; then the
- *   number of kills, between the row's two numbers.
+ *   strongest below it), chosen with the save's dice, every one equally
+ *   likely; then the number of kills, between the row's two numbers.
  * - Kills of that monster count while the bounty is held, live or away, until
  *   it asks for no more (src/core/fight.ts counts them, blow by blow).
  * - Handing it in pays the row's points and ten coins a point, and posts the
@@ -46,10 +46,11 @@ export function bountyChoices(state: GameState, content: Content): MonsterDef[] 
     .sort((a, b) => a.level - b.level);
   const near = posted.filter((m) => m.level <= level && m.level >= level - BOUNTY_BELOW);
   if (near.length > 0) return near;
-  // Beyond the tables either way: the closest there is.
-  const gap = (m: MonsterDef): number => Math.abs(m.level - level);
-  const closest = Math.min(...posted.map(gap));
-  return posted.filter((m) => gap(m) === closest);
+  // Past everything in the tables, the strongest there is; before everything,
+  // the weakest. Never one above the character while something is below.
+  const below = posted.filter((m) => m.level <= level);
+  const pick = below.length > 0 ? below.at(-1)!.level : posted[0]?.level;
+  return posted.filter((m) => m.level === pick);
 }
 
 /** A new bounty from the board, on anything but `except` if there is anything else. */
@@ -88,7 +89,10 @@ export function bountyReady(state: GameState): boolean {
 }
 
 /** What handing in the bounty held pays: its monster's points, and coins for each. */
-export function bountyReward(state: GameState, content: Content): { points: number; coins: number } {
+export function bountyReward(
+  state: GameState,
+  content: Content,
+): { points: number; coins: number } {
   const points = state.bounty
     ? (monsterDef(content, state.bounty.monster)?.bounty?.points ?? 0)
     : 0;

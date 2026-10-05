@@ -1,13 +1,6 @@
 import type { CombatStyle, Content, MonsterDef } from './content';
 import { equipmentTotals } from './equipment';
-import {
-  bankCount,
-  skillLevel,
-  type Fight,
-  type GameState,
-  type Health,
-  type Worn,
-} from './state';
+import { bankCount, skillLevel, type Fight, type GameState, type Health, type Worn } from './state';
 
 /**
  * Combat's rules, each plain enough to say in a sentence. The fight itself,

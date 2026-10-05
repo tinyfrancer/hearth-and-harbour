@@ -13,7 +13,6 @@ export type StartResult = { ok: true; state: GameState } | { ok: false; reason: 
 /** Each mastery level past the first makes its action this much quicker: 19.6% at 99. */
 export const MASTERY_SPEED_PER_LEVEL = 0.002;
 
-
 /**
  * How long one completion takes at a mastery level, under a potion if one is
  * helping. A whole number of milliseconds, rounded once, so that sums of them
