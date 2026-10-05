@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cameraFor } from '../../src/scene/camera';
-import { SCENE_WIDTH, deviceSize, sceneScale, tapToWorld, viewSize } from '../../src/scene/scale';
+import { SCENE_WIDTH, canvasFit, sceneScale, tapToWorld, viewSize } from '../../src/scene/scale';
 
 describe('cameraFor', () => {
   const view = { width: 270, height: 400 };
@@ -70,22 +70,25 @@ describe('sceneScale', () => {
   });
 });
 
-describe('deviceSize', () => {
-  const css = { width: 390, height: 727.40625 };
-
-  it('takes the browser’s exact count when it agrees with the ratio', () => {
-    expect(deviceSize(css, 3, { width: 1170, height: 2183 })).toEqual({
-      width: 1170,
-      height: 2183,
+describe('canvasFit', () => {
+  it('fits a whole number of CSS pixels that is also whole in device pixels, never stretched', () => {
+    // The Town screen on a 390-wide phone at 3x is 727.4 CSS pixels tall.
+    expect(canvasFit({ width: 390, height: 727.40625 }, 3)).toEqual({
+      css: { width: 390, height: 727 },
+      device: { width: 1170, height: 2181 },
     });
   });
 
-  it('works it out from the ratio when the browser does not say', () => {
-    expect(deviceSize(css, 3)).toEqual({ width: 1170, height: 2182 });
+  it('steps by the smallest whole size at a fractional ratio', () => {
+    // At 2.625x, 8 CSS pixels is the smallest that is 21 whole device pixels.
+    const fit = canvasFit({ width: 412, height: 700.5 }, 2.625);
+    expect(fit.css).toEqual({ width: 408, height: 696 });
+    expect(fit.device).toEqual({ width: 1071, height: 1827 });
+    expect(fit.css.width * 2.625).toBe(fit.device.width);
   });
 
-  it('works it out from the ratio when the browser reports CSS pixels instead', () => {
-    expect(deviceSize(css, 3, { width: 390, height: 727 })).toEqual({ width: 1170, height: 2182 });
+  it('keeps a box that is already whole as it is', () => {
+    expect(canvasFit({ width: 480, height: 273 }, 1).css).toEqual({ width: 480, height: 273 });
   });
 });
 

@@ -126,6 +126,25 @@ function nearestIn(map: TileMap, reach: Reach, target: Cell): Cell | null {
   return best === -1 ? null : { col: best % map.cols, row: Math.floor(best / map.cols) };
 }
 
+/**
+ * Of `cells`, the one a walker at `from` can reach by the shortest walk (the
+ * earlier in the list breaks a tie), or null if it can reach none of them.
+ */
+export function cheapest(map: TileMap, from: Point, cells: readonly Cell[]): Cell | null {
+  const reach = reachFrom(map, cellAt(from));
+  let best: Cell | null = null;
+  let bestCost = Infinity;
+  for (const cell of cells) {
+    if (!inMap(map, cell)) continue;
+    const cost = reach.cost[cell.row * map.cols + cell.col]!;
+    if (cost < bestCost) {
+      best = cell;
+      bestCost = cost;
+    }
+  }
+  return best;
+}
+
 /** How far apart the boxes are set along a line being tested: under a tile, so none is missed. */
 const LINE_STEP = 2;
 

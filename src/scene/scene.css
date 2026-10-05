@@ -1,28 +1,143 @@
 /* Styles for the canvas scenes (town, dungeons). Owned by the scene lane. */
 
-/*
- * A scene fills the screen area edge to edge: no padding, and nothing to
- * scroll. The shell's screen is styled for menus, so the scene takes it over
- * only while one is inside it.
- */
-.screen:has(> .scene) {
-  position: relative;
-  padding: 0;
-  overflow: hidden;
-}
-
+/* The shell's Town screen is unpadded and does not scroll; the scene fills it. */
 .scene {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  /* Shows in the sliver (under a CSS pixel or a few) the canvas leaves to stay whole. */
+  background: var(--backdrop);
 }
 
+/* Sized by the stage to whole CSS and device pixels, so it is never stretched. */
 .scene-canvas {
   display: block;
-  width: 100%;
-  height: 100%;
   /* Taps are walks: no scrolling, zooming or double-tap delay on the scene. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   image-rendering: pixelated;
+}
+
+/*
+ * The sun-and-moon button: flips day and dusk for the session. Its icon is
+ * drawn in 4px squares (one pixel each), from the menu colours.
+ */
+.scene-light {
+  position: absolute;
+  top: 8px;
+  /*
+   * Top left, over the forest and the tavern's roof: nowhere the hero can
+   * stand is ever under it, at any phone's width.
+   */
+  left: 8px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: var(--panel);
+  border: var(--px) solid var(--gold);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.scene-light::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 4px;
+  height: 4px;
+  box-shadow:
+    16px 4px 0 0 var(--gold),
+    8px 8px 0 0 var(--gold),
+    24px 8px 0 0 var(--gold),
+    12px 12px 0 0 var(--gold-bright),
+    16px 12px 0 0 var(--gold-bright),
+    20px 12px 0 0 var(--gold-bright),
+    4px 16px 0 0 var(--gold),
+    12px 16px 0 0 var(--gold-bright),
+    16px 16px 0 0 var(--gold-bright),
+    20px 16px 0 0 var(--gold-bright),
+    28px 16px 0 0 var(--gold),
+    12px 20px 0 0 var(--gold-bright),
+    16px 20px 0 0 var(--gold-bright),
+    20px 20px 0 0 var(--gold-bright),
+    8px 24px 0 0 var(--gold),
+    24px 24px 0 0 var(--gold),
+    16px 28px 0 0 var(--gold);
+}
+
+.scene-light[data-time='dusk']::before {
+  box-shadow:
+    12px 4px 0 0 var(--text),
+    16px 4px 0 0 var(--text),
+    20px 4px 0 0 var(--text),
+    8px 8px 0 0 var(--text),
+    12px 8px 0 0 var(--text),
+    4px 12px 0 0 var(--text),
+    8px 12px 0 0 var(--text),
+    4px 16px 0 0 var(--text),
+    8px 16px 0 0 var(--text),
+    4px 20px 0 0 var(--text),
+    8px 20px 0 0 var(--text),
+    8px 24px 0 0 var(--text),
+    12px 24px 0 0 var(--text),
+    12px 28px 0 0 var(--text),
+    16px 28px 0 0 var(--text),
+    20px 28px 0 0 var(--text);
+}
+
+.scene-light:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+/* What the walker has walked up to: over the bottom of the scene, styled like the menus. */
+.scene-panel {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+}
+
+.scene-panel h2 {
+  /* Clear of the close button. */
+  padding-right: 40px;
+  font-size: 20px;
+  color: var(--gold-bright);
+}
+
+.scene-panel p {
+  color: var(--text);
+}
+
+.scene-panel .btn {
+  margin-top: 4px;
+}
+
+.scene-panel-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.scene-panel-close:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: -4px;
 }

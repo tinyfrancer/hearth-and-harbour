@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WALK_SPEED, step, walkTo, type Walker } from '../../src/scene/walker';
 import { centreOf } from '../../src/scene/tileMap';
-import { ROOM_START, TEST_ROOM } from '../../src/scene/testRoom';
+import { TOWN_START, town } from '../../src/scene/town';
 
 describe('step', () => {
   const walker: Walker = {
@@ -40,10 +40,10 @@ describe('step', () => {
 });
 
 describe('walkTo', () => {
-  it('walks across the test room to where it was sent, at walking speed', () => {
-    let walker: Walker = { at: centreOf(ROOM_START), path: [] };
-    const target = centreOf({ col: 3, row: 26 });
-    walker = walkTo(TEST_ROOM, walker, target);
+  it('walks across the town to where it was sent, at walking speed', () => {
+    let walker: Walker = { at: centreOf(TOWN_START), path: [] };
+    const target = centreOf({ col: 2, row: 21 });
+    walker = walkTo(town().scene.map, walker, target);
     expect(walker.path.at(-1)).toEqual(target);
     const length = walker.path.reduce((sum, p, i) => {
       const from = i === 0 ? walker.at : walker.path[i - 1]!;
