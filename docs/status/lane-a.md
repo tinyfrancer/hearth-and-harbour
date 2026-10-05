@@ -1,7 +1,6 @@
 # Lane A: idle rules
 
-**Next session: S7b: Equipment and the character** (needs S6, now on `main`; its brief is written
-by the orchestrating session for wave 3).
+**Next session: S7b: Equipment and the character** (brief in `docs/lanes.md`, wave 3).
 
 ## Done
 

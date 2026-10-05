@@ -45,11 +45,11 @@ ESLint enforces the arrows (`eslint.config.js`). Do not weaken those rules to ma
 Up to three sessions build at once, each in its own lane (`docs/lanes.md` has the rules and
 briefs). A lane changes only what it owns:
 
-| Lane          | Owns                                                                      | Its door into the app                                         |
-| ------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| A: idle rules | `src/core`, `src/data`, `src/persistence`, `src/ui`, and the save version | n/a                                                           |
-| B: art        | `src/art` (and `tests/art`)                                               | `icons.ts` (`itemIcon`, `skillIcon`), `gallery.ts`, `art.css` |
-| C: scenes     | `src/scene` (and `tests/scene`)                                           | `townView.ts`, `scene.css`                                    |
+| Lane          | Owns                                                                      | Its door into the app                                          |
+| ------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| A: idle rules | `src/core`, `src/data`, `src/persistence`, `src/ui`, and the save version | n/a                                                            |
+| B: art        | `src/art` (and `tests/art`)                                               | `icons.ts`, `character.ts`, `town.ts`, `gallery.ts`, `art.css` |
+| C: scenes     | `src/scene` (and `tests/scene`)                                           | `townView.ts`, `scene.css`                                     |
 
 Lanes B and C do not edit `src/ui/app.ts`, `src/ui/styles.css`, `src/main.ts`, `package.json` or
 anything under `src/core`, `src/data` or `src/persistence`. If a lane needs a change outside what

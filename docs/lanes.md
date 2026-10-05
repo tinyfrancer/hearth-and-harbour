@@ -61,13 +61,13 @@ Paste one of these into a new Claude Code session attached to `tinyfrancer/heart
 `docs/plan.md` lists the sessions in their original single-file order. Lanes change the order and
 split S7 in two; where the two disagree, this file wins.
 
-| Wave     | Lane A                                 | Lane B                                                             | Lane C                         |
-| -------- | -------------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
-| 1 (done) | S5 Cooking and Smithing                | S7a Art pipeline                                                   | S11 Scene engine               |
-| 2        | S6 Crafting, Fletching, Alchemy        | B2 The rest of the town's art                                      | S12a The town on the engine    |
-| 3        | S7b Equipment and character (needs S6) | B3 Icons for every item and skill, and gear layers for S7b's items | S12b The whole town (needs B2) |
-| 4        | S8 Idle combat                         | B4 Portraits; as needed by A                                       | S14 Dungeon engine (needs S8)  |
-| later    | S9, S10, then the Milestone A review   | art passes are review sessions with Cody, one at a time            | S15, S16                       |
+| Wave     | Lane A                               | Lane B                                                  | Lane C                                                                          |
+| -------- | ------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1 (done) | S5 Cooking and Smithing              | S7a Art pipeline                                        | S11 Scene engine                                                                |
+| 2 (done) | S6 Crafting, Fletching, Alchemy      | B2 The rest of the town's art                           | S12a The town on the engine                                                     |
+| 3        | S7b Equipment and character          | B3 The character's wardrobe: looks and gear layers      | S12b The whole town                                                             |
+| 4        | S8 Idle combat                       | B4 Icons for every item and skill; portraits            | S12c The player's own look and gear in town; then S14 Dungeon engine (needs S8) |
+| later    | S9, S10, then the Milestone A review | art passes are review sessions with Cody, one at a time | S15, S16                                                                        |
 
 A lane that reaches a session whose needs have not landed stops and says so in its status file.
 Lanes do not wait for a whole wave: each takes its next session as soon as what it needs is on
@@ -77,7 +77,150 @@ Lanes do not wait for a whole wave: each takes its next session as soon as what 
 that was meant to come first. The scene engine does not depend on idle pacing, so the risk is
 wasted polish on the town if the review changes direction, not rework of the engine.
 
-## Wave 2 briefs
+## Wave 3 briefs
+
+New since wave 2: `src/art/character.ts` is the door for drawing the player's character. The game
+passes a `Look` and the ids of the items worn; art returns a picture
+(`characterPicture`) or a ready element (`characterCanvas`). Lane A calls it; lane B fills it in.
+Today it is a placeholder: the look is ignored and almost no items show.
+
+### Lane A · S7b: Equipment and the character
+
+Read: `docs/design.md` section 4; `docs/status/lane-a.md`; `src/art/character.ts` (read it, do
+not edit it).
+
+The character gets a look, things to wear, and a sheet that shows both.
+
+- **Equipment in the rules.** Slots: head, body, legs, main hand, off hand, neck, wrist, and
+  ammunition. `ItemDef` gains an optional `equip` saying which slot, whether it takes both hands
+  (bows do), a weapon's style (`melee` or `ranged`), and its numbers. Keep the numbers to three
+  totals that S8's combat will read: **attack**, **strength** and **armour** (ranged weapons give
+  ranged attack and ranged strength as the same two totals under their style). Give every wearable
+  made so far its slot and numbers: the bronze and iron sword, axe, helmet, shield and
+  breastplate; the linen hood, tunic and trousers; the shell necklace and bracelet; the three
+  shortbows; the two kinds of arrow. Iron should beat bronze clearly; cloth gives little armour.
+  Do not invent combat itself; S8 does that.
+- **Wearing things.** Equipping moves one of the item from the bank to the slot and returns
+  whatever was there to the bank; ammunition moves the whole stack. A two-handed weapon empties
+  the off hand; equipping an off-hand item with a two-handed weapon held puts the weapon back.
+  A level requirement to wear (say Smithing has nothing to do with it; use a flat "any level" for
+  now and leave the field for S8's combat levels) is not needed yet. All of it as pure functions
+  in core with tests, nothing random.
+- **The look.** A character has a `Look` (skin, hair, hair colour). Take the choices from
+  `LOOK_CHOICES` in `src/art/character.ts`; never hard-code them, since lane B is adding to that
+  list as you work.
+- **Screens.**
+  - Character creation asks for the name and the look, with the character drawn live as choices
+    change (`characterCanvas`). With only one choice for a part, show it but do not make a fuss.
+  - The Character tab becomes the sheet: the character drawn large wearing what is equipped, the
+    eight slots with what is in each (tap a slot to choose from what the bank holds for it, or to
+    take it off), and the three totals. A way to change the look later.
+  - The bank's item card gets an Equip button for wearables, and says what a thing's numbers are.
+- **Save.** Version 5: `look` and `equipment`. Existing characters get the default look and
+  nothing worn. Migration, `saveProblem` checks and tests.
+- **Housekeeping.** The Smithing page is six screens long. On a skill's page, group its actions
+  under collapsible headings when the skill has more than about eight (for Smithing: Bars, Bronze,
+  Iron; let the data say which group a row is in), keeping whichever group holds the running
+  action open.
+- Tools that help skilling (an axe that speeds woodcutting) are a tempting next step. Do not build
+  it; note in your status file how the `equip` shape would carry it.
+
+Minimum: slots and equip rules in core under test, the sheet showing the drawn character and
+slots, save version 5.
+Done when: `npm run check` passes; a phone-sized run shows a new character made with a look, a
+sword and shield equipped from the bank and shown in their slots with totals changing, a bow
+emptying the off hand, and an old (version 4) save loading with nothing worn.
+
+### Lane B · B3: The character's wardrobe
+
+Read: `docs/style-guide.md` (the Figures section above all); `docs/status/lane-b.md`;
+`src/art/character.ts`, `figure.ts`, `wardrobe.ts`.
+
+Make `src/art/character.ts` real: looks to choose from, and every wearable item in the game drawn
+on the character. Lane A is building the character sheet against that file's exports right now,
+so **do not change the name, parameters or return type of anything it exports**; change what they
+do and add to `LOOK_CHOICES`.
+
+- **Looks.** Several skin tones (as palette ramps: the skin steps must come from a ramp per tone,
+  not from repainting pixels), four or more hairstyles including a bald one and at least two
+  longer ones, and five or six hair colours. Every combination must read well at game scale. Keep
+  `fair`, `short` and `brown` as the first of each so existing characters are unchanged. Faces
+  stay symmetric; nothing cute.
+- **Gear layers, drawn to fit the standard body,** for each of these item ids:
+  - swords: `bronze_sword`, `iron_sword`; axes: `bronze_axe`, `iron_axe` (one-handed, held like
+    the sword);
+  - helmets: `bronze_helmet`, `iron_helmet` (decide and note how a helmet and hair combine);
+  - shields: `bronze_shield`, `iron_shield`;
+  - body: `bronze_breastplate`, `iron_breastplate`, `linen_tunic`;
+  - `linen_hood`, `linen_trousers`;
+  - `shell_necklace`, `shell_bracelet` (a few pixels each; they must still be findable);
+  - bows: `pine_shortbow`, `oak_shortbow`, `willow_shortbow` (held in the weapon hand; the three
+    should differ by their wood's colour).
+    Bronze and iron must be told apart at a glance, by colour and not by shape alone. Add the ramps
+    bronze needs to the palette, with their day and dusk values following the style guide's rule.
+- **The mapping from item id to layer lives in `character.ts`**, with a test that lists the ids
+  above and fails if any draws nothing. Arrows show nothing (a quiver is welcome if it is cheap).
+- **Under the gear:** with no body item the character wears the everyday tunic; with no legs item
+  the everyday trousers; boots always, until the game has boots.
+- **The mock-up's hero must not change:** `figure('standard', HERO_OUTFIT)` stays pixel for pixel
+  what it is, and its test stays as it is.
+- **Gallery:** a "Wardrobe" section: every look choice side by side; the character in full bronze,
+  full iron, full linen, and with each bow; day and dusk for one of them.
+- If time remains after all of the above is solid, start on icons (24 × 24, through `itemIcon`),
+  beginning with the items worn here. Otherwise icons are the next session (B4) with portraits.
+
+Minimum: three skin tones, three hairstyles, three hair colours, and layers for both metals'
+sword, shield, helmet and breastplate.
+Done when: `npm run check` passes; the gallery's wardrobe section looks right at game scale and
+at twice that (look for: arms that hang like sticks, gear that floats off the body, a helmet with
+hair poking through, bronze you cannot tell from gold or from iron); nothing outside `src/art`,
+`tests/art`, `docs/style-guide.md` and this lane's status file changed.
+
+### Lane C · S12b: The whole town
+
+Read: `docs/status/lane-b.md` (the town index: every piece, its base line, its walk-up spots and
+shadow, and how to paint the grounds); `docs/status/lane-c.md` (your plots);
+`docs/design.md` section 7.
+
+Fill the plots with lane B's art so the Town tab is the approved picture, walkable, and put the
+three townsfolk in it.
+
+- **Every piece from the index in its place:** the smithy (forge glowing), the market stall, the
+  quay wall and the pier, the ship, the rowing boat on its mooring, the rock and wreck, the buoy,
+  the signpost, anvil, net, bucket, crab and gulls, and the chimney smoke. Use `townLayout()` as
+  the guide to where things stand relative to each other, adapted to your larger map.
+- **The real grounds:** sea with foam, the road with its ruts, the cobbled square's ragged edge,
+  the quay wall with its rings, the flowers on the grass. Ground shadows under standing things, as
+  the index describes. No flat-colour plots should remain.
+- **Footprints for all of it,** as your data: you can walk the pier to its end, not onto the
+  water, the boat or the ship; behind buildings where there is room, with depth sorting right.
+- **The townsfolk.** The smith by his forge, the trader at her stall, the pirate captain on the
+  pier, each standing where the mock-up has them. They do not walk. Tap one: the hero walks up,
+  and the panel opens with their name and what they say. Give each a handful of lines that change
+  from visit to visit (in order, then round again) and at least one different after dark. The
+  smith's panel offers Smithing; the trader's offers the Bank until there is a shop. Names, lines
+  and whatever is going on with that pirate are yours to write, in the game's voice. Keep it light
+  and leave threads a later story session can pick up; do not write anything that commits the
+  game to a plot.
+- **Doors and counters** use the index's spots: the smithy door and anvil lead to Smithing, the
+  stall counter to the trader's panel, the notice board keeps its lines until bounties exist.
+- **A little life, cheaply:** smoke that drifts, a gull or two that crosses, foam that shifts.
+  Each must cost nothing when the tab is not showing and must not force a full redraw every frame
+  on a phone; if any of them cannot be done cheaply, leave it out and say so.
+- **The hero at dusk** is still unlit. Light him if you can do it by caching (for example, one
+  lit and one unlit picture, cross-chosen by distance to a lamp); otherwise leave it.
+- The hero is still drawn in the fixed outfit. Showing the player's own look and gear waits for
+  lane A's equipment to land; note it for your next session.
+- Tests for whatever rules you add: line rotation, footprints of the new pieces, who is tapped
+  when things overlap.
+
+Minimum: the smithy, stall, quay, pier and sea drawn and walkable, and the three townsfolk
+standing with one line each.
+Done when: `npm run check` passes; a phone-sized run, scrolled over the whole map in day and
+dusk, looks like the approved mock-up with no placeholder plots; each of the three can be walked
+up to and read; nothing outside `src/scene`, `tests/scene` and this lane's status file changed.
+
+## Wave 2 briefs (done)
 
 Since wave 1 the shell has changed in three ways that matter to lanes B and C: every view's
 `update(state)` is now called once a frame whether or not an action is running; the Town tab's
@@ -298,9 +441,8 @@ nothing outside `src/scene`, `tests/scene` and this lane's status file changed.
 Written when their wave is next, by Cody's orchestrating session, from `docs/plan.md` and what the
 lanes' status files say they left behind:
 
-- **S7b** (A): gear slots, stats, the character sheet with the hero drawn from lane B's layers,
-  character creation with a look.
-- **B3** (B): 24 x 24 item icons and skill icons for everything in the tables, through the doors;
-  gear layers for the items S7b can equip.
-- **S12b** (C): the whole town with lane B's B2 art in the plots, the three townsfolk to talk to.
+- **S8** (A): idle combat, reading the equipment totals from S7b.
+- **B4** (B): 24 x 24 item icons and skill icons for everything in the tables, through the doors;
+  48 x 48 portraits.
+- **S12c** (C): the town's hero drawn with the player's look and worn gear.
 - **S14** (C): landscape dungeons on the scene engine.
