@@ -54,6 +54,7 @@ function shellSpy(): Shell & { calls: string[] } {
     openSkill: (id) => calls.push(`skill:${id}`),
     pauseIdle: (on) => calls.push(`pause:${on}`),
     fullScreen: (on) => calls.push(`full:${on}`),
+    settleRun: (spoils) => calls.push(`settle:${JSON.stringify(spoils)}`),
   };
 }
 

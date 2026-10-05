@@ -18,6 +18,7 @@ import {
 import { equip, unequip } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
+import { settleRun } from '../core/run';
 import { SLOTS, type Content } from '../core/content';
 import { newGame, skillLevel, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
@@ -408,6 +409,13 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       },
       fullScreen: (on) => {
         root.classList.toggle('fullscreen', on);
+      },
+      settleRun: (spoils) => {
+        if (!state) return;
+        // Paid and saved on the spot, without rebuilding the tab: the scene
+        // that called this is still showing its results.
+        state = settleRun(state, spoils);
+        save();
       },
     });
   };

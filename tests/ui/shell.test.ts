@@ -135,4 +135,18 @@ describe('the shell a scene is given', () => {
     expect(saved()!.rng).not.toBe(before.rng);
     expect(root.querySelector('[role="dialog"]')).toBeNull();
   });
+
+  it("banks a run's spoils at once, without disturbing the idle task", () => {
+    const app = inTown();
+    clock += 3000;
+    app.tick();
+    shell!.pauseIdle(true);
+    shell!.settleRun({ xp: { melee: 120 }, loot: { hide: 2 }, coins: 30 });
+    expect(saved()).toMatchObject({
+      skills: { melee: 120, woodcutting: 10 },
+      bank: { hide: 2, pine_logs: 1 },
+      coins: 30,
+      action: { id: 'chop_pine' },
+    });
+  });
 });

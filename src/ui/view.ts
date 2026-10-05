@@ -1,3 +1,4 @@
+import type { RunSpoils } from '../core/run';
 import type { GameState } from '../core/state';
 import type { TabId } from './tabs';
 
@@ -36,4 +37,11 @@ export interface Shell {
    * own way out.
    */
   fullScreen(on: boolean): void;
+  /**
+   * Bring a dungeon run's spoils home: XP, loot and coins in, food eaten and
+   * arrows shot out (`settleRun` in `src/core/run.ts`), saved at once. Call
+   * it exactly once when a run ends, however it ends. This is the only way a
+   * scene changes the save.
+   */
+  settleRun(spoils: RunSpoils): void;
 }

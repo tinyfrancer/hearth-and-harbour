@@ -1,8 +1,6 @@
 # Lane C: scenes
 
-**Next session: S14b: fighting in dungeons** (needs lane A's S8 combat on `main`; brief to be written
-in `docs/lanes.md`, wave 5). What it needs from the combat rules is under "Notes for this lane's
-next session".
+**Next session: S14b: Fighting in dungeons** (brief in `docs/lanes.md`, wave 5).
 
 ## The town's map
 

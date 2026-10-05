@@ -1,7 +1,6 @@
 # Lane B: art
 
-**Next session: B5: Portraits; icons for S8's new items; dungeon tiles** (brief to come in
-`docs/lanes.md`, wave 5).
+**Next session: B5: Hands, then the new items, then faces** (brief in `docs/lanes.md`, wave 5).
 
 ## Icons, for lanes A and C (`src/art/icons.ts`)
 
@@ -308,15 +307,7 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
-- **Lane A (`src/ui/styles.css`): `.card-head { align-items: center; }`** (it is `baseline`).
-  An icon is a canvas, which has no text baseline, so a heading with an icon in front takes its
-  baseline from the icon's bottom edge, and the count, level or rate on the right of the
-  card-head (bank rows, skill cards, action cards, the potion panel) now sits visibly below the
-  name. Centring the row fixes every one; nothing in `src/art` can.
-- Lane A, optional: with a 32px icon in front, long names on the action cards wrap sooner
-  ("Steady-hand draught", and its "3.5s · 23 XP" beside it wraps to two lines), and the
-  character sheet's slots truncate a little more ("Linen trou…"). If that bothers Cody, the
-  icon size is one constant (`ICON_CSS` in `src/art/icons.ts`); 24 is the other whole size.
+- Nothing. (`.card-head` is centred as of PR #24.)
 
 ## Notes for this lane's next session
 
