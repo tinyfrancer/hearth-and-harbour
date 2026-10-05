@@ -53,13 +53,13 @@ const HERRING: readonly string[] = [
 
 const COOKED_HERRING: readonly string[] = [
   '.....ccccccc.......cc',
-  '...ccddddmddcm....cdd',
-  '..cdddddmdddmdddm.cdd',
-  '.cwwddgdmdddmdddmdcd.',
-  'cdbbbbgmbbbmbbbmbbd..',
-  '.aaaaagmaaamaaamabgg.',
-  '..aaagmaaamaaamb..ggg',
-  '...bbamaaamabb....bgg',
+  '...ccdddddddcc....cdd',
+  '..cdddddddmdddmdc.cdd',
+  '.cwwddgddmdddmddddcd.',
+  'cdbbbbgbbmbbbmbbbbd..',
+  '.aaaaagamaaamaaaabgg.',
+  '..aaagaamaaamaab..ggg',
+  '...bbaaaaaaabb....bgg',
   '.....bbbbbbb.......gg',
 ];
 
@@ -78,13 +78,13 @@ const COD: readonly string[] = [
 
 const COOKED_COD: readonly string[] = [
   '.......ddd..ddd',
-  '.....cccmcccmcc....dd',
-  '...cccemcccmcecm..ddd',
-  '.cwwccgmccemcccmedddd',
-  'cccccgmcccmcccmceddd',
-  'aaaaagmaaamaaamabddd',
-  '.aaaamaaamaaamab.dddd',
-  '..bbamaaamaaamb...ddd',
+  '.....cccccccccc....dd',
+  '...ccceccmcccemc..ddd',
+  '.cwwccgccmecccmcedddd',
+  'cccccgccmccccmcceddd',
+  'aaaaagaamaaaamaabddd',
+  '.aaaaaamaaaamaab.dddd',
+  '..bbaaamaaaambb...ddd',
   '...ddbbbbbbbbd.....dd',
   '......dd...dd',
 ];
@@ -180,16 +180,16 @@ const TIN_ORE: readonly string[] = [
 
 const IRON_ORE: readonly string[] = [
   '.....aaaaaa',
-  '...aaaaMmaaaa',
-  '.aaaaaaammaaaac',
-  'aaaaaaaaaaaaaccc',
-  'bbaaaaaaaaaaaMcmc',
-  'bbbbbaaaaaacccmmc',
-  'bbMmbbbbbbcccccccc',
-  'bbmmbbbbbbcccccccc',
-  'bbbbbbbbbbccccMccc',
-  '.bbbbbbMbbcccccccc',
-  '..bbbbbmmbcccccc',
+  '...aaaarraaaa',
+  '.aaaaarRRSaaac',
+  'aaaaaaaRSaaaccc',
+  'bbaaaaaaaaaaarRc',
+  'bbbbbaaaaaacccRSc',
+  'bbrRbbbbbbcccccccc',
+  'brRSbbbbbbcccccccc',
+  'bbSbbbbbbbcccrRccc',
+  '.bbbbbbrRbccccSccc',
+  '..bbbbbRSbcccccc',
   '...bbbbbbbccccc',
 ];
 
@@ -331,7 +331,20 @@ export const ITEM_ICON_DEFS: Readonly<Record<string, IconDef>> = {
     legend: { a: 'shrimp1', b: 'shrimp2', c: 'shrimp3', t: 'shrimp3', l: 'shrimp3', k: 'ink1' },
   },
   cooked_herring: { rows: COOKED_HERRING, legend: COOKED_FISH },
-  cooked_cod: { rows: COOKED_COD, legend: COOKED_FISH },
+  cooked_cod: {
+    rows: COOKED_COD,
+    legend: {
+      a: 'plaster1',
+      b: 'cooked1',
+      c: 'cooked1',
+      d: 'cooked2',
+      e: 'cooked2',
+      g: 'cooked2',
+      l: 'plaster1',
+      m: 'cooked3',
+      w: 'plaster1',
+    },
+  },
   copper_ore: {
     rows: COPPER_ORE,
     legend: {
@@ -350,7 +363,7 @@ export const ITEM_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   },
   iron_ore: {
     rows: IRON_ORE,
-    legend: { a: 'rust1', b: 'rust2', c: 'rust3', M: 'metal1', m: 'metal3' },
+    legend: { a: 'oakbark1', b: 'oakbark2', c: 'oakbark3', r: 'rust1', R: 'rust2', S: 'rust3' },
   },
   bronze_bar: {
     rows: BAR,
