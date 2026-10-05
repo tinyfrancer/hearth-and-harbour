@@ -1,4 +1,5 @@
 import { FOES, foeGrid } from './grottoCast';
+import { isPropId, propGrid } from './grottoProps';
 import { GROTTO_TILES, isGrottoTileKind, wearOf } from './grottoTiles';
 import { picture, type Picture } from './raster';
 
@@ -57,7 +58,16 @@ export interface PropPicture {
   base: number;
 }
 
+const props = new Map<string, PropPicture>();
+
 /** A prop by theme and id (`grotto`, `powder_keg`), or null. */
-export function dungeonProp(_theme: string, _id: string): PropPicture | null {
-  return null;
+export function dungeonProp(theme: string, id: string): PropPicture | null {
+  if (theme !== 'grotto' || !isPropId(id)) return null;
+  let made = props.get(id);
+  if (!made) {
+    const { grid, base, glows } = propGrid(id);
+    made = { picture: picture(grid, glows), base };
+    props.set(id, made);
+  }
+  return made;
 }
