@@ -15,7 +15,13 @@ import {
 } from '../../src/scene/dungeon';
 import { groundMap } from '../../src/scene/ground';
 import { GROTTO } from '../../src/scene/grotto';
-import { paintGround, roomLook, tileGrid, tileKindAt } from '../../src/scene/grottoArt';
+import {
+  cellVariant,
+  paintGround,
+  roomLook,
+  tileGrid,
+  tileKindAt,
+} from '../../src/scene/grottoArt';
 import { cheapest } from '../../src/scene/path';
 import type { Play } from '../../src/scene/play';
 import { dungeonScale, sceneScale } from '../../src/scene/scale';
@@ -123,7 +129,8 @@ describe('how a room looks', () => {
     const door = pools.doors[0]!.cell;
     expect(tileKindAt(pools, door.col, door.row, 0, false)).toBe('door_open');
     const g = paintGround(pools, 0, false);
-    expect(get(g, door.col * TILE + 8, door.row * TILE + 8)).toBe(get(tileGrid('door_open'), 8, 8));
+    const tile = tileGrid('door_open', cellVariant(pools.ground.cols, door.col, door.row));
+    expect(get(g, door.col * TILE + 8, door.row * TILE + 8)).toBe(get(tile, 8, 8));
   });
 
   it('shows the tide: the sandbar dry at low water, shallows, then sea; wet before it floods', () => {

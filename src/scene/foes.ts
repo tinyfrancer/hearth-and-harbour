@@ -175,7 +175,7 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
     reach: 26,
     keep: 24,
     heavy: null,
-    box: { w: 20, h: 34 },
+    box: { w: 22, h: 44 },
     crew: true,
   },
   // Keeps away and lobs lit kegs, standing still while each one burns: that is when to catch him.
@@ -196,7 +196,7 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
       times: 3,
       douse: true,
     },
-    box: { w: 18, h: 26 },
+    box: { w: 18, h: 36 },
     crew: true,
   },
   // Slow, and a slam as wide as it is.
@@ -225,7 +225,7 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
     reach: 22,
     keep: 20,
     heavy: null,
-    box: { w: 18, h: 18 },
+    box: { w: 22, h: 22 },
     flies: { speed: 110, perchMs: 6000, downMs: 2800 },
     rally: { radius: 120, pace: 1.5 },
   },
@@ -247,7 +247,7 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
       times: 2,
       fromPhase: 3,
     },
-    box: { w: 32, h: 46 },
+    box: { w: 36, h: 56 },
     crew: true,
     boss: {
       phases: [2 / 3, 1 / 3],
@@ -516,7 +516,10 @@ export function foeSprite(monster: string, facing: Facing): FoeFigure {
         facing === 'right'
           ? { picture: drawn.picture, feet: { ...drawn.feet } }
           : {
-              picture: picture(mirrored(drawn.picture.grid), drawn.picture.glows),
+              picture: picture(
+                mirrored(drawn.picture.grid),
+                drawn.picture.glows.map((glow) => ({ ...glow, x: w - glow.x })),
+              ),
               feet: { x: w - 1 - drawn.feet.x, y: drawn.feet.y },
             };
     }

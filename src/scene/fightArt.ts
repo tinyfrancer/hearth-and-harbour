@@ -515,10 +515,40 @@ function riseOf(foe: Foe): number {
   return foe.flight.mode === 'down' ? 0 : FLY_RISE;
 }
 
+const gaps = new Map<string, number>();
+
+/**
+ * The empty rows a flier's picture leaves between its body and its feet: the
+ * art lane draws a bird already hovering over the ground it stands on.
+ * Measured once a monster.
+ */
+function gapOf(monster: string): number {
+  let gap = gaps.get(monster);
+  if (gap === undefined) {
+    const { picture: pic, feet } = foeSprite(monster, 'right');
+    const { w, h, d } = pic.grid;
+    let bottom = -1;
+    for (let y = h - 1; y >= 0 && bottom < 0; y--)
+      for (let x = 0; x < w; x++)
+        if (d[y * w + x]) {
+          bottom = y;
+          break;
+        }
+    gap = Math.max(0, feet.y - 1 - bottom);
+    gaps.set(monster, gap);
+  }
+  return gap;
+}
+
+/** How far a foe's picture is drawn up from where it is: its rise less what its picture already hovers. */
+function liftOf(foe: Foe): number {
+  return foe.flight ? riseOf(foe) - gapOf(foe.monster) : 0;
+}
+
 /** How tall a foe stands above its feet, as drawn: its tap box or its picture, whichever is taller. */
 function standsOf(foe: Foe): number {
   const sprite = foeSprite(foe.monster, 'right');
-  return Math.max(foeKind(foe.monster).box.h, sprite.feet.y) + riseOf(foe);
+  return Math.max(foeKind(foe.monster).box.h, sprite.feet.y) + liftOf(foe);
 }
 
 /** A foe's health over its head, its blow coming, a parrot's rally on it, and the target's mark. */
@@ -789,13 +819,12 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
     else if (foe.heavy && Math.floor(clock / 120) % 2 === 0) image = flashOf(image, c.fire1);
     const fx = Math.round(foe.at.x);
     const fy = Math.round(foe.at.y);
-    const rise = riseOf(foe);
     // A perched or flying thing sorts by the ground below it, but is drawn up in the air.
     actors.push({
       image,
       x: fx - fig.feet.x,
-      y: fy - fig.feet.y - rise,
-      base: fy + (rise > 0 ? 2 : 0),
+      y: fy - fig.feet.y - liftOf(foe),
+      base: fy + (riseOf(foe) > 0 ? 2 : 0),
     });
   }
   // A cell's bars stand in the room until the cell opens, in front of whoever waits behind them.

@@ -8,6 +8,7 @@
  * things stand and what is solid stay this scene's data.
  */
 import { dungeonProp, dungeonTile } from '../art/dungeonArt';
+import { GROTTO_SHADOW } from '../art/grottoRoom';
 import { blit, ellipse, get, grid, line, outline, rect, set, type Grid } from '../art/grid';
 import type { Shade } from '../art/palette';
 import { picture, type Glow, type Picture } from '../art/raster';
@@ -34,8 +35,11 @@ export type TileKind =
   | 'door_barred'
   | 'door_open';
 
-/** How many wears of each floor are asked for, so a floor is not one tile repeated. */
+/** How many wears of this scene's own floors there are, so a floor is not one tile repeated. */
 const VARIANTS = 4;
+
+/** A cell's variant, as the art lane asks for it: its index in the room, so neighbours differ. */
+export const cellVariant = (cols: number, col: number, row: number): number => row * cols + col;
 
 /** A small, steady hash of a tile's place: the same tile always gets the same wear. */
 export function hash(col: number, row: number, salt = 0): number {
@@ -174,17 +178,42 @@ const OWN: Readonly<Record<TileKind, (variant: number) => Grid>> = {
 
 const tiles = new Map<string, Grid>();
 
-/** A tile's pixels: the art lane's if it has drawn this kind, otherwise this scene's own. Made once each. */
+/** Whether the art lane has drawn a tile kind (at the scene's tile size). */
+const drawnTile = (kind: TileKind, variant = 0): Grid | null => {
+  const drawn = dungeonTile(THEME, kind, variant);
+  return drawn && drawn.grid.w === TILE && drawn.grid.h === TILE ? drawn.grid : null;
+};
+
+/**
+ * A tile's pixels: the art lane's if it has drawn this kind (which keeps its
+ * own wears, any variant number asking for one), otherwise this scene's own.
+ */
 export function tileGrid(kind: TileKind, variant = 0): Grid {
+  const drawn = drawnTile(kind, variant);
+  if (drawn) return drawn;
   const v = ((variant % VARIANTS) + VARIANTS) % VARIANTS;
   const key = `${kind} ${v}`;
   let made = tiles.get(key);
   if (!made) {
-    const drawn = dungeonTile(THEME, kind, v);
-    made = drawn && drawn.grid.w === TILE && drawn.grid.h === TILE ? drawn.grid : OWN[kind](v);
+    made = OWN[kind](v);
     tiles.set(key, made);
   }
   return made;
+}
+
+/** The step a standing thing's shadow is drawn in on this scene's own tiles. */
+const OWN_SHADOW: Partial<Record<TileKind, Shade>> = {
+  sand: 'sand3',
+  wet_sand: 'wood3',
+  rock_floor: 'stone3',
+  shallows: 'sea3',
+  planks: 'wood4',
+};
+
+/** A shadow's step on a kind of ground, one darker than the ground drawn: none on deep water or rock. */
+export function shadowShade(kind: TileKind): Shade | null {
+  const shade = drawnTile(kind) ? GROTTO_SHADOW[kind] : OWN_SHADOW[kind];
+  return shade ?? null;
 }
 
 /* ----- Props ----- */
@@ -380,7 +409,7 @@ export function paintGround(room: Room, level: number, warn: boolean): Grid {
     for (let col = 0; col < g.cols; col++) {
       const kind = tileKindAt(room, col, row, level, warn);
       line.push(kind);
-      blit(out, tileGrid(kind, hash(col, row) % VARIANTS), col * TILE, row * TILE);
+      blit(out, tileGrid(kind, cellVariant(g.cols, col, row)), col * TILE, row * TILE);
     }
   }
   for (let row = 0; row < g.rows; row++) {
@@ -433,37 +462,47 @@ export function paintGround(room: Room, level: number, warn: boolean): Grid {
       }
     }
   }
+  paintShadows(room, out, kinds);
   return out;
 }
 
-/** A lantern's light: warm, wide enough to pool on the floor below it. */
+/** A lantern's light where its picture has none of its own: warm, wide enough to pool on the floor. */
 export const LANTERN_LIGHT = { radius: 60, strength: 0.5 } as const;
 
-/** Every lantern's glow in a room, in art pixels. */
-export function roomLights(room: Room): Glow[] {
-  return room.ground.lanterns.map((c) => ({
-    x: c.col * TILE + TILE / 2,
-    y: c.row * TILE + TILE - 2,
-    radius: LANTERN_LIGHT.radius,
-    strength: LANTERN_LIGHT.strength,
-  }));
+/** Something standing in a room, placed: its art, the top-left it is drawn at, and its foot. */
+interface Placed {
+  readonly key: string;
+  readonly art: PropArt;
+  readonly at: Point;
+  /** The row it meets the ground on, to sort by. */
+  readonly base: number;
+  /** Where its ground shadow goes, or null for a thing hung on the wall. */
+  readonly shadow: Point | null;
 }
 
-/** The things standing in a room: its props, lanterns and perches, lit by its lanterns. */
-export function roomThings(room: Room, lights: readonly Glow[]): Thing[] {
-  const things: Thing[] = [];
+const placings = new WeakMap<Room, Placed[]>();
+
+/**
+ * Where everything standing in a room is drawn: props stood on their tile,
+ * their foot two pixels above its bottom, lanterns hung on the wall, and
+ * perches. Sizes are the pictures' own; the places are this scene's data.
+ */
+function placed(room: Room): Placed[] {
+  const known = placings.get(room);
+  if (known) return known;
+  const made: Placed[] = [];
   const add = (id: string, key: string, col: number, row: number, onWall: boolean): void => {
     const art = propArt(id);
     if (!art) return;
     const { w } = art.picture.grid;
-    // Stood on its tile, its foot two pixels above the tile's bottom; a lantern hangs on the wall.
     const foot = onWall ? row * TILE + 12 : row * TILE + TILE - 2;
     const at = { x: col * TILE + TILE / 2 - Math.floor(w / 2), y: foot - art.base };
-    things.push({
-      id: key,
-      footprint: [],
+    made.push({
+      key,
+      art,
+      at,
       base: onWall ? row * TILE + TILE : foot,
-      sprite: { picture: litBy(art.picture, at, lights), at },
+      shadow: onWall ? null : { x: col * TILE + TILE / 2, y: foot },
     });
   };
   room.ground.props.forEach((p, i) => add(p.id, `${p.id} ${i}`, p.cell.col, p.cell.row, false));
@@ -472,7 +511,51 @@ export function roomThings(room: Room, lights: readonly Glow[]): Thing[] {
     const c = cellAt(p);
     add('perch', `perch ${i}`, c.col, c.row, false);
   });
-  return things;
+  placings.set(room, made);
+  return made;
+}
+
+/**
+ * Every light in a room, in art pixels: whatever glows in its things'
+ * pictures (the art lane's lantern carries its own), and a lantern drawn
+ * without one lit at its middle.
+ */
+export function roomLights(room: Room): Glow[] {
+  const lights: Glow[] = [];
+  for (const p of placed(room)) {
+    const own = p.art.picture.glows;
+    for (const glow of own) lights.push({ ...glow, x: p.at.x + glow.x, y: p.at.y + glow.y });
+    if (own.length === 0 && p.key.startsWith('lantern ')) {
+      lights.push({
+        x: p.at.x + p.art.picture.grid.w / 2,
+        y: p.at.y + p.art.picture.grid.h / 2,
+        radius: LANTERN_LIGHT.radius,
+        strength: LANTERN_LIGHT.strength,
+      });
+    }
+  }
+  return lights;
+}
+
+/** The things standing in a room: its props, lanterns and perches, lit by its lights. */
+export function roomThings(room: Room, lights: readonly Glow[]): Thing[] {
+  return placed(room).map((p) => ({
+    id: p.key,
+    footprint: [],
+    base: p.base,
+    sprite: { picture: litBy(p.art.picture, p.at, lights), at: p.at },
+  }));
+}
+
+/** Each standing thing's shadow on the ground under it, as the art lane casts them. */
+function paintShadows(room: Room, out: Grid, kinds: readonly (readonly TileKind[])[]): void {
+  for (const p of placed(room)) {
+    if (!p.shadow) continue;
+    const kind = kinds[Math.floor(p.shadow.y / TILE)]?.[Math.floor(p.shadow.x / TILE)];
+    const shade = kind && shadowShade(kind);
+    if (shade)
+      ellipse(out, p.shadow.x, p.shadow.y, Math.round(p.art.picture.grid.w * 0.45), 2.4, shade);
+  }
 }
 
 /** What a dungeon room needs to be shown on the stage, made once a page and kept. */
@@ -488,12 +571,22 @@ export interface RoomLook {
   shadowAt(feet: Point): { readonly picture: Picture; readonly middle: Point } | null;
 }
 
-const SHADOW_ON: Partial<Record<RoomTile, Shade>> = {
-  sand: 'sand3',
-  floor: 'stone3',
-  end: 'stone3',
-  planks: 'wood4',
-};
+/** The tile kind a walker's shadow falls on, from the ground as the run has it now. */
+function groundKind(room: Room, tile: RoomTile): TileKind | null {
+  switch (tile) {
+    case 'sand':
+      return room.ground.stone ? 'rock_floor' : 'sand';
+    case 'floor':
+    case 'end':
+      return 'rock_floor';
+    case 'planks':
+      return 'planks';
+    case 'shallows':
+      return 'shallows';
+    default:
+      return null;
+  }
+}
 
 const looks = new WeakMap<Room, RoomLook>();
 
@@ -539,7 +632,8 @@ export function roomLook(room: Room): RoomLook {
       const cell = cellAt(feet);
       const map = lock.map;
       if (!inMap(map, cell)) return null;
-      const shade = SHADOW_ON[map.tiles[cell.row]![cell.col]!];
+      const kind = groundKind(room, map.tiles[cell.row]![cell.col]!);
+      const shade = kind && shadowShade(kind);
       if (!shade) return null;
       let pic = shadows.get(shade);
       if (!pic) {
