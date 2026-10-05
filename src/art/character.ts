@@ -1,3 +1,4 @@
+import { AT_EASE_GEAR } from './armoury';
 import { gameScale, pixelCanvas } from './canvas';
 import { WARDROBE, figure } from './figure';
 import type { Grid } from './grid';
@@ -67,20 +68,22 @@ export const DEFAULT_LOOK: Look = {
 
 /**
  * The gear layer each wearable item is drawn with. Several items may share a
- * layer (both kinds of arrow show as the same quiver). The approved hero's
- * sword and plate are the iron sword and breastplate.
+ * layer (both kinds of arrow show as the same quiver). Items sit on the gear
+ * ladder (docs/style-guide.md): bronze is the militia's, iron the town
+ * guard's. The approved hero's sword, plate, kite shield and cloak are the
+ * knight's, one rung up, and are kept for tier 2's items.
  */
 export const ITEM_LAYERS: Readonly<Record<string, string>> = {
-  bronze_sword: 'bronze_leaf_sword',
-  iron_sword: 'iron_sword',
-  bronze_axe: 'bronze_crescent_axe',
+  bronze_sword: 'bronze_shortsword',
+  iron_sword: 'iron_arming_sword',
+  bronze_axe: 'bronze_hatchet',
   iron_axe: 'iron_bearded_axe',
-  bronze_helmet: 'bronze_cheek_helm',
+  bronze_helmet: 'bronze_cap',
   iron_helmet: 'iron_nasal_helm',
-  bronze_shield: 'bronze_round_shield',
+  bronze_shield: 'bronze_buckler',
   iron_shield: 'iron_heater_shield',
-  bronze_breastplate: 'bronze_cuirass',
-  iron_breastplate: 'iron_plate',
+  bronze_breastplate: 'bronze_jerkin',
+  iron_breastplate: 'iron_mail',
   linen_tunic: 'linen_tunic',
   linen_hood: 'linen_hood',
   linen_trousers: 'linen_trousers',
@@ -108,7 +111,11 @@ const EVERYDAY: readonly string[] = [
 const find = <T extends LookChoice>(list: readonly T[], id: string): T =>
   list.find((choice) => choice.id === id) ?? list[0]!;
 
-/** The gear ids for a look and worn items, one per slot, worn items first. */
+/**
+ * The gear ids for a look and worn items, one per slot, worn items first.
+ * With nothing in the weapon hand, clothes on that forearm are the ones drawn
+ * for the hand at rest (`characterBody`).
+ */
 export function characterGear(look: Look, wornItemIds: readonly string[]): string[] {
   const slots = new Set<string>();
   const gear: string[] = [];
@@ -124,7 +131,21 @@ export function characterGear(look: Look, wornItemIds: readonly string[]): strin
   const style = find(HAIRSTYLES, look.hair);
   wear(slots.has('head') ? style.under : style.gear);
   for (const id of EVERYDAY) wear(id);
-  return gear;
+  if (slots.has('weapon')) return gear;
+  return gear.map((id) => AT_EASE_GEAR[id] ?? id);
+}
+
+/**
+ * The body the character stands in: the standard pose, fist closed on what
+ * it holds, or with nothing held the same pose with that hand resting at the
+ * belt rather than hanging. (The other hand rests on the hip either way; a
+ * shield covers it.)
+ */
+export function characterBody(gear: readonly string[]): string {
+  const holding = gear.some(
+    (id) => WARDROBE.gear.find((entry) => entry.id === id)?.slot === 'weapon',
+  );
+  return holding ? 'standard' : 'standard_at_ease';
 }
 
 /** The figure in this look's skin tone and hair colour: each step swapped for its ramp's. */
@@ -144,9 +165,10 @@ function inLook(g: Grid, look: Look): Grid {
 export function characterPicture(look: Look, wornItemIds: readonly string[]): Picture {
   const safeLook: Look = { ...DEFAULT_LOOK, ...look };
   try {
-    return picture(inLook(figure('standard', characterGear(safeLook, wornItemIds)), safeLook));
+    const gear = characterGear(safeLook, wornItemIds);
+    return picture(inLook(figure(characterBody(gear), gear), safeLook));
   } catch {
-    return picture(figure('standard', characterGear(DEFAULT_LOOK, [])));
+    return picture(figure('standard', ['short_hair', ...EVERYDAY]));
   }
 }
 

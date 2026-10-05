@@ -72,6 +72,10 @@ export const FIGURE_LEGEND: Legend = {
   K: 'pinewood2',
   Q: 'willow1',
   S: 'willow2',
+  // Added for the gear ladder (armoury.ts).
+  F: 'hide1',
+  X: 'hide2',
+  '#': 'hide3',
 };
 
 /** Part of a figure: rows of legend characters placed at `at` on the figure canvas. */

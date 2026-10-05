@@ -4,9 +4,16 @@
  * blade or limb rises behind the shoulder along the approved sword's line;
  * the right forearm angled in to the hip, where a shield's straps go.
  *
+ * Gear climbs a ladder (docs/style-guide.md, "Gear ladder"): linen is a
+ * villager's, bronze a militia volunteer's (leather with a little metal),
+ * iron a town guard's (mail, a plain helm and heater). The approved hero's
+ * plate, kite shield, cloak and long sword (wardrobe.ts) are the next rung,
+ * the knight, and wait for tier 2's items. Each rung covers more of the body
+ * in metal, stands larger and catches more light than the one below.
+ *
  * Iron is the `metal` ramp, as on the approved hero; bronze is its own ramp,
- * copper-red, so the two metals differ by colour as well as by shape.
- * Light comes from the upper left.
+ * yellow-olive, framed in dark `hide` leather so it never sits bare against
+ * skin. Light comes from the upper left.
  */
 import { DEPTH } from './depth';
 import type { GearDef } from './figure';
@@ -69,46 +76,184 @@ function bow(id: string, light: string, dark: string): GearDef {
   };
 }
 
-export const ARMOURY: readonly GearDef[] = [
+/** Bronze: the militia volunteer. Leather and cloth with a little cast metal. */
+const BRONZE: readonly GearDef[] = [
   {
-    // A leaf-shaped blade, widest near the point, cast in one piece with its
-    // guard; the grip is bound in leather. It rises along the hero's line.
-    id: 'bronze_leaf_sword',
+    // A short leaf blade, widest near the point, cast with its guard; the
+    // grip is bound in hide. It rises only to the shoulder.
+    id: 'bronze_shortsword',
     slot: 'weapon',
     parts: [
       {
-        at: [3, 3],
+        at: [6, 13],
         depth: HELD_BEHIND,
         rows: [
-          '.1',
+          '1',
+          '12',
+          '123',
+          '123',
+          '.123',
           '.12',
           '.12',
-          '.122',
-          '..122',
-          '..122',
-          '..122',
-          '...122',
-          '...122',
+          '..12',
+          '..12',
+          '..12',
           '...12',
           '...12',
-          '....12',
-          '....12',
-          '....12',
-          '.....12',
-          '.....12',
-          '.....12',
-          '......12',
-          '......12',
-          '......12',
-          '......12',
-          '.......12',
-          '.......12',
+          '...12',
+        ],
+      },
+      {
+        at: [7, 26],
+        depth: HELD_FRONT,
+        rows: ['41222334', '....FXX#', '....FXX#', '.....13'],
+      },
+    ],
+  },
+  {
+    // A hatchet: a short haft and a small wedge of a head, edge outward.
+    id: 'bronze_hatchet',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [1, 11],
+        depth: HELD_BEHIND,
+        rows: [
+          '......Wo',
+          '.1122234',
+          '11222334',
+          '11223344',
+          '.1234.Wo',
+          '.13...Wo',
+          '.......Wo',
+          '.......Wo',
+          '.......Wo',
+          '........Wo',
+          '........Wo',
+          '........Wo',
+          '........Wo',
+          '.........Wo',
+          '.........Wo',
+        ],
+      },
+      {
+        at: [11, 26],
+        depth: HELD_FRONT,
+        rows: ['oooO', 'oooO', 'oooO', 'oooO', '.oO'],
+      },
+    ],
+  },
+  {
+    // A skullcap: a low bronze dome with a rolled brim wider than the head,
+    // on a dark hide band. The brim is what makes it a hat and not a scalp.
+    id: 'bronze_cap',
+    slot: 'head',
+    parts: [
+      {
+        at: [12, 0],
+        depth: HELMET,
+        rows: [
+          '....211223',
+          '...22112223',
+          '..2221222334',
+          '..2222222334',
+          '33133133133134',
+          '.X##########X',
+        ],
+      },
+    ],
+  },
+  {
+    // A small round shield: boards with a hide rim and a bronze boss.
+    id: 'bronze_buckler',
+    slot: 'shield',
+    parts: [
+      {
+        at: [21, 20],
+        depth: SHIELD,
+        rows: [
+          '...FXX#',
+          '.FFjjWW##',
+          'FjjjWWWWo#',
+          'FjjW12WWo#',
+          'FjW1223Wo#',
+          'FjW2234oo#',
+          'FjjW34Woo#',
+          'XjWWWWooo#',
+          '.##WWoo##',
+          '...####',
+        ],
+      },
+    ],
+  },
+  {
+    // A sleeveless hide jerkin over the tunic, laced at the neck, with a
+    // bronze disc on the chest and tabs below the belt.
+    id: 'bronze_jerkin',
+    slot: 'body',
+    parts: [
+      {
+        at: [13, 15],
+        depth: ARMOUR,
+        rows: [
+          'FXXX....XXX#',
+          'FXXXF..FXXX#',
+          'FXXXXFFXXXX#',
+          '..FX1223X#',
+          '..F122223#',
+          '..F121233#',
+          '..F123334#',
+          '..FX2334X#',
+          '..FXXXXXX#',
+          '..FXXXXXX#',
+          '',
+          '..FXXXXXX#',
+          '.FX#FX#FX#',
+        ],
+      },
+    ],
+  },
+];
+
+/** Iron: the town guard. Plain mail and a plain helm; no pauldrons, no gold. */
+const IRON: readonly GearDef[] = [
+  {
+    // A straight arming sword with a plain iron cross: longer than the
+    // bronze blade, shorter than the knight's.
+    id: 'iron_arming_sword',
+    slot: 'weapon',
+    parts: [
+      {
+        at: [4, 5],
+        depth: HELD_BEHIND,
+        rows: [
+          'M',
+          'mn',
+          '.mn',
+          '.mn',
+          '.mn',
+          '..mn',
+          '..mn',
+          '..mn',
+          '..mn',
+          '...mn',
+          '...mn',
+          '...mn',
+          '....mn',
+          '....mn',
+          '....mn',
+          '....mn',
+          '.....mn',
+          '.....mn',
+          '.....mn',
+          '......mn',
+          '......mn',
         ],
       },
       {
         at: [8, 26],
         depth: HELD_FRONT,
-        rows: ['3122224', '...fffO', '...fffO', '...fffO', '....14'],
+        rows: ['Mmmmmmn', '...oooO', '...oooO', '...oooO', '....mn'],
       },
     ],
   },
@@ -129,46 +274,6 @@ export const ARMOURY: readonly GearDef[] = [
           'Mmmn..Wo',
           '.Mmn..Wo',
           '..Mn..Wo',
-          '.......Wo',
-          '.......Wo',
-          '.......Wo',
-          '........Wo',
-          '........Wo',
-          '........Wo',
-          '.........Wo',
-          '.........Wo',
-          '.........Wo',
-          '.........Wo',
-          '..........Wo',
-          '..........Wo',
-        ],
-      },
-      {
-        at: [11, 26],
-        depth: HELD_FRONT,
-        rows: ['oooO', 'oooO', 'oooO', 'oooO', '.oO'],
-      },
-    ],
-  },
-  {
-    // A cast head that fans out to its edge: no beard, unlike the iron axe.
-    id: 'bronze_crescent_axe',
-    slot: 'weapon',
-    parts: [
-      {
-        at: [0, 4],
-        depth: HELD_BEHIND,
-        rows: [
-          '..13',
-          '.12',
-          '122',
-          '1223344',
-          '1223344',
-          '122..Wo',
-          '.12...Wo',
-          '..13..Wo',
-          '......Wo',
-          '......Wo',
           '.......Wo',
           '.......Wo',
           '.......Wo',
@@ -213,32 +318,6 @@ export const ARMOURY: readonly GearDef[] = [
     ],
   },
   {
-    // A round dome with broad cheek plates down to the jaw, leaving the eyes,
-    // nose and mouth open: rounder than the iron helm, and no nasal.
-    id: 'bronze_cheek_helm',
-    slot: 'head',
-    parts: [
-      {
-        at: [13, 0],
-        depth: HELMET,
-        rows: [
-          '...112233',
-          '.1112222334',
-          '111222222334',
-          '112222222334',
-          '222222223334',
-          '441444444144',
-          '13........34',
-          '13........34',
-          '123......334',
-          '123......334',
-          '.13......34',
-          '..1......4',
-        ],
-      },
-    ],
-  },
-  {
     // A heater shield, plain iron: a rim, a boss and four rivets.
     id: 'iron_heater_shield',
     slot: 'shield',
@@ -267,60 +346,40 @@ export const ARMOURY: readonly GearDef[] = [
     ],
   },
   {
-    // A round shield with a broad rim and a boss.
-    id: 'bronze_round_shield',
-    slot: 'shield',
-    parts: [
-      {
-        at: [22, 20],
-        depth: SHIELD,
-        rows: [
-          '....3333',
-          '..31111223',
-          '.3111222223',
-          '.3112222224',
-          '311222222224',
-          '312221322224',
-          '312223422224',
-          '312222222244',
-          '.3222222244',
-          '.3222222444',
-          '..34444444',
-          '....4444',
-        ],
-      },
-    ],
-  },
-  {
-    // A cuirass shaped to the chest, on shoulder straps; no pauldrons.
-    id: 'bronze_cuirass',
+    // A mail shirt to the thigh with sleeves to the elbow, over the tunic.
+    // Rows of rings, lit from the left; the belt goes over it.
+    id: 'iron_mail',
     slot: 'body',
     parts: [
       {
-        at: [13, 15],
+        at: [10, 15],
         depth: ARMOUR,
         rows: [
-          '1224....4334',
-          '112244443334',
-          '112122223334',
-          '122222213334',
-          '.1222223334',
-          '.1222222334',
-          '.1222222334',
-          '.1222222334',
-          '.1222223334',
-          '.1222223334',
-          '.4444444444',
+          '.Mmmmmm....mmnnnq',
+          'Mmmmmmmmmmmmnnnnnq',
+          'mnmnmnmnmnmnqnqnqq',
+          'Mmmm.mmmmmmnn.nnnq',
+          'mnmn.mnmnmnqn.qnqq',
+          'Mmmm.mmmmmmnn.nnnq',
+          'nnnn.mnmnmnqn.qqqq',
+          '.....mmmmmmnn',
+          '.....mnmnmnqn',
+          '.....mmmmmmnn',
+          '',
+          '.....mnmnmnqn',
+          '.....mmmmmmnn',
+          '.....mnmnmnqn',
+          '....mmmmmmmnnn',
+          '....mnmnmnmqnq',
+          '....nnnnn.qqqq',
         ],
-      },
-      // Leather strips hanging from its lower edge, over the tunic.
-      {
-        at: [14, 26],
-        depth: ARMOUR,
-        rows: ['oOoOoOoOoO', 'oOoOoOoOoO', 'oOoOoOoOoO', 'o.o.o.o.o.'],
       },
     ],
   },
+];
+
+/** Linen: the villager's clothes. Soft, undyed, no metal. */
+const LINEN: readonly GearDef[] = [
   {
     // Undyed linen with a laced neck, worn instead of the everyday tunic.
     id: 'linen_tunic',
@@ -415,6 +474,10 @@ export const ARMOURY: readonly GearDef[] = [
       },
     ],
   },
+];
+
+/** Things worn by anyone, on any rung. */
+const TRINKETS: readonly GearDef[] = [
   {
     // Three shells on a cord at the throat.
     id: 'shell_necklace',
@@ -422,25 +485,134 @@ export const ARMOURY: readonly GearDef[] = [
     parts: [{ at: [16, 14], depth: JEWELLERY, rows: ['.O..O', '.bOOb', '..bP', '..PP'] }],
   },
   {
-    // Shells on a cord at the left wrist, above the fist.
+    // White shells strung between dark beads round the left wrist, a pixel
+    // proud of the arm: the beads keep them apart from skin of any tone.
     id: 'shell_bracelet',
     slot: 'wrist',
-    parts: [{ at: [10, 25], depth: JEWELLERY, rows: ['bPbPb'] }],
+    parts: [{ at: [9, 24], depth: JEWELLERY, rows: ['.bObOb', 'bObObO'] }],
   },
-  bow('pine_shortbow', 'J', 'K'),
-  bow('oak_shortbow', 'W', 'o'),
-  bow('willow_shortbow', 'Q', 'S'),
   {
-    // A quiver slung on the back: its mouth and fletchings rise behind the
-    // left shoulder, beside the head.
+    // A quiver slung on the back: its mouth and a fan of fletchings rise
+    // behind the left shoulder, beside the head.
     id: 'arrow_quiver',
     slot: 'back',
     parts: [
       {
-        at: [25, 6],
+        at: [24, 3],
         depth: QUIVER,
-        rows: ['..e.r', '.erre', '.eerr', '..ooo', 'oOOOO', 'fffO', 'fffO', 'fffO', 'fffO'],
+        rows: [
+          '...e.r',
+          '..eerre',
+          '..rere',
+          '..oooo',
+          '.FXXX#',
+          '.FXX##',
+          'FXXX#',
+          'FXX##',
+          'FXX#',
+          'FX#',
+          'FX#',
+          'F#',
+        ],
       },
     ],
   },
 ];
+
+/**
+ * The same clothes for an empty weapon hand (the `standard_at_ease` body):
+ * where a sleeve or bracelet sits on the forearm, it follows the arm up to
+ * the belt. character.ts swaps these in when nothing is held.
+ */
+const AT_EASE: readonly GearDef[] = [
+  {
+    id: 'teal_tunic_at_ease',
+    slot: 'shirt',
+    parts: [
+      {
+        at: [10, 18],
+        depth: SHIRT,
+        rows: [
+          'tttT..........tTTT',
+          'tttT..........tTTT',
+          'tttT..........tTTT',
+          'tttT..........tTTT',
+          'tttT',
+          '.ttTT.ttttTT',
+          '......ttttTT',
+          '',
+          '.....ttttTTTT',
+          '....tttttTTTTT',
+          '....ttttttTTTT',
+          '....tttttTtTTT',
+          '....ttt.ttT.TT',
+          '....t..tt.T..T',
+        ],
+      },
+      {
+        at: [10, 15],
+        depth: SHIRT,
+        rows: [
+          '.tttttt....tTTTTT',
+          'tttttttttttttTTTTT',
+          'tttTtttttttTTtTTTT',
+          '.....ttttttTT',
+          '.....ttttttTT',
+          '.....ttttttTT',
+          '.....ttttttTT',
+          '.....ttttttTT',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'linen_tunic_at_ease',
+    slot: 'shirt',
+    parts: [
+      {
+        at: [10, 18],
+        depth: SHIRT,
+        rows: [
+          'lllL..........lLLL',
+          'lllL..........lLLL',
+          'lllL..........lLLL',
+          'lllL..........lLLL',
+          'lllL',
+          '.IIII.llllLL',
+          '......llllLL',
+          '',
+          '.....llllLLLL',
+          '....lllllLLLLL',
+          '....llllllLLLL',
+          '....lllllLlLLL',
+          '....llllllLLLL',
+          '....IIIIIIIIII',
+        ],
+      },
+      LINEN[0]!.parts[1]!,
+    ],
+  },
+  {
+    id: 'shell_bracelet_at_ease',
+    slot: 'wrist',
+    parts: [{ at: [10, 23], depth: JEWELLERY, rows: ['..bObOb', '.bObObO'] }],
+  },
+];
+
+export const ARMOURY: readonly GearDef[] = [
+  ...BRONZE,
+  ...IRON,
+  ...LINEN,
+  ...TRINKETS,
+  bow('pine_shortbow', 'J', 'K'),
+  bow('oak_shortbow', 'W', 'o'),
+  bow('willow_shortbow', 'Q', 'S'),
+  ...AT_EASE,
+];
+
+/** Gear that changes when the weapon hand is empty, and what it becomes. */
+export const AT_EASE_GEAR: Readonly<Record<string, string>> = {
+  teal_tunic: 'teal_tunic_at_ease',
+  linen_tunic: 'linen_tunic_at_ease',
+  shell_bracelet: 'shell_bracelet_at_ease',
+};

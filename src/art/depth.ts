@@ -14,6 +14,8 @@ export const DEPTH = {
   FEET: 20,
   SHIRT: 30,
   ARMOUR: 40,
+  /** An empty hand resting at the belt: over the shirt and armour it rests on. */
+  HAND: 45,
   BELT: 50,
   HELD_FRONT: 60,
   HAIR: 70,

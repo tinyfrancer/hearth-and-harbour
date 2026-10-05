@@ -176,6 +176,33 @@ export interface Outfit {
   readonly items: readonly string[];
 }
 
+/**
+ * Tier 1's gear ladder on one character, the approved hero's own look: the
+ * villager in linen, the militia volunteer in bronze, the town guard in iron.
+ * `ladderPlate` stands the hero beside them where tier 2's knight will be.
+ */
+export const WARDROBE_LADDER: readonly Outfit[] = [
+  { name: 'Linen', look: DEFAULT_LOOK, items: ['linen_tunic', 'linen_trousers'] },
+  {
+    name: 'Bronze',
+    look: DEFAULT_LOOK,
+    items: ['bronze_helmet', 'bronze_breastplate', 'bronze_sword', 'bronze_shield'],
+  },
+  {
+    name: 'Iron',
+    look: DEFAULT_LOOK,
+    items: ['iron_helmet', 'iron_breastplate', 'iron_sword', 'iron_shield'],
+  },
+];
+
+/** The ladder, rung by rung, with the approved hero last as tier 2's knight. */
+export function ladderPlate(): Picture {
+  return lineupPlate([
+    ...WARDROBE_LADDER.map(outfitPicture),
+    picture(figure('standard', HERO_OUTFIT)),
+  ]);
+}
+
 /** The full sets, each in a different look, so looks are seen in gear too. */
 export const WARDROBE_SETS: readonly Outfit[] = [
   {

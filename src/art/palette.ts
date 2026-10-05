@@ -68,9 +68,12 @@ export const RAMPS = {
   hairchestnut: ['#9a5434', '#6e3420', '#481e16'],
   hairgrey: ['#e2dcd6', '#ada59e', '#78706c'],
 
-  // Gear. Bronze is copper-red with a pale highlight, so it reads as neither
-  // gold (yellow) nor iron (blue-grey): `metal` is iron.
-  bronze: ['#ffd8a8', '#d47a40', '#8e4428', '#55261c'],
+  // Gear. Bronze leans yellow-olive, away from every skin tone's orange, with
+  // a pale highlight so it reads as metal; it is greener and duller than gold
+  // and warm against iron (`metal`). Hide is the militia's leather, a cool
+  // brown that frames bronze and does not read as skin.
+  bronze: ['#efe6b4', '#bba04e', '#7a6532', '#473a22'],
+  hide: ['#958070', '#64524a', '#40342e'],
   linen: ['#d8caa6', '#ad9d7a', '#7e705a'],
   shell: ['#fff2ea', '#e8aea4'],
   pinewood: ['#f0d08a', '#c4964e'],
@@ -228,7 +231,8 @@ export const DAY: Palette = makePalette('day', DAY_SHIFT, false, { ink1: '#1a122
  * lights, so at dusk they are lit rather than shifted. The highlights (foam,
  * the sea's crests, gold, polished metal, the whites of eyes, sails) were
  * set by hand in the approved mock-up so they still catch the light instead
- * of going muddy.
+ * of going muddy. Bronze is set by hand at every step: shifted, it drifts
+ * into the plum-brown of skin at dusk; kept olive, it stays metal.
  */
 export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   ink1: '#150d20',
@@ -240,8 +244,10 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   gold1: '#ffcf5a',
   gold2: '#d99a2b',
   metal1: '#e6dcf0',
-  bronze1: '#f0a878',
-  bronze2: '#a85c38',
+  bronze1: '#e6d898',
+  bronze2: '#a08a4a',
+  bronze3: '#6c6036',
+  bronze4: '#3e3a28',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
 });

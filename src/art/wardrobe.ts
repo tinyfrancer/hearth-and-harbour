@@ -14,71 +14,102 @@ import type { BodyDef, GearDef } from './figure';
 import { HAIRSTYLE_GEAR } from './hair';
 import { TOWNSFOLK_BODIES, TOWNSFOLK_GEAR } from './townsfolk';
 
-const { CLOAK, HELD_BEHIND, LEGS, FEET, SHIRT, ARMOUR, BELT, HELD_FRONT, HAIR, SHIELD } = DEPTH;
+const { CLOAK, HELD_BEHIND, LEGS, FEET, SHIRT, ARMOUR, HAND, BELT, HELD_FRONT, HAIR, SHIELD } =
+  DEPTH;
 
-export const BODIES: readonly BodyDef[] = [
-  {
-    // Standing square to the viewer in linen smallclothes: the left fist
-    // closed at the hip (where a held weapon goes), the right hand on the hip
-    // (where a shield's straps go). Bald, so any hair can sit on it.
-    id: 'standard',
-    parts: [
-      {
-        at: [10, 1],
-        depth: 0,
-        rows: [
-          '......ssssdd',
-          '.....sssssssd',
-          '....ssssssssdd',
-          '....ssssssssdd',
-          '....sssssssssd',
-          '...dsHHssssHHdd',
-          '...dswksssskwdd',
-          '....sssssssssd',
-          '....ssssddssdd',
-          '....sssDDDDsdd',
-          '.....sssssssd',
-          '......ssssdd',
-          '.......dddd',
-          '.......sddd',
-          '.eeeeeessddeeeEEE',
-          'eeeeeeeeeeeeeeEEEE',
-          'eeeEeeeeeeeeeEeEEE',
-          'eeeE.eeeeeeEE.eEEE',
-          'eeeE.eeeeeeEE.eEEE',
-          'eeeE.eeeeeeEE.eEEE',
-          'eeeE.eeeeeeEE.eEEE',
-          'sssd.eeeeeeEE.sddd',
-          'sssd..eeeeEE.sddd',
-          '.sssd.eeeeEE.sdd',
-          '.sssdeeeeeEEsdd',
-          '.sssdeeeeeEEsdd',
-          '.sssdeeeeeeEE',
-          '.....eeeeeeEE',
-          '.....eeeeeeEE',
-          '....eeeeeeEEEE',
-          '....eeeeeeEEEE',
-          '....eeeeeeEEEE',
-          '....eeeE..eEEE',
-          '....eeeE..eEEE',
-          '....eeeE..eEEE',
-          '....eeEE..eEEE',
-          '....sssd..sddd',
-          '....sssd..sddd',
-          '....sssd..sddd',
-          '....sssd..sddd',
-          '....sssd..sddd',
-          '....sssd..sddd',
-          '....sssd..sddd',
-          '...sssdd..ssddd',
-          '...sssdd..ssddd',
-          '...ddddd..ddddd',
-        ],
-      },
-    ],
-  },
-  ...TOWNSFOLK_BODIES,
-];
+const STANDARD_BODY: BodyDef = {
+  // Standing square to the viewer in linen smallclothes: the left fist
+  // closed at the hip (where a held weapon goes), the right hand on the hip
+  // (where a shield's straps go). Bald, so any hair can sit on it.
+  id: 'standard',
+  parts: [
+    {
+      at: [10, 1],
+      depth: 0,
+      rows: [
+        '......ssssdd',
+        '.....sssssssd',
+        '....ssssssssdd',
+        '....ssssssssdd',
+        '....sssssssssd',
+        '...dsHHssssHHdd',
+        '...dswksssskwdd',
+        '....sssssssssd',
+        '....ssssddssdd',
+        '....sssDDDDsdd',
+        '.....sssssssd',
+        '......ssssdd',
+        '.......dddd',
+        '.......sddd',
+        '.eeeeeessddeeeEEE',
+        'eeeeeeeeeeeeeeEEEE',
+        'eeeEeeeeeeeeeEeEEE',
+        'eeeE.eeeeeeEE.eEEE',
+        'eeeE.eeeeeeEE.eEEE',
+        'eeeE.eeeeeeEE.eEEE',
+        'eeeE.eeeeeeEE.eEEE',
+        'sssd.eeeeeeEE.sddd',
+        'sssd..eeeeEE.sddd',
+        '.sssd.eeeeEE.sdd',
+        '.sssdeeeeeEEsdd',
+        '.sssdeeeeeEEsdd',
+        '.sssdeeeeeeEE',
+        '.....eeeeeeEE',
+        '.....eeeeeeEE',
+        '....eeeeeeEEEE',
+        '....eeeeeeEEEE',
+        '....eeeeeeEEEE',
+        '....eeeE..eEEE',
+        '....eeeE..eEEE',
+        '....eeeE..eEEE',
+        '....eeEE..eEEE',
+        '....sssd..sddd',
+        '....sssd..sddd',
+        '....sssd..sddd',
+        '....sssd..sddd',
+        '....sssd..sddd',
+        '....sssd..sddd',
+        '....sssd..sddd',
+        '...sssdd..ssddd',
+        '...sssdd..ssddd',
+        '...ddddd..ddddd',
+      ],
+    },
+  ],
+};
+
+/**
+ * The standard body's rows from the elbow down on the weapon side, redrawn so
+ * the empty hand rests at the belt instead of hanging closed: the forearm
+ * angles in from the elbow and the hand comes to the buckle. Every other row
+ * is the standard body's own.
+ */
+const AT_EASE_ARM: Readonly<Record<number, string>> = {
+  22: '.sssd.eeeeEE.sddd',
+  23: '..sssdeeeeEE.sdd',
+  24: '...sssdeeeEEsdd',
+  25: '.....sdeeeEEsdd',
+  26: '.....eeeeeeEE',
+};
+
+const AT_EASE_BODY: BodyDef = {
+  // The standard pose with nothing in the weapon hand.
+  id: 'standard_at_ease',
+  parts: [
+    {
+      ...STANDARD_BODY.parts[0]!,
+      rows: STANDARD_BODY.parts[0]!.rows.map((row, i) => AT_EASE_ARM[i] ?? row),
+    },
+    {
+      // The hand again, over whatever shirt or armour it rests on.
+      at: [13, 25],
+      depth: HAND,
+      rows: ['sssd', '..sd'],
+    },
+  ],
+};
+
+export const BODIES: readonly BodyDef[] = [STANDARD_BODY, AT_EASE_BODY, ...TOWNSFOLK_BODIES];
 
 export const GEAR: readonly GearDef[] = [
   {
