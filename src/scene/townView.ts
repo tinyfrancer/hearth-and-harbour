@@ -1,6 +1,6 @@
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
-import type { View } from '../ui/view';
+import type { Shell, View } from '../ui/view';
 import { stage } from './stage';
 import { ROOM_KINDS, ROOM_START, TEST_ROOM } from './testRoom';
 import { centreOf } from './tileMap';
@@ -19,7 +19,7 @@ let walker: Walker = { at: centreOf(ROOM_START), path: [] };
  * `src/ui/app.ts` calls it and knows nothing else about scenes, so everything
  * behind it can change without touching the shell.
  */
-export function townView(_state: GameState, _content: Content): View {
+export function townView(_state: GameState, _content: Content, _shell?: Shell): View {
   return stage({
     map: TEST_ROOM,
     looks: ROOM_KINDS,

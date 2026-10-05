@@ -151,6 +151,13 @@ h2 {
   -webkit-overflow-scrolling: touch;
 }
 
+/* A scene fills its screen edge to edge and is tapped, not scrolled. */
+.screen[data-tab='town'] {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+
 .tabbar {
   display: flex;
   border-top: var(--px) solid var(--gold);
