@@ -101,6 +101,18 @@ export const ITEM_LAYERS: Readonly<Record<string, string>> = {
   cudgel: 'cudgel',
   smugglers_cutlass: 'smugglers_cutlass',
   trollstone: 'trollstone',
+  // S9's bounty items and the grotto's loot (B6).
+  poachers_longbow: 'poachers_longbow',
+  wyrmscale_shield: 'wyrmscale_shield',
+  barbed_arrows: 'barbed_quiver',
+  hunters_charm: 'hunters_charm',
+  feathered_hat: 'feathered_hat',
+  pirate_cutlass: 'pirates_cutlass',
+  boarding_axe: 'boarding_axe',
+  tricorn: 'tricorn',
+  captains_coat: 'captains_coat',
+  spyglass: 'spyglass',
+  brinebeards_anchor: 'brinebeards_anchor',
 };
 
 /**

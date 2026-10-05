@@ -86,6 +86,19 @@ export const FIGURE_LEGEND: Legend = {
   '%': 'oakbark1',
   '&': 'oakbark2',
   '=': 'oakbark3',
+  // Added for the bounty hunter's things and the grotto's loot (armoury.ts, B6).
+  '@': 'midnight1',
+  $: 'midnight2',
+  '^': 'midnight3',
+  '!': 'hairblack1',
+  '~': 'hairblack2',
+  '?': 'hairblack3',
+  ':': 'red1',
+  '*': 'grass1',
+  '+': 'grass2',
+  '-': 'grass3',
+  ';': 'pine2',
+  '|': 'pine3',
 };
 
 /** Part of a figure: rows of legend characters placed at `at` on the figure canvas. */

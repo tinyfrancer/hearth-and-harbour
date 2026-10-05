@@ -76,6 +76,18 @@ const WEARABLES = [
   'cudgel',
   'smugglers_cutlass',
   'trollstone',
+  // S9's bounty items and the grotto's loot (drawn in B6).
+  'poachers_longbow',
+  'wyrmscale_shield',
+  'barbed_arrows',
+  'hunters_charm',
+  'feathered_hat',
+  'pirate_cutlass',
+  'boarding_axe',
+  'tricorn',
+  'captains_coat',
+  'spyglass',
+  'brinebeards_anchor',
 ];
 
 const cells = (g: Grid): readonly (Shade | null)[] => g.d;

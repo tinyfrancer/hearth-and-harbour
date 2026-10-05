@@ -190,7 +190,14 @@ describe('headgear', () => {
   );
 
   it('changes the head’s outline in every look, so it reads as something worn', () => {
-    for (const head of ['bronze_helmet', 'iron_helmet', 'linen_hood', 'leather_cap']) {
+    for (const head of [
+      'bronze_helmet',
+      'iron_helmet',
+      'linen_hood',
+      'leather_cap',
+      'tricorn',
+      'feathered_hat',
+    ]) {
       const bald = picture([], { ...DEFAULT_LOOK, hair: 'bald' });
       for (const look of looks) {
         const g = picture([head], look);
