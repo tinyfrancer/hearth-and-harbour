@@ -79,7 +79,7 @@ function tallyLines(fight: Fight, content: Content): string[] {
     .map(([item, qty]) => `${itemName(content, item)} ×${formatNumber(qty)}`)
     .join(', ');
   const used = [
-    `${formatNumber(fight.eaten)} eaten`,
+    `${formatNumber(fight.eaten)} fish eaten`,
     ...(fight.arrows ? [`${formatNumber(fight.arrows)} arrows shot`] : []),
   ];
   return [
@@ -299,7 +299,11 @@ export function fightView(
     const ended = over ? monsterDef(content, over.monster) : undefined;
     if (!over) return areasView(state, content, actions);
     const { title, text } = overText(over, ended);
+    const food = foodPanel(state, content, actions, updates);
+    const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
+    update(state);
     return {
+      update,
       el: h('div', { class: 'stack' }, [
         back,
         h(
@@ -321,7 +325,7 @@ export function fightView(
               button(`Fight the ${ended.name} again`, () => actions.fight(ended.id), 'primary'),
           ],
         ),
-        foodPanel(state, content, actions, updates),
+        food,
       ]),
     };
   }

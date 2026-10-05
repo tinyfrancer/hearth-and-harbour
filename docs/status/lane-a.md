@@ -1,6 +1,6 @@
 # Lane A: idle rules
 
-**Next session: S8: Idle combat** (brief in `docs/lanes.md`, wave 4).
+**Next session: S9: Thieving and Bounties** (brief to come in `docs/lanes.md`, wave 5).
 
 ## Done
 
@@ -91,25 +91,122 @@
     remembered per skill while the app runs; the running action's heading always opens on a
     redraw.
 
+- S8 Idle combat (PR #S8PR). Pick an area and a monster on the Skills tab's Combat section; the
+  character fights by itself, eats from the food slot, banks the loot, and keeps going while the
+  game is shut.
+  - **State.** `GameState.fight` (beside `action`; at most one is set, and starting either clears
+    the other): the monster, both sides' hit points, the milliseconds until each side's next blow
+    (the monster's wait is the respawn while its hit points are 0), and a tally. `food` (a stack
+    of one cooked fish, moved from the bank whole, like arrows), `eatAt` (percent, default 50,
+    10 to 90 in steps of 10), `rng` (the dice: one uint32) and `bestiary` (kills and drops seen,
+    per monster). Player hit points exist only in a fight: a new fight starts at full health.
+  - **Dice** (`src/core/rng.ts`): mulberry32, its state in the save, seeded from `createdAt` for
+    new and migrated characters. Rolled only inside fight events, in a fixed order.
+  - **The walk** (`advanceFight`, `src/core/fight.ts`): event by event (the next blow, or the next
+    monster arriving), in plain variables with one new state at the end. At the same instant the
+    character strikes first; an event exactly at the end of the time is part of it. Tests cut
+    time at random frames and exactly on a kill, a respawn, the blow that kills the character,
+    the last arrow and the last fish, and play nights in 16 ms frames against `catchUp`, on test
+    tables and on the real ones.
+  - **The formulas** (`src/core/combat.ts`), one sentence each:
+    - The character attacks every 2.4 s whatever is in hand; a monster every `speedMs`.
+    - Attack rating is 10 + the attacking skill's level + the gear's attack; defence rating is
+      10 + Defence level + armour; a monster's two ratings are in its table row.
+    - A blow lands with chance attack / (attack + defence).
+    - A blow that lands does 1 to max hit, each equally likely; the character's max hit is
+      1 + floor((attacking level + gear strength) / 2).
+    - Hit points are 20, plus 4 for each Vitality level after the first.
+    - After a blow leaves health below the line, the character eats fish until above it or out;
+      a blow that takes health to 0 knocks them out before any eating.
+    - A dead monster is replaced 3 s later, and the kill gives back a tenth of the character's
+      hit points (rounded up).
+    - A bow uses an arrow a shot; the shot that uses the last arrow ends the fight.
+    - Being knocked out ends the fight and nothing else: no loss, full health, idle.
+  - **XP split.** The attacking skill (Melee or Ranged, by the weapon in hand) earns 5 XP per
+    point of damage dealt; Defence earns 2 XP per point of the monster's max hit for every attack
+    it makes, hit or miss (so better armour never costs XP); Vitality earns half of both, rounded
+    down blow by blow.
+  - **Monsters** (`src/data/monsters.ts`; numbers tuned by the simulations below):
+
+    | Monster       | Lvl |  HP | Atk | Def | Max hit | Speed | Coins | Always        | Rare                            |
+    | ------------- | --: | --: | --: | --: | ------: | ----: | ----- | ------------- | ------------------------------- |
+    | Dock rat      |   1 |  10 |   8 |   8 |       2 |  2.4s | 1-3   | hide          | raw herring 1/8                 |
+    | Sand crab     |   3 |  16 |  16 |  22 |       4 |  3.0s | 1-4   | seashells 2-4 | pearl 1/64                      |
+    | Thieving gull |   5 |  14 |  30 |  14 |       5 |  1.8s | 2-8   | feathers 1-3  | shell necklace 1/40             |
+    | Bramble boar  |   8 |  30 |  36 |  24 |       7 |  2.8s | none  | hide 1-2      | glowcap 1/10                    |
+    | Footpad       |  11 |  40 |  50 |  32 |       9 |  2.4s | 8-25  | cudgel        | iron sword 1/50                 |
+    | Grey wolf     |  14 |  46 |  56 |  36 |       9 |  2.2s | none  | hide 1-2      | sageleaf 1/8                    |
+    | Smuggler      |  17 |  64 |  60 |  44 |      13 |  2.4s | 15-40 | smuggled tea  | iron arrows 1/10, cutlass 1/120 |
+    | Marsh troll   |  20 |  96 |  62 |  40 |      20 |  3.6s | 5-30  | hide 2-4      | iron ore 1/6, trollstone 1/150  |
+
+  - **Items.** Cooked fish heal 6 / 12 / 20. New: hide, feathers, pearl, cudgel, smuggled tea, the
+    smuggler's cutlass (Melee 18), the trollstone (neck, Defence 18), leather, and leather
+    bracers, cap and jerkin (the archer's armour: some armour and a little ranged attack).
+    Crafting tans hide into leather (level 3) and makes the bracers (9), cap (12) and jerkin
+    (18); Crafting's pacing still holds. Feathers and pearls have no use yet.
+  - **Wearing needs levels** (`EquipDef.requires`, checked by `equip` only, so what is worn stays
+    worn): iron weapons Melee 10, iron armour Defence 10, oak bow and iron arrows Ranged 10,
+    willow bow Ranged 15, cudgel Melee 5. The sheet's slot picker and the bank card say so.
+  - **Balance** (`tests/data/duels.test.ts`; the gear ladder is in `tests/data/fighting.ts`): a
+    fresh character in linen with a bronze sword wins every rat duel and survives an hour of rats
+    without food, and loses to a boar; at each monster's level in that level's gear, melee and
+    ranged both win at least 70% of no-food duels (rat aside, a win costs at least a third of
+    health); ten levels early they win under 5%. Fish an hour at level, pinned: rat 0, crab 54,
+    gull 135, boar 117, footpad 189, wolf 250, smuggler 187, troll 190. Pacing
+    (`tests/data/pacing.test.ts`): level 20 in 3.1 h (Melee) and 2.7 h (Ranged), Defence and
+    Vitality 2.7 to 3.0 h, with no deaths. Changed because of the simulations: XP per damage 4 to
+    5 (Melee took 3.85 h), fish heal more (the top tiers ate 300 to 430 an hour), crab and gull
+    harder, wolf, smuggler and troll easier.
+  - **Catch-up time** for a whole day of fighting (`catchUp`, 24 h), rats being the worst case
+    (about 11,000 kills): Node 6 to 35 ms; Chromium 9 ms; Chromium with the CPU throttled 4x
+    21 ms median, 52 ms worst, 27 ms on a cold first run. `tests/core/away.test.ts` keeps it
+    under 250 ms.
+  - **Screens.** The Skills tab has a Combat heading: a Fight card and the four skills (tapping a
+    combat skill also goes to the fighting). The areas page: the character's numbers, the food
+    slot and its line, then each area's monsters with portrait, level, hit points, max hit, drops
+    ("?" until seen) and kills. The fight screen: the monster's portrait, both health bars (the
+    eating line marked on the character's), both waits for the next blow, the hit chances, the
+    food slot, the tally, Stop. When a fight ends it says how (knocked out, out of arrows,
+    stopped) with the tally and "Fight again". Toasts for a knock-out, the last arrow and the
+    last fish. The bank card says what food heals (with "Put in the food slot"), what gear
+    needs, and which monsters have been seen to drop a thing. The away report covers a fight:
+    kills, loot and coins, XP and levels, fish eaten, arrows shot, a knock-out or the last arrow.
+  - **Save version 6** (`fight`, `food`, `eatAt`, `rng`, `bestiary`): migration (no fight, no
+    food, line at 50, dice seeded from `createdAt`), `saveProblem` checks (including "fighting and
+    doing something else at once") and tests for both. The shell's `pauseIdle` holds a fight
+    still: no blows, no dice, nothing owed (`tests/ui/shell.test.ts`).
+
 ## Deferred
 
-- Leather for Crafting waits for hides from combat (S8); noted in `src/data/actions.ts`.
-- A level needed to wear something: not built. S8 can add `requires?: { skill, level }` to
-  `EquipDef` and check it in `equip`.
+- Nothing from the brief. Not built, by choice: Magic (as the brief says), a food slot holding
+  anything but cooked fish, and a use for feathers and pearls.
 
 ## Needs from another lane
 
-- Nothing blocking. For B3/B4: the sheet and creation screen pass the look and the worn items'
-  ids to `characterCanvas`, and every slot and choice asks `itemIcon` for the item. For S12c: the
-  town's hero can draw the player with `fullLook(state.look)` (`src/ui/look.ts`) and
+- Nothing blocking. For B5: icons for the new items (`hide`, `feathers`, `pearl`, `cudgel`,
+  `smuggled_tea`, `smugglers_cutlass`, `trollstone`, `leather`, `leather_bracers`, `leather_cap`,
+  `leather_jerkin`), wardrobe layers for the wearables among them, and portraits for the eight
+  monsters. The fight screen frames `portrait(id)` in a 148 CSS px box and the lists in 100 (a
+  48-pixel face at 3x and 2x, inside the frame's border); a portrait is placed as given, centred,
+  never resized.
+- For S14b: a dungeon fight can reuse the formulas in `src/core/combat.ts` (`playerCombat` gives
+  the character's ratings, max hit and hit points; `hitChance`, `maxHitFor`), and the food slot
+  is `state.food`, with `heals` on the item. A run that wants dice should take its own seed
+  rather than roll `state.rng`, so idle fights stay repeatable; ask lane A for a rule that pays
+  XP and loot from a run.
+- For S12c: the town's hero can draw the player with `fullLook(state.look)` (`src/ui/look.ts`) and
   `wornItemIds(state)` (`src/core/equipment.ts`).
 
 ## Notes for this lane's next session
 
-- Save is version 5 (`look`, `equipment`). The next shape change is 6.
-- S8 reads `equipmentTotals(state, content)`: `{ style, attack, strength, armour }`. Arrows are
-  `equipment.ammo` (`{ item, qty }`); using them up is S8's, and the last one should empty the
-  slot (nothing is kept at zero).
+- Save is version 6. The next shape change is 7.
+- Combat's skill ids are constants in core (`MELEE`, `RANGED`, `DEFENCE`, `VITALITY` in
+  `src/core/combat.ts`); `tests/data/content.test.ts` checks the tables match. Bounties (S9) can
+  read kills per monster from `state.bestiary`.
+- Decisions Cody may want to reverse: the character's hit points live only in a fight, so
+  stopping and starting again heals (harmless while being knocked out costs nothing); the
+  breather after each kill makes the weakest fights free of food; feathers and pearls are only
+  for selling.
 - **Tools that help skilling** (not built): `EquipDef` would take `tool?: { skill: string;
 percent: number }`, and `actionDuration` would fold the worn tool's percent in beside mastery
   and the potion, rounded once. Equipment changes only by the player's hand, never inside

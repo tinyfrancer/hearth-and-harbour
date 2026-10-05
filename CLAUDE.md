@@ -62,10 +62,16 @@ merging, rebase on `main` and run `npm run check` again.
   `src/ui/dom.ts`; scenes are Canvas 2D.
 - **Time is passed in, never read.** Core takes `now` or `ms` as an argument, so live play, offline
   catch-up and tests run the same code. `advance(state, ms, content)` in `src/core/actions.ts` is
-  the only way time passes. It works in whole completions by arithmetic, never a loop of ticks, and
-  `advance(a)` then `advance(b)` must equal `advance(a + b)`: keep that test passing. Anything that
+  the only way time passes, and `advance(a)` then `advance(b)` must equal `advance(a + b)` exactly,
+  as must a night away and the same night in 16 ms frames: keep those tests passing. It never loops
+  over slices of time. An action is worked in whole completions by arithmetic; anything that
   changes an action as it runs (mastery does: it shortens the time) must change it only on a
   completion and in whole milliseconds, and `advance` spends the time in stretches between changes.
+  A fight (`advanceFight`, `src/core/fight.ts`) goes by chance, so it is walked **event by event**
+  (each blow, each respawn) in the order they fall, with an event at the very end of the time
+  counted in it. Its dice are seeded (`src/core/rng.ts`), their state is in the save, and they are
+  rolled only inside an event, in a fixed order, so the same events roll the same numbers however
+  the time is cut. Nothing random anywhere else, and never `Math.random`.
 - **Time away is `catchUp(state, awayMs, content)`** (`src/core/away.ts`): `advance` with a 24-hour
   cap and a report of the difference. A closed game is measured from `savedAt`; a page left in the
   background is the same rule, triggered by a gap of a minute between ticks. `savedAt` therefore
