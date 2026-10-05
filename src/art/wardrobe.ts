@@ -8,20 +8,13 @@
  * Light comes from the upper left: left edges take the light step, right
  * edges the dark one. Eyes mirror each other, pupils toward the nose.
  */
+import { ARMOURY } from './armoury';
+import { DEPTH } from './depth';
 import type { BodyDef, GearDef } from './figure';
+import { HAIRSTYLE_GEAR } from './hair';
 import { TOWNSFOLK_BODIES, TOWNSFOLK_GEAR } from './townsfolk';
 
-// Depths, back to front.
-const CLOAK = -20;
-const HELD_BEHIND = -10;
-const LEGS = 10;
-const FEET = 20;
-const SHIRT = 30;
-const ARMOUR = 40;
-const BELT = 50;
-const HELD_FRONT = 60;
-const HAIR = 70;
-const SHIELD = 80;
+const { CLOAK, HELD_BEHIND, LEGS, FEET, SHIRT, ARMOUR, BELT, HELD_FRONT, HAIR, SHIELD } = DEPTH;
 
 export const BODIES: readonly BodyDef[] = [
   {
@@ -338,4 +331,6 @@ export const GEAR: readonly GearDef[] = [
     ],
   },
   ...TOWNSFOLK_GEAR,
+  ...HAIRSTYLE_GEAR,
+  ...ARMOURY,
 ];
