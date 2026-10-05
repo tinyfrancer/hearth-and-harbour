@@ -94,7 +94,8 @@ that pose. Its hero outfit is the mock-up's hero, pixel for pixel. Townsfolk who
 
 ### The player's character (`src/art/character.ts`)
 
-Drawn in B3, not yet reviewed by Cody; the rules here are what it was drawn to.
+Drawn in B3 and given a second pass in B3b after Cody's first look; the rules here are what it was
+drawn to.
 
 - **Looks are ramps, not repaints.** The body is drawn once in the `skin` and `hair` steps; a
   skin tone or hair colour swaps those steps for its own ramp (`skinpale`, `skindeep`,
@@ -106,18 +107,59 @@ Drawn in B3, not yet reviewed by Cody; the rules here are what it was drawn to.
   one. Under head gear only what hangs is worn, so hair never pokes through, and the helmet is
   drawn over the top of the hanging hair so it seems to come out from under the rim. A braid falls
   over the hood's cape. Hair never covers an eye or a brow; faces stay symmetric.
-- **Bronze is copper-orange, iron is blue-grey.** Bronze (`bronze1`–`bronze4`) has a pale peach
-  specular step over a saturated copper mid, so it reads as metal rather than wood or leather, and
-  is redder than gold. Like gold and polished iron, its highlight and mid are set by hand at dusk,
-  or it goes brown and reads as skin. The two metals also differ in shape: a leaf blade against a
-  straight one, a fan-headed axe against a bearded one, a round shield against a heater, a domed
-  helm with cheek plates against a conical one with a nasal, a cuirass with leather strips against
-  plate with pauldrons.
+- **Bronze is yellow-olive, iron is blue-grey.** Every skin tone is an orange; bronze sits away
+  from all five of them (`bronze1`–`bronze4`, a pale cream highlight over an olive mid), duller
+  and greener than gold. Its whole ramp is set by hand at dusk, or it drifts into the plum-brown
+  that skin goes at dusk. Bronze is never laid bare against skin: it sits on dark `hide` leather
+  with a visible edge, so a bronze piece always reads as something worn. (B3's copper bronze read
+  as a bare head and a bare chest; this is why.)
+- **Headgear changes the head's outline.** A helmet adds something a head does not have: a brim
+  wider than the ears, a point above the crown, a cape. A cap that only follows the skull reads
+  as a scalp.
 - **Held things sit in the left fist**, along the approved sword's line: a blade or haft rises
   behind the shoulder and the grip shows where the fist is. A bow is held at its grip, string
   outward, so the whole stave shows beside the body; the three bows are one drawing in three woods.
+- **An empty hand rests.** With nothing held, the character stands in `standard_at_ease`: the
+  standard body with the weapon forearm bent up so the hand rests at the belt, instead of a closed
+  fist hanging by the hip. Sleeves and the bracelet on that forearm have an at-ease version that
+  follows it. The other hand rests on the hip in both poses (a shield covers it). The standard
+  body itself, and so the approved hero, is unchanged.
 - **Small things must be findable.** A necklace or bracelet sits over clothes, armour and a hood's
-  cape, in shell white and pink.
+  cape, white against dark beads or cord so it shows on any skin or sleeve.
+
+### Gear ladder
+
+Gear starts simple and climbs with the player's power, so how strong someone is reads at a glance
+from across the town. One rung per stage of the game:
+
+| Rung                                   | Who                     | What it is                                                                                                                                                                        |
+| -------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linen (start of tier 1)                | A villager              | Undyed linen tunic, trousers and hood. No metal. Nothing held: the hand rests at the belt.                                                                                        |
+| Bronze (tier 1, early)                 | A militia volunteer     | A bronze skullcap with a brim on a hide band; a hide jerkin over the tunic with one bronze disc; a small round wooden shield with a bronze boss; a short leaf blade; a hatchet.   |
+| Iron (tier 1, late)                    | A town guard            | A conical helm with a nasal; a mail shirt to the thigh, sleeves to the elbow, no pauldrons; a plain iron heater; a straight arming sword; a bearded axe. One metal, no gold.      |
+| Tier 2 (opened by Brinebeard's Grotto) | The knight              | The approved hero: plate with pauldrons and knee cops, the kite shield with its cross, the long raised sword with a gilt guard, the red cloak. Drawn; waiting for tier 2's items. |
+| Tier 3 (opened by Thistlewood Burrow)  | A warden (words only)   | Plate with gilded edges, a crest or plume on a taller helm, a surcoat or cloak in a forest colour with a device, a larger heraldic shield, layered pauldrons.                     |
+| Tier 4 (opened by the Wobbling Spire)  | A champion (words only) | Enamelled or tinted plate with trim that glows at dusk like the forge, a tall plume, a full cape, the largest blades and shields, a light of its own.                             |
+
+What grows from rung to rung, and the rules that hold it:
+
+- **Metal on the body.** None, then a few cast pieces (cap, disc, boss) on leather, then mail over
+  the torso and upper arms, then plate from head to knee. In tier 1 it is counted in pixels: each
+  rung covers more than the one below (`tests/art/ladder.test.ts`). From the knight on, metal
+  shares the body with paint and cloth (his shield is blue, his cloak red), so a higher rung
+  shows heavier metal (plate over mail), not necessarily more of it.
+- **The silhouette.** Shields grow (a 10-pixel buckler, an 11 x 15 heater, the 11 x 19 kite);
+  blades reach higher (to the shoulder, above the head, to the top of the canvas); helms rise (a
+  cap on the scalp, a point above the crown, a crest or plume); shoulders widen (nothing, mail,
+  pauldrons, layered pauldrons); a cloak widens the base from tier 2.
+- **Colours and trim.** Tier 1 is one metal with leather and the everyday tunic: no gold but the
+  belt's buckle, no cloak, no painted device. Colour arrives with the knight (red cloak, blue
+  shield, gold guard and cross), gilding and devices with tier 3, enamel and lights with tier 4.
+- **Highlights.** Linen has none; bronze shines only at its edges; iron catches the light in rows
+  (mail) and a few white points (the helm's crown); the knight's plate is polished, white
+  specular on every plate; tier 4 adds glows at dusk.
+- **A rung never borrows the next one's signature.** Pauldrons, a cloak and gold trim belong to
+  tier 2 and above; plumes and devices to tier 3 and above; glows to tier 4.
 
 ## Portraits
 

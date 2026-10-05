@@ -1,7 +1,7 @@
 # Lane B: art
 
 **Next session: B4: Icons for every item and skill; portraits** (wave 4, brief still to be
-written). B3 did not reach icons.
+written). Neither B3 nor B3b reached icons.
 
 ## The character, for lanes A and C (`src/art/character.ts`)
 
@@ -19,8 +19,10 @@ the same 40 × 50 outlined figure, base 47, so the hero's index entry (shadow, b
   what it was before.
 - Every wearable in the tables draws: both metals' sword, axe, helmet, shield and breastplate,
   the linen hood, tunic and trousers, the shell necklace and bracelet, the three shortbows, and
-  either kind of arrow (a quiver). `iron_sword` and `iron_breastplate` are the approved hero's
-  sword and plate.
+  either kind of arrow (a quiver). Items sit on the gear ladder (style guide, "Gear ladder"); no
+  tier 1 item is drawn with the approved hero's gear, which waits for tier 2.
+- With nothing in the main hand the character stands at ease (`characterBody` says which body):
+  the same 40 × 50 figure, base 47, with that hand resting at the belt.
 - One item per slot: if two items share a slot (a sword and an axe), the first listed is drawn.
   A bow and a shield together both draw; emptying the off hand is lane A's rule.
 
@@ -123,6 +125,50 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B3b: The wardrobe's second pass.** After Cody's first look: gear on a ladder that starts
+  simple and climbs, and the weak pieces redrawn. New art, not yet reviewed.
+  - The ladder (style guide, "Gear ladder"): linen is a villager, bronze a militia volunteer,
+    iron a town guard; the approved hero's plate, kite shield, cloak and long sword are tier 2's
+    knight and are no longer what any tier 1 item is drawn with. Tiers 3 and 4 are described in
+    words only. What grows from rung to rung (metal on the body, silhouette, colour and trim,
+    highlights) is written there as rules.
+  - Item to layer (`ITEM_LAYERS` in `character.ts`):
+
+    | Item                 | Layer                | What it is now                                                       |
+    | -------------------- | -------------------- | -------------------------------------------------------------------- |
+    | `bronze_sword`       | `bronze_shortsword`  | short leaf blade to the shoulder, cast guard                         |
+    | `bronze_axe`         | `bronze_hatchet`     | hatchet, short haft, head through the haft                           |
+    | `bronze_helmet`      | `bronze_cap`         | domed skullcap, riveted brim wider than the head, band               |
+    | `bronze_shield`      | `bronze_buckler`     | small round wooden shield, hide rim, bronze boss                     |
+    | `bronze_breastplate` | `bronze_jerkin`      | hide jerkin over the tunic, one bronze disc, tabs                    |
+    | `iron_sword`         | `iron_arming_sword`  | straight sword, plain iron cross (was the hero's)                    |
+    | `iron_axe`           | `iron_bearded_axe`   | unchanged                                                            |
+    | `iron_helmet`        | `iron_nasal_helm`    | unchanged                                                            |
+    | `iron_shield`        | `iron_heater_shield` | unchanged                                                            |
+    | `iron_breastplate`   | `iron_mail`          | mail shirt to the thigh, sleeves to the elbow (was the hero's plate) |
+    | linen, shells, bows  | as before            | bracelet redrawn bigger; quiver redrawn bigger                       |
+
+    B3's `bronze_leaf_sword`, `bronze_crescent_axe`, `bronze_cheek_helm`, `bronze_round_shield`
+    and `bronze_cuirass` are gone (nothing drew them any more). The hero's layers are untouched.
+
+  - Bronze recoloured yellow-olive, away from every skin tone, with every step hand-set at dusk;
+    a new `hide` ramp (cool leather) frames it. A test holds every bronze step more than 12 (CIE76)
+    from every skin step, by day and at dusk, and no bronze pixel touches skin.
+  - Empty hands: a second body, `standard_at_ease`, is the standard body with the weapon forearm
+    redrawn bent so the hand rests at the belt (the standard body and the hero are untouched).
+    `characterPicture` uses it when nothing is in the weapon slot, with at-ease versions of the
+    clothes on that forearm (`teal_tunic_at_ease`, `linen_tunic_at_ease`,
+    `shell_bracelet_at_ease`; `AT_EASE_GEAR` in `armoury.ts`). The shield hand already rests on
+    the hip and was kept. A new depth, `HAND` (45), puts the resting hand over shirt and armour.
+  - Gallery: the Wardrobe section now opens with the ladder (linen, bronze, iron and the hero as
+    tier 2, day and dusk, close up and at game scale), then every item alone by day and dusk, each
+    rung in other looks, the bows, then the looks.
+  - Tests (`tests/art/ladder.test.ts`): metal coverage linen < bronze < iron; shields grow and
+    blades reach higher bronze to iron to knight; no tier 1 item uses the knight's layers; iron has
+    no gold beyond the buckle and is narrower at the shoulder than the knight; bronze against skin
+    as above; every helmet and the hood change the head's outline in every hairstyle and colour;
+    the bronze cap's brim is wider than the head over a hide band; the at-ease body differs from
+    the standard only in the weapon arm, and the hand rests whenever nothing is held.
 - **B3: The character's wardrobe.** New art in the approved style, not yet reviewed by Cody.
   - Looks (`character.ts`, `hair.ts`): five skin tones and six hair colours as palette ramps (the
     body's skin and hair steps are swapped for the chosen ramp, brows included); five hairstyles
@@ -178,9 +224,12 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 - Portraits (48 × 48): not started (B4).
 - Item and skill icons (24 × 24): not started (B4). B3 did not reach them.
 - The tab icons and home-screen icon are still the S1 placeholders.
-- Wardrobe weak spots for Cody's review: bronze helmet with auburn hair (both copper, they run
-  together); the linen tunic and trousers are plain; the quiver is a few pixels; the standard
-  body's empty left fist still hangs straight when nothing is held.
+- Wardrobe weak spots for Cody's review (after B3b): the bronze hatchet is the weakest piece (it
+  reads as a hatchet at game scale but is a little flag-like close up); the bronze cap reads as
+  a brimmed metal cap but leans towards a pith helmet; the bracelet is findable but reads as a
+  beaded cuff more than as shells; the linen tunic and trousers are still plain.
+- Tier 2, 3 and 4 gear: tier 2 is the approved hero's layers, waiting for tier 2's items; tiers 3
+  and 4 are words in the style guide only.
 - No walk cycle; figures face one way (mirror for the other).
 - The townsfolk bodies are drawn only where they show, so they cannot be dressed in other gear.
 
