@@ -1,6 +1,6 @@
 # Lane A: idle rules
 
-**Next session: S8: Idle combat** (brief to come in `docs/lanes.md`, wave 4).
+**Next session: S8: Idle combat** (brief in `docs/lanes.md`, wave 4).
 
 ## Done
 

@@ -61,13 +61,14 @@ Paste one of these into a new Claude Code session attached to `tinyfrancer/heart
 `docs/plan.md` lists the sessions in their original single-file order. Lanes change the order and
 split S7 in two; where the two disagree, this file wins.
 
-| Wave     | Lane A                               | Lane B                                                  | Lane C                                                                          |
-| -------- | ------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 1 (done) | S5 Cooking and Smithing              | S7a Art pipeline                                        | S11 Scene engine                                                                |
-| 2 (done) | S6 Crafting, Fletching, Alchemy      | B2 The rest of the town's art                           | S12a The town on the engine                                                     |
-| 3        | S7b Equipment and character          | B3 The character's wardrobe: looks and gear layers      | S12b The whole town                                                             |
-| 4        | S8 Idle combat                       | B4 Icons for every item and skill; portraits            | S12c The player's own look and gear in town; then S14 Dungeon engine (needs S8) |
-| later    | S9, S10, then the Milestone A review | art passes are review sessions with Cody, one at a time | S15, S16                                                                        |
+| Wave     | Lane A                           | Lane B                                                            | Lane C                                                    |
+| -------- | -------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
+| 1 (done) | S5 Cooking and Smithing          | S7a Art pipeline                                                  | S11 Scene engine                                          |
+| 2 (done) | S6 Crafting, Fletching, Alchemy  | B2 The rest of the town's art                                     | S12a The town on the engine                               |
+| 3 (done) | S7b Equipment and character      | B3 The character's wardrobe (three passes)                        | S12b The whole town                                       |
+| 4        | S8 Idle combat                   | B4 Icons for every item and skill; the hatchet; portraits if time | S12c Your own character in town; S14a the dungeon's shell |
+| 5        | S9 Thieving and Bounties         | B5 Portraits; icons for S8's new items; dungeon tiles             | S14b Fighting in dungeons (needs S8)                      |
+| later    | S10, then the Milestone A review | art passes are review sessions with Cody, one at a time           | S15, S16                                                  |
 
 A lane that reaches a session whose needs have not landed stops and says so in its status file.
 Lanes do not wait for a whole wave: each takes its next session as soon as what it needs is on
@@ -77,7 +78,195 @@ Lanes do not wait for a whole wave: each takes its next session as soon as what 
 that was meant to come first. The scene engine does not depend on idle pacing, so the risk is
 wasted polish on the town if the review changes direction, not rework of the engine.
 
-## Wave 3 briefs
+## Wave 4 briefs
+
+New since wave 3:
+
+- The `Shell` a scene is given (`src/ui/view.ts`) has two more calls: `pauseIdle(on)` stops the
+  idle game's clock for a dungeon run and owes nothing for the time, and `fullScreen(on)` hides
+  the top bar and tabs. Both are undone automatically when the Town tab is left.
+- `src/art/portraits.ts` is a new art door: `portrait(id)` gives a 48 x 48 face for an id, or
+  null. It answers null for everything today.
+- Art direction from Cody: **gear starts simple and moves up as the player gets more powerful**
+  (the "Gear ladder" in `docs/style-guide.md`).
+
+**The monsters of tier 1**, fixed here so that lane A can build them and lane B can draw them at
+the same time. Ids are final; names and numbers are lane A's to tune.
+
+| Area           | Monster id      | Roughly                              | Combat level about |
+| -------------- | --------------- | ------------------------------------ | ------------------ |
+| The Docks      | `dock_rat`      | a rat the size of a terrier          | 1                  |
+| The Docks      | `sand_crab`     | a crab with opinions                 | 3                  |
+| The Docks      | `thieving_gull` | a gull that steals, and fights dirty | 5                  |
+| The North Road | `bramble_boar`  | a boar with thorns in its hide       | 8                  |
+| The North Road | `footpad`       | a roadside robber with a cudgel      | 11                 |
+| The North Road | `grey_wolf`     | a lean wolf                          | 14                 |
+| The Saltmarsh  | `smuggler`      | a cutlass and a bad attitude         | 17                 |
+| The Saltmarsh  | `marsh_troll`   | big, slow, hard to discourage        | 20                 |
+
+### Lane A · S8: Idle combat
+
+Read: `docs/design.md` sections 4, 5 and 6; `docs/status/lane-a.md`; `src/core/actions.ts`,
+`src/core/away.ts` and their tests before designing anything.
+
+Pick an area and a monster; the character fights by itself, eats when hurt, collects loot, and
+keeps doing so while the game is closed.
+
+- **Skills.** Melee, Ranged, Defence and Vitality join the tables under a "Combat" group. (Magic
+  waits until there is something to cast with.) Which attacking skill earns XP follows the weapon
+  in hand; Defence earns from being attacked; Vitality earns from all fighting and sets hit
+  points. Decide the split and write it down.
+- **The fight, as rules.** Player and monster each attack on their own timer. A blow hits or
+  misses by attack against the other's defence or armour, and does damage up to a maximum set by
+  strength. Read the player's side from `equipmentTotals`. A ranged weapon uses one arrow per
+  shot; out of arrows ends the fight. A monster that dies is replaced by a fresh one after a short
+  pause. Keep the formulas few and plain enough to state in a sentence each.
+- **Chance, done properly.** Combat needs dice and the game has had none. Put a seeded random
+  number generator's state in the save and draw from it only inside the rules, in a fixed order
+  per event, so that a fight is exactly repeatable from a save. `advance` for combat cannot be
+  closed-form arithmetic: it walks the fight **event by event** (the next blow, the next
+  respawn), which is fine and is not the "loop of ticks" `CLAUDE.md` forbids, because events are
+  the game's own and not slices of time. The invariant does not bend: `advance(a)` then
+  `advance(b)` equals `advance(a + b)` exactly, and a night away equals the same night in 16 ms
+  frames, dice included. Prove that with tests before building screens. A day at the cap is tens
+  of thousands of events; measure how long a 24-hour catch-up takes and keep it well under a
+  second on a phone-class CPU (report the number).
+- **Food.** A food slot holds one kind of cooked fish. The character eats one when hit points
+  fall below a line the player can set (give a sensible default), each fish healing by its kind.
+  Out of food does not stop the fight; it just stops the eating.
+- **Death.** Dying ends the task and costs nothing permanent: the character is back at full
+  health and idle. Say so plainly on screen and in the away report.
+- **Loot.** Each monster has a table: coins, something always (hides, feathers, bones or the
+  like), and rarer things. **Hides must feed Crafting**: add leather and a small leather set
+  (cap, jerkin, bracers or boots) so the note S6 left is closed. Give the smuggler and the troll
+  one rare drop each worth chasing. Loot goes to the bank.
+- **Wearing things needs levels.** Add the level requirement S7b left room for
+  (`requires` on `EquipDef`): bronze at 1, iron at about 10 Defence or the weapon's skill,
+  bows by Ranged. Existing characters keep what they are already wearing.
+- **Screens.** A Combat section on the Skills tab: areas, then monsters with their level and what
+  they drop (show a drop only once it has been seen; unseen ones as "?"). The fight screen: both
+  health bars, both attack timers, the monster's portrait (`portrait(id)` from
+  `src/art/portraits.ts`, with a tidy placeholder when it is null), the food slot and its
+  threshold, a running tally of kills and loot this session. Starting a fight stops any other
+  action, as ever.
+- **Away.** The away report covers a fight: kills, loot, XP and levels, food eaten, arrows used,
+  and whether it ended in death or for want of arrows.
+- **Balance, held by tests.** Duel simulations in the style of `tests/data/pacing.test.ts`: a
+  fresh character in linen with a bronze sword beats dock rats without food and loses to a boar;
+  each monster is a fair fight at about its level in the gear of that level and hopeless ten
+  levels early; a combat skill takes about three hours to level 20 on level-appropriate monsters;
+  how many cooked fish an hour each tier of fight costs.
+- **Save.** Version 6, with a migration, `saveProblem` checks and tests.
+- Thieving and Bounties are S9. Do not start them.
+
+Minimum: melee against The Docks' three monsters with food, loot and death, exact through time
+away, with the fight screen.
+Done when: `npm run check` passes; a phone-sized run shows a fight won, a fight lost, eating,
+loot arriving in the bank, and an away report after hours of fighting; the status file states the
+formulas and the measured catch-up time.
+
+### Lane B · B4: Icons, and the hatchet
+
+Read: `docs/style-guide.md`; `docs/status/lane-b.md`; `src/art/icons.ts`, `src/art/portraits.ts`.
+
+The menus have had no pictures since the first session. Fill the two icon doors, fix one piece of
+the wardrobe, and start on faces if there is time.
+
+- **The hatchet, first.** `bronze_axe` on the character has had three passes and its head still
+  reads as a hook or a club. Look at `/home/claude/lane-shots/wardrobe-pass-3/ladder.png` and
+  `candidates-axe.png`. The trouble is the head's outline: a thin curved bar hooking off the top
+  of the haft. An axe head is a solid wedge: narrow where the haft passes through it, widening
+  to a cutting edge as tall as the head is long, with the edge on the side away from the body.
+  Draw it as a filled trapezoid first and refine from there; four or five pixels of solid head
+  beats an elegant outline. Hold it beside the iron bearded axe, which works. Budget a small part
+  of the session for this and stop when it passes the squint test.
+- **Item icons, 24 x 24, for every item in `src/data/items.ts`** (read the file for the ids and
+  what each thing is; do not import it, art knows nothing about the game). `itemIcon(id)` returns
+  an element showing it, or null for an id it does not know. Roughly sixty: logs, fish raw and
+  cooked, ores and bars, herbs and shells, arrows and their parts, cloth, the worn gear in bronze,
+  iron, linen and shell, the bows, the potions and the vial. Lane A is adding items this wave
+  (leather and a few leather pieces, hides and other monster drops, with ids not yet known):
+  icons for those are next session's, and an unknown id must stay null.
+- **Icons are their own drawings,** not shrunken gear layers: an object alone, turned to show its
+  best side, filling most of the square, with the automatic outline and the light from the upper
+  left. Families must read as families and differ at a glance: the three logs by bark and wood
+  colour, raw fish against cooked, bronze gear against iron by colour and (per the gear ladder)
+  by how plain or solid it is, the four potions by colour and bottle. The bronze hatchet's icon
+  and its worn layer should plainly be the same object.
+- **Skill icons** for every skill in `src/data/skills.ts`, and for the four combat skills lane A
+  is adding now: `melee`, `ranged`, `defence`, `vitality`. One clear object each (an axe in a
+  stump, a fish on a hook, an anvil).
+- **How they are shown.** The UI puts an icon in front of a heading at whatever size the element
+  comes; make the element a pixel-exact canvas (as `characterCanvas` does) at a whole scale that
+  suits a line of 18px text on a phone, crisp at device pixel ratios 2 and 3. Look at them in the
+  real screens: the bank's rows and cards, the skills list, action cards, recipe inputs, the
+  potion panel, the character sheet's slots. If an icon is cramped or misaligned there and the
+  fix is in `src/ui`, do not make it: record exactly what is needed under "Needs from another
+  lane".
+- **Replace the placeholder tab icons** (`src/art/tabIcons.ts`) only if `src/ui` can take the new
+  ones without a change there; otherwise leave them and note it.
+- **Gallery:** an "Icons" section with every icon on a grid, labelled, in families.
+- **If time remains, portraits** (48 x 48, `portrait(id)`), in this order: the eight monsters in
+  the table above, then the three townsfolk. One clear expression each; the style guide's
+  Portraits section is the rule. Not cute, not grim. Any you do not reach stay null.
+- Tests: every id listed in a test's own copy of the item and skill ids gives an icon; an unknown
+  id gives null; no two icons are the same picture.
+
+Minimum: the hatchet, and icons for every current item.
+Done when: `npm run check` passes; the icons read at true size in the bank and skills screens on
+a 390-wide phone at 3x; nothing outside `src/art`, `tests/art`, `docs/style-guide.md` and this
+lane's status file changed.
+
+### Lane C · S12c and S14a: Your own character in town, and the way into a dungeon
+
+Read: `docs/status/lane-c.md`; `docs/status/lane-a.md` (how to read the player's look and worn
+gear); `docs/design.md` sections 3 and 8; `src/ui/view.ts` (the `Shell`).
+
+Two things, the first small.
+
+**S12c: the hero is you.**
+
+- Draw the town's hero with `characterPicture` from the player's own look and worn items (lane
+  A's status file names the two functions that read them from the state). A new character
+  arrives in town in linen, not in plate. Redraw him when gear or look changes; keep the caching
+  that makes dusk lighting cheap.
+- The townsfolk turn to face the hero when he walks up (mirror the picture).
+- Hold and drag to steer: while a finger is held on the ground, the hero keeps walking towards
+  it, re-aiming as it moves. A tap still does what it does now.
+
+**S14a: the dungeon's shell.** Combat is being built by lane A this wave, so there is nothing to
+fight yet. Build everything about a dungeon that is not the fight, on `stage.ts`:
+
+- **The way in.** The rowing boat at the quay: walk up, and its panel offers to row out to the
+  grotto. For now it is plainly labelled as unfinished.
+- **Sideways.** Dungeons are played in landscape. Phones cannot be made to rotate, so entering
+  shows a "turn your phone" prompt and the run begins when the screen is wider than it is tall;
+  turning back to portrait pauses the run behind the same prompt. Use `shell.fullScreen(true)`
+  for the run and give the scene its own way out, always on screen (a "Leave" button that asks
+  once more before it acts).
+- **The idle task waits.** `shell.pauseIdle(true)` on entering, `false` on leaving by any route.
+  Check it: an action left running in the Skills tab must have made no progress during the run.
+- **Rooms and doors.** A dungeon is rooms as data (each a tile map with footprints, as the town
+  is), joined by doors: walk into a door and the next room loads with the hero at the matching
+  door. A grey-box dungeon of three rooms in flat placeholder colours, the last with a marked
+  spot that ends the run with a plain results screen ("You reached the end", time taken, a button
+  back to town).
+- **Made for landscape:** the camera, scale and tap-to-walk all right in a wide, short view; the
+  hero drawn as in town. Leave clear room at the screen's edges where S14b will put the ability
+  bar and health; do not build them.
+- Failing a run and anything to do with enemies, damage, loot or food is S14b, after lane A's
+  combat has landed. Note in your status file what S14b will need from the combat rules.
+- Tests: door links (every door leads somewhere and back), entering and leaving pause and resume
+  the clock through the shell, the rotate prompt's rule, drag-to-steer re-aiming.
+
+Minimum: S12c's hero in the player's look and gear; a dungeon you can enter from the boat, walk
+through three rooms of, and leave, with the idle task paused throughout.
+Done when: `npm run check` passes; a run on a phone-sized screen shows the hero in town wearing
+what the character sheet shows, the rotate prompt in portrait, three rooms walked in landscape,
+the results screen, and the town again with the bars back; nothing outside `src/scene`,
+`tests/scene` and this lane's status file changed.
+
+## Wave 3 briefs (done)
 
 New since wave 2: `src/art/character.ts` is the door for drawing the player's character. The game
 passes a `Look` and the ids of the items worn; art returns a picture
@@ -441,8 +630,7 @@ nothing outside `src/scene`, `tests/scene` and this lane's status file changed.
 Written when their wave is next, by Cody's orchestrating session, from `docs/plan.md` and what the
 lanes' status files say they left behind:
 
-- **S8** (A): idle combat, reading the equipment totals from S7b.
-- **B4** (B): 24 x 24 item icons and skill icons for everything in the tables, through the doors;
-  48 x 48 portraits.
-- **S12c** (C): the town's hero drawn with the player's look and worn gear.
-- **S14** (C): landscape dungeons on the scene engine.
+- **S9** (A): Thieving and Bounties.
+- **B5** (B): portraits not reached in B4; icons for S8's new items; tiles for the first dungeon.
+- **S14b** (C): enemies, telegraphed attacks, the ability bar, food, failing and finishing a run,
+  on S8's combat rules.

@@ -1,7 +1,6 @@
 # Lane B: art
 
-**Next session: B4: Icons for every item and skill; portraits** (wave 4, brief still to be
-written). Neither B3, B3b nor B3c reached icons.
+**Next session: B4: Icons, and the hatchet** (brief in `docs/lanes.md`, wave 4).
 
 ## The character, for lanes A and C (`src/art/character.ts`)
 

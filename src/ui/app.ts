@@ -52,6 +52,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let openSkill: string | null = null;
   /** The item whose card is open on the Bank tab, if any. */
   let openItem: string | null = null;
+  /** A scene has stopped the idle clock (a dungeon run is on). */
+  let idlePaused = false;
   /** Whether Menu is showing the art gallery. */
   let galleryOpen = false;
   /** What is open under the character sheet: a slot's choices, the look, or nothing. */
@@ -273,10 +275,24 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         openSkill = content.skills[skillId] ? skillId : null;
         render();
       },
+      pauseIdle: (on) => {
+        // Bring the game up to this moment first, so the pause begins and
+        // ends cleanly and nothing before it is lost.
+        tick();
+        idlePaused = on;
+      },
+      fullScreen: (on) => {
+        root.classList.toggle('fullscreen', on);
+      },
     });
   };
 
   const render = (): void => {
+    if (tab !== 'town' || !state) {
+      // Only a scene on the Town tab may hold the clock or the whole screen.
+      idlePaused = false;
+      root.classList.remove('fullscreen');
+    }
     if (!state) {
       view = null;
       root.replaceChildren(
@@ -343,6 +359,13 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
     if (!state) return;
+    if (idlePaused) {
+      // A dungeon run: the idle task waits. Saving keeps `savedAt` moving, so
+      // the time spent here is never mistaken for time away and paid for.
+      if (time - lastSave >= AUTOSAVE_MS) save();
+      view?.update?.(state);
+      return;
+    }
     if (!state.action) {
       // Nothing is passing in the game, but a screen may still be moving (a
       // scene's walker): every view hears every frame.
