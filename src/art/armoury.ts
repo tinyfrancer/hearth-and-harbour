@@ -114,8 +114,11 @@ const BRONZE: readonly GearDef[] = [
   },
   {
     // A hatchet for kindling: the head sits at the very top of a short haft,
-    // which shows above it. Straight along the top, it flares down to a
-    // curved bit with a bright edge; the socket is dark where the wood goes in.
+    // which shows above it. The head is a solid wedge, not an outline: a
+    // socket wrapped round the haft, filling out to a curved bit as tall as
+    // the head is long, with a bright edge on the side away from the body.
+    // Straight along the top, slanting underneath. B3c's thin bar hooking
+    // off the haft read as a hook or a pick; a filled block reads as an axe.
     id: 'bronze_hatchet',
     slot: 'weapon',
     parts: [
@@ -124,12 +127,12 @@ const BRONZE: readonly GearDef[] = [
         depth: HELD_BEHIND,
         rows: [
           '......Wo',
-          '.5112344',
-          '522222344',
-          '522233444',
-          '5233..Wo',
+          '.5111233',
+          '51122233',
+          '51222233',
+          '52222334',
+          '52233.Wo',
           '.53...Wo',
-          '......Wo',
           '.......Wo',
           '.......Wo',
           '.......Wo',
