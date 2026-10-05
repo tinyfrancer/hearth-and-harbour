@@ -161,7 +161,7 @@ export function artGallery(): HTMLElement {
   }
   part(
     'Portraits',
-    'New art, not yet approved. Each monster’s face, as the fight screen frames it (three times art size). One expression each, on a dark disc.',
+    'New art, not yet approved. Each monster’s face, then the townsfolk’s, as the fight screen frames them (three times art size). One expression each, on a dark disc.',
     faces,
   );
 
@@ -344,7 +344,7 @@ export function artGallery(): HTMLElement {
     ),
   );
 
-  part('Still to come', 'Portraits of the smith, the trader and the pirate captain.');
+  part('Still to come', 'The hero’s own portrait; dungeon tiles and monster sprites.');
 
   const draw = () => {
     const screen = measure(page);

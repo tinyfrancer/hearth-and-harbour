@@ -31,8 +31,8 @@ describe('portrait', () => {
     }
   });
 
-  it('draws a face for every monster', () => {
-    for (const id of MONSTERS) {
+  it('draws a face for every monster and the three townsfolk', () => {
+    for (const id of [...MONSTERS, 'smith', 'trader', 'pirate']) {
       expect(PORTRAIT_IDS, id).toContain(id);
       expect(portrait(id), id).not.toBeNull();
     }
