@@ -92,8 +92,8 @@ function swapButton(state: GameState, content: Content, swap: () => void): HTMLE
 }
 
 /** Where a thing is worn, what it gives, and what it needs. */
-function wornLines(entry: ShopEntry, content: Content): string[] {
-  const def = content.items[entry.item]?.equip;
+export function wornLines(itemId: string, content: Content): string[] {
+  const def = content.items[itemId]?.equip;
   if (!def) return [];
   const needs = def.requires
     ? [
@@ -117,7 +117,7 @@ function shopRow(state: GameState, entry: ShopEntry, content: Content, buy: () =
       h('span', { class: 'level', text: `${entry.cost} pts` }),
     ]),
     item && h('p', { class: 'small muted', text: item.description }),
-    ...wornLines(entry, content).map((line) => h('p', { class: 'small', text: line })),
+    ...wornLines(entry.item, content).map((line) => h('p', { class: 'small', text: line })),
     entry.once && h('p', { class: 'small muted', text: 'One to a customer.' }),
     problem && h('p', { class: 'small muted', text: problem }),
     buyButton,

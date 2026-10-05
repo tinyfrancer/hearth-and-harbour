@@ -2,7 +2,7 @@ import type { Content, ItemDef, PotionDef } from '../core/content';
 import { bankCount, skillLevel, type GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
 import { button, h, titled } from './dom';
-import { activePotion } from '../core/potions';
+import { activePotion, chargesFor } from '../core/potions';
 import { formatNumber } from './format';
 import { gearText, slotText } from './gear';
 import { potionEffectText, potionSkillsText } from './potionPanel';
@@ -16,6 +16,8 @@ interface BankActions {
   equip(itemId: string): void;
   /** Put a food's whole stack in the food slot. */
   feed(itemId: string): void;
+  /** Go to the general store. */
+  store(): void;
 }
 
 const coins = (amount: number): string =>
@@ -48,14 +50,14 @@ function provenance(
 }
 
 /** What a potion does, as rows for the item card's facts. */
-function potionFacts(potion: PotionDef, content: Content): HTMLElement[] {
+function potionFacts(potion: PotionDef, content: Content, state: GameState): HTMLElement[] {
   return [
     h('dt', { text: 'Does' }),
     h('dd', { class: 'potion-text', text: potionEffectText(potion) }),
     h('dt', { text: 'For' }),
     h('dd', { text: potionSkillsText(potion, content) }),
     h('dt', { text: 'Lasts' }),
-    h('dd', { text: `${formatNumber(potion.charges)} actions` }),
+    h('dd', { text: `${formatNumber(chargesFor(state, potion, content))} actions` }),
   ];
 }
 
@@ -144,7 +146,7 @@ function itemCard(
     h('div', { class: 'card-head' }, [titled(itemIcon(item.id), item.name), held]),
     h('p', { class: 'muted', text: item.description }),
     h('dl', { class: 'facts small' }, [
-      ...(item.potion ? potionFacts(item.potion, content) : []),
+      ...(item.potion ? potionFacts(item.potion, content, state) : []),
       ...(item.equip
         ? [
             h('dt', { text: 'Worn' }),
@@ -197,6 +199,26 @@ export function bankView(
     h('h2', { text: 'Coins' }),
     purse,
   ]);
+  const store =
+    content.store &&
+    h(
+      'button',
+      {
+        class: 'panel card',
+        attrs: { type: 'button', 'data-store-door': '' },
+        on: { click: actions.store },
+      },
+      [
+        h('div', { class: 'card-head' }, [
+          h('h2', { text: 'The general store' }),
+          h('span', { class: 'hint', text: '›' }),
+        ]),
+        h('p', {
+          class: 'small muted',
+          text: 'Sells what a beginner needs, and a few things worth saving for.',
+        }),
+      ],
+    );
 
   // Table order, not arrival order, so a stack never jumps about.
   const held = Object.values(content.items).filter((item) => bankCount(state, item.id) > 0);
@@ -225,6 +247,7 @@ export function bankView(
   return {
     el: h('div', { class: 'stack' }, [
       head,
+      store,
       ...rows,
       held.length === 0 &&
         h('section', { class: 'panel empty' }, [

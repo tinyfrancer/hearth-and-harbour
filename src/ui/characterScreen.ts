@@ -6,6 +6,7 @@ import { bankCount, type GameState } from '../core/state';
 import { button, h, titled } from './dom';
 import { formatNumber } from './format';
 import { SLOT_NAMES, gearText, statName } from './gear';
+import { recordsEntry } from './logScreen';
 import { fullLook, lookPicker } from './look';
 import type { View } from './view';
 
@@ -18,6 +19,8 @@ export interface SheetActions {
   unequip(slot: Slot): void;
   /** Keep a new look. The sheet redraws the character itself, so nothing is rebuilt. */
   setLook(look: DrawnLook): void;
+  /** Open the collection log or the achievements. */
+  records(page: 'log' | 'achievements'): void;
 }
 
 /** The character drawn large, wearing what is worn. */
@@ -160,6 +163,8 @@ export function characterView(
     }
   });
 
+  const records = recordsEntry(state, content, actions.records);
+  updates.push(records.update!);
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
   return {
@@ -167,6 +172,8 @@ export function characterView(
       head,
       h('h2', { class: 'group-heading', text: 'Worn' }),
       h('div', { class: 'slots' }, tiles),
+      h('h2', { class: 'group-heading', text: 'Records' }),
+      records.el,
     ]),
     update,
   };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { actionDuration } from '../../src/core/actions';
 import type { Content } from '../../src/core/content';
 import { activePotion, drinkPotion, extrasIn, potionFor } from '../../src/core/potions';
-import { newGame } from '../../src/core/state';
+import { newGame, type GameState } from '../../src/core/state';
 
 const content: Content = {
   skills: {
@@ -48,7 +48,7 @@ const content: Content = {
   },
 };
 const stocked = { ...newGame('Cody', 0), bank: { quick: 2, clever: 1, mud: 4 } };
-const drink = (state: typeof stocked, item: string) => {
+const drink = (state: GameState, item: string) => {
   const result = drinkPotion(state, item, content);
   if (!result.ok) throw new Error(result.reason);
   return result.state;
