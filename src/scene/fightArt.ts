@@ -51,7 +51,7 @@ const ARROW_MS = 160;
 /** A thrown keg is in the air for this part of its warning, then lies burning where it fell. */
 const KEG_FLIGHT = 0.4;
 /** How high a perched or flying thing is drawn above where it is. */
-const PERCH_RISE = 14;
+const PERCH_RISE = 12;
 const FLY_RISE = 10;
 
 const FONT = "'HH Digits', 'Pixelify Sans', ui-monospace, monospace";
@@ -144,14 +144,15 @@ function wedge(
   const y0 = Math.round(cy);
   const R = Math.ceil(r);
   for (let dy = -R; dy <= R; dy++) {
-    let run = -1;
+    // Where the current stretch of the row began; null between stretches.
+    let run: number | null = null;
     for (let dx = -R; dx <= R + 1; dx++) {
       const d = Math.hypot(dx, dy);
       const inside = dx <= R && d <= r && d >= inner && inWedge(dx, dy, facing, half);
-      if (inside && run < 0) run = dx;
-      if (!inside && run >= 0) {
+      if (inside && run === null) run = dx;
+      if (!inside && run !== null) {
         ctx.fillRect(x0 + run, y0 + dy, dx - run, 1);
-        run = -1;
+        run = null;
       }
     }
   }
@@ -392,7 +393,7 @@ function drawEffect(
       ctx.fillStyle = c.foam1;
       ring(ctx, e.at.x, e.at.y, 4 + t * 14, 1);
       ring(ctx, e.at.x, e.at.y, 2 + t * 8, 1);
-      label(ctx, 'splash', e.at.x, e.at.y - 54 - rise, 8, c.foam1, c.ink1, WORDS);
+      label(ctx, 'splash', e.at.x, e.at.y - 54 - rise, 8, c.white1, c.ink1, WORDS);
       break;
     }
     case 'released': {
@@ -502,17 +503,18 @@ function drawFoeOver(
     ctx.fillRect(x, y + 5, Math.round(w * k), 1);
   }
   if (foe.rallied) {
-    // Egged on by the parrot: two green chevrons, flickering, beside the bar.
+    // Egged on by the parrot: a pair of bold green chevrons over his head, flickering.
     const on = Math.floor(battle.clock / 200) % 2 === 0;
+    const cx = Math.round(foe.at.x) + Math.round(w / 2) + 4;
+    const cy = y - 8;
     ctx.fillStyle = c.ink1;
-    ctx.fillRect(x + w + 2, y - 3, 7, 8);
+    ctx.fillRect(cx - 1, cy - 1, 13, 11);
     ctx.fillStyle = on ? c.grass1 : c.pine1;
-    for (const dx of [0, 3]) {
-      ctx.fillRect(x + w + 3 + dx, y - 2, 1, 1);
-      ctx.fillRect(x + w + 4 + dx, y - 1, 1, 1);
-      ctx.fillRect(x + w + 5 + dx, y, 1, 1);
-      ctx.fillRect(x + w + 4 + dx, y + 1, 1, 1);
-      ctx.fillRect(x + w + 3 + dx, y + 2, 1, 1);
+    for (const dx of [0, 5]) {
+      for (let i = 0; i < 5; i++) {
+        const off = i < 3 ? i : 4 - i;
+        ctx.fillRect(cx + dx + off, cy + i * 2 - 0, 2, 2);
+      }
     }
   }
   if (foe.heavy) {
@@ -646,7 +648,8 @@ function fightBoxes(
         });
       }
     }
-    if (foeKind(foe.monster).rally) boxes.push(around({ x: foe.at.x, y: foe.at.y - 8 }, 30));
+    if (foeKind(foe.monster).rally)
+      boxes.push(around({ x: foe.at.x, y: foe.at.y - riseOf(foe) - 8 }, 36));
   }
   for (const t of battle.volleys) boxes.push(markBox(t));
   // The hero's numbers, heals and brace, over his head.
@@ -798,6 +801,12 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
         ctx.fillStyle = c.ink1;
         ctx.fillRect(Math.round(foe.at.x) - rx + 2, Math.round(foe.at.y) - 1, 2 * rx - 3, 3);
         ctx.globalAlpha = 1;
+        if (foe.rallied) {
+          // The parrot's work, at his feet too: a green ring, pulsing.
+          ctx.fillStyle = Math.floor(clock / 200) % 2 === 0 ? c.grass1 : c.pine1;
+          oval(ctx, foe.at.x, foe.at.y, rx + 4, 5);
+          oval(ctx, foe.at.x, foe.at.y + 1, rx + 4, 5);
+        }
         if (foe.key === battle.target) {
           ctx.fillStyle = c.gold1;
           oval(ctx, foe.at.x, foe.at.y, rx + 2, 4);
@@ -825,10 +834,12 @@ export function fightExtra(dungeon: Dungeon, run: Run, palette: Palette): StageE
       for (const foe of here) {
         if (!alive(foe) || !foe.aware || !foeKind(foe.monster).rally) continue;
         if (!here.some((f) => alive(f) && f.rallied)) continue;
-        const k = (clock % 700) / 700;
-        ctx.globalAlpha = 0.8 * (1 - k);
-        ctx.fillStyle = c.grass1;
-        ring(ctx, foe.at.x, foe.at.y - riseOf(foe) - 8, 6 + k * 22, 1);
+        for (const lag of [0, 350]) {
+          const k = ((clock + lag) % 700) / 700;
+          ctx.globalAlpha = 0.9 * (1 - k);
+          ctx.fillStyle = c.grass1;
+          ring(ctx, foe.at.x, foe.at.y - riseOf(foe) - 8, 6 + k * 26, 2);
+        }
         ctx.globalAlpha = 1;
       }
     },

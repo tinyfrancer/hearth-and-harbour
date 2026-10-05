@@ -42,6 +42,8 @@ export interface DungeonPlan {
   readonly spawns?: Readonly<Record<string, readonly Cell[]>>;
   /** Rooms whose tide is their boss's, not the one the dungeon shares. */
   readonly ownTide?: readonly string[];
+  /** Rooms where the tide comes up over a stone floor rather than a beach. */
+  readonly stoneTide?: readonly string[];
   /** Each room's name, shown as the hero comes in. */
   readonly titles?: Readonly<Record<string, string>>;
 }
@@ -124,7 +126,11 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
 
   const rooms: Record<string, Room> = {};
   for (const [id, rows] of Object.entries(plan.rooms)) {
-    const ground = readGround(rows, plan.ownTide?.includes(id) ?? false);
+    const ground = readGround(
+      rows,
+      plan.ownTide?.includes(id) ?? false,
+      plan.stoneTide?.includes(id) ?? false,
+    );
     const map = groundMap(ground, { level: 0, shut: false, released: ground.bars.length });
     const doors: Door[] = [];
     for (const [ch, joined] of letters) {

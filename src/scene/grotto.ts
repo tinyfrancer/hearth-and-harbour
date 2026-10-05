@@ -191,6 +191,7 @@ export const GROTTO: DungeonPlan = {
     ],
   },
   ownTide: ['cove'],
+  stoneTide: ['brig'],
   titles: {
     pools: 'The Tide Pools',
     store: 'The Smugglers’ Store',

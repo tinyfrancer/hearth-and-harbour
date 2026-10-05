@@ -80,11 +80,12 @@ const OWN: Readonly<Record<TileKind, (variant: number) => Grid>> = {
       v,
     ),
   rock_floor: (v) => {
+    // Pale worn stone: plainly floor beside the dark rock round it.
     const g = flecked(
-      'stone2',
+      'stone1',
       [
-        ['stone1', 5],
-        ['stone3', 7],
+        ['stone2', 9],
+        ['cobble1', 4],
       ],
       v,
     );
@@ -94,10 +95,11 @@ const OWN: Readonly<Record<TileKind, (variant: number) => Grid>> = {
     return g;
   },
   wall_top: (v) =>
+    // Rock seen from above: dark, so it never reads as somewhere to stand.
     flecked(
-      'slate3',
+      'navy2',
       [
-        ['slate2', 6],
+        ['slate3', 8],
         ['navy1', 5],
       ],
       v,
@@ -118,27 +120,26 @@ const OWN: Readonly<Record<TileKind, (variant: number) => Grid>> = {
     return g;
   },
   shallows: (v) => {
+    // Bright water with the sand showing through: you could wade this.
+    // (The sea's light step is the sunset's pink at dusk, so it is kept for crests.)
     const g = flecked(
-      'sea1',
+      'sea2',
       [
-        ['sea2', 10],
-        ['foam1', 3],
+        ['sand3', 14],
+        ['sand2', 4],
+        ['foam1', 2],
       ],
       v,
     );
-    // Sand showing through: you could wade this.
-    for (let i = 0; i < 5; i++) {
-      const h = hash(v, i, 11);
-      set(g, h % TILE, (h >>> 8) % TILE, 'sand2');
-    }
     return g;
   },
   deep_water: (v) => {
+    // Dark and bottomless: nobody stands in this.
     const g = flecked(
-      'sea3',
+      'navy1',
       [
-        ['navy1', 12],
-        ['sea2', 3],
+        ['sea3', 14],
+        ['navy2', 8],
       ],
       v,
     );
@@ -337,6 +338,8 @@ export function tileKindAt(
     case 'door':
       return 'door_open';
     case 'sand': {
+      // A brig's flooded floor is stone; its warning is drawn over it (`paintGround`).
+      if (g.stone && g.heights[row]![col]! >= 0) return 'rock_floor';
       if (warn && g.heights[row]![col]! >= 0) {
         const next = tileAt(g, col, row, { ...all, level: level + 1 });
         if (next !== 'sand') return 'wet_sand';
@@ -402,6 +405,25 @@ export function paintGround(room: Room, level: number, warn: boolean): Grid {
           for (let j = 0; j < TILE; j++)
             if (hash(j, row, level + 9) % 3 !== 0) set(out, x + TILE - 1, y + j, 'foam1');
         }
+      }
+      const height = g.heights[row]![col]!;
+      if (g.stone && height === 0) {
+        // The grating the sea comes up through: iron bars over whatever is under them.
+        for (let i = 1; i < TILE; i += 4) {
+          rect(out, x + i, y, 2, TILE, 'shade1');
+          rect(out, x + i, y, 1, TILE, 'metal3');
+        }
+      }
+      const covering =
+        g.stone &&
+        warn &&
+        height >= 0 &&
+        tileAt(g, col, row, { level, shut: false, released: 0 }) === 'sand' &&
+        tileAt(g, col, row, { level: level + 1, shut: false, released: 0 }) !== 'sand';
+      if (covering) {
+        // Stone about to be under the sea: darkened in a checker, as the shallows are.
+        for (let j = 0; j < TILE; j++)
+          for (let i = j % 2; i < TILE; i += 2) set(out, x + i, y + j, 'stone3');
       }
       if (warn && deepening(room, col, row, level)) {
         // Shallows about to go deep: darkening in a checker, so it reads as the sea coming.

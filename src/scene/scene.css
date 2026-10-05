@@ -667,8 +667,10 @@
   min-width: 0;
 }
 
+/* A smaller hand, so the whole of his name fits beside the pips. */
 .fight-boss-head .fight-target-name {
   flex: 1;
+  font-size: 13px;
 }
 
 /* One pip for each phase: spent ones dark, the one he is in bright. */

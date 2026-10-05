@@ -231,6 +231,11 @@ export function runNow(): Run | null {
   return run;
 }
 
+/** Puts `next` in place of the run under way, to jump it about. For tests and screenshot scripts. */
+export function keepRun(next: Run): void {
+  if (run) run = next;
+}
+
 /** The hero's pictures, for tests: how many times he has been drawn afresh. */
 export function heroNow(): Hero | null {
   return hero;

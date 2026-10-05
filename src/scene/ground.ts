@@ -92,6 +92,8 @@ export interface Ground {
   readonly bars: readonly (readonly Cell[])[];
   /** Whether the room keeps its own tide (the captain's), not the shared one. */
   readonly ownTide: boolean;
+  /** Whether the ground the tide reaches is stone (a flooded floor), not a beach. */
+  readonly stone: boolean;
   /** Whether any of its ground is the tide's. */
   readonly tidal: boolean;
 }
@@ -99,7 +101,7 @@ export interface Ground {
 const BAR_LETTERS = ['B', 'D'];
 
 /** Reads a room's rows into its ground. Every character must be known: a typo is an error, not a hole. */
-export function readGround(rows: readonly string[], ownTide = false): Ground {
+export function readGround(rows: readonly string[], ownTide = false, stone = false): Ground {
   if (rows.length === 0) throw new Error('A room needs at least one row.');
   const cols = rows[0]!.length;
   const props: PropSpot[] = [];
@@ -157,7 +159,19 @@ export function readGround(rows: readonly string[], ownTide = false): Ground {
     }),
   );
   while (bars.length > 0 && bars.at(-1)!.length === 0) bars.pop();
-  return { cols, rows: rows.length, tiles, heights, under, props, lanterns, bars, ownTide, tidal };
+  return {
+    cols,
+    rows: rows.length,
+    tiles,
+    heights,
+    under,
+    props,
+    lanterns,
+    bars,
+    ownTide,
+    stone,
+    tidal,
+  };
 }
 
 const AROUND: readonly [number, number][] = [
