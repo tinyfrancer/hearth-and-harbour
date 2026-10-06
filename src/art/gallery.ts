@@ -36,6 +36,7 @@ import { PROP_IDS } from './grottoProps';
 import { grottoCastPlate, grottoPropsPlate, grottoRoomPlate, grottoTilesPlate } from './grottoRoom';
 import { figure2Gallery } from './figure2/gallery';
 import { town2Gallery } from './town2/gallery2';
+import { dungeon2Gallery } from './dungeon2/gallery';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
 const GAP = 8;
@@ -182,6 +183,20 @@ export function artGallery(): HTMLElement {
   });
   page.append(jumpFigures);
 
+  // The grotto at the C scale (B10), likewise.
+  const dungeon2 = dungeon2Gallery();
+  const jumpDungeon = el(
+    'button',
+    'btn primary',
+    'See the new grotto at the finer scale',
+  ) as HTMLButtonElement;
+  jumpDungeon.type = 'button';
+  jumpDungeon.addEventListener('click', () => {
+    dungeon2.draw();
+    dungeon2.section.scrollIntoView({ block: 'start' });
+  });
+  page.append(jumpDungeon);
+
   // The grotto first: the newest art, judged where it will be seen, at dusk.
   const room = grottoRoomPlate();
   const tiles = grottoTilesPlate();
@@ -224,6 +239,7 @@ export function artGallery(): HTMLElement {
       'close',
       1,
     ),
+    dungeon2.section,
   );
 
   // Portraits next. Framed as the fight screen frames them.

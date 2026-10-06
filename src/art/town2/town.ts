@@ -494,7 +494,7 @@ function streetDressing(g: TGrid): void {
     [1330, 620, 22, 9, 26, [2, 1], 10],
     [560, 1000, 18, 6, 20, [3, 0], 11],
   ] as const)
-    flowerDrift(g, x, y, rx, ry, n, cols, k);
+    flowerDrift(g, x, y, rx * 1.2, ry * 1.2, Math.round(n * 1.6), cols, k);
   // Long grass against the fence's foot and round the rocks.
   longGrass(g, 836, 774, 120, 1);
   longGrass(g, 1040, 774, 136, 2);

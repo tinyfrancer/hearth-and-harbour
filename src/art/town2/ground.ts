@@ -482,10 +482,11 @@ export function wheelRuts(
         const c = at(g, x, y);
         if (!isMat(c, 'cobble')) continue;
         const step = c & 7;
-        if (Math.abs(o) <= 2) put(g, x, y, C('cobble', step >= 5 ? 3 : Math.max(0, step - 2)));
-        else if (Math.abs(o) === 3)
-          put(g, x, y, C('cobble', step >= 5 ? 4 : Math.max(1, step - 1)));
-        else if (step < 5 && clumps(x, y, 21) > 0.4) dim(g, x, y, 1);
+        // B10: wider polished bands, flat and pale, with a dark lip either side
+        // where the stones stand proud of the rut, so they read at true size.
+        if (Math.abs(o) <= 2) put(g, x, y, C('cobble', step >= 5 ? 3 : step >= 4 ? 2 : 1));
+        else if (Math.abs(o) === 3) put(g, x, y, C('cobble', step >= 5 ? 4 : 2));
+        else if (step < 5) put(g, x, y, C('cobble', Math.min(5, step + 1)));
       }
   }
 }
@@ -509,16 +510,21 @@ export function settPatch(g: TGrid, b: Box, k: number): void {
       const sy = b.y + row * s + s / 2;
       const a = (sx - cx) / (b.w / 2);
       const bb = (sy - cy) / (b.h / 2);
-      if (a * a + bb * bb > 0.85 + (hash(col, row, k + 9) - 0.5) * 0.5) continue;
+      // B10: a ragged edge that frays into setts among the cobbles and cobbles
+      // left among the setts, in the cobbles' own value, so from across the
+      // square a patch is a change of texture, not a grey rectangle.
+      const d = a * a + bb * bb + (hash(col, row, k + 9) - 0.5) * 0.9;
+      if (d > 1.05 || (d > 0.7 && hash(col, row, k + 11) < 0.5)) continue;
+      if (hash(col, row, k + 12) < 0.08) continue;
       const px = (x - b.x + off) % s;
       const py = (y - b.y) % s;
       const tone =
-        2 + (hash(col, row, k + 1) < 0.3 ? 1 : 0) - (hash(col, row, k + 2) < 0.12 ? 1 : 0);
+        2.0 + (hash(col, row, k + 1) < 0.3 ? 0.8 : 0) - (hash(col, row, k + 2) < 0.15 ? 0.8 : 0);
       let t = tone;
-      if (px === s - 1 || py === s - 1) t = 5;
+      if (px === s - 1 || py === s - 1) t = 4;
       else if (px === 0 || py === 0) t = tone - 1;
       else if (px === s - 2 || py === s - 2) t = tone + 1;
-      put(g, x, y, C('rock', clamp(t, 1, 5)));
+      put(g, x, y, C('cobble', clamp(t, 1, 5)));
     }
 }
 
@@ -569,7 +575,9 @@ export function wornWay(g: TGrid, pts: readonly (readonly [number, number])[], h
         if (!isMat(c, 'cobble') || done.has(y * g.w + x)) continue;
         done.add(y * g.w + x);
         const step = c & 7;
-        put(g, x, y, C('cobble', step >= 5 ? 4 : Math.max(1, step - 1)));
+        // B10: worn flat as well as pale, the stones' domes lower and their
+        // joints shallower, so a contact shadow reads on the ways people walk.
+        put(g, x, y, C('cobble', step >= 5 ? 4 : step >= 4 ? 3 : 2));
       }
   }
 }
@@ -698,13 +706,20 @@ export function flowerDrift(
     put(g, x - 1, y + 1, C('grass', 4));
     put(g, x, y + 1, C('grass', 5));
     put(g, x + 1, y + 1, C('grass', 4));
+    // B10: heads of two by two, so a drift reads at true size, not as specks.
     put(g, x, y, C('flower', step));
     put(g, x + 1, y, C('flower', Math.min(5, step + 1)));
+    put(g, x, y - 1, C('flower', step === 0 ? 0 : Math.max(0, step - 1)));
+    put(g, x + 1, y - 1, C('flower', step));
     if (hash(i, 4, k) < 0.6) {
       put(g, x - 2, y - 1, C('flower', step));
       put(g, x - 1, y - 1, C('flower', step === 0 ? 0 : Math.max(0, step - 1)));
+      put(g, x - 2, y - 2, C('flower', step === 0 ? 0 : Math.max(0, step - 1)));
     }
-    if (hash(i, 5, k) < 0.4) put(g, x + 2, y - 2, C('flower', step));
+    if (hash(i, 5, k) < 0.4) {
+      put(g, x + 2, y - 2, C('flower', step));
+      put(g, x + 3, y - 2, C('flower', Math.min(5, step + 1)));
+    }
   }
 }
 

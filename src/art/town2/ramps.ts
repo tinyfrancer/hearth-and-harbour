@@ -108,6 +108,25 @@ const BASE = {
   shell: ['#ffffff', '#f6f2ec', '#ead8dc', '#d8a2b4', '#b07e90', '#80586a', '#402834'],
   pinewood: ['#fff0b0', '#f0d08a', '#dab06a', '#c4964e', '#9a703a', '#6c4c2c', '#342414'],
   willow: ['#fbf8ee', '#e4ddcc', '#c8c0ac', '#aca390', '#8a8270', '#625c50', '#302c28'],
+
+  // The grotto at the C scale (B10), appended so every cell above keeps its
+  // number. Cave rock is cooler and more violet than the town's `rock`, so a
+  // cave reads as underground beside it; cave sand greyer than the beach, so
+  // a floor stays calm under warm lantern light; shoal is shallow water over
+  // sand, green-teal, and `deep` the cave's dark sea, much darker than it.
+  caverock: ['#e4dce6', '#bcb2c4', '#968ea6', '#787290', '#5c5874', '#423e58', '#201c30'],
+  cavesand: ['#f4ead0', '#dccdae', '#c2b192', '#a69578', '#867a66', '#625a54', '#302a2e'],
+  shoal: ['#d4fff0', '#96e6d2', '#66c6b6', '#46a49c', '#327e80', '#225a66', '#0e2c3a'],
+  deep: ['#a8d4f4', '#5c9ad0', '#3c74b0', '#2c5890', '#203f72', '#182c56', '#0a142e'],
+  weed: ['#d4e494', '#a8c466', '#7ea04c', '#5e7e3c', '#465e30', '#304226', '#161e12'],
+  // Monsters (B10): fur, feather and hide not on anyone in town.
+  fur: ['#d8ccc4', '#b0a29c', '#8c7e7c', '#6e6264', '#544a50', '#3a323c', '#1c161e'],
+  crab: ['#ffc88a', '#f08a52', '#d4603c', '#b04434', '#86302e', '#5a2026', '#2c0e14'],
+  feather: ['#f4ffb0', '#b6e45a', '#6cbc44', '#3e9a3c', '#2a7638', '#1c5232', '#0c281c'],
+  troll: ['#c8d4a0', '#a0b07c', '#7e9064', '#627452', '#4a5844', '#343e36', '#181e1c'],
+  goblin: ['#e0ec9a', '#b8d06a', '#94b250', '#749240', '#567234', '#3c522a', '#1e2a16'],
+  // A glow that is a light itself (a lit fuse, a pool's phosphor): never shifted.
+  ember: ['#ffffff', '#fff6c0', '#ffe070', '#ffb040', '#f07028', '#b84020', '#501010'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Mat = keyof typeof BASE;
@@ -117,7 +136,7 @@ export const MATS = Object.keys(BASE) as Mat[];
 export const STEPS = 7;
 
 /** Ramps that never shift: fire looks like fire at any hour. */
-const EXEMPT: readonly Mat[] = ['fire'];
+const EXEMPT: readonly Mat[] = ['fire', 'ember'];
 
 /**
  * Dusk's hand-set steps. Windows that light up and lamps are lights, so at
@@ -142,6 +161,9 @@ const DUSK_SET: Partial<Record<Mat, readonly (string | null)[]>> = {
   bronze: ['#e6d6a0', '#b0964a', '#7c6c36', '#524c28', '#3a3824', '#28261a', '#12100a'],
   tan: ['#c8b07c', '#a88c5a', '#8e7046', '#745832', '#5c4426', '#463a24', '#201a0e'],
   shell: ['#f6eef2', '#ece4e6', '#d4c4cc', '#a07a8c', '#84607a', '#604458', '#30202a'],
+  // The grotto (B10): shallow water set by hand, as the sea is, or it stays
+  // a bright daylight teal in the dark cave; its glints catch the lanterns.
+  shoal: ['#c8e4d4', '#6fb0a4', '#4c9088', '#3a7676', '#2c5c62', '#20424e', '#0e2230'],
 };
 
 export interface Palette2 {

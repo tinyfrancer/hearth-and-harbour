@@ -263,6 +263,72 @@ shortened or stretched, nothing is rotated, so lit edges stay unbroken. The rule
   hand nearer the viewer (he looks left-handed). Kept on purpose: the weapon is how the ladder reads,
   and a right-handed hero facing left would carry it behind his body.
 
+### The dungeon at the C scale (B10b; not yet swapped in)
+
+Brinebeard's Grotto redrawn to scale with a 64-pixel person, beside the first-scale grotto
+(`src/art/dungeon2/`, door `src/art/dungeonArt2.ts`). What it was drawn to:
+
+- **How a cave is lit.** A dungeon is played at dusk, in the C scale's dusk ramps: the cave is
+  dark and cool, and form is still modelled by the house light from the upper left, at a low key.
+  Everything bright comes from a source in the cave: lanterns (warm glows the scene moves into the
+  room, as the town's lamps), a lit fuse, the water's own glints (the shallows and the deep keep
+  hand-set dusk steps so they read in the dark), a skull's paint. Walls are lit from below: the
+  lower face, where the lanterns reach, is the lightest rock; the upper face darkens as it rises,
+  and the rock's top, seen from above, is the darkest thing in the room. No sunlight comes in; a
+  cave mouth, when one is drawn, is where the cool light is.
+- **Tiles are 24 x 24 and textured by place, not by tile.** Every ground is worked out from where
+  the pixel lies in the room (`at`, the tile's column and row), as the town's grounds are: rock
+  splits in lumps that run on across tile edges, ripples and swell carry through, and no two tiles
+  are alike, so a room never shows its grid. A tile's wear chooses only its occasional detail (a
+  cockle, pebbles, a crab's hole, a rock pool, barnacles, weed, a split board), about one tile in
+  six.
+- **Grounds join in curves.** Told its neighbours (`around`), a tile lets a higher ground spill
+  over its edge (sand over wet sand over rock floor over shallows over the deep), 3 to 13 pixels
+  in, the depth wandering along the edge and worked out from where the edge is, so two tiles along
+  one shore agree. Where land meets water, a broken line of foam on the water's side and a sparser
+  one a pixel out; where sand meets the wet, a line of wrack; where the shallows meet the deep, a
+  darker drop. Floors darken under the walls and decks that rise beside them, in clumps, with a
+  little scree at a wall's foot.
+- **A wall is two tiles tall**: the face (`wall_face`, over open ground: lumps lit by the floor,
+  the tide's mark of barnacles and hanging weed, a wet dark foot that anything standing before it
+  reads against) and the upper face above it (`wall_face_high`: the rock's top rounding over at a
+  ragged lip, a shadow under it, the face darkening as it rises). A door is set in the lower face,
+  the upper face over it. Rock seen from above is calm and dark: faint lumps, cracks here and
+  there, a lit lip where it falls away to open ground on its upper and left sides.
+- **Floors are quieter than anything on them**, as before: no red or orange in a floor, details
+  small and few, so warning circles and loot stand out.
+- **Props are drawn to metres** beside the hero: a keg 0.6 m, a crate 0.7 m, the chest 0.9 m
+  across, the bars a tile wide and 2 m tall, the lantern on a 1.6 m post, the anchor 1.3 m, the
+  cannon 1.6 m long. Each is shaded as a solid and outlined in its own darkest steps.
+- **The cast.** People stand on the figure engine (the hero's posed body, the wardrobe's gear and
+  a head of their own, drawn front-on and turned like the townsfolk's), so they walk on the hero's
+  rig and hold things by the hand rule; the powder monkey is the same body with rows taken out, a
+  head shorter. Creatures are masses shaded as solids (fur in strokes, shell in plates, scale in
+  rows), each moving with a bone. Every foe has the same poses: idle (a breath), walk, wind up,
+  strike, hurt, and a fall whose last frame lies on its back. Size still carries threat.
+- **Brinebeard's phases are three silhouettes**: hat on, coat buttoned, the anchor slung on his
+  back and his cutlass levelled (the cannon); both arms flung up, coat and beard wet, eyes lit
+  sea-green, the sea round his boots (the tide); hat gone, hair wild, coat torn off a shoulder,
+  the anchor up over his shoulder in both hands, eyes red (the anchor). He and his coat are purple
+  with brass braid; never the town captain's red.
+- **Portraits are 72 x 72** at the C scale, about three times the H2 head, drawn at that size
+  (never scaled): the bust on its dark disc, the head a solid turned a little right with its
+  features placed by hand from small drawings, one expression each. They are shown at 2, 4/3 and
+  2/3 CSS pixels per art pixel (144, 96 and 48), whichever fits the frame whole, so a 48-pixel
+  panel shows the whole face. Faces, hats, ears and horns keep inside `PORTRAIT2_SAFE`; below it
+  only shoulders and beards, cut by the frame.
+- **Tab icons** are 16 x 16 glyphs in three tones of the tab's own colour (lit, turn, shadow, lit
+  from the upper left), shown at 32 CSS pixels, so they follow the tab bar's muted and chosen
+  colours: a hammer crossed over a pick, a sea chest, a great helm, a house with smoke, a scroll.
+- **The town's weak spots, B10b.** A mended patch is laid in the cobbles' own value with a frayed
+  edge (setts among cobbles, cobbles among setts), so from across the square it is a change of
+  texture, not a grey rectangle. Ruts are wider polished bands with a dark lip either side. A
+  flower's head is two by two pixels. The oak's leaf domes have lumpy, irregular edges and small
+  clumps of leaves on their lit sides (rings of light read as rosettes enlarged). The rock's planes
+  bend with the rounded mass they belong to and their joins break off, so it reads as weathered
+  stone, not a cut gem; its face is unchanged. Ways worn by feet are flatter as well as paler, so a
+  contact shadow reads where people walk.
+
 ### What the swap supersedes
 
 When lane C switches the scene to the C-scale town, these parts of the guide above stop applying to

@@ -588,11 +588,18 @@ export function wreckRock(): Drawn {
       });
       facet[y * W + x] = best;
       const s = seeds[best]!;
-      const nz = Math.sqrt(Math.max(0.1, 1 - s.nx * s.nx - s.ny * s.ny));
-      const lit = (s.nx * L[0]! + s.ny * L[1]! + nz * L[2]!) / LN;
-      let t = 2.4 + (0.82 - lit) * 2.4;
+      // B10: each plane bends with the mass it is part of (its normal half the
+      // plane's, half the rounded rock's), so planes read as weathered stone
+      // rather than cut facets.
+      const ox = Math.max(-1, Math.min(1, (x - cx) / rx));
+      const oy = Math.max(-1, Math.min(1, (y - cy) / ry));
+      const nx = s.nx * 0.55 + ox * 0.45;
+      const ny = s.ny * 0.55 + oy * 0.45;
+      const nz = Math.sqrt(Math.max(0.1, 1 - nx * nx - ny * ny));
+      const lit = (nx * L[0]! + ny * L[1]! + nz * L[2]!) / LN;
+      let t = 2.4 + (0.82 - lit) * 2.2;
       // Weathering in clumps across each plane, never a speckle.
-      t += (clumps(x, y, 23) - 0.5) * 1.2;
+      t += (clumps(x, y, 23) - 0.5) * 1.4;
       put(g, x, y, C('rock', clamp(t, 1, 5)));
     }
   // Where planes meet: a lit lip where the lower plane turns to the light, a
@@ -607,7 +614,10 @@ export function wreckRock(): Drawn {
         if (o < 0 || o === me) continue;
         const a = at(g, x, y) & 7;
         const b = (o === r ? at(g, x + 1, y) : at(g, x, y + 1)) & 7;
-        put(g, x, y, C('rock', b < a ? Math.max(1, a - 1) : Math.min(5, a + 2)));
+        // Worn joins (B10): a join shows only where the planes differ, and
+        // breaks off here and there rather than running as a crisp line.
+        if (a === b || clumps(x, y, 24) < 0.38) continue;
+        put(g, x, y, C('rock', b < a ? Math.max(1, a - 1) : Math.min(5, a + 1)));
       }
     }
   // Two long cracks running down from the crown, lit on their lower lip.

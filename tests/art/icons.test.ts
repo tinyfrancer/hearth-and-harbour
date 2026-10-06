@@ -90,6 +90,8 @@ const ITEMS = [
   'spyglass',
   'brinebeards_anchor',
   'ships_figurehead',
+  // The store's cosmetic (B10).
+  'velvet_cap',
 ];
 
 const SKILLS = [

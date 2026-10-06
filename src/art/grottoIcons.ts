@@ -366,7 +366,35 @@ const SHIPS_FIGUREHEAD: readonly string[] = [
   '......oooooooooo',
 ];
 
+// The store's velvet cap (B10): plum velvet slouched to one side over a
+// darker band, a gold pin with a stone set in it. Soft, so lit in broad
+// planes rather than a metal's glints.
+const VELVET_CAP: readonly string[] = [
+  '.......pppppp........',
+  '....ppuuuupppppP.....',
+  '..ppuuuuuppppppPPP...',
+  '.puuuuppppppppPPPPP..',
+  'puuuppppppppPPPPPPPP.',
+  'puppppppppPPPPPPPPPPX',
+  'ppppppppPPPPPPPPPPXXX',
+  '.pppPPPPPPPPPPPXXXXX.',
+  '..XPPPPPPPPPXXXXXX...',
+  '..PPPPPPPPPPPPPPP....',
+  '..PPPPPPPyYPPPPPX....',
+  '..XPPPPPyrYYPPPXX....',
+  '...XXXXXXYYXXXXX.....',
+];
+const VELVET: Legend = {
+  ...L,
+  p: 'dress1',
+  P: 'dress2',
+  X: 'midnight3',
+  u: 'midnight1',
+  r: 'red1',
+};
+
 export const GROTTO_ICON_DEFS: Readonly<Record<string, IconDef>> = {
+  velvet_cap: { rows: VELVET_CAP, legend: VELVET },
   poachers_longbow: { rows: POACHERS_LONGBOW, legend: L },
   wyrmscale_shield: { rows: WYRMSCALE_SHIELD, legend: L },
   barbed_arrows: { rows: BARBED_ARROWS, legend: L },

@@ -15,6 +15,7 @@ import { LOOT_ICON_DEFS } from './lootIcons';
 import { DAY } from './palette';
 import { picture, type Picture } from './raster';
 import { SKILL_ICON_DEFS } from './skillIcons';
+import { TAB_ICONS2, tabSvg } from './tabIcons2';
 
 /** Every item art has an icon for, by the game's item id. */
 const ITEMS: Readonly<Record<string, IconDef>> = {
@@ -110,6 +111,7 @@ export const ICON_FAMILIES: readonly {
       'ships_figurehead',
     ],
   },
+  { name: 'The store', kind: 'item', ids: ['velvet_cap'] },
   { name: 'Skills', kind: 'skill', ids: SKILL_ICON_IDS },
 ];
 
@@ -178,6 +180,7 @@ export function skillIcon(skillId: string): Element | null {
  * `town`, `menu`), or null until art has drawn it. The tab bar keeps its old
  * one-colour glyph for a tab that answers null.
  */
-export function tabIcon(_tabId: string): Element | null {
-  return null;
+export function tabIcon(tabId: string): Element | null {
+  const rows = Object.hasOwn(TAB_ICONS2, tabId) ? TAB_ICONS2[tabId] : undefined;
+  return rows ? tabSvg(rows) : null;
 }

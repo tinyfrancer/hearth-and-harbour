@@ -173,6 +173,25 @@ export const pineTree3 = (): Tree =>
  * domes, each dome lit from the upper left; a mass is darker underneath and
  * on its right, and darker still where it tucks behind a nearer one.
  */
+/** Leaf clumps for the oak: (dx, dy, step change). */
+const LEAF_A: readonly (readonly [number, number, number])[] = [
+  [0, 0, -1],
+  [1, 0, -1],
+  [-1, 1, -1],
+  [0, 1, 0],
+  [1, 1, 1],
+  [2, 1, 1],
+  [0, 2, 1],
+];
+const LEAF_B: readonly (readonly [number, number, number])[] = [
+  [0, 0, -1],
+  [-1, 0, -1],
+  [0, 1, -1],
+  [1, 1, 1],
+  [-1, 1, 0],
+  [0, 2, 1],
+];
+
 export function oakTree(k = 5): Tree {
   const W = m(6.2);
   const H = m(6.8);
@@ -268,7 +287,14 @@ export function oakTree(k = 5): Tree {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
         const dx = (x + 0.5 - c.x) / c.r;
         const dy = (y + 0.5 - c.y) / c.r;
-        const sc = 1 + 0.12 * Math.sin(Math.atan2(dy, dx) * 7 + id);
+        // An irregular edge of leaf lumps (B10: a regular scallop read as a rosette).
+        const ang = Math.atan2(dy, dx) + Math.PI;
+        const sc =
+          1 +
+          0.16 *
+            (hash(Math.floor(ang * 2.2), id, k + 8) - 0.5) *
+            2 *
+            Math.min(1, dx * dx + dy * dy);
         const dd = (dx * dx + dy * dy) / (sc * sc);
         if (dd > 1 || hole(x, y)) continue;
         const lx = dx / sc + 0.3;
@@ -298,17 +324,16 @@ export function oakTree(k = 5): Tree {
       const sy = y + Math.floor(hash(y, x, k + 7) * 3);
       const id = owner[sy * W + sx] as number;
       if (id < 0) continue;
-      for (let j = -3; j <= 3; j++)
-        for (let i = -3; i <= 3; i++) {
-          const d = Math.hypot(i, j);
-          if (d < 1.8 || d > 3.2) continue;
-          const px = sx + i;
-          const py = sy + j;
-          if (owner[py * W + px] !== id) continue;
-          const tt = at(g, px, py) & 7;
-          if (i + j < -1) put(g, px, py, C('leaf', Math.max(1, tt - 1)));
-          else if (i + j > 2 && j > 0) put(g, px, py, C('leaf', Math.min(5, tt + 1)));
-        }
+      // A clump of two or three leaves: lit pixels on its upper left, a dark one
+      // under its lower right (B10: B9's rings of light read as rosettes).
+      const shape = hash(sx, sy, k + 9) < 0.5 ? LEAF_A : LEAF_B;
+      for (const [i, j, d] of shape) {
+        const px = sx + i;
+        const py = sy + j;
+        if (owner[py * W + px] !== id) continue;
+        const tt = at(g, px, py) & 7;
+        put(g, px, py, C('leaf', clamp(tt + d, 1, 5)));
+      }
     }
   // The crown's shadow across the trunk and the limbs under it.
   for (let y = fork - 6; y < fork + m(0.7); y++)

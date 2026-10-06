@@ -69,7 +69,7 @@ describe('the C-scale ramps', () => {
 
   it('have a dusk version of every ramp, darker than day but for the lights', () => {
     // Lights are lit at dusk; `shade`, the deepest dark short of a line, is already darker than dusk's tint.
-    const lights = ['glass', 'lamp', 'fire', 'shade'];
+    const lights = ['glass', 'lamp', 'fire', 'ember', 'shade'];
     for (const mat of MATS) {
       if (lights.includes(mat)) continue;
       const day = luminance(DAY2.colours[mat][3]!);
