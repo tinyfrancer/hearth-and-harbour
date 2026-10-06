@@ -11,6 +11,9 @@ import { HERO_D, VILLAGER_D } from './figures-d';
 import { TAVERN, TAVERN_SMALL, building } from './buildings';
 import { DEVICE_H, DEVICE_W, HEADER, TABBAR, composeScene, type OptionDef } from './scenes';
 import { paintToday, todayHero, todayScene, todayVillager } from './today';
+import { figSheet, headsSheet, looksSheet, villagersSheet } from './round2';
+import { HEADS, knight } from './heads';
+import { TOWNSFOLK, drawTownsfolk } from './villagers';
 
 const params = new URLSearchParams(location.search);
 const v = params.get('v') ?? 'figs';
@@ -40,6 +43,19 @@ export const OPTIONS: Record<'B' | 'C' | 'D', () => OptionDef> = {
     villager: villager(drawFigure(VILLAGER_D)),
   }),
 };
+
+/** Round two: option C with the H2 knight and two of the new townsfolk by the tavern door. */
+function sceneC2(): OptionDef {
+  const folk = (id: string) => drawTownsfolk(TOWNSFOLK.find((t) => t.id === id)!);
+  return {
+    ...OPTIONS.C(),
+    figures: [
+      { g: folk('alewife'), dx: -0.05, ym: 0.2 },
+      { g: knight(HEADS[1]!), dx: 1.35, ym: 0.55 },
+      { g: folk('market'), dx: 2.6, ym: 0.95 },
+    ],
+  };
+}
 
 function canvas(w: number, h: number, cssW = w, cssH = h): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -76,13 +92,13 @@ function chrome(ctx: CanvasRenderingContext2D): void {
 }
 
 /** One phone screen, drawn into a context at device pixels. */
-export function drawPhone(ctx: CanvasRenderingContext2D, id: 'A' | 'B' | 'C' | 'D'): void {
+export function drawPhone(ctx: CanvasRenderingContext2D, id: 'A' | 'B' | 'C' | 'D' | 'C2'): void {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, DEVICE_W, DEVICE_H);
   const clip = { x: 0, y: HEADER, w: DEVICE_W, h: DEVICE_H - HEADER - TABBAR };
   if (id === 'A') todayScene(ctx, clip);
   else {
-    const o = OPTIONS[id]();
+    const o = id === 'C2' ? sceneC2() : OPTIONS[id]();
     paintGrid(ctx, composeScene(o), o.scale, 0, HEADER, clip);
   }
   chrome(ctx);
@@ -268,7 +284,7 @@ function compareHeroes(): void {
 
 async function main(): Promise<void> {
   await document.fonts.load('66px "Pixelify Sans"');
-  if (v === 'A' || v === 'B' || v === 'C' || v === 'D') {
+  if (v === 'A' || v === 'B' || v === 'C' || v === 'D' || v === 'C2') {
     const c = canvas(DEVICE_W, DEVICE_H, DEVICE_W / 3, DEVICE_H / 3);
     drawPhone(c.getContext('2d')!, v);
   } else if (v === 'figs') {
@@ -298,7 +314,11 @@ async function main(): Promise<void> {
       (params.get('f') ?? 'HC,VC').split(',').map((k) => all[k]!()),
       Number(params.get('s') ?? 10),
     );
-  } else if (v === 'phones') comparePhones();
+  } else if (v === 'heads') headsSheet();
+  else if (v === 'fig') figSheet(params);
+  else if (v === 'looks') looksSheet();
+  else if (v === 'villagers') villagersSheet();
+  else if (v === 'phones') comparePhones();
   else if (v === 'heroes') compareHeroes();
   else if (v === 'bld') {
     const u = Number(params.get('u') ?? 28);

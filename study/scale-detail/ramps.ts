@@ -39,6 +39,26 @@ const BASE = {
   flower: ['#ffffff', '#ffe27a', '#ff9a8a', '#e05a6a', '#a84a8a', '#6a3a7a', '#301838'],
   shade: ['#3a2a30', '#2a1c22', '#22161e', '#1c121a', '#160e16', '#120a12', '#0c060c'],
   ink: ['#1a1224', '#1a1224', '#1a1224', '#1a1224', '#1a1224', '#1a1224', '#1a1224'],
+  // Round two (figures): the character creator's other looks, stretched the
+  // same way. Skin keeps the approved light at step 1 and shadow at step 3;
+  // hair keeps the approved light, mid and dark at steps 2, 4 and 5, like `hair`.
+  skinpale: ['#fffaf4', '#ffe6d2', '#f6cdb6', '#eeb49c', '#c47a70', '#8e4c56', '#482030'],
+  skingolden: ['#f0c896', '#d9a06c', '#c6864f', '#b06c40', '#8a4a30', '#5e2e26', '#2e1418'],
+  skinbrown: ['#c8926a', '#ac7450', '#985e3e', '#83492e', '#683426', '#48201e', '#220e10'],
+  skindeep: ['#a26e52', '#7e4e38', '#6c3e2c', '#5a3020', '#46221a', '#301412', '#18080a'],
+  hairblack: ['#8a8ca8', '#6a6a84', '#4a4a60', '#3a3848', '#2a2834', '#16141c', '#0a080e'],
+  hairblonde: ['#fffbe0', '#fff0b8', '#f6dc96', '#e6c47a', '#d4aa5e', '#9c7036', '#583a20'],
+  auburn: ['#ffc890', '#f4a868', '#e08a4a', '#cc6e3a', '#b8562e', '#86381e', '#441810'],
+  hairgrey: ['#ffffff', '#f2eee8', '#e2dcd6', '#c8c0ba', '#ada59e', '#78706c', '#3c3640'],
+  chestnut: ['#d8906a', '#b8704a', '#9a5434', '#844428', '#6e3420', '#481e16', '#240c0c'],
+  // Townsfolk's cloth: dyed wool and work linen, each kept apart from skin and from linen.
+  moss: ['#c4c87a', '#a0a65c', '#7e8a48', '#62703e', '#4a5634', '#323c2a', '#181e16'],
+  madder: ['#f0a090', '#d07868', '#b05a52', '#904448', '#6e3240', '#4a2234', '#24101c'],
+  ochre: ['#fff0a0', '#f0cc68', '#d8a848', '#b88638', '#90642e', '#644226', '#301c14'],
+  umber: ['#c09878', '#9c7458', '#7c5844', '#624436', '#4a322c', '#322226', '#180e12'],
+  indigo: ['#a8b8dc', '#7a90c0', '#5a70a4', '#465888', '#36446c', '#262e50', '#121628'],
+  cream: ['#ffffff', '#fbf6ec', '#ece2d2', '#d4c6b4', '#ae9e96', '#786a74', '#3a3040'],
+  brown: ['#a07a5c', '#7c5a46', '#5a4038', '#46302e', '#33222a', '#241620', '#140a14'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Mat = keyof typeof BASE;
@@ -103,4 +123,20 @@ export const LOOKS: Readonly<Record<Mat, MatLook>> = {
   flower: look(2, 1, 1),
   shade: look(1, 0, 1),
   ink: look(0, 0, 1, 0, 0),
+  skinpale: look(1.55, 1.25, 3, 1, 4),
+  skingolden: look(1.55, 1.25, 3, 1, 4),
+  skinbrown: look(1.55, 1.25, 3, 1, 4),
+  skindeep: look(1.55, 1.25, 3, 1, 4),
+  hairblack: look(2.2, 1.5, 3, 0, 5),
+  hairblonde: look(2.2, 1.5, 3, 0, 5),
+  auburn: look(2.2, 1.5, 3, 0, 5),
+  hairgrey: look(2.2, 1.5, 3, 0, 5),
+  chestnut: look(2.2, 1.5, 3, 0, 5),
+  moss: look(2, 1.4, 2),
+  madder: look(2, 1.4, 2),
+  ochre: look(2, 1.4, 2),
+  umber: look(2, 1.4, 2),
+  indigo: look(2, 1.4, 2),
+  cream: look(2, 1.4, 2),
+  brown: look(2, 1.4, 2),
 };

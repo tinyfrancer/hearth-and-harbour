@@ -22,6 +22,11 @@ export interface OptionDef {
   readonly tavern: BuildingCfg;
   readonly hero: TGrid;
   readonly villager: TGrid;
+  /**
+   * Round two: who stands where, in metres from the tavern door (x) and from
+   * the wall (y). When given, it replaces the hero-and-villager placing.
+   */
+  readonly figures?: readonly { readonly g: TGrid; readonly dx: number; readonly ym: number }[];
 }
 
 /** Where a figure's feet are in its own grid: the middle of its soles. */
@@ -125,8 +130,11 @@ export function composeScene(o: OptionDef): TGrid {
 
   placeProp(barrel(u), xd - 1.35, 0.3, 0.38);
   placeProp(crate(u), xd - 2.2, 0.42, 0.45);
-  placeFigure(o.hero, xd + 1.2, heroYm);
-  placeFigure(o.villager, xd + 2.25, 0.9);
+  if (o.figures) for (const f of o.figures) placeFigure(f.g, xd + f.dx, f.ym);
+  else {
+    placeFigure(o.hero, xd + 1.2, heroYm);
+    placeFigure(o.villager, xd + 2.25, 0.9);
+  }
   placeProp(lampPost(u), xd + 4.1, 1.55, 0.3);
   // Beyond the kerb: a verge, a fence, and the edge of the wood.
   things.push({ ym: 7.0, draw: () => fence(g, 0, sy(7.0), W, u) });
