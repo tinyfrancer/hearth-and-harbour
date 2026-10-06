@@ -36,6 +36,84 @@ device pixels each). Never scale by a fraction. A canvas is also padded, by unde
 most phones, so its CSS size is a whole number: browsers stretch a canvas whose CSS size is
 fractional by a hair, and that blurs it.
 
+## The C scale (chosen 2026-10-05; drawn in B7, not yet swapped in)
+
+After the scale study (four options on the same corner of town), Cody chose **option C** as the
+base for the whole game: "the details are great. For the town especially." The new town is built
+alongside the current art in `src/art/town2/`; the live game still uses everything above and below
+this section until lane C switches the scene. What made the difference, in Cody's order: buildings
+to scale; every element shaded as a solid; cast and contact shadows; six-step ramps with cool
+shadows and warm lights; outlines in each material's own darkest tone.
+
+### Sizes at the C scale
+
+| Thing                      | Size (art pixels)                                                       |
+| -------------------------- | ----------------------------------------------------------------------- |
+| One phone screen, portrait | 360 wide at least (3 device pixels each; a 390-wide 3x phone shows 390) |
+| A metre                    | 38 (`METRE`, `m()` in `src/art/town2/scale.ts`)                         |
+| Person                     | about 64 tall (1.7 m)                                                   |
+| Door                       | about 76 tall, 40 wide (2 m × 1.05 m)                                   |
+| Storey                     | 110 to 130 with its floor and beams                                     |
+| Tavern; smithy; your house | 593 × 412 (five bays, sign and chimney); 485 × 301; 358 × 286           |
+| Barrel, crate              | 24–27 wide                                                              |
+| Street lamp                | about 120 tall                                                          |
+| Pine; oak                  | 200–276 tall (5.2–7.2 m), three kinds; 238 × 260                        |
+| Walking tile               | 24 (a person is 2.7 tiles tall)                                         |
+
+Everything is laid out in metres and drawn natively at the size it is seen: nothing is scaled up
+from a smaller drawing. A thing's size comes from its real size (`m(2.0)` for a door), not from a
+pixel count picked to look right.
+
+### Light, ramps, shadows and lines at the C scale
+
+- **Light** comes from the upper left and a little in front. Every element is shaded as a solid:
+  domed cobbles, scalloped roof tiles with each course shading the next, slates with a hard line
+  under each course, timbers with a lit edge, a shadow edge and grain, stone blocks lit on their top
+  and left, barrels, posts and trunks as cylinders, foliage and rocks as lumps lit by a bevel worked
+  out from their shape (`bevel` and `solid` in `cells.ts`).
+- **Ramps** (`src/art/town2/ramps.ts`, the only file that names a C-scale colour) have six steps and
+  a line: step 0 a glint or sunlit edge, 1–2 the lit side, 3–4 the shadow side, 5 the deepest
+  shadow, 6 the line. Lights lean warm (toward yellow), shadows lean cool (toward blue-violet).
+  The base colours go through the game's own day and dusk shifts, so the new town keeps the
+  approved palette's character. A cell is a material and a step, so a shadow is cast by darkening
+  whatever is underneath by a step or two, never by painting a grey over it.
+- **Cast shadows** go down and to the right: under eaves, jetties, sills, shutters, porch hoods and
+  signs; timbers onto plaster; a chimney onto the roof; each pine tier onto the one below; a
+  building's wedge on the ground to its right. **Contact shadows** sit right under every foot,
+  post and step (two steps darker in the row they touch). Shadows on the ground are the ground's own
+  steps darkened, so they work on grass, cobbles, sand and water alike.
+- **Outline rule**: each separate object gets a one-pixel line in the darkest tone (step 6) of the
+  material it goes round (`outlined`), never one ink. Smoke and the flat net have no line.
+- **Large flat areas are broken up without noise**: render in broad soft patches a step either way,
+  stains running from window sills, hairline cracks lit on their lower lip, a patch where the
+  plaster has fallen and the stones show, damp rising at the plinth. No per-pixel speckle.
+- **Moss is cushions**: small domes lit top left with a dark underside where they meet the roof,
+  gathered low on the slope and along hips. Never single dashes.
+- **Pines are tiers of drooping boughs**: each bough's upper face lit (most on the sun's side), its
+  underside in shadow, its tips drooping to points, each tier casting a band of shadow on the next.
+  The oak is clumps of leaf domes with small leaf clusters on them, darker toward its lower right.
+- **Each building has its own materials**: the tavern timber, plaster and red tile; the smithy
+  rubble with cut quoins, slate and an oak lintel; your house limewash, thatch and blue paint.
+- **Signs read at game scale**: pictures on painted boards (a gull over an anchor, a horseshoe)
+  and the signpost's words in a three-by-five letter set cut into the wood.
+
+### Dusk at the C scale
+
+The same drawing in the dusk shift, as before. Windows drawn in `glass` light up (warm, brightest at
+the reflection band); windows drawn in `pane` stay dark, so not every room is lit; lamps (`lamp`)
+light and glow; the forge glows by day and more at dusk; `fire` never shifts. Ground shadows are
+**longer at dusk** (the town is composed per time of day: a building's wedge reaches about three
+times as far, trees' shadows stretch to the right), and the dusk shift leans them plum-cool.
+
+### What the swap supersedes
+
+When lane C switches the scene to the C-scale town, these parts of the guide above stop applying to
+the town (they stay for anything still drawn at the old scale until it is redrawn): the sizes table
+(screen 270 wide, person 30 × 47, buildings 96–150 wide, props 11–13 wide), "four device pixels per
+art pixel" for the town, the 3–4 step ramps and the single outline ink for town art, and the soft
+elliptical ground shadow as the only shadow. Figures, portraits, icons and dungeons are not changed
+by this section; figures are being reworked separately at the 64-pixel size.
+
 ## Colour
 
 - Every colour is a step on a named ramp of 3–4 steps (light, mid, dark). No one-off colours.

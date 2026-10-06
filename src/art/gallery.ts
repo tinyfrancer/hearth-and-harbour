@@ -34,6 +34,7 @@ import { townPicture } from './town';
 import { FOE_IDS } from './grottoCast';
 import { PROP_IDS } from './grottoProps';
 import { grottoCastPlate, grottoPropsPlate, grottoRoomPlate, grottoTilesPlate } from './grottoRoom';
+import { town2Gallery } from './town2/gallery2';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
 const GAP = 8;
@@ -151,6 +152,20 @@ export function artGallery(): HTMLElement {
       'The approved town mock-up, rebuilt as the game’s own drawing engine. Day and dusk are the same drawing in two palettes.',
     ),
   );
+
+  // The C-scale town is the newest art: a button at the top goes straight to it and draws it.
+  const town2 = town2Gallery();
+  const jump = el(
+    'button',
+    'btn primary',
+    'See the new town at the finer scale',
+  ) as HTMLButtonElement;
+  jump.type = 'button';
+  jump.addEventListener('click', () => {
+    town2.draw();
+    town2.section.scrollIntoView({ block: 'start' });
+  });
+  page.append(jump);
 
   // The grotto first: the newest art, judged where it will be seen, at dusk.
   const room = grottoRoomPlate();
@@ -300,7 +315,7 @@ export function artGallery(): HTMLElement {
   const town = townPicture();
   part(
     'The town',
-    'The whole of the approved mock-up, assembled from the game’s own pieces: tavern, smithy, stall, square, quay, pier, ship and sea. Hold it against the mock-up; they should be the same picture.',
+    'The whole of the approved mock-up, assembled from the game’s own pieces: tavern, smithy, stall, square, quay, pier, ship and sea. Hold it against the mock-up; they should be the same picture. Below it, the town redrawn at the finer scale Cody chose.',
     ...row(
       [
         { pic: town, palette: DAY, label: 'Day' },
@@ -309,6 +324,7 @@ export function artGallery(): HTMLElement {
       'game',
       1,
     ),
+    town2.section,
   );
 
   const folk = townsfolkPlate();

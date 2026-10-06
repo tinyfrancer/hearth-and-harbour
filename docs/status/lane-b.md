@@ -1,8 +1,49 @@
 # Lane B: art
 
-**Next session:** art passes are review sessions with Cody (`docs/lanes.md`, "then"). Before
-that, what B6 did not reach (below, "Deferred"): faces for `goblin_poacher` and `bramble_wyrm`,
-and the five tab icons.
+**Next session:** Cody's review of the C-scale town (B7, below) and of the figures being
+reworked at the 64-pixel size; then whatever that review asks for. Still open from B6 (below,
+"Deferred"): faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
+
+## The C-scale town, for lane C (`src/art/town2/`)
+
+The whole town redrawn at the C scale Cody chose after the scale study (style guide, "The C
+scale"), **built beside the current town, not swapped in**: nothing the live game reads changed.
+Import each name from its file (there is no index file).
+
+- `town2Piece(id)` (`pieces.ts`): every piece by plain id, drawn once on first ask and kept. Same
+  ids as `townPiece` for everything but the figures (`hero`, `pirate`, `smith`, `trader`, being
+  reworked separately); new: `house`, `oak`, `fence`, `bench`, `planter`, `bush`, `boulder`. A
+  `Town2Piece` gives `picture` (a `Picture2`: a `TGrid` of material-and-step cells, outline
+  included, and its glows), `w`, `h`, `base` (the row it stands on; sort by `y + base`), `layer`
+  (`ground`, `stand`, `above`, as today), `foot` (the middle of its foot on the base line), `spots`
+  (`door` on the tavern, smithy and house, `forge` on the smithy, `counter` on the stall),
+  `shadow` (laid by the town, not drawn in the piece), `ground` (the size of what it stands on, for
+  its footprint) and `attached` (chimney smoke).
+- `town2Layout()` (`town.ts`): every placement in drawing order (flat, then standing by base line,
+  then above): `name` (the current scene's names where it has them: `tavern`, `crate-yours`,
+  `board`, `lamp-west`, `crate-cargo-3`, `pine-grove-2`, ...), `id`, `x`, `y` (top-left), `base`,
+  `layer`, `footprint` (whole 24-pixel tiles, or null for flat and afloat things), `spots` and
+  `tap` (in town pixels). Data, declared, not measured from a picture.
+- `town2Ground(time)`: the ground (grass, road, lane, cobbles, flagstones, the well's paving,
+  beach, quay, sea), every shadow for that time of day (longer at dusk) and the flat pieces (pier,
+  net), with every light in town as its glows. Lay it under the sprites. `town2Picture(time)` is the
+  whole town composed (for the gallery, a map, or a scene that need not walk behind things).
+- `town2Walk()`: `{ cols, rows, solid, kinds }` on 24-pixel tiles, ground and footprints together;
+  `groundAt(x, y)` gives the ground kind under any point (so a 16-pixel map can be sampled from
+  it); `TOWN2_SOLID` says which kinds block; `TOWN2_START` is where the hero first stands.
+- `TOWN2_W` × `TOWN2_H` = 1440 × 2136 art pixels (four screens across, about three tall);
+  `TOWN2_TILE` = 24; `TOWN2_GROUND` says where each ground lies and `shoreAt(x)` gives the water's
+  edge (for animated foam).
+- Drawing: `rasterize2(pic, palette, scale)` and `pixelCanvas2` (`raster.ts`) turn a picture into
+  pixels; `DAY2` and `DUSK2` (`ramps.ts`) are the palettes. **Draw once, reuse:**
+  `spriteCanvas(key, picture, palette)` keeps a picture on an offscreen canvas at one pixel per art
+  pixel; a scene draws it with `drawImage` at its scale (smoothing off) and never rasterizes in a
+  frame. `forgetSprites()` lets them go.
+- Memory, one palette at a time: the ground canvas 1440 × 2136 × 4 = 12.3 MB; all 33 pieces at one
+  pixel per art pixel 4.3 MB; together about 17 MB (about 33 MB with day and dusk both kept). The
+  cell grids behind them (Int16, 6.2 MB per composed town) are only needed while rasterizing.
+- Lights at dusk: `town2Ground('dusk').glows` is every lamp, window and the forge in town
+  coordinates, for lighting walkers as `litBy` does today.
 
 ## Dungeon art, for lane C (`src/art/dungeonArt.ts`)
 
@@ -245,6 +286,51 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B7: The town at the C scale.** New art, not yet reviewed by Cody. Review sheets outside the
+  repo in `/home/claude/lane-shots/w7-b/` (`phone-1.png` to `phone-4.png` with a 64-pixel
+  stand-in and their `-dusk` versions, `building-*.png`, `pieces-*.png`, `town-full-day.png`,
+  `town-full-dusk.png`, the gallery in `gallery/`).
+  - **Engine** (`src/art/town2/`, taken from the approved study `study/scale-detail`, trimmed and
+    typed, each file saying what it took): cells that are a material and a step, so shadows darken
+    what is under them and outlines take each material's darkest tone (`cells.ts`); the bevel that
+    lights a flat shape as a solid; texture from world position (`texture.ts`); 31 seven-step
+    ramps with day and dusk (`ramps.ts`); a raster with the current art's glows (`raster.ts`;
+    `addGlow` exported from `../raster.ts` and `shines` widened to any palette with `lightsOn`,
+    neither changing behaviour); the scale (`scale.ts`: `WORLD2_WIDTH` 360, `METRE` 38, `m()`,
+    `town2Scale`). `SCREEN_ART_WIDTH` and everything the game reads are unchanged.
+  - **Buildings**: the tavern (the study's five bays, now with moss as cushions, render broken by
+    soft patches, sill stains, cracks and a spalled patch, lit windows, a painted gull-and-anchor
+    sign); the smithy (rubble with cut quoins, slate, an oak-lintelled forge bay with hearth, hood,
+    bellows, tools and quench tub, a log store under a slate lean-to, a horseshoe sign); your house
+    (new: limewash on rubble, thatch with an eyebrow window, a blue door under a slate hood with a
+    fanlight, blue shutters, a climbing rose, the hearth's chimney). `walls.ts` holds the painters
+    they share.
+  - **Props and nature**: stall, well, notice board, signpost (words cut in a 3 × 5 letter set),
+    lamp, barrel, crate, anvil on its stump, bucket, net, crab, buoy, gull, smoke (dithered, no
+    outline), fence, bench, planter, boulder; three pines of tiered drooping boughs, an oak of leaf
+    clumps, a bush; the pier, rowing boat, ship and the rock with its wreck.
+  - **Grounds**: grass with soft swathes, tufts, clover, flowers and pebbles; domed cobbles;
+    flagstones along the building fronts; the well's round paving; a gutter; the rutted road and
+    the lane; a beach behind a low wall with steps; the quay wall; the sea, deeper away from the
+    shore, with wavelets and shore foam. Shadows laid per time of day: buildings' contact band and
+    wedge, round shadows and contact lines for props and trees, shadows on the water under things
+    afloat and down the pier's side.
+  - **Layout** (`town.ts`): forest along the top with the road north; the upper street with your
+    house, its garden fence, the oak and a woodcutting grove; the tavern and smithy facing the
+    square; the well, benches, stall and notice board; the quay with cargo, the beach, the pier,
+    rowing boat, ship, rock and buoys. Every door and counter reachable on foot from the start.
+  - **Gallery**: a "See the new town at the finer scale" button at the top of Menu, Art gallery
+    draws the new part (under "The town") and goes to it: each group of pieces at game scale (the
+    wide ones scroll), four phone screens, the whole town at one device pixel per art pixel, and a
+    button that turns it all to dusk and back on the same canvases (about 83 MB of canvases once
+    drawn, measured on a 390 × 844 3x screen).
+  - **Tests**: `tests/art/town2.test.ts` (the scale; every ramp has seven steps and a dusk;
+    windows and lamps lit at dusk; shadows cool and lights warm; every piece draws at its size on
+    its base line, outlined in its own tones; doors 76 tall above their spots; glows; the layout
+    places every piece, in order, footprints never overlapping or on water; every spot walkable
+    and reachable; the composed town; dusk's longer shadows; the current town untouched).
+  - Style guide: a new section, "The C scale", with sizes, light, ramps, shadows, outlines, dusk
+    and what the swap supersedes. The current sizes stay until the swap.
 - **B6: The grotto's look.** New art, not yet reviewed by Cody. Review sheets are outside the
   repo in `/home/claude/lane-shots/wave6-b/` (`grotto-room.png` first).
   - Studied first: the approved town at dusk (stone, the pier's planks, the sea and its foam,
@@ -516,6 +602,24 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **B7, weaker than it should be** (for Cody's review), weakest first:
+  - The ship: a solid cutter with a furled sail, gun ports and a lit stern window, but its stern
+    cabin is a plain box and its rigging is a handful of straight lines.
+  - The rock with its wreck: the face reads, but the rock is a lumpy grey solid without the
+    strata or weathering the buildings have, and the wreck's ribs are small beside it.
+  - The oak reads as a broadleaf, but its crown is rounder and more regular than an oak's and its
+    limbs barely show.
+  - Pines: tiers of drooping boughs with a lit side and dark undersides, but the tiers repeat a
+    little regularly, like chevrons.
+  - The square is large: flagstones, the well's paving, benches and planters break it up, but from
+    far off it is still a lot of cobbles.
+  - The upper street is mostly grass with bushes and boulders; a hedge, a wall or a garden would
+    give it more to look at.
+  - Smoke, gulls and shore foam are still pictures: animating them is lane C's.
+  - Grass and water are soft dithered patches; at game scale the dither shows as a fine texture.
+- Figures at the C scale (the hero, the townsfolk) are not drawn here: they are being reworked
+  separately, and the C-scale town has no figures in it.
+
 - **Not reached in B6**: faces for S9's bounty-only monsters, `goblin_poacher` and
   `bramble_wyrm` (part 5 of its brief), which stay null; and the five tab icons (part 6;
   `tabIcon(id)` stays null). Drawing the goblin's face will need lane A's
@@ -574,12 +678,40 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   for the town's red-coated captain. One word: "Long, purple and heavy with braid". (Or, if Cody
   prefers red, say so and art recolours the coat; it is a legend change in `grottoCast.ts`,
   `armoury.ts` and `grottoIcons.ts`.)
-- Lane C: nothing required; the doors are filled behind their names. The notes above say how to
-  lay walls, which shadow step to use, and that the lantern's light must be moved into the room's
-  coordinates to light more than the lantern.
+- Lane C: nothing required for B6; the doors are filled behind their names. The notes above say
+  how to lay walls, which shadow step to use, and that the lantern's light must be moved into the
+  room's coordinates to light more than the lantern.
+- **Lane C, to switch the town to the C scale** (not before the 64-pixel figures land, or the hero
+  will be a third too small in it):
+  - World width: `SCENE_WIDTH` 360 (`WORLD2_WIDTH` in `src/art/town2/scale.ts`), so `sceneScale`
+    gives 3 on a 390-wide 3x phone (which then shows 390 art pixels across, at least 360).
+    `MIN_SCENE_HEIGHT` scales with it (160 × 360 / 270 = 213).
+  - Tiles: the town's walking map is 24 pixels a tile (`TOWN2_TILE`, `town2Walk()` ready made).
+    `TILE` in `tileMap.ts` is 16 and shared with the grotto, so either give `TileMap` its own tile
+    size or sample `groundAt(x, y)` and the footprints on 16-pixel tiles.
+  - Camera bounds: the world is `TOWN2_W` × `TOWN2_H` = 1440 × 2136; `cameraFor` already clamps
+    to any world size.
+  - Walker speed: 88 art pixels a second (64 today is 1.36 person-heights a second; with 64-pixel
+    people that is 87, and 85 keeps today's speed on screen at 3 device pixels).
+  - Layout door: `town2Layout()` (placements with footprints, spots and tap boxes),
+    `town2Ground(time)` under the sprites, `town2Piece(id)` for each sprite, `TOWN2_START` for the
+    hero, `town2Ground('dusk').glows` for lights. Keep pictures on offscreen canvases
+    (`spriteCanvas`, or your own) so nothing is rasterized per frame. The smoke and gull
+    placements are there for `ambient.ts` to animate; `shoreAt(x)` gives the shore for foam.
+  - The words for the new placements (`house`, `oak`, `fence-*`, `bench-*`, `planter-*`,
+    `bush-*`, `boulder-*`) are lane C's to write.
+- **Lane A**: nothing required for the C-scale town.
 
 ## Notes for this lane's next session
 
+- C-scale work (B7) is judged at game scale on a phone-sized crop, not piece by piece: a scratch
+  page under `.shots/` served by `npm run dev` can `cut()` a crop of `town2Picture(time)`
+  (`gallery2.ts`), rasterize it at 3 and draw a 64-pixel stand-in on it, which is how the
+  square's emptiness, the camouflage grass and the striped sea were caught. Composing the whole
+  town takes a few seconds; the tests that compose it carry a long timeout.
+- A C-scale piece is a painter in `src/art/town2/` returning a grid of material-and-step cells, a
+  row in `MAKE` and `TOWN2_IDS` (`pieces.ts`), and, if placed, a line in `SPECS` (`town.ts`).
+  Lay sizes out in metres (`m()`); shade by material steps; let `outlined` draw the line.
 - Game scale is a world 270 art pixels wide across the app (4 device pixels per art pixel on a
   390-wide 3x phone). The gallery's town is 270 wide, so on that phone it is shrunk to 3 to fit
   inside the menu's padding, as the mock-up itself is on the same phone.
