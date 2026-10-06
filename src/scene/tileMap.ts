@@ -4,7 +4,11 @@
  * redrawn without moving a wall.
  */
 
-/** The side of one tile, in art pixels. */
+/**
+ * The side of one tile, in art pixels, unless a map says otherwise: the
+ * current town and the dungeons. The C-scale town walks on 24-pixel tiles
+ * (`TileMap.tile`).
+ */
 export const TILE = 16;
 
 export interface Point {
@@ -29,6 +33,13 @@ export interface TileMap<K extends string = string> {
   /** The kind of each tile, row by row. */
   readonly tiles: readonly (readonly K[])[];
   readonly kinds: Readonly<Record<K, TileKind>>;
+  /** The side of one of its tiles, in art pixels: `TILE` when not given. */
+  readonly tile?: number;
+}
+
+/** The side of one of a map's tiles, in art pixels. */
+export function tileOf(map: Pick<TileMap, 'tile'>): number {
+  return map.tile ?? TILE;
 }
 
 /**
@@ -58,7 +69,8 @@ export function parseMap<K extends string>(
 
 /** The map's size in art pixels. */
 export function mapSize(map: TileMap): { width: number; height: number } {
-  return { width: map.cols * TILE, height: map.rows * TILE };
+  const tile = tileOf(map);
+  return { width: map.cols * tile, height: map.rows * tile };
 }
 
 export function inMap(map: TileMap, cell: Cell): boolean {
@@ -72,10 +84,12 @@ export function isSolid(map: TileMap, cell: Cell): boolean {
   return map.kinds[kind]!.solid;
 }
 
-export function cellAt(point: Point): Cell {
-  return { col: Math.floor(point.x / TILE), row: Math.floor(point.y / TILE) };
+/** The tile a point is on, for tiles `tile` art pixels on a side. */
+export function cellAt(point: Point, tile = TILE): Cell {
+  return { col: Math.floor(point.x / tile), row: Math.floor(point.y / tile) };
 }
 
-export function centreOf(cell: Cell): Point {
-  return { x: cell.col * TILE + TILE / 2, y: cell.row * TILE + TILE / 2 };
+/** The middle of a tile, for tiles `tile` art pixels on a side. */
+export function centreOf(cell: Cell, tile = TILE): Point {
+  return { x: cell.col * tile + tile / 2, y: cell.row * tile + tile / 2 };
 }

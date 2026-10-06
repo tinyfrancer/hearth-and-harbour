@@ -31,7 +31,7 @@ import {
 } from './play';
 import { canvasFit, cssToArt, sceneScale, tapToWorld, viewSize } from './scale';
 import { footprintCentreX, thingAt, usable, type Box, type Opens, type Scene } from './things';
-import { cellAt, mapSize, type Cell, type Point } from './tileMap';
+import { cellAt, mapSize, tileOf, type Cell, type Point } from './tileMap';
 
 /**
  * The longest frame the walk takes in one go. A page coming back from the
@@ -52,10 +52,53 @@ const LIFT_SPEED = 900;
 /** A gap kept between the walker's view and the panel's top edge, in CSS pixels. */
 const PANEL_MARGIN = 12;
 
+/**
+ * A picture to show: one of the art lane's `Picture`s, painted on first use
+ * and kept (`canvasOf`), or a canvas a scene has already painted at one pixel
+ * per art pixel (the C-scale town, whose art is not a `Picture`).
+ */
+export type Look = Picture | HTMLCanvasElement;
+
+const isPicture = (look: Look): look is Picture => 'grid' in look;
+
+/** A look as pixels in this palette. */
+function imageOf(look: Look, palette: Palette): HTMLCanvasElement | null {
+  return isPicture(look) ? canvasOf(look, palette) : look;
+}
+
+/** How wide a look is, in art pixels. */
+const widthOf = (look: Look): number => (isPicture(look) ? look.grid.w : look.width);
+
+/** The map with everything that stands still on it, composed once, and those things in depth order. */
+export interface StillPicture {
+  readonly still: HTMLCanvasElement;
+  readonly standing: readonly Standing[];
+}
+
+/** Something that moves by itself, already painted: what shows at `ms` in this palette, if anything. */
+export interface Life {
+  /** `ground`: lies on the ground, under everything standing. `above`: over everything. */
+  readonly layer: 'ground' | 'above';
+  at(ms: number, palette: Palette): Placed | null;
+}
+
 /** How a scene looks, beside the rules of walking in it. */
 export interface StageArt {
-  /** The whole map, one pixel per art pixel, with its lights. */
-  readonly ground: Picture;
+  /** The whole map, one pixel per art pixel, with its lights. Not needed by a scene with a `still`. */
+  readonly ground?: Picture;
+  /**
+   * The map with everything standing on it, made by the scene itself in this
+   * palette (null until it is ready, or where nothing can be painted). Used in
+   * place of `ground` and the things' own sprites: a scene too big to keep a
+   * composed picture per palette and per person turned, which keeps one.
+   */
+  still?(palette: Palette): StillPicture | null;
+  /**
+   * People standing about who are not part of the still picture, sorted with
+   * the walker by their feet: drawn again only when one of them changes (turns
+   * to look at the walker at `walker`).
+   */
+  standers?(palette: Palette, walker: Point): readonly Standing[];
   /**
    * The ground as it is this frame, for a scene whose ground changes (a
    * dungeon's tide). Each different picture is composed once and kept.
@@ -64,11 +107,16 @@ export interface StageArt {
   /** Where the walker's feet are in their picture, facing right. */
   readonly heroFeet: Point;
   /** The walker standing at `feet`, facing either way, in this palette's light. */
-  walkerAt(feet: Point, facing: Facing, palette: Palette): Picture;
+  walkerAt(feet: Point, facing: Facing, palette: Palette): Look;
   /** The walker's shadow on the ground at `feet`, and the point of it that goes under the feet. */
-  shadowAt(feet: Point): { readonly picture: Picture; readonly middle: Point } | null;
+  shadowAt(
+    feet: Point,
+    palette: Palette,
+  ): { readonly picture: Look; readonly middle: Point } | null;
   /** Things that move by themselves: smoke, birds, water. */
   readonly ambient?: readonly Ambient[];
+  /** The same, for a scene that paints its own: `ambient`'s already on canvases. */
+  readonly life?: readonly Life[];
 }
 
 type Still = { still: HTMLCanvasElement; standing: Standing[] } | null;
@@ -239,6 +287,8 @@ export interface StageOptions {
   readonly time?: TimeOfDay;
   /** How many device pixels an art pixel takes on a canvas this size. The town's rule by default. */
   readonly scaleOf?: (device: Size) => number;
+  /** How far above the walker's feet the camera looks, in art pixels: `FOCUS_RISE` by default. */
+  readonly focusRise?: number;
   /**
    * Room the camera keeps clear at the edges for buttons over the scene: the
    * walker is centred in what is left, and a map smaller than that is centred
@@ -287,6 +337,10 @@ export function stage(options: StageOptions): View {
   const scaleOf = options.scaleOf ?? sceneScale;
   const insets = options.insets ?? NO_INSETS;
   const world = mapSize(scene.map);
+  const tile = tileOf(scene.map);
+  const rise = options.focusRise ?? FOCUS_RISE;
+  /** A number for each still a scene made itself, to tell them apart in what was last shown. */
+  const stillIds = new WeakMap<HTMLCanvasElement, number>();
   // People who turn to look at the walker.
   const turners = scene.things.filter((t) => t.sprite?.turned);
   const canvas = h(
@@ -389,7 +443,7 @@ export function stage(options: StageOptions): View {
   const camera = (scale: number): Point => {
     const view = viewSize(device, scale);
     const room = inset(scale);
-    const focus = { x: play.walker.at.x, y: play.walker.at.y - FOCUS_RISE };
+    const focus = { x: play.walker.at.x, y: play.walker.at.y - rise };
     const inner = {
       width: Math.max(1, view.width - room.left - room.right),
       height: Math.max(1, view.height - room.top - room.bottom - lift),
@@ -462,7 +516,7 @@ export function stage(options: StageOptions): View {
       from: at,
       since: performance.now(),
       at,
-      aimed: cellAt(tap),
+      aimed: cellAt(tap, tile),
       steering: false,
     };
     // Keeps the finger's moves coming when it slides off the canvas onto a button.
@@ -502,11 +556,15 @@ export function stage(options: StageOptions): View {
     // People near the walker turn to him: the map is composed with them turned, rarely and once.
     const turned = new Set(
       turners
-        .filter((t) => turnedTo({ x: footprintCentreX(t), y: t.base }, play.walker.at) === 'left')
+        .filter(
+          (t) =>
+            turnedTo({ x: footprintCentreX(t, tile), y: t.base }, play.walker.at, scene.notice) ===
+            'left',
+        )
         .map((t) => t.id),
     );
     const ground = art.groundNow?.() ?? art.ground;
-    const made = stillOf(scene, ground, palette, turned);
+    const made = art.still ? art.still(palette) : ground && stillOf(scene, ground, palette, turned);
     // Art that cannot be painted (jsdom) means no context is asked for either.
     if (!made) return;
     if (canvas.width !== device.width || canvas.height !== device.height) {
@@ -522,17 +580,17 @@ export function stage(options: StageOptions): View {
     const left = play.facing === 'left';
     const extra = options.extra?.(now, palette) ?? null;
     const walkerPicture = art.walkerAt(feet, play.facing, palette);
-    const plainWalker = canvasOf(walkerPicture, palette);
+    const plainWalker = imageOf(walkerPicture, palette);
     const walkerImage = plainWalker && extra?.walker ? extra.walker(plainWalker) : plainWalker;
     const walker: Standing | null = walkerImage && {
       image: walkerImage,
       // Mirrored, the column under the feet moves to the other side of the picture.
-      x: feet.x - (left ? walkerPicture.grid.w - 1 - art.heroFeet.x : art.heroFeet.x),
-      y: feet.y - art.heroFeet.y - bob(play),
+      x: feet.x - (left ? widthOf(walkerPicture) - 1 - art.heroFeet.x : art.heroFeet.x),
+      y: feet.y - art.heroFeet.y - bob(play, scene.stride),
       base: feet.y,
     };
-    const shadow = art.shadowAt(feet);
-    const shadowImage = shadow && canvasOf(shadow.picture, palette);
+    const shadow = art.shadowAt(feet, palette);
+    const shadowImage = shadow && imageOf(shadow.picture, palette);
     const underfoot: Placed[] = [];
     const above: Placed[] = [];
     const moving = new Map<string, Drawn>();
@@ -543,6 +601,12 @@ export function stage(options: StageOptions): View {
       const placed = { image, x: sprite.at.x, y: sprite.at.y };
       (a.layer === 'ground' ? underfoot : above).push(placed);
       moving.set(`ambient ${i}`, { image, box: boxOf(placed) });
+    });
+    (art.life ?? []).forEach((a, i) => {
+      const placed = a.at(now, palette);
+      if (!placed) return;
+      (a.layer === 'ground' ? underfoot : above).push(placed);
+      moving.set(`life ${i}`, { image: placed.image, box: boxOf(placed) });
     });
     if (shadow && shadowImage) {
       const placed = {
@@ -555,10 +619,14 @@ export function stage(options: StageOptions): View {
     }
     if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
     const actors: Standing[] = walker ? [walker] : [];
-    if (extra) {
-      for (const a of extra.actors) actors.push(a);
-      actors.sort((a, b) => a.base - b.base);
-    }
+    const standers = art.standers?.(palette, play.walker.at) ?? [];
+    standers.forEach((s, i) => {
+      actors.push(s);
+      moving.set(`stander ${i}`, { image: s.image, box: boxOf(s) });
+    });
+    if (extra) for (const a of extra.actors) actors.push(a);
+    // Stable: the walker stays in front of anyone level with his feet.
+    if (actors.length > 1) actors.sort((a, b) => a.base - b.base);
     const target = play.heading === null ? (play.walker.path.at(-1) ?? null) : null;
     if (target) moving.set('target', { image: made.still, box: markerBox(target) });
 
@@ -583,7 +651,8 @@ export function stage(options: StageOptions): View {
       w: Math.ceil(view.width),
       h: Math.ceil(view.height),
     };
-    const shown = `${groundIds.get(ground)} ${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height} ${[...turned].join(' ')}`;
+    const stillKey = art.still ? stillId(made.still) : ground && groundIds.get(ground);
+    const shown = `${stillKey} ${cam.x} ${cam.y} ${scale} ${palette.name} ${device.width} ${device.height} ${[...turned].join(' ')}`;
     if (shown !== shownLast) {
       drawFrame(ctx, frame, whole);
     } else {
@@ -603,6 +672,17 @@ export function stage(options: StageOptions): View {
     drawnLast = moving;
     extraLast = extra?.boxes ?? [];
   };
+
+  /** A number for a still the scene made itself: a new one means the whole view is drawn again. */
+  let stillCount = 0;
+  function stillId(still: HTMLCanvasElement): number {
+    let id = stillIds.get(still);
+    if (id === undefined) {
+      id = stillCount++;
+      stillIds.set(still, id);
+    }
+    return id;
+  }
 
   showTime();
   syncPanel();

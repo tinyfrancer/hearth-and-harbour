@@ -13,16 +13,46 @@ export const SCENE_WIDTH = 270;
 export const MIN_SCENE_HEIGHT = 160;
 
 /**
+ * How much of a scene a phone shows, in art pixels: a property of the scene
+ * being shown, not of the game, so the current town and the dungeons (drawn
+ * for a world 270 across) and the C-scale town (360 across) each get their
+ * own scale on the same screen.
+ */
+export interface SceneSize {
+  /** About this many art pixels across: one phone screen of this scene's art. */
+  readonly width: number;
+  /** The fewest art pixels top to bottom before width is given up for height. */
+  readonly minHeight: number;
+  /**
+   * How many art pixels short of `width` a view may fall and still keep its
+   * scale. The canvas is trimmed to whole CSS and device pixels (`canvasFit`),
+   * which on a 2.625x phone 412 CSS pixels wide takes it from 1081 device
+   * pixels to 1071: without slack the C-scale town would drop from 3 device
+   * pixels an art pixel to 2 for want of three art pixels. None by default.
+   */
+  readonly slack?: number;
+}
+
+/** The current town's and the dungeons' scale: the style guide's 270-pixel screen. */
+export const TOWN_SIZE: SceneSize = { width: SCENE_WIDTH, minHeight: MIN_SCENE_HEIGHT };
+
+/**
  * How many device pixels one art pixel takes: always a whole number, never a
  * fraction, so every art pixel is the same size and crisp. It is the largest
- * that still shows at least `SCENE_WIDTH` across (so nothing meant to be on
- * screen is cut off) and `MIN_SCENE_HEIGHT` down. A screen too small for that
- * at one device pixel each still gets one: never less.
+ * that still shows at least the scene's width across (so nothing meant to be
+ * on screen is cut off) and its least height down. A screen too small for
+ * that at one device pixel each still gets one: never less.
  */
-export function sceneScale(device: Size): number {
-  let scale = Math.max(1, Math.floor(device.width / SCENE_WIDTH));
-  while (scale > 1 && device.height / scale < MIN_SCENE_HEIGHT) scale--;
+export function sceneScale(device: Size, size: SceneSize = TOWN_SIZE): number {
+  const width = size.width - (size.slack ?? 0);
+  let scale = Math.max(1, Math.floor(device.width / width));
+  while (scale > 1 && device.height / scale < size.minHeight) scale--;
   return scale;
+}
+
+/** The scale rule for one scene's size, as the stage takes it. */
+export function scaleFor(size: SceneSize): (device: Size) => number {
+  return (device) => sceneScale(device, size);
 }
 
 /**

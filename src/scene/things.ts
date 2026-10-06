@@ -78,6 +78,12 @@ export interface Scene {
   /** The ground with every footprint made solid. */
   readonly map: TileMap;
   readonly things: readonly Thing[];
+  /** How fast the walker crosses it, in art pixels a second: `WALK_SPEED` when not given. */
+  readonly speed?: number;
+  /** Art pixels per half-step of the walker's bob: `STRIDE` when not given. */
+  readonly stride?: number;
+  /** How near the walker comes, in art pixels, before someone standing about turns: `NOTICE` when not given. */
+  readonly notice?: number;
 }
 
 /** One entry in the order things are drawn: a thing, or the walker. */
@@ -112,6 +118,7 @@ export function blockFootprints<K extends string>(
     rows: map.rows,
     tiles,
     kinds: { ...map.kinds, [BLOCKED]: { solid: true } } as TileMap<K | typeof BLOCKED>['kinds'],
+    ...(map.tile === undefined ? {} : { tile: map.tile }),
   };
 }
 
@@ -152,10 +159,10 @@ export function approach(map: TileMap, from: Point, thing: Thing): Cell | null {
  * with no footprint (it stands on water, which is solid anyway) is faced by
  * the middle of its tap box.
  */
-export function footprintCentreX(thing: Thing): number {
+export function footprintCentreX(thing: Thing, tile = TILE): number {
   const cols = thing.footprint.map((c) => c.col);
   if (cols.length === 0) return thing.tap ? thing.tap.x + thing.tap.w / 2 : 0;
-  return ((Math.min(...cols) + Math.max(...cols) + 1) * TILE) / 2;
+  return ((Math.min(...cols) + Math.max(...cols) + 1) * tile) / 2;
 }
 
 /** Whether walking up to a thing does anything. */
