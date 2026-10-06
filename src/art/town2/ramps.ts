@@ -56,6 +56,55 @@ const BASE = {
   flower: ['#ffffff', '#ffe27a', '#ff9a8a', '#e05a6a', '#a84a8a', '#6a3a7a', '#301838'],
   // The deepest dark that is not a line: a doorway, the inside of a forge.
   shade: ['#3a2a30', '#2a1c22', '#22161e', '#1c121a', '#160e16', '#120a12', '#0c060c'],
+
+  // Figures (B8, src/art/figure2/), appended so every cell above keeps its number.
+  // Skin: the approved light at step 1 and shadow at step 3, the mouth and the
+  // shadow under the jaw at 4; each tone's shadow leans warmer than its light.
+  skin: ['#fff1dc', '#f8cda4', '#ecb68e', '#e0a27c', '#b86e5c', '#86484c', '#40202e'],
+  skinpale: ['#fffaf4', '#ffe6d2', '#f6cdb6', '#eeb49c', '#c47a70', '#8e4c56', '#482030'],
+  skingolden: ['#f0c896', '#d9a06c', '#c6864f', '#b06c40', '#8a4a30', '#5e2e26', '#2e1418'],
+  skinbrown: ['#c8926a', '#ac7450', '#985e3e', '#83492e', '#683426', '#48201e', '#220e10'],
+  skindeep: ['#a26e52', '#7e4e38', '#6c3e2c', '#5a3020', '#46221a', '#301412', '#18080a'],
+  // Hair: the approved light, mid and dark at steps 2, 4 and 5. Auburn is
+  // deeper and redder than the study's, which sat on golden skin at the same
+  // value and lost the face's edge.
+  hair: ['#a07a5c', '#7c5a46', '#5a4038', '#46302e', '#33222a', '#241620', '#140a14'],
+  hairblack: ['#8a8ca8', '#6a6a84', '#4a4a60', '#3a3848', '#2a2834', '#16141c', '#0a080e'],
+  hairblonde: ['#fffbe0', '#fff0b8', '#f6dc96', '#e6c47a', '#d4aa5e', '#9c7036', '#583a20'],
+  auburn: ['#f4a070', '#d8704a', '#b8503a', '#9a3e30', '#7c3028', '#58201e', '#2c0c0e'],
+  hairgrey: ['#ffffff', '#f2eee8', '#e2dcd6', '#c8c0ba', '#ada59e', '#78706c', '#3c3640'],
+  chestnut: ['#d8906a', '#b8704a', '#9a5434', '#844428', '#6e3420', '#481e16', '#240c0c'],
+  // Brows are drawn in this and take a hair colour's ramp, at the step that shows on the skin.
+  brow: ['#a07a5c', '#7c5a46', '#5a4038', '#46302e', '#33222a', '#241620', '#140a14'],
+  // Eyes: 0-1 the whites, 2-3 the iris, 4 the lashes. Whites are set by hand at dusk.
+  eye: ['#ffffff', '#f2ece6', '#4a84cc', '#2c4c8c', '#1a1224', '#1a1224', '#1a1224'],
+  // The knight's polished plate, brighter and bluer than iron.
+  plate: ['#ffffff', '#eef1ee', '#c3cdda', '#97a3bb', '#6b7696', '#474d6e', '#242640'],
+  leather: ['#c89466', '#a06e48', '#7c5036', '#5e3a2c', '#462a28', '#301c22', '#180c14'],
+  cloth: ['#a2a4b8', '#7e8098', '#62647e', '#4c4c66', '#3a3a54', '#2a2a40', '#141426'],
+  // Bronze leans yellow-olive, away from every skin tone, duller and greener
+  // than gold; its glint is pale and cool. Set by hand at dusk, or it goes the
+  // plum-brown of skin. Hide is the cool leather it sits on.
+  bronze: ['#fbfae6', '#efe6b4', '#d2c27a', '#bba04e', '#957e3c', '#6a5830', '#2e2614'],
+  hide: ['#b8a494', '#958070', '#7c685c', '#64524a', '#52423c', '#40342e', '#201816'],
+  // Leather, the hunter's tan: yellow-leaning, kept off skin; set by hand at dusk.
+  tan: ['#e4c48a', '#c8a066', '#ae844c', '#94683a', '#76502c', '#584020', '#2a1e10'],
+  // Townsfolk's dyed wool and work linen, each kept apart from skin and from linen.
+  mossdye: ['#c4c87a', '#a0a65c', '#7e8a48', '#62703e', '#4a5634', '#323c2a', '#181e16'],
+  madder: ['#f0a090', '#d07868', '#b05a52', '#904448', '#6e3240', '#4a2234', '#24101c'],
+  ochre: ['#fff0a0', '#f0cc68', '#d8a848', '#b88638', '#90642e', '#644226', '#301c14'],
+  umber: ['#c09878', '#9c7458', '#7c5844', '#624436', '#4a322c', '#322226', '#180e12'],
+  indigo: ['#a8b8dc', '#7a90c0', '#5a70a4', '#465888', '#36446c', '#262e50', '#121628'],
+  // A work cream for aprons and shirts, a step duller than the study's.
+  cream: ['#fbf4e4', '#ece0c8', '#dccdb0', '#c4b294', '#a08e7a', '#74646a', '#382e38'],
+  violet: ['#d4c4e2', '#ac94c8', '#8e76ac', '#765e92', '#5c4676', '#403054', '#1e1430'],
+  plum: ['#e8a8c8', '#c47aa6', '#a2588c', '#844276', '#66305e', '#462044', '#200e22'],
+  midnight: ['#aca4d8', '#8478c0', '#6a5ea4', '#544888', '#40366c', '#2c2450', '#140e2c'],
+  felt: ['#8a8698', '#5e5a6c', '#46424f', '#34303c', '#26222c', '#1a1620', '#0c0a10'],
+  // Shells are cream and rose, never peach; set by hand at dusk like the whites of eyes.
+  shell: ['#ffffff', '#f6f2ec', '#ead8dc', '#d8a2b4', '#b07e90', '#80586a', '#402834'],
+  pinewood: ['#fff0b0', '#f0d08a', '#dab06a', '#c4964e', '#9a703a', '#6c4c2c', '#342414'],
+  willow: ['#fbf8ee', '#e4ddcc', '#c8c0ac', '#aca390', '#8a8270', '#625c50', '#302c28'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Mat = keyof typeof BASE;
@@ -82,6 +131,14 @@ const DUSK_SET: Partial<Record<Mat, readonly (string | null)[]>> = {
   sea: ['#e8b8a0', '#7a98c0', '#5a7eac', '#47689c', '#385688', '#2b4270', '#141c3a'],
   gold: ['#ffefb0', '#ffcf5a', null, null, null, null, null],
   sail: ['#e6d4d0', '#cdb8c0', null, null, null, null, null],
+  // Figures (B8): the whites of eyes and the knight's polish still catch the
+  // last light; bronze, tan and shells are set by hand at every step, as in
+  // the current palette, or they go the plum-brown of skin.
+  eye: ['#f4ecf4', '#ddd0de', null, null, null, null, null],
+  plate: ['#f2ecf8', '#d4d0e2', null, null, null, null, null],
+  bronze: ['#f2ecd8', '#e2d6a2', '#bcad6c', '#94804a', '#76663a', '#544a2e', '#26200f'],
+  tan: ['#c8b07c', '#a88c5a', '#8e7046', '#745832', '#5c4426', '#463a24', '#201a0e'],
+  shell: ['#f6eef2', '#ece4e6', '#d4c4cc', '#a07a8c', '#84607a', '#604458', '#30202a'],
 };
 
 export interface Palette2 {

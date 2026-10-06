@@ -34,6 +34,7 @@ import { townPicture } from './town';
 import { FOE_IDS } from './grottoCast';
 import { PROP_IDS } from './grottoProps';
 import { grottoCastPlate, grottoPropsPlate, grottoRoomPlate, grottoTilesPlate } from './grottoRoom';
+import { figure2Gallery } from './figure2/gallery';
 import { town2Gallery } from './town2/gallery2';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
@@ -166,6 +167,20 @@ export function artGallery(): HTMLElement {
     town2.section.scrollIntoView({ block: 'start' });
   });
   page.append(jump);
+
+  // The figures at the C scale, likewise: a button straight to them.
+  const figures2 = figure2Gallery();
+  const jumpFigures = el(
+    'button',
+    'btn primary',
+    'See the new figures at the finer scale',
+  ) as HTMLButtonElement;
+  jumpFigures.type = 'button';
+  jumpFigures.addEventListener('click', () => {
+    figures2.draw();
+    figures2.section.scrollIntoView({ block: 'start' });
+  });
+  page.append(jumpFigures);
 
   // The grotto first: the newest art, judged where it will be seen, at dusk.
   const room = grottoRoomPlate();
@@ -325,6 +340,7 @@ export function artGallery(): HTMLElement {
       1,
     ),
     town2.section,
+    figures2.section,
   );
 
   const folk = townsfolkPlate();
