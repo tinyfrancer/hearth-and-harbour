@@ -5,7 +5,11 @@ import type { GameState } from '../core/state';
 import { wornLines } from './bountyScreen';
 import { button, h, titled } from './dom';
 import { formatNumber } from './format';
+import { face } from './face';
 import type { View } from './view';
+
+/** Who keeps the store, by the art's face id: the town's trader. */
+const KEEPER = { id: 'trader', name: 'Trader' };
 
 export interface StoreActions {
   /** Back to the bank. */
@@ -95,7 +99,17 @@ export function storeView(state: GameState, content: Content, actions: StoreActi
     el: h('div', { class: 'stack groups', attrs: { 'data-store': '' } }, [
       button('‹ Bank', actions.back, 'back'),
       h('section', { class: 'panel stack tight' }, [
-        h('div', { class: 'card-head purse' }, [h('h2', { text: 'The general store' }), purse]),
+        // The trader in town keeps the store (and the bank), so it is her face behind the counter.
+        h('div', { class: 'foe-head' }, [
+          face(KEEPER, 'small'),
+          h('div', { class: 'stack tight monster-text' }, [
+            h('h2', { text: 'The general store' }),
+            h('p', { class: 'purse purse-line' }, [
+              h('span', { class: 'muted', text: 'Your purse' }),
+              purse,
+            ]),
+          ]),
+        ]),
         h('p', {
           class: 'small muted',
           text: 'Buys anything at what it is worth: sell from the bank. Sells what a beginner needs, dear, and a few things worth saving for.',

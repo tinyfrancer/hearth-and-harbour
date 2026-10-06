@@ -74,9 +74,13 @@ describe('the Combat section', () => {
     const rat = q('[data-monster="dock_rat"]');
     expect(rat.textContent).toContain('Level 1');
     expect(rat.querySelector('.drops')!.textContent).toBe('Drops: ?, ?, ?');
-    // A drawn face shows; a monster with none yet gets a framed initial.
-    expect(rat.querySelector('.portrait:not(.blank) .portrait-art')).not.toBeNull();
-    expect(q('[data-monster="goblin_poacher"] .portrait.blank').textContent).toBe('G');
+    // Every monster's face comes from the art's C-scale door, the bounty-only ones too
+    // (until wave 11 the goblin's frame held a blank "G").
+    for (const card of root.querySelectorAll('[data-monster]')) {
+      expect(card.querySelector('.portrait:not(.blank) .portrait2-art'), card.id).not.toBeNull();
+    }
+    expect(q('[data-monster="goblin_poacher"] .portrait2-art')).not.toBeNull();
+    expect(root.querySelector('[data-monster] .portrait.blank')).toBeNull();
   });
 
   it("lists the grotto's cast after the areas: who has been beaten there, and a ? for the rest", () => {
@@ -93,11 +97,36 @@ describe('the Combat section', () => {
     expect(cast.map((el) => el.dataset.cast)).toEqual(
       CONTENT.dungeons!.brinebeards_grotto!.cast!.map((foe) => foe.id),
     );
-    expect(q('[data-cast="deckhand"]').textContent).toBe('DeckhandKilled 23');
-    expect(q('[data-cast="deckhand"] .portrait:not(.blank)')).not.toBeNull();
+    // Once beaten, as a table monster is shown: level, numbers, drops (by name once held), kills.
+    const deckhand = CONTENT.dungeons!.brinebeards_grotto!.cast!.find((f) => f.id === 'deckhand')!;
+    expect(q('[data-cast="deckhand"] h2').textContent).toBe('Deckhand');
+    expect(q('[data-cast="deckhand"] .level').textContent).toBe(`Level ${deckhand.level}`);
+    expect(q('[data-cast="deckhand"]').textContent).toContain(
+      `${deckhand.hp} hit points · hits up to ${deckhand.maxHit}`,
+    );
+    expect(q('[data-cast="deckhand"] .drops').textContent).toBe('Drops: ?, ?, ?');
+    expect(q('[data-cast="deckhand"]').textContent).toContain('Killed 23');
+    expect(q('[data-cast="deckhand"] .portrait:not(.blank) .portrait2-art')).not.toBeNull();
+    // The dungeon's line gives the range of levels inside, naming no one.
+    expect(grotto.querySelector('.small.muted')!.textContent).toContain('levels 14 to 22');
     expect(q('[data-cast="brinebeard"]').textContent).toContain('Killed 1');
     expect(q('[data-cast="giant_crab"]').textContent).toBe('??Not beaten yet');
     expect(q('[data-cast="giant_crab"]').classList).toContain('unmet');
+  });
+
+  it("names a grotto foe's drops once they are in the collection log, and ? until then", () => {
+    playing({
+      bestiary: { deckhand: { kills: 4, seen: [] }, brinebeard: { kills: 1, seen: [] } },
+      collection: ['doubloon', 'pirate_cutlass', 'spyglass'],
+    });
+    q<HTMLButtonElement>('[data-combat]').click();
+    expect(q('[data-cast="deckhand"] .drops').textContent).toBe(
+      'Drops: Doubloon, Pirate cutlass, ?',
+    );
+    // The captain's one-thing-or-the-other shows both, each found or not.
+    expect(q('[data-cast="brinebeard"] .drops').textContent).toBe(
+      'Drops: Doubloon, ?, ?, ?, Spyglass',
+    );
   });
 
   it('fills the food slot and moves the line to eat at', () => {

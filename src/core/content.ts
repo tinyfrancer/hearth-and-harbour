@@ -239,16 +239,26 @@ export interface DungeonDef {
   loot: readonly string[];
   /**
    * Who is fought in it, by the ids its scene reports kills by, in the order
-   * they are listed. Their numbers live with the scene; the idle rules need
-   * only to know them, so that their kills are kept like any monster's.
+   * they are listed, with their numbers. Their kills are kept like any
+   * monster's, and the bestiary shows their level and drops; they are not
+   * table monsters, so nothing idle fights them or posts a bounty on them.
    */
   cast?: readonly DungeonFoe[];
 }
 
-/** One of a dungeon's cast, as far as the idle rules know it. */
-export interface DungeonFoe {
-  id: string;
-  name: string;
+/** One of several things, or none: rolled once a kill, one chance in `oneIn` that it is any. */
+export interface PickDrop {
+  readonly items: readonly string[];
+  readonly oneIn: number;
+}
+
+/**
+ * One of a dungeon's cast: a monster's row in the tables' own shape (so the
+ * combat formulas work on it unchanged), less what only the idle game uses
+ * (an area, a bounty), plus a drop that is one thing or another.
+ */
+export interface DungeonFoe extends Omit<MonsterDef, 'area' | 'bounty' | 'bountyOnly'> {
+  readonly pick?: PickDrop;
 }
 
 /**

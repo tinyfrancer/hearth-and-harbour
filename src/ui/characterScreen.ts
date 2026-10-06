@@ -1,5 +1,5 @@
 import type { Look as DrawnLook } from '../art/character';
-import { characterCanvas2 } from '../art/character2';
+import { FIGURE2_W } from '../art/character2';
 import { itemIcon } from '../art/icons';
 import { type Content, type Slot } from '../core/content';
 import { equipmentTotals, unmetRequirement, wearablesFor, wornItemIds } from '../core/equipment';
@@ -8,6 +8,7 @@ import { button, h, titled } from './dom';
 import { formatNumber } from './format';
 import { SLOT_NAMES, gearText, statName } from './gear';
 import { recordsEntry } from './logScreen';
+import { heroFigure } from './figure';
 import { fullLook, lookPicker } from './look';
 import type { View } from './view';
 
@@ -24,9 +25,21 @@ export interface SheetActions {
   records(page: 'log' | 'achievements'): void;
 }
 
-/** The character drawn large (the C-scale figure, at twice the game's scale), wearing what is worn. */
-function drawn(state: GameState, look = fullLook(state.look)): HTMLCanvasElement {
-  return characterCanvas2(look, wornItemIds(state), 'sheet');
+/**
+ * What the doll leaves the figure, across, on a screen `width` CSS pixels
+ * wide: the screen's and the sheet's padding and borders, the two columns of
+ * 56-pixel squares and their gaps, and the frame's own border.
+ */
+const DOLL_TAKES = 32 + 4 + 20 + 112 + 16 + 4;
+
+/**
+ * CSS pixels to an art pixel for the figure on the sheet: three wherever the
+ * doll leaves room for him whole (every phone from 356 wide), so he fills his
+ * frame from the floor to just under its top; two on anything narrower.
+ */
+export function sheetScale(width = typeof innerWidth === 'number' ? innerWidth : 390): number {
+  const room = Math.min(width, 480) - DOLL_TAKES;
+  return Math.max(2, Math.min(3, Math.floor(room / FIGURE2_W)));
 }
 
 /** The three totals combat will read, named for the style the weapon fights in. */
@@ -114,9 +127,37 @@ const DOLL: readonly (readonly Slot[])[] = [
 const slotWord = (slot: Slot): string => (slot === 'ammo' ? 'Ammo' : SLOT_NAMES[slot]);
 
 /**
- * The Character tab: the character drawn large in what they wear, with the
- * eight slots around them like a paper doll (tap one to choose from the bank
- * or take it off), the three totals, and a way to change the look.
+ * What is worn, by name, at a glance: two columns under the doll in the
+ * doll's own order (the body's slots on the left, what is held and carried
+ * on the right), a line each, so nothing needs a tap to be read. An empty
+ * slot says which it is, dimmed. Screen readers have all this from the
+ * squares already, so it is hidden from them.
+ */
+function wornList(state: GameState, content: Content): HTMLElement {
+  const column = (slots: readonly Slot[]): HTMLElement =>
+    h(
+      'ul',
+      { class: 'worn-list' },
+      slots.map((slot) => {
+        const worn = state.equipment[slot];
+        return h('li', {
+          class: worn ? '' : 'empty',
+          text: worn ? (content.items[worn.item]?.name ?? worn.item) : `${slotWord(slot)}: nothing`,
+          attrs: { 'data-worn-slot': slot },
+        });
+      }),
+    );
+  return h('div', { class: 'worn-lists', attrs: { 'aria-hidden': 'true' } }, DOLL.map(column));
+}
+
+/**
+ * The Character tab: the character drawn large in what they wear, breathing,
+ * with the eight slots around them like a paper doll and what is worn named
+ * beneath. Tap a slot and its choices open right there, under the doll, in
+ * place of the names. Then the three totals and a way to change the look.
+ *
+ * Built once; each frame only the breath moves, and the figure's canvas is
+ * redrawn only when the breath changes.
  */
 export function characterView(
   state: GameState,
@@ -124,8 +165,12 @@ export function characterView(
   panel: SheetPanel,
   actions: SheetActions,
 ): View {
-  const updates: ((state: GameState) => void)[] = [];
-  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [drawn(state)]);
+  const updates: ((state: GameState, now?: number) => void)[] = [];
+  const figure = heroFigure(fullLook(state.look), wornItemIds(state), sheetScale());
+  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [figure.el]);
+  updates.push((_, now) => {
+    if (now !== undefined) figure.breathe(now);
+  });
 
   const square = (slot: Slot): HTMLElement => {
     const worn = state.equipment[slot];
@@ -163,6 +208,9 @@ export function characterView(
   };
 
   const lookOpen = panel === 'look';
+  // An open slot's choices come straight under the doll, where the thumb that opened it is.
+  const picker =
+    panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
   const head = h('section', { class: 'panel stack sheet' }, [
     h('h2', { class: 'sheet-name', text: state.name }),
     h('div', { class: 'doll' }, [
@@ -170,29 +218,27 @@ export function characterView(
       stage,
       h('div', { class: 'doll-side' }, DOLL[1]!.map(square)),
     ]),
+    picker ?? wornList(state, content),
     totals(state, content),
     lookOpen
-      ? h('div', { class: 'stack tight' }, [
+      ? h('div', { class: 'stack tight', attrs: { 'data-look-picker': '' } }, [
           lookPicker(fullLook(state.look), (look) => {
             actions.setLook(look);
-            stage.replaceChildren(drawn(state, look));
+            // Only the figure changes, on the same canvas: the steppers stay under the thumb.
+            figure.dress(look, wornItemIds(state));
           }),
           button('Done', () => actions.open(null), 'primary'),
         ])
       : button('Change look', () => actions.open('look')),
   ]);
 
-  const picker =
-    panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
-
   const records = recordsEntry(state, content, actions.records);
   updates.push(records.update!);
-  const update = (now: GameState): void => updates.forEach((apply) => apply(now));
+  const update = (now: GameState, ms?: number): void => updates.forEach((apply) => apply(now, ms));
   update(state);
   return {
     el: h('div', { class: 'stack' }, [
       head,
-      picker,
       h('h2', { class: 'group-heading', text: 'Records' }),
       records.el,
     ]),

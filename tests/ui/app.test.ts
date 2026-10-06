@@ -742,10 +742,12 @@ describe('the app shell', () => {
           continue;
         }
         const before = q('.create canvas');
+        const draws = Number(before.dataset.draws);
         q<HTMLButtonElement>(`[data-part="${part}"] [aria-label^="Next"]`).click();
         expect(q(`[data-part="${part}"] .look-choice`).textContent).toBe(choices[1]!.name);
-        // Drawn again for the new choice.
-        expect(q('.create canvas')).not.toBe(before);
+        // Drawn again for the new choice, on the same canvas.
+        expect(q('.create canvas')).toBe(before);
+        expect(Number(before.dataset.draws)).toBe(draws + 1);
         q<HTMLButtonElement>(`[data-part="${part}"] [aria-label^="Previous"]`).click();
         q<HTMLButtonElement>(`[data-part="${part}"] [aria-label^="Previous"]`).click();
         expect(q(`[data-part="${part}"] .look-choice`).textContent).toBe(choices.at(-1)!.name);

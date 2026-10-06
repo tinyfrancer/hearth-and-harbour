@@ -25,7 +25,7 @@ import {
   stopFight,
   unloadFood,
 } from '../core/combat';
-import { equip, unequip } from '../core/equipment';
+import { equip, unequip, wornItemIds } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
 import { settleRun } from '../core/run';
@@ -40,9 +40,11 @@ import { bankView } from './bankScreen';
 import { bountiesView, type BountyActions } from './bountyScreen';
 import { characterView, type SheetPanel } from './characterScreen';
 import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
-import { createScreen } from './createScreen';
+import { createScreen, type CreateScreen } from './createScreen';
 import { achievementsView, collectionView } from './logScreen';
 import { button, h } from './dom';
+import { heroFace } from './face';
+import { fullLook } from './look';
 import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
 import { skillListView, skillPageView } from './skillsScreen';
@@ -104,6 +106,35 @@ function finalTally(before: GameState, after: GameState): Fight {
   };
 }
 
+/** Room kept between something brought into view and the screen's edge, in CSS pixels. */
+const VIEW_MARGIN = 8;
+
+/**
+ * How far to scroll `screen` down so `el` can be seen: its foot inside the
+ * screen if it fits, else its top at the screen's top; never up, and never
+ * further than that, so what the thumb tapped moves no more than it must.
+ */
+export function scrollToShow(screen: DOMRect, el: DOMRect): number {
+  const below = el.bottom + VIEW_MARGIN - screen.bottom;
+  if (below <= 0) return 0;
+  return Math.max(0, Math.min(below, el.top - VIEW_MARGIN - screen.top));
+}
+
+/** Scrolls the screen to show `el`, gliding unless the player asked for less motion. */
+function bringIntoView(screen: HTMLElement, el: HTMLElement): void {
+  const by = scrollToShow(screen.getBoundingClientRect(), el.getBoundingClientRect());
+  if (by <= 0) return;
+  const top = screen.scrollTop + by;
+  const still =
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // jsdom has no scrollTo; there it is set outright, as it is with less motion.
+  if (!still && typeof screen.scrollTo === 'function') {
+    screen.scrollTo({ top, behavior: 'smooth' });
+  } else {
+    screen.scrollTop = top;
+  }
+}
+
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
 export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): App {
   let state: GameState | null = saves.load();
@@ -129,6 +160,17 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   /** Which action headings are open on each skill's page, for as long as the app runs. */
   const openGroups = new Map<string, Set<string>>();
   let view: View | null = null;
+  /** The character creator, while there is no character. */
+  let creator: CreateScreen | null = null;
+  /** The header's face, kept while the look and what is worn stay the same. */
+  let face: { key: string; el: HTMLElement } | null = null;
+  const headerFace = (game: GameState): HTMLElement => {
+    const look = fullLook(game.look);
+    const worn = wornItemIds(game);
+    const key = JSON.stringify([look, worn]);
+    if (face?.key !== key) face = { key, el: heroFace(look, worn, 'mini') };
+    return face.el;
+  };
   let lastTick = now();
   let lastSave = now();
   /** The away report on screen, until it is dismissed, and the achievements it earned. */
@@ -226,6 +268,11 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   const act = (next: GameState): void => {
     state = next;
     save();
+    redrawInPlace();
+  };
+
+  /** Redraws the screen, kept scrolled where it was. */
+  const redrawInPlace = (): void => {
     const top = root.querySelector('#screen')?.scrollTop ?? 0;
     render();
     const screen = root.querySelector('#screen');
@@ -545,7 +592,14 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         },
         open: (panel) => {
           sheetPanel = panel;
-          render();
+          // Opened where it was tapped: the sheet stays put, then moves just far
+          // enough for what opened to be seen.
+          redrawInPlace();
+          const opened = root.querySelector<HTMLElement>(
+            panel === 'look' ? '[data-look-picker]' : '[data-picker]',
+          );
+          const screen = root.querySelector<HTMLElement>('#screen');
+          if (opened && screen) bringIntoView(screen, opened);
         },
         equip: (itemId) => {
           sheetPanel = null;
@@ -612,20 +666,39 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     }
     if (!state) {
       view = null;
-      root.replaceChildren(
-        createScreen({
-          onCreate: (name, look) => adopt(newGame(name, now(), look)),
-          onImport: adopt,
-        }),
-      );
+      creator = createScreen({
+        onCreate: (name, look) => adopt(newGame(name, now(), look)),
+        onImport: adopt,
+      });
+      root.replaceChildren(creator.el);
       return;
     }
+    creator = null;
     const current = TABS.find((entry) => entry.id === tab)!;
     view = buildView(state);
     root.replaceChildren(
       h('header', { class: 'topbar' }, [
         h('h1', { text: current.label }),
         h('span', { class: 'who', text: state.name }),
+        // Their own face beside their name, in what they wear: a tap opens the sheet.
+        // Not in town, where the hero himself is on screen below it (and the
+        // scene's tests take the page's first canvas to be the town's).
+        tab !== 'town' &&
+          h(
+            'button',
+            {
+              class: 'who-face',
+              attrs: { type: 'button', 'aria-label': `${state.name}: the character sheet` },
+              on: {
+                click: () => {
+                  tab = 'character';
+                  records = null;
+                  render();
+                },
+              },
+            },
+            [headerFace(state)],
+          ),
       ]),
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
       awards,
@@ -687,18 +760,22 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     const time = now();
     const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
-    if (!state) return;
+    if (!state) {
+      // Nothing to play yet, but the figure being dressed breathes.
+      creator?.breathe(time);
+      return;
+    }
     if (idlePaused) {
       // A dungeon run: the idle task waits. Saving keeps `savedAt` moving, so
       // the time spent here is never mistaken for time away and paid for.
       if (time - lastSave >= AUTOSAVE_MS) save();
-      view?.update?.(state);
+      view?.update?.(state, time);
       return;
     }
     if (!busy(state) && !state.health) {
       // Nothing is passing in the game, but a screen may still be moving (a
       // scene's walker): every view hears every frame.
-      view?.update?.(state);
+      view?.update?.(state, time);
       return;
     }
     if (elapsed >= AWAY_MS) {
@@ -760,7 +837,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     const firstOfSomething = Object.keys(state.bank).length !== Object.keys(before.bank).length;
     if (time - lastSave >= AUTOSAVE_MS) save();
     if (redraw || (tab === 'bank' && firstOfSomething)) render();
-    else view?.update?.(state);
+    else view?.update?.(state, time);
   };
 
   // A game that was closed: everything since its last save is time away.

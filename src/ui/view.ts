@@ -8,11 +8,14 @@ import type { TabId } from './tabs';
  * never torn out from under a thumb.
  *
  * `update` is called once a frame for as long as the view is on screen,
- * whether or not anything in the game is happening.
+ * whether or not anything in the game is happening. `now` is the app's own
+ * clock for that frame (the same `now()` the game is paid by), for what moves
+ * on screen by time alone, such as the hero breathing; a view never reads a
+ * clock of its own. It may be left out (a view updated outside a frame).
  */
 export interface View {
   el: HTMLElement;
-  update?(state: GameState): void;
+  update?(state: GameState, now?: number): void;
 }
 
 /**

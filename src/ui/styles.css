@@ -131,11 +131,14 @@ h2 {
 
 .topbar {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
   border-bottom: var(--px) solid var(--gold);
+}
+
+.topbar h1 {
+  flex: 1;
 }
 
 .who {
@@ -143,6 +146,20 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The hero's face beside their name: a button to the sheet, no chrome but its frame. */
+.who-face {
+  flex: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.who-face:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
 }
 
 .screen {
@@ -497,6 +514,10 @@ button.card:active {
   color: var(--gold-bright);
 }
 
+.purse-line {
+  gap: 8px;
+}
+
 .item-card {
   border-color: var(--gold-bright);
 }
@@ -644,19 +665,21 @@ button.card:active {
 
 /*
  * The character, drawn: standing on a lit floor in a dark room, framed like a
- * portrait. The canvas keeps the size the art gave it (whole device pixels);
- * the room grows around it. The soles are 2 CSS pixels above the canvas's
- * foot, so the canvas sits into the floor and they stand on it, not on its edge.
+ * portrait. The canvas keeps the size it was drawn at (whole device pixels
+ * to an art pixel); the room is no taller than the doll beside it, so he
+ * fills it from the floor to just under its top. His soles are two art
+ * pixels above the canvas's foot, a little in front of the floor's back edge,
+ * so he stands on the floor rather than on its line.
  */
 .figure {
-  --floor: 44px;
+  --floor: 34px;
   position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   flex: none;
   min-width: 0;
-  padding: 16px 0 calc(var(--floor) - 14px);
+  padding: 0 0 14px;
   background: linear-gradient(
     to bottom,
     var(--backdrop) calc(100% - var(--floor)),
@@ -667,27 +690,80 @@ button.card:active {
   overflow: hidden;
 }
 
-/* A shadow under the feet, on the floor. */
+/* A shadow under the feet, on the floor, about as wide as his stance. */
 .figure::before {
   content: '';
   position: absolute;
-  left: calc(50% - 34px);
-  bottom: calc(var(--floor) - 17px);
-  width: 68px;
-  height: 12px;
+  left: calc(50% - 44px);
+  bottom: 12px;
+  width: 88px;
+  height: 14px;
   border-radius: 50%;
   background: var(--backdrop);
 }
 
 .figure > canvas {
   position: relative;
+  flex: none;
 }
 
-.create .figure {
-  padding-top: 20px;
+/*
+ * The creator: the character is the middle of the screen, in a portrait
+ * frame sized to him rather than the screen's width, and the choices right
+ * under him at the same width, so each step shows on him where the thumb is.
+ */
+.create-form {
+  align-items: center;
+}
+
+.create-form > * {
+  width: min(100%, 320px);
+}
+
+.create-form > h2 {
+  text-align: center;
+}
+
+/* As wide as he is and a little room either side, never the screen's width. */
+.create-form > .figure {
+  width: auto;
+  max-width: 100%;
+  padding: 8px 36px 14px;
+}
+
+/* A problem with the name takes no room until there is one. */
+.create .problem:empty {
+  display: none;
+}
+
+/* A short phone: the title gives up some of its air so Begin is on the first screen. */
+@media (max-height: 760px) {
+  .create .title {
+    padding-top: 8px;
+  }
+
+  .create .look-picker {
+    gap: 4px;
+  }
+}
+
+.create .figure::before {
+  left: calc(50% - 56px);
+  width: 112px;
+  bottom: 10px;
+  height: 16px;
+}
+
+.create .title p {
+  text-wrap: balance;
 }
 
 /* The sheet: the name, then the character with the eight slots down either side. */
+.sheet {
+  /* A little narrower at the sides than other panels, so the figure has room at three to one. */
+  padding: 14px 10px;
+}
+
 .sheet-name {
   text-align: center;
 }
@@ -695,7 +771,47 @@ button.card:active {
 .doll {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr) 56px;
-  gap: 10px;
+  gap: 8px;
+}
+
+/*
+ * What is worn, by name, under the doll: two columns in the doll's own
+ * order, a line each; an empty slot's line dim.
+ */
+.worn-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: var(--px) solid var(--line);
+}
+
+.worn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.worn-list > li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The right-hand names line up under the right-hand squares. */
+.worn-list + .worn-list {
+  text-align: right;
+}
+
+.worn-list > .empty {
+  color: var(--text-muted);
 }
 
 .doll-side {
@@ -795,6 +911,7 @@ button.card:active {
 
 .slot-picker {
   border-color: var(--gold-bright);
+  background: var(--panel);
 }
 
 .slot-picker .worn {
@@ -871,6 +988,22 @@ button.card:active {
   height: 100px;
 }
 
+/*
+ * The header's: 48 square, a thumb's tap. The art's smallest face is 48 CSS
+ * pixels on a 3x phone, so the frame's border takes two from each side and
+ * two more off the foot; set to the top, all it loses is the disc's edge and
+ * the shoulders, never anything inside the hero's safe box
+ * (`HERO_PORTRAIT2_SAFE`, held by tests/ui/faces.test.ts).
+ */
+.portrait.mini {
+  width: 48px;
+  height: 48px;
+}
+
+.portrait.mini .portrait2-art {
+  align-items: flex-start;
+}
+
 .portrait.blank > span {
   display: flex;
   align-items: center;
@@ -912,6 +1045,11 @@ button.card:active {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+/* The hero's side of the fight: their face on the right, opposite the foe's on the left. */
+.you-head {
+  justify-content: space-between;
 }
 
 .bar.health .bar-fill {

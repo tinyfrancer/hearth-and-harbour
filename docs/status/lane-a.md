@@ -1,7 +1,8 @@
 # Lane A: idle rules
 
-**Next: the Milestone A review with Cody** (`docs/lanes.md`, "The order of work"). Nothing of
-lane A's is waiting on another lane; the next building session is whatever the review decides.
+**Next: Cody's review of wave 11's menus** (the sheet, the creator, the faces), then the
+Milestone A review (`docs/lanes.md`, "The order of work"). Ready to build when scheduled: the
+run's save (designed under the notes, "A run that survives a reload"), with lane C.
 
 ## Done
 
@@ -431,8 +432,84 @@ lane A's is waiting on another lane; the next building session is whatever the r
   - The tab bar still shows the old glyphs: `tabIcon` in `src/art/icons.ts` returns null for
     every tab.
 
+- Wave 11: the sheet and creator polished, the C-scale faces in the menus, the grotto's numbers
+  in the bestiary (PR in this branch, `lane-a/w11-menus`). **No save change** (still 8). Carries
+  over the menu half of the superseded PR #41 by hand, reworked onto current `main`.
+  - **The breathing figure** (`src/ui/figure.ts`, `heroFigure`): one canvas, made once, at a
+    whole number of device pixels to an art pixel (`deviceScale`: 3 CSS pixels is 9 at 3x, 6 at
+    2x, 8 at 2.625x), onto which lane B's `characterIdle2(look, worn, 'day', frame)` is stamped
+    with smoothing off. `breathe(ms)` draws only when the frame (`breathAt`, every
+    `IDLE2_FRAME_MS`) changes; `dress(look, worn)` redraws the same canvas. **Time is passed
+    in**: `View.update(state, now?)` now takes the app's own `now()` for the frame (optional, so
+    lane C's views and calls are unchanged), and the creator, which has no state yet, is
+    breathed by `tick` too. Nothing reads a clock of its own.
+  - **Character sheet** (`characterScreen.ts`): the hero is three CSS pixels an art pixel
+    wherever the doll leaves him room (`sheetScale`: every phone from 356 wide; two below), so
+    he fills his room from the floor to just under its top; the sheet's side padding went from
+    14 to 10 and the doll's gap from 10 to 8 to make that room at 360. Under the doll, **what is
+    worn is named** in two columns in the doll's order (empty slots dimmed, "Neck: nothing";
+    hidden from screen readers, which hear it from the squares). **An opened slot's choices
+    open in place of the names**, straight under the doll, and the screen stays where the player
+    had it, then glides just far enough to show them (`scrollToShow` in `app.ts`: the foot into
+    view if it fits, else the top to the screen's top; never up; no glide with reduced motion).
+    "Change look" does the same for the steppers. Only the figure's canvas changes per frame.
+  - **Creator** (`createScreen.ts`): the hero is four CSS pixels an art pixel on a tall phone and
+    three on a 360 × 740 one (`creatorScale`), in a frame sized to him (36 px either side) and
+    centred, with the steppers, name and Begin under him at one width (320 at most); on a short
+    phone the title gives up some air so Begin is on the first screen. He breathes. The tagline
+    no longer leaves a word alone on its last line.
+  - **Faces** (`src/ui/face.ts`): every face comes from `portrait2(id)` now, in frames the sizes
+    the art draws at: 148 (the fight screen; the 144 canvas), 100 (lists; 96) and a new 48
+    header frame. Where: every monster in the Combat lists (the bounty-only goblin and wyrm have
+    faces now), the grotto's cast once beaten, the fight screen and the fight-over panel, the
+    bounty held, and **the general store's keeper** (the trader's face, `trader`, beside the
+    store's name and the purse). The hero's own face (`heroPortrait2(look, worn)`, in the hat and
+    clothes worn): **opposite the foe on the fight screen** (the foe's face on the left of its
+    panel, the hero's on the right of theirs, with "Melee · max hit N"), and **in the header
+    beside the name** on every tab but Town (where the hero walks on screen), a 48-pixel button
+    to the sheet, kept between redraws until the look or the outfit changes. The header frame
+    crops 2 CSS pixels a side and 4 at the foot of the 48-pixel face, outside
+    `HERO_PORTRAIT2_SAFE` (a test holds it). A thieving mark shows `portrait2(mark.id)` beside its
+    name the moment art draws one, and nothing until then (`faceIfDrawn`): no mark has one.
+    Nothing depends on a face's pixels: lane B is redrawing them behind the same doors.
+  - **The grotto's numbers are data now** (`src/data/dungeons.ts`): `DungeonFoe` is a monster's
+    row less its area and bounty, plus `pick` (one thing or another; `PickDrop` moved to
+    `src/core/content.ts`). The five rows are copied exactly from lane C's `src/scene/cast.ts`,
+    which the scene still fights by, and `tests/data/content.test.ts` holds every field of the two
+    equal (and every drop a real item, weakest first). Nothing lane C reads changed. The
+    bestiary shows a beaten foe as it shows a table monster: level, hit points and max hit,
+    drops (named once in the collection log, since a run does not say who dropped what; "?"
+    until then), kills; the dungeon's line gives its range of levels. Unmet foes stay a "?".
+  - The total-kill achievement question from #41 needs no change: `first_kill` counts grotto
+    kills already (it sums the bestiary), monster-named ones count that monster only. Not
+    re-pinned here; #41's test for it was not carried over.
+  - **Checked in Chromium** at 390 × 844 and 360 × 740 at 3x and 412 × 915 at 2.625x, touch:
+    before and after in `/home/claude/lane-shots/w11-a/before/` and `after/` (the sheet in linen
+    and in iron, a slot open, the creator, the Combat list and the grotto, the fight, the
+    bounty, the store, Thieving). **Crispness**: a screenshot of the figure's box against its
+    own canvas at 390@3, 360@3, 360@2 and 412@2.625, creator and sheet: every pixel is one of
+    the art's colours or the room's (about 200 of 145,000 to 580,000 are the shadow's soft
+    edge), so nothing is resampled. Not checked in Safari.
+  - **Tests**: `tests/ui/figure.test.ts` rewritten (scales, the breath on the same canvas, draws
+    only on a change, the worn names, choices under the doll, the scroll into view at 360 ×
+    740, `scrollToShow`'s rules, the 2.625 sizes); `tests/ui/faces.test.ts` new (the doors are
+    wrapped to write their id on each face: lists, bounty, fight face to face, store keeper,
+    header, its crop against the safe box, marks); `tests/ui/combat.test.ts` gained the grotto's
+    numbers and drops. **Expectations changed on purpose**: the goblin's blank "G" in
+    `combat.test.ts` is now a face from `portrait2` (every monster has one); the deckhand's card
+    text is no longer just name and kills; `app.test.ts`'s look test expects the same canvas
+    redrawn, not a new one; `tests/core/run.test.ts`'s test cast row is a full row;
+    `content.test.ts` checks faces against `PORTRAIT2_IDS` instead of the old `portrait`.
+    `tests/data/pacing.test.ts` is untouched. What jsdom cannot check (it lays nothing out and
+    draws no pixels): the figure filling its frame, the names fitting at 360, the glide, the
+    crop's look; those are the screenshots.
+
 ## Deferred
 
+- Wave 11: **saving a dungeon run** is designed below ("A run that survives a reload"), not
+  built: it needs the scene to hand a run over and take it back, which is lane C's half, and a
+  save field with nothing yet to fill it would only be churn. Not built: faces for the thieving
+  marks (art has none; the cards take them when it does).
 - Wave 9: nothing from the brief. Left alone on purpose: the grotto's cast shows no level or
   drops in the bestiary (their numbers are lane C's, in `src/scene/cast.ts`, and are not
   duplicated here), and the cast is not fightable idle (that is the "dungeon made idle-able"
@@ -444,12 +521,27 @@ lane A's is waiting on another lane; the next building session is whatever the r
 
 ## Needs from another lane
 
-- **For lane B:** the five tab icons (`tabIcon` still returns null; the bar picks them up the
-  moment it gives them). `velvet_cap` has a C-scale worn layer but no item icon, so its slot
-  square shows its name.
-- **For lane C:** the grotto's cast now also has rows in `src/data/dungeons.ts` (id and name
-  only, for the bestiary); if `src/scene/cast.ts` renames or adds one, change both, or
-  `tests/data/content.test.ts` says so. Grotto kills reported through `settleRun` now count.
+- **For lane C (wave 11), the grotto's numbers.** `src/data/dungeons.ts` now holds the cast's
+  full rows (`DungeonDef.cast: DungeonFoe[]`, the `MonsterDef` shape less `area`, `bounty` and
+  `bountyOnly`, plus `pick`; `PickDrop` is in `src/core/content.ts`). Proposed: `cast.ts` stops
+  keeping its own table and reads them, e.g. `GROTTO_CAST = Object.fromEntries(
+DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID }]))`, with
+  `CastDef`/`PickDrop` from core; then a number is changed in one place, and the drift test in
+  `tests/data/content.test.ts` becomes trivially true (lane A deletes it after). Until then, a
+  change to a cast row in `cast.ts` must be made in `dungeons.ts` too, or that test says so.
+- **For lane C:** `tests/scene/run.test.ts`'s `tap()` takes `root.querySelector('canvas')`, the
+  page's first canvas. The header now holds the hero's face (canvases) on every tab but Town, so
+  it is left out on Town for now; scoping the test to the scene's own canvas (`.scene canvas`
+  or the stage's) would let the header be the same everywhere.
+- **For lane C, the run's save** (the design below): `snapshotRun`/`restoreRun` and the two shell
+  calls, when it is scheduled.
+- **For lane B (wave 11):** faces for the five thieving marks, if wanted (`steal_fisherman`,
+  `steal_fish_stall`, `steal_sailor`, `steal_pedlar`, `steal_strongbox`); the cards show
+  `portrait2(id)` the moment it gives one. `portraitScales2(2.625).mini` is 1 device pixel, so
+  the header's face is 27 CSS pixels on a 2.625x phone against 48 at 3x (it sits small in its
+  48 frame); a 2 there (55 CSS) would be cropped by the 48 frame at most 3.5 px a side, still
+  outside the safe box, if art would rather round than floor for the mini face.
+- Done since wave 9: the five tab icons arrived (B10b) and the bar shows them.
 - Nothing blocking. **For lane B, ids with no picture yet** (all look tidy without one): the
   eight grotto items (icons; worn layers for the six wearables), `velvet_cap` (icon and a worn
   layer: head, a plum velvet cap with a gold pin, the store's cosmetic), and still from S9
@@ -468,9 +560,68 @@ lane A's is waiting on another lane; the next building session is whatever the r
 
 - Save is version 8. The next shape change is 9.
 - The character sheet is a paper doll (wave 9). The doll's squares are 56px and the figure's room
-  takes what is left, so a 320px phone still fits; the figure itself is whatever size
-  `characterCanvas2` gives (it picks its own scale from the window). Tests that need what the
-  figure was asked to draw mock `characterCanvas2` around the real one (`tests/ui/figure.test.ts`).
+  takes what is left, so a 320px phone still fits. The figure is `heroFigure` (`src/ui/figure.ts`,
+  wave 11) at `sheetScale()` CSS pixels an art pixel; what it shows is written on its canvas
+  (`data-look`, `data-worn`, `data-breath`, `data-draws`), which the tests read.
+- `View.update(state, now?)`: `now` is the app's clock for the frame. Anything on a menu that
+  moves by time alone takes it from there.
+
+### A run that survives a reload (design, wave 11; not built)
+
+Today a run lives in `townView`'s closure; a reload or a dropped page loses it, and whatever
+was picked up with it (nothing is settled until the run ends).
+
+- **What goes in the save** (version 9): `GameState.run: SavedRun | null`, where `SavedRun` is
+  `{ dungeon: string; scene: number; spoils: RunSpoils; data: unknown }`. `data` is the scene's
+  own snapshot of the `Run` (room, walker, battle with its dice `seed` as it stands, clock),
+  opaque to core, with `scene` the snapshot's own version number (lane C's), so lane C can change
+  its battle's shape without a save migration. `spoils` is the run's `spoilsOf(battle)` as of the
+  snapshot, in core's own shape: whatever happens to `data`, what was picked up is never lost.
+- **Migration** 8 → 9: `run: null`. **`saveProblem`**: `run` is null or an object with a known
+  dungeon id, a whole `scene` ≥ 1, `spoils` passing the same checks `settleRun` makes (whole,
+  non-negative), and `data` a plain object under a size cap (say 256 KB of JSON). A bad `run` is
+  a problem like any other (the save is set aside, never deleted). Tests for each.
+- **What the scene hands over**: `Shell.keepRun?(run: SavedRun | null)` (optional, like
+  `openBounties`): called on entering a room, every few seconds of play, and on `pagehide` /
+  `visibilitychange` (the shell forwards these: it already saves there), and with `null` when
+  the run is settled. The app holds it in `state.run` and writes it with the next save; it never
+  advances it. **What it takes back**: `Shell.savedRun?(): SavedRun | null`, read when
+  `townView` is built. If it holds a run the scene can read (`scene` matches), the scene
+  restores it (`restoreRun(data)`), pauses the idle clock and goes full screen as on rowing
+  out; if it cannot (an older snapshot), it settles `spoils` as a run rowed back early, clears
+  `run`, and shows the town.
+- **Time away**: a gap of less than a minute (`AWAY_MS`, a reload) resumes the run where it
+  was. A longer one settles the snapshot's `spoils` as rowed back (no clear), clears `run`, and
+  the time is paid to the idle task by `catchUp` from `savedAt` as for any closed game: a run
+  is played by hand, so nothing of it happens while away, and the idle task is not robbed of a
+  night because a run was left open.
+- **Determinism**: the battle already carries its dice's position (`seed`, moved on inside
+  `advanceBattle`) and its own clock on 100 ms ticks, so a restored snapshot rolls exactly what
+  the unbroken run would have: `restore(JSON.parse(JSON.stringify(snapshot(run))))` advanced by
+  the same taps must equal `run` advanced (lane C's test; note that `-Infinity`/`Infinity` in
+  `struckAt` and `flight.until` do not survive JSON and need encoding). The seed should come
+  from the save's dice moved on, or from `now` passed in, rather than `Date.now()` in the
+  scene. Reloading to dodge a blow gets the snapshot at most a few seconds old, with the same
+  dice: the same taps give the same blow.
+- **Size**: a battle is a few dozen foes and piles; well under the cap.
+
+### Weak list (wave 11)
+
+- Opening a slot with many choices on a short phone scrolls the doll out of view: the choices
+  start at the screen's top, so the figure is not seen while choosing (it shows the new thing as
+  soon as one is tapped and the sheet comes back).
+- The header's face is 48 CSS pixels at 3x but 36 at 2x and 27 at 2.625x (the art's smallest
+  face floors its scale); it sits small in its frame there. It is left out on the Town tab, partly
+  for lane C's test (see Needs).
+- The header's face keeps the old look while "Change look" is open; it catches up on Done.
+- A grotto foe's drops are named once the thing is in the collection log from anywhere, so a
+  pearl from a sand crab names the giant crab's pearl too (a run does not say who dropped what).
+- The cast's rows live in two places until lane C reads them from `src/data/dungeons.ts`; the
+  drift test is what keeps them honest.
+- The creator fits Begin on a 360 × 740 screen only by trimming the title's air; "I have a
+  save" is below the fold there (as before).
+- A long worn name ("Brinebeard’s anchor") is cut with an ellipsis in its column at 360.
+- Not looked at in Safari; no WebKit here.
 - **Prices are held by `tests/data/pacing.test.ts`**, through `tests/data/economy.ts`: a new
   gathered thing is priced by the hour of its skill, a new made thing by the chain behind it
   (the content tests also want it dearer than its materials), a new monster's coins by its hour

@@ -133,7 +133,22 @@ describe('settleRun: kills and clears', () => {
           id: 'cove',
           name: 'The Cove',
           loot: [],
-          cast: [{ id: 'deckhand', name: 'Deckhand' }],
+          cast: [
+            {
+              id: 'deckhand',
+              name: 'Deckhand',
+              description: '',
+              level: 16,
+              hp: 30,
+              attack: 54,
+              defence: 36,
+              maxHit: 8,
+              speedMs: 2400,
+              coins: [0, 0],
+              always: [],
+              rare: [],
+            },
+          ],
         },
       },
     };
