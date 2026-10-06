@@ -84,9 +84,17 @@ export function isSolid(map: TileMap, cell: Cell): boolean {
   return map.kinds[kind]!.solid;
 }
 
+/**
+ * How near a tile's edge, in tiles, counts as on it: a point a rounding error
+ * short of an edge is on the far side, so where someone stands exactly on an
+ * edge (a reach from a tile's middle, say) never hangs on the last digit of a
+ * sum, and the same ground at another scale gives the same tiles.
+ */
+export const EDGE = 1e-9;
+
 /** The tile a point is on, for tiles `tile` art pixels on a side. */
 export function cellAt(point: Point, tile = TILE): Cell {
-  return { col: Math.floor(point.x / tile), row: Math.floor(point.y / tile) };
+  return { col: Math.floor(point.x / tile + EDGE), row: Math.floor(point.y / tile + EDGE) };
 }
 
 /** The middle of a tile, for tiles `tile` art pixels on a side. */

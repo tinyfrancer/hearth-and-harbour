@@ -4,6 +4,7 @@
  * clearance comes from untitled-boomer-mmo's PathSystem, which did much more.
  */
 import {
+  EDGE,
   TILE,
   cellAt,
   centreOf,
@@ -176,7 +177,11 @@ export function cheapest(map: TileMap, from: Point, cells: readonly Cell[]): Cel
   return best;
 }
 
-/** How far apart the boxes are set along a line being tested: under a tile, so none is missed. */
+/**
+ * How far apart the boxes are set along a line being tested, on 16-pixel
+ * tiles: well under a tile, so none is missed. In proportion on other tiles,
+ * so the same ground drawn at another scale gives the same answers.
+ */
 const LINE_STEP = 2;
 
 /** Whether a walker's feet can go from `a` to `b` in a straight line without touching a solid tile. */
@@ -184,15 +189,17 @@ export function clearLine(map: TileMap, a: Point, b: Point, half = footHalf(map)
   const tile = tileOf(map);
   const { cols, rows } = map;
   const solid = solidOf(map);
-  const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / LINE_STEP));
+  const step = (LINE_STEP * tile) / TILE;
+  // A whole number of steps to a hair, so a line of exactly so many steps is cut the same at any scale.
+  const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step - EDGE));
   for (let i = 0; i <= steps; i++) {
     const x = a.x + ((b.x - a.x) * i) / steps;
     const y = a.y + ((b.y - a.y) * i) / steps;
-    // A box that only touches a tile's edge is not in it.
-    const left = Math.floor((x - half) / tile);
-    const right = Math.ceil((x + half) / tile) - 1;
-    const top = Math.floor((y - half) / tile);
-    const bottom = Math.ceil((y + half) / tile) - 1;
+    // A box that only touches a tile's edge (to a hair) is not in it.
+    const left = Math.floor((x - half) / tile + EDGE);
+    const right = Math.ceil((x + half) / tile - EDGE) - 1;
+    const top = Math.floor((y - half) / tile + EDGE);
+    const bottom = Math.ceil((y + half) / tile - EDGE) - 1;
     for (let row = top; row <= bottom; row++) {
       for (let col = left; col <= right; col++) {
         // Off the map counts as solid, as `isSolid` has it.

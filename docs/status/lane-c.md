@@ -1,8 +1,7 @@
 # Lane C: scenes
 
-**Next session: the dungeons at the C scale** (lane B's grotto art at 24 pixels is drawing now; the
-exact steps are under Notes, "Switching the dungeons to the C scale"), then **S16: Dungeon
-progression and replay** (brief to come in `docs/lanes.md`).
+**Next session: S16, dungeon progression and replay** (brief to come in `docs/lanes.md`; what it
+needs from the scene is under Notes, "For S16"). The grotto is at the C scale (wave 11).
 
 ## The town's map
 
@@ -41,23 +40,120 @@ key: `#` rock, `.` rock floor, `:` dry sand, `=` planks, `~` deep water, `,` sha
 the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first and second wave,
 `K C T A R N` props, `L` a lantern on the rock, any other lower-case letter a door). The tide
 (`src/scene/tide.ts`) has four levels; one level over a tile is shallows, two is deep water.
+Tiles are 24 art pixels (`DUNGEON = C_SCALE`): every room is 34 across (816 px, a little over two
+sideways screens of 360), with two rows of rock on top so lane B's wall is two tall over the
+floor (the lanterns hang on the second).
 
-| Room     | Tiles   | Doors              | Who (col, row)                                                           | The tide here                                                                                        |
-| -------- | ------- | ------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `pools`  | 38 x 14 | `a` east (37, 6)   | giant crab (28, 7), (33, 10)                                             | a sandbar over the channel: the short way at low water, wading at 1, gone at 2; the ledge goes round |
-| `store`  | 36 x 14 | `a` west, `b` east | deckhand (12, 4), (22, 6); powder monkey (31, 3)                         | the sand below the plank deck floods to shallows: kegs go out in water, but you wade                 |
-| `bridge` | 42 x 14 | `b` west, `c` east | deckhand (30, 6), (35, 7), (36, 4); parrot, perches (20, 3) and (22, 10) | the bridge never floods; sandbars below are a second way only at low water, and reach the low perch  |
-| `brig`   | 34 x 14 | `c` west, `d` east | two waves of two, behind bars `B` then `D`                               | stone floor; the sea wells up through the grating and pushes the fight out to the walls              |
-| `cove`   | 36 x 14 | `d` west           | Brinebeard (24, 5); help comes ashore at (7, 6) and (29, 6)              | his own tide: out until he calls it at two thirds, then up a level every 5 s to high water           |
+| Room     | Tiles   | Doors              | Who (col, row)                                                          | The tide here                                                                                        |
+| -------- | ------- | ------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `pools`  | 34 x 13 | `a` east (33, 6)   | giant crab (28, 6), (31, 9)                                             | a sandbar over the channel: the short way at low water, wading at 1, gone at 2; the ledge goes round |
+| `store`  | 34 x 13 | `a` west, `b` east | deckhand (12, 4), (22, 6); powder monkey (29, 3)                        | the sand below the plank deck floods to shallows: kegs go out in water, but you wade                 |
+| `bridge` | 34 x 13 | `b` west, `c` east | deckhand (28, 5), (31, 6), (31, 3); parrot, perches (14, 3) and (18, 9) | the bridge never floods; sandbars below are a second way only at low water, and reach the low perch  |
+| `brig`   | 34 x 14 | `c` west, `d` east | two waves of two, behind bars `B` then `D`                              | stone floor; the sea wells up through the grating and pushes the fight out to the walls              |
+| `cove`   | 34 x 14 | `d` west           | Brinebeard (24, 5); help comes ashore at (7, 6) and (28, 6)             | his own tide: out until he calls it at two thirds, then up a level every 5 s to high water           |
 
 - Every room keeps its doors' inside tiles and the start dry at every level; at low water each
   room is one floor; ground only gets wetter as the water rises, so anywhere dry at a high tide
   rejoins the floor when it falls (the cycle always comes back to low); the cove is one floor at
   every level. `tests/scene/grotto.test.ts` holds all of it, and that every wash-off lands within
   five tiles.
-- Lanterns hang only on rock with open floor below (north-facing walls).
+- Lanterns (`L`) hang on the wall's second row, over the face; `grottoArt.test.ts` holds that
+  each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 11: the grotto at the C scale, and the weak spots.** Brinebeard's Grotto is drawn and
+  played on 24-pixel tiles in lane B's C-scale art; the old-scale dungeon drawing is gone; the
+  four weak spots from wave 10 are dealt with.
+  - **The switch** (`dungeonMetrics.ts`): `DUNGEON = C_SCALE` (360 across, tile 24, distances
+    ×1.5 through `far` and `kindAtScale`; times unchanged). An exactly ×1.5 world reproduces every
+    fight but for float ties at the edge of a reach, which `within(d, r)` (`battle.ts`, a 1e-6
+    hair) settles as before: a traced fight on this branch is event for event the one on `main`.
+    The line-of-sight step is `far(4)`; a foe's `walked` counts its ground for its stride.
+  - **The rooms re-cut** (`grotto.ts`): every room 34 tiles across; two rows of rock on top so
+    the wall is two tall over the floor (`roomKinds2`'s rule), lanterns on the second. Pools: 38 x
+    14 to 34 x 13, the channel, bar and ledge kept, the crabs at (28, 6) and (31, 9). Store: 36 x 14
+    to 34 x 13, two columns narrower, the monkey at (29, 3). Bridge: 42 x 14 to 34
+    x 13, the bridge 20 tiles (was 24), the sandbars below re-drawn so low water still walks to a
+    blade's reach of the low perch, perches (14, 3) and (18, 9), the deckhands at (28, 5), (31, 6),
+    (31, 3). Brig: unchanged (it already had the shape). Cove: 36 to 34 across, cannons and the
+    chest on the wall's foot row, the end at (16, 3), help ashore at (7, 6) and (28, 6). Every
+    guarantee in `grotto.test.ts` holds (its only edits are tile size and the bridge's two sample
+    cells); the wash-off still lands within five tiles.
+  - **Ground** (`grottoArt.ts`, `grottoWorker.ts`, `grottoPainter.ts`): tiles from `dungeonTile2`
+    with their neighbours and place (`aroundOf`), kinds from the same rule as `roomKinds2` (tested
+    equal on every room at every tide), the brig's grating only when it is dry; contact shadows cut
+    into the ground's own cells by `GROUND2_SHADOW` (none on deep water); `lightGround2` with the
+    lanterns' lights; `CAVE_DUSK`. A room's ground is painted per state of the tide in a worker
+    (none in jsdom: on the spot) and handed over without copying, so a turn of the tide never
+    stops a fight; the room is dark until its ground is in, the next room's is painted ahead, a
+    room left behind is forgotten. Lantern flicker by `flicker2` on the scene's clock.
+  - **Props** stand on their feet (`dungeonPropSprite2`'s `foot`; a lantern's post at the wall's
+    foot, `LANTERN_FOOT` 8), each with its contact shadow; the parrot sits on its perch's `seat`.
+    The powder monkey's lit fuse lights the ground about him (`FUSE_LIGHT2`, wavering by
+    `flicker2`).
+  - **The hero** is `character2.ts`'s figure: four facings, walk frame by ground walked
+    (`WALK2_STRIDE`), breath standing, lit by the room's lanterns. Striking has no pose of its own
+    in lane B's art yet: he lunges three pixels toward his target for 140 ms (`LUNGE`, `LUNGE_MS`) and his weapon flashes
+    (`heroLunge`, `heroSwinging`, `flashOf`), all drawn from the fight's state.
+  - **Foes** by `foePicture2`/`foeSprite2`: pose from the fight (walking by ground walked, standing,
+    winding up, striking, the parrot flying or perched), facing the hero, the captain's phases;
+    tap boxes from `FOE2_SIZES` (`tapBox` in `foes.ts`), shadows sized to the figure. The old
+    placeholder figures and their drawing are deleted.
+  - **Faces** by `portrait2`/`heroPortrait2` at their own sizes in the target panel, the boss
+    panel, the town's panels and the villagers' panels (`panel.ts`, `townsfolk.ts`); this lane
+    asks only the doors and `PORTRAIT2_SAFE`/`portraitScales2`.
+  - **Pixels and words** (`stage.ts`, `scale.ts`): the room is a pixelated canvas at one pixel an
+    art pixel (`pixelFit`); words, numbers, health bars, rings and thin lines go on a second
+    canvas at device resolution, sized each frame to the box they need (`overlayBox`,
+    `overlayFit`, `overlayRect`) and moved over the room by a CSS transform. A full-screen overlay
+    cost 18 fps at 4x; the boxed one costs nothing measurable.
+  - **Frame rates** (production build, 844 x 390 at 3x, headless Chromium in software, the
+    captain's last phase with his crew, volleys and the anchor): `main` 60.0 unthrottled, 49.2 at
+    4x CPU throttle; this branch 60.0 unthrottled, 57.5 to 59.0 at 4x over three runs.
+  - **The HUD**: 48 px targets, safe-area insets, sideways and the turn-your-phone prompt as
+    before; the target panel's face at the panel's size.
+  - **Weak spots from wave 10:**
+    - _Passing each other_ (`stroll.ts`, `town2Folk.ts`, `town2Place.ts`): everyone has a room of
+      their own (an ellipse 24 by 10 about the feet, `PERSONAL`). A stroller stops at the edge of
+      the hero's, waits, and after 1.2 s (`TURN_MS`) turns back and goes round her route the other
+      way; her clock is the same however time is cut (a long step is checked every 20 ms along
+      it). The hero, walking, stops at a stroller's edge and plans round (`walkAmong`). Tested
+      with the hero parked on the market woman's route for two minutes: never inside his room,
+      she turns back short, and still goes home; and the hero walking through a stroller's way goes round her and
+      gets there.
+    - _The room's name always shown_: when both places over the room are taken, it takes the
+      HUD's top strip (the target panel's place) for its moment (`titleSlot` never says "none").
+    - _The loading scene_ (`loadingScene.ts`): the sky in clumped bands with clouds, the boat
+      smaller in a wider frame (296 x 100), with a shadow on the water under its keel that moves
+      with its bob (`BoatShadow`, `keelOf`).
+    - _No sliding, in lane B's pixels_ (`planted.test.ts`): walking right and left, plain and in
+      iron, every frame-to-frame step keeps a foot on the ground where it was (the planted sole
+      on the lowest row grows or shrinks in place, never moves); shown a stride and a half per
+      frame instead, a foot slides, so the test can fail.
+  - **Deleted**: `walkerArt.ts`; the old `Hero` class in `hero.ts` (only `Dress`, `dressOf`,
+    `dressKey` remain); the placeholder foes in `foes.ts`; the old-scale tile, prop, shadow and
+    light drawing in `grottoArt.ts` and `fightArt.ts`; their tests (`hero.test.ts` rewritten).
+    **Old `src/art` doors `src/scene` no longer imports**: `dungeonTile`, `dungeonProp`,
+    `foePicture` (`dungeonArt.ts`), `GROTTO_SHADOW` (`grottoRoom.ts`), `portrait`,
+    `portraitPicture`, `PORTRAIT_SIZE` (`portraits.ts`), `townPiece` (`town.ts`),
+    `characterPicture` (`character.ts`). Lane B may retire them.
+  - **Tests**: changed only where they named the first scale (16-pixel cells, 64 px/s, first-scale
+    coordinates now given through `far`): `battle`, `grottoRules`, `grotto`, `grottoBot.ts`,
+    `dungeon`, `run` (the canvas it taps). `grottoRun.test.ts` (balance) is unmodified and
+    passes: 11 of 12 seeds clear at tier 1, median 8.2 min; none at half strength. The fairness
+    test's walk-out rule is the same rule at the scaled pace. New or rewritten: `grottoArt`
+    (wall rule, two-tall wall, lanterns, shadows, lighting, worker and on the spot agree),
+    `fightArt` (poses, lunge, flash, facing, walked one step against many), `dungeonPolish`
+    (title slot with the strip, faces at phone ratios), `hero`, `stroll` (passing each other),
+    `loadingScene` (boat shadow, sky), `planted`. 1131 tests pass.
+  - **Checked** in Playwright, production build, touch, 844 x 390 and 390 x 844 at 3x, geared
+    save: the scripted hero cleared the whole grotto (about 6 to 6.6 min) and came back to town,
+    with shots of each room, its name, each kind of mark mid-warning, the captain's three phases,
+    the target panel, the results both ways round, the old and new store side by side, a 400%
+    crop (every device pixel of art shares its colour with a neighbour across and one down, as a
+    nearest-neighbour enlargement must: 100% over the floor and over the figures; the words sharp), `grotto-fight.gif`, the hero and the market woman meeting in town, and the
+    loading card. All in `/home/claude/lane-shots/w11-c/`.
 
 - **Wave 10: the walk, and the weak spots.** Lane B's B9 walk cycle is wired for the hero and two
   strollers, the town is kept between visits, and every weak spot left by S16a is dealt with.

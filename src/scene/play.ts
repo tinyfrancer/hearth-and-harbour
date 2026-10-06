@@ -95,9 +95,9 @@ export function wayAfter(way: Way, dx: number, dy: number): Way {
 }
 
 /** Which way to face something at `x` from `from`; straight ahead keeps the old way. */
-export function facingToward(facing: Facing, from: Point, x: number): Facing {
-  if (x < from.x - 2) return 'left';
-  if (x > from.x + 2) return 'right';
+export function facingToward(facing: Facing, from: Point, x: number, margin = 2): Facing {
+  if (x < from.x - margin) return 'left';
+  if (x > from.x + margin) return 'right';
   return facing;
 }
 

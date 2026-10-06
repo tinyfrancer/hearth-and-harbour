@@ -160,11 +160,11 @@ export interface Telegraph {
 /** Whether feet at `p` are in a mark's ground when it lands. */
 export function inMark(t: Telegraph, p: Point): boolean {
   if (t.shape === 'line') {
-    return Math.abs(p.x - t.at.x) < t.radius && p.y >= t.at.y && p.y <= (t.bottom ?? t.at.y);
+    return under(Math.abs(p.x - t.at.x), t.radius) && p.y >= t.at.y && p.y <= (t.bottom ?? t.at.y);
   }
   const d = distance(p, t.at);
-  if (d >= t.radius) return false;
-  if (t.shape === 'circle' || d < 1) return true;
+  if (!under(d, t.radius)) return false;
+  if (t.shape === 'circle' || d < far(1)) return true;
   const turn = Math.atan2(p.y - t.at.y, p.x - t.at.x) - (t.facing ?? 0);
   const off = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
   return off <= (t.spread ?? Math.PI * 2) / 2;
@@ -440,6 +440,13 @@ const HAIR = 1e-6;
 
 /** Whether `d` is within `r`, to a hair. */
 const within = (d: number, r: number): boolean => d <= r + HAIR;
+
+/** Whether `d` is short of `r` by more than a hair: `within`'s other side. */
+const under = (d: number, r: number): boolean => d < r - HAIR;
+
+/** `facingToward` with its margin at the dungeons' scale. */
+const turnToward = (facing: Facing, from: Point, x: number): Facing =>
+  facingToward(facing, from, x, far(2));
 
 export const alive = (foe: Foe): boolean => foe.diedAt === null;
 
@@ -993,7 +1000,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     } else {
       const slot = chaseTo(w, map, hero, target.at);
       const end = next.walker.path.at(-1);
-      if (!end || distance(end, slot) > T / 2)
+      if (!end || !within(distance(end, slot), T / 2))
         next = { ...next, walker: { at: hero, path: walkPath(map, hero, slot) } };
     }
   }
@@ -1005,7 +1012,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       effect(w, { kind: 'empty', at: hero, from: w.clock });
     } else {
       w.blowMs = PLAYER_ATTACK_MS;
-      next = { ...next, facing: facingToward(next.facing, hero, target.at.x) };
+      next = { ...next, facing: turnToward(next.facing, hero, target.at.x) };
       strike(w, dice, target, hero, place);
       // A boss falling ends the fight round him at once.
       map = mapOf(w, place);
@@ -1080,31 +1087,35 @@ function act(
     };
     foe.path = [];
     foe.engaged = false;
-    foe.facing = facingToward(foe.facing, foe.at, hero.x);
+    foe.facing = turnToward(foe.facing, foe.at, hero.x);
     return false;
   }
-  if (kind.shy && d < kind.shy && !foe.flight) {
+  if (kind.shy && under(d, kind.shy) && !foe.flight) {
     // Too close: backs off, keeping its distance, while there is room to.
     const away = backOff(map, foe.at, hero, kind.keep - d);
     if (away) {
       const end = foe.path.at(-1);
-      if (!end || distance(end, away) > T / 2) foe.path = [away];
+      if (!end || !within(distance(end, away), T / 2)) foe.path = [away];
     }
   } else {
     // Walk up beside the hero, as near as it likes to be, without pushing past one already closer.
     const crowded = here.some(
-      (o) => o !== foe && alive(o) && distance(o.at, hero) < d && distance(o.at, foe.at) < far(12),
+      (o) =>
+        o !== foe &&
+        alive(o) &&
+        under(distance(o.at, hero), d) &&
+        under(distance(o.at, foe.at), far(12)),
     );
     if (arrived(foe.at, hero, kind.keep) || crowded) {
       foe.path = [];
     } else {
       const slot = kind.keep > BESIDE_MOST ? hero : besideOf(map, foe.at, hero, kind.keep);
       const end = foe.path.at(-1);
-      if (!end || distance(end, slot) > T / 2) foe.path = walkPath(map, foe.at, slot);
+      if (!end || !within(distance(end, slot), T / 2)) foe.path = walkPath(map, foe.at, slot);
     }
   }
   if (within(d, kind.reach)) {
-    foe.facing = facingToward(foe.facing, foe.at, hero.x);
+    foe.facing = turnToward(foe.facing, foe.at, hero.x);
     if (!foe.engaged) {
       foe.engaged = true;
       foe.blowMs = Math.max(foe.blowMs, WINDUP_MS);
@@ -1151,13 +1162,13 @@ function fly(w: Work, place: Place, foe: Writable<Foe>, map: TileMap, hero: Poin
   }
   if (foe.flight!.mode === 'in') {
     const to = besideOf(map, foe.at, hero, foeKind(foe.monster).keep);
-    if (foe.path.length === 0 && distance(foe.at, to) <= far(2)) {
+    if (foe.path.length === 0 && within(distance(foe.at, to), far(2))) {
       foe.flight = { ...foe.flight!, mode: 'down', until: w.clock + flies.downMs };
       foe.engaged = false;
       return false;
     }
     foe.path = [to];
-    foe.facing = facingToward(foe.facing, foe.at, to.x);
+    foe.facing = turnToward(foe.facing, foe.at, to.x);
     return true;
   }
   if (foe.flight!.mode === 'down') {
@@ -1217,7 +1228,7 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
   for (let i = 1; i < volley.lines; i++) {
     for (let tries = 0; tries < 6; tries++) {
       const x = left + dice.next() * (right - left);
-      if (xs.every((o) => Math.abs(o - x) >= rules.volleys.gap)) {
+      if (xs.every((o) => !under(Math.abs(o - x), rules.volleys.gap))) {
         xs.push(Math.round(x));
         break;
       }
@@ -1340,8 +1351,8 @@ function moveFoes(w: Work, place: Place, ms: number): void {
         : kind.speed * (foe.wading ? WADE_PACE : 1);
     const { walker: moved, distance: went } = stepBy({ at: foe.at, path: foe.path }, ms, speed);
     if (!foe.wash) {
-      if (moved.at.x < foe.at.x - 0.01) foe.facing = 'left';
-      else if (moved.at.x > foe.at.x + 0.01) foe.facing = 'right';
+      if (moved.at.x < foe.at.x - far(0.01)) foe.facing = 'left';
+      else if (moved.at.x > foe.at.x + far(0.01)) foe.facing = 'right';
     }
     foe.at = moved.at;
     foe.path = moved.path;
@@ -1410,7 +1421,7 @@ export function targetFoe(
       },
       heading: null,
       open: null,
-      facing: there ? facingToward(play.facing, hero, foe.at.x) : play.facing,
+      facing: there ? turnToward(play.facing, hero, foe.at.x) : play.facing,
     },
   };
 }
@@ -1489,7 +1500,7 @@ export function useAbility(
     w.braceUntil = w.clock + BRACE_MS;
   } else if (ability.id === 'double') {
     const target = here.find((f) => f.key === w.target)!;
-    next = { ...next, facing: facingToward(next.facing, hero, target.at.x) };
+    next = { ...next, facing: turnToward(next.facing, hero, target.at.x) };
     strike(w, dice, target, hero, place);
     if (alive(target) && arrowsLeft(w) > 0) strike(w, dice, target, hero, place);
   } else {
