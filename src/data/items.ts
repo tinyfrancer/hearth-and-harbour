@@ -487,7 +487,7 @@ export const ITEMS = {
     id: 'captains_coat',
     name: 'Captain’s coat',
     description:
-      'Long, red and heavy with braid, with something hard sewn into the lining. Smells of powder and pride.',
+      'Long, purple and heavy with braid, with something hard sewn into the lining. Smells of powder and pride.',
     value: 1200,
     equip: { slot: 'body', attack: 3, armour: 14, requires: { skill: 'defence', level: 20 } },
   },

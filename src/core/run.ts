@@ -25,8 +25,8 @@ export interface RunSpoils {
   hp?: number;
   /**
    * Kills in the run, by monster id. They count towards the bestiary and a
-   * bounty held, as idle kills do. An id the monster tables do not hold (a
-   * dungeon's own cast, until it is in them) counts for nothing.
+   * bounty held, as idle kills do. An id neither the monster tables nor a
+   * dungeon's `cast` holds counts for nothing.
    */
   kills?: Readonly<Record<string, number>>;
   /**
@@ -37,6 +37,17 @@ export interface RunSpoils {
   cleared?: string;
   /** How long the run took, in milliseconds: the dungeon's best time, if it was cleared. */
   timeMs?: number;
+}
+
+/**
+ * Whether kills of `id` are kept: a monster of the tables, or one of a
+ * dungeon's cast. Own rows only: an id like `constructor` is no monster.
+ */
+export function knownFoe(content: Content, id: string): boolean {
+  if (content.monsters && Object.hasOwn(content.monsters, id)) return true;
+  return Object.values(content.dungeons ?? {}).some((dungeon) =>
+    dungeon.cast?.some((foe) => foe.id === id),
+  );
 }
 
 const whole = (value: number | undefined): number =>
@@ -98,8 +109,7 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
   let bounty = state.bounty;
   for (const [monster, amount] of Object.entries(spoils.kills ?? {})) {
     const killed = whole(amount);
-    // Own rows only: an id like `constructor` is no monster.
-    if (killed === 0 || !content?.monsters || !Object.hasOwn(content.monsters, monster)) continue;
+    if (killed === 0 || !content || !knownFoe(content, monster)) continue;
     const known: MonsterRecord = bestiary[monster] ?? { kills: 0, seen: [] };
     bestiary = { ...bestiary, [monster]: { ...known, kills: known.kills + killed } };
     // As in an idle fight: kills count while the bounty is held, up to what it asks.

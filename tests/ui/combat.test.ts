@@ -79,6 +79,27 @@ describe('the Combat section', () => {
     expect(q('[data-monster="goblin_poacher"] .portrait.blank').textContent).toBe('G');
   });
 
+  it("lists the grotto's cast after the areas: who has been beaten there, and a ? for the rest", () => {
+    playing({
+      bestiary: { deckhand: { kills: 23, seen: [] }, brinebeard: { kills: 1, seen: [] } },
+    });
+    q<HTMLButtonElement>('[data-combat]').click();
+    const grotto = q('[data-dungeon="brinebeards_grotto"]');
+    expect(grotto.querySelector('.group-heading')!.textContent).toBe('Brinebeard’s Grotto');
+    // After every area, and not something to tap and fight from here.
+    expect(grotto.previousElementSibling!.matches('[data-area]')).toBe(true);
+    expect(grotto.querySelector('button')).toBeNull();
+    const cast = [...grotto.querySelectorAll<HTMLElement>('[data-cast]')];
+    expect(cast.map((el) => el.dataset.cast)).toEqual(
+      CONTENT.dungeons!.brinebeards_grotto!.cast!.map((foe) => foe.id),
+    );
+    expect(q('[data-cast="deckhand"]').textContent).toBe('DeckhandKilled 23');
+    expect(q('[data-cast="deckhand"] .portrait:not(.blank)')).not.toBeNull();
+    expect(q('[data-cast="brinebeard"]').textContent).toContain('Killed 1');
+    expect(q('[data-cast="giant_crab"]').textContent).toBe('??Not beaten yet');
+    expect(q('[data-cast="giant_crab"]').classList).toContain('unmet');
+  });
+
   it('fills the food slot and moves the line to eat at', () => {
     playing({ bank: { cooked_shrimp: 30, cooked_herring: 4, hide: 2 } });
     q<HTMLButtonElement>('[data-combat]').click();

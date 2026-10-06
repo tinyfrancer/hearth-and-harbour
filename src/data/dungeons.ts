@@ -16,5 +16,13 @@ export const DUNGEONS = {
       'brinebeards_anchor',
       'ships_figurehead',
     ],
+    // The ids and names of src/scene/cast.ts, weakest first and the captain last.
+    cast: [
+      { id: 'powder_monkey', name: 'Powder monkey' },
+      { id: 'ships_parrot', name: 'Ship’s parrot' },
+      { id: 'deckhand', name: 'Deckhand' },
+      { id: 'giant_crab', name: 'Giant crab' },
+      { id: 'brinebeard', name: 'Captain Brinebeard' },
+    ],
   },
 } satisfies Record<string, DungeonDef>;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Content, MonsterDef } from '../../src/core/content';
-import { settleRun } from '../../src/core/run';
+import { knownFoe, settleRun } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 
 const base: GameState = {
@@ -123,6 +123,31 @@ describe('settleRun: kills and clears', () => {
     );
     expect(after.bestiary).toBe(known.bestiary);
     expect(after.bounty).toBe(known.bounty);
+  });
+
+  it("counts kills of a dungeon's cast like a monster's, though no bounty names them", () => {
+    const withCast: Content = {
+      ...tables,
+      dungeons: {
+        cove: {
+          id: 'cove',
+          name: 'The Cove',
+          loot: [],
+          cast: [{ id: 'deckhand', name: 'Deckhand' }],
+        },
+      },
+    };
+    const after = settleRun(known, { kills: { deckhand: 5, kraken: 1 } }, withCast);
+    expect(after.bestiary).toEqual({ ...known.bestiary, deckhand: { kills: 5, seen: [] } });
+    expect(after.bounty).toBe(known.bounty);
+    expect(settleRun(after, { kills: { deckhand: 2 } }, withCast).bestiary.deckhand).toEqual({
+      kills: 7,
+      seen: [],
+    });
+    expect(knownFoe(withCast, 'deckhand')).toBe(true);
+    expect(knownFoe(withCast, 'rat')).toBe(true);
+    expect(knownFoe(withCast, 'kraken')).toBe(false);
+    expect(knownFoe(withCast, 'constructor')).toBe(false);
   });
 
   it('keeps a clear and the best time, and counts a clear without a time', () => {

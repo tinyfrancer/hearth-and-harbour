@@ -1,6 +1,7 @@
-import { characterCanvas, type Look as DrawnLook } from '../art/character';
+import type { Look as DrawnLook } from '../art/character';
+import { characterCanvas2 } from '../art/character2';
 import { itemIcon } from '../art/icons';
-import { SLOTS, type Content, type Slot } from '../core/content';
+import { type Content, type Slot } from '../core/content';
 import { equipmentTotals, unmetRequirement, wearablesFor, wornItemIds } from '../core/equipment';
 import { bankCount, type GameState } from '../core/state';
 import { button, h, titled } from './dom';
@@ -23,22 +24,23 @@ export interface SheetActions {
   records(page: 'log' | 'achievements'): void;
 }
 
-/** The character drawn large, wearing what is worn. */
+/** The character drawn large (the C-scale figure, at twice the game's scale), wearing what is worn. */
 function drawn(state: GameState, look = fullLook(state.look)): HTMLCanvasElement {
-  return characterCanvas(look, wornItemIds(state), 'sheet');
+  return characterCanvas2(look, wornItemIds(state), 'sheet');
 }
 
 /** The three totals combat will read, named for the style the weapon fights in. */
 function totals(state: GameState, content: Content): HTMLElement {
   const { style, attack, strength, armour } = equipmentTotals(state, content);
-  const row = (name: string, value: number, stat: string) => [
-    h('dt', { text: name }),
-    h('dd', { class: 'qty', text: formatNumber(value), attrs: { 'data-total': stat } }),
-  ];
+  const row = (name: string, value: number, stat: string) =>
+    h('div', {}, [
+      h('dt', { text: name }),
+      h('dd', { class: 'qty', text: formatNumber(value), attrs: { 'data-total': stat } }),
+    ]);
   return h('dl', { class: 'totals' }, [
-    ...row(statName('attack', style), attack, 'attack'),
-    ...row(statName('strength', style), strength, 'strength'),
-    ...row('Armour', armour, 'armour'),
+    row(statName('attack', style), attack, 'attack'),
+    row(statName('strength', style), strength, 'strength'),
+    row('Armour', armour, 'armour'),
   ]);
 }
 
@@ -102,10 +104,19 @@ function slotPicker(
   ]);
 }
 
+/** The slots down each side of the figure: what is worn on the body on the left, what is held and carried on the right. */
+const DOLL: readonly (readonly Slot[])[] = [
+  ['head', 'neck', 'body', 'legs'],
+  ['main_hand', 'off_hand', 'wrist', 'ammo'],
+];
+
+/** What an empty slot says inside its square: its name, short where the full one will not fit. */
+const slotWord = (slot: Slot): string => (slot === 'ammo' ? 'Ammo' : SLOT_NAMES[slot]);
+
 /**
- * The Character tab: the character drawn large in what they wear, the three
- * totals, the eight slots (tap one to choose from the bank or take it off),
- * and a way to change the look.
+ * The Character tab: the character drawn large in what they wear, with the
+ * eight slots around them like a paper doll (tap one to choose from the bank
+ * or take it off), the three totals, and a way to change the look.
  */
 export function characterView(
   state: GameState,
@@ -114,54 +125,65 @@ export function characterView(
   actions: SheetActions,
 ): View {
   const updates: ((state: GameState) => void)[] = [];
-  const figure = h('div', { class: 'figure' }, [drawn(state)]);
+  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [drawn(state)]);
+
+  const square = (slot: Slot): HTMLElement => {
+    const worn = state.equipment[slot];
+    const name = worn ? (content.items[worn.item]?.name ?? worn.item) : 'Nothing';
+    const open = panel === slot;
+    const icon = worn ? itemIcon(worn.item) : null;
+    const count = worn && slot === 'ammo' ? h('span', { class: 'slot-qty qty' }) : null;
+    if (count) {
+      // Arrows go as they are shot, with the sheet open.
+      updates.push((now) => {
+        const left = now.equipment.ammo?.item === worn!.item ? now.equipment.ammo.qty : 0;
+        count.textContent = formatNumber(left);
+      });
+    }
+    return h(
+      'button',
+      {
+        class: `slot${worn ? '' : ' empty'}`,
+        attrs: {
+          type: 'button',
+          'data-slot': slot,
+          'data-worn': worn?.item ?? '',
+          'aria-expanded': String(open),
+          'aria-label': `${SLOT_NAMES[slot]}: ${name}`,
+        },
+        on: { click: () => actions.open(open ? null : slot) },
+      },
+      [
+        worn
+          ? (icon ?? h('span', { class: 'slot-word', text: name }))
+          : h('span', { class: 'slot-word', text: slotWord(slot) }),
+        count,
+      ],
+    );
+  };
 
   const lookOpen = panel === 'look';
   const head = h('section', { class: 'panel stack sheet' }, [
-    h('h2', { text: state.name }),
-    h('div', { class: 'sheet-body' }, [figure, totals(state, content)]),
+    h('h2', { class: 'sheet-name', text: state.name }),
+    h('div', { class: 'doll' }, [
+      h('div', { class: 'doll-side' }, DOLL[0]!.map(square)),
+      stage,
+      h('div', { class: 'doll-side' }, DOLL[1]!.map(square)),
+    ]),
+    totals(state, content),
     lookOpen
       ? h('div', { class: 'stack tight' }, [
           lookPicker(fullLook(state.look), (look) => {
             actions.setLook(look);
-            figure.replaceChildren(drawn(state, look));
+            stage.replaceChildren(drawn(state, look));
           }),
           button('Done', () => actions.open(null), 'primary'),
         ])
       : button('Change look', () => actions.open('look')),
   ]);
 
-  const tiles: HTMLElement[] = [];
-  SLOTS.forEach((slot, index) => {
-    const worn = state.equipment[slot];
-    const name = worn ? (content.items[worn.item]?.name ?? worn.item) : 'Nothing';
-    const open = panel === slot;
-    tiles.push(
-      h(
-        'button',
-        {
-          class: `slot${worn ? '' : ' empty'}`,
-          attrs: { type: 'button', 'data-slot': slot, 'aria-expanded': String(open) },
-          on: { click: () => actions.open(open ? null : slot) },
-        },
-        [
-          h('span', { class: 'slot-name small muted', text: SLOT_NAMES[slot] }),
-          h('span', { class: 'slot-item' }, [
-            worn ? itemIcon(worn.item) : null,
-            h('span', { text: name }),
-            worn && worn.qty > 1 ? h('span', { class: 'qty', text: formatNumber(worn.qty) }) : null,
-          ]),
-        ],
-      ),
-    );
-    // Two slots to a row: an open slot's choices go in under its row, full width.
-    const rowOf = (at: number) => Math.floor(at / 2);
-    const openIndex = panel && panel !== 'look' ? SLOTS.indexOf(panel) : -1;
-    const lastInRow = index % 2 === 1 || index === SLOTS.length - 1;
-    if (openIndex >= 0 && lastInRow && rowOf(openIndex) === rowOf(index)) {
-      tiles.push(slotPicker(state, panel as Slot, content, actions, updates));
-    }
-  });
+  const picker =
+    panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
 
   const records = recordsEntry(state, content, actions.records);
   updates.push(records.update!);
@@ -170,8 +192,7 @@ export function characterView(
   return {
     el: h('div', { class: 'stack' }, [
       head,
-      h('h2', { class: 'group-heading', text: 'Worn' }),
-      h('div', { class: 'slots' }, tiles),
+      picker,
       h('h2', { class: 'group-heading', text: 'Records' }),
       records.el,
     ]),

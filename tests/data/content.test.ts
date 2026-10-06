@@ -7,6 +7,8 @@ import { equip } from '../../src/core/equipment';
 import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
+import { portrait } from '../../src/art/portraits';
+import { GROTTO_CAST } from '../../src/scene/cast';
 
 // Fixed in docs/lanes.md (wave 6): the dungeon drops them, and art draws them, by these ids.
 const GROTTO_LOOT = [
@@ -399,6 +401,20 @@ describe('the content tables', () => {
   it('lists the grotto as a dungeon whose loot is the grotto’s eight items', () => {
     expect(Object.keys(CONTENT.dungeons!)).toEqual(['brinebeards_grotto']);
     expect(CONTENT.dungeons!.brinebeards_grotto!.loot).toEqual(GROTTO_LOOT);
+  });
+
+  it("knows the grotto's cast by the ids and names its scene fights them by, none a table monster", () => {
+    const cast = CONTENT.dungeons!.brinebeards_grotto!.cast!;
+    expect(cast.map((foe) => foe.id).sort()).toEqual(Object.keys(GROTTO_CAST).sort());
+    for (const foe of cast) {
+      expect(foe.name, foe.id).toBe(GROTTO_CAST[foe.id]!.name);
+      expect(CONTENT.monsters![foe.id], foe.id).toBeUndefined();
+      expect(portrait(foe.id), foe.id).not.toBeNull();
+    }
+  });
+
+  it('describes the captain’s coat in the colour art draws it', () => {
+    expect(CONTENT.items.captains_coat!.description).toMatch(/^Long, purple/);
   });
 
   it('stocks the general store with real things, each dearer than it sells back for', () => {

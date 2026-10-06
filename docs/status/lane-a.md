@@ -399,8 +399,44 @@ lane A's is waiting on another lane; the next building session is whatever the r
     positive best time, known running counts with the streak no longer than the best).
   - The bank card's "From" now names the dungeon and the shops too.
 
+- Wave 9: the C-scale hero in the menus, the grotto's cast in the bestiary (PR to follow):
+  - **Character sheet** (`src/ui/characterScreen.ts`): the hero is lane B's C-scale figure
+    (`characterCanvas2(look, worn, 'sheet')`, 56 × 72 art pixels at 112 × 144 CSS on a 2x or 3x
+    phone), standing on a lit floor with a shadow in a dark framed room (`.figure` in
+    `styles.css`, menu colours only). The eight slots are 56px squares down either side of it,
+    a paper doll: head, neck, body, legs on the left; main hand, off hand, wrist, ammunition on
+    the right. A filled square shows the item's icon (the name if art has none, as for the
+    velvet cap); an empty one its slot's name, dimmed; ammunition shows the count, kept live
+    while the sheet is open. Each says "Slot: Item" to a screen reader. The three totals sit
+    in three tiles under the figure. An open slot's choices come as one panel under the sheet
+    (they used to open between rows of the grid); the "Worn" heading is gone with the grid.
+  - **Character creator** (`src/ui/createScreen.ts`): the same figure in the same room, full
+    width; the look's steppers now sit straight under it and the name below them, so each step
+    shows on the figure where the thumb is. The look rows no longer push the "next" button off a
+    360px screen (the choice's column is `minmax(0, 1fr)`).
+  - **Crispness**: checked in Chromium at 390 × 844 and 360 × 740 at device pixel ratio 3 and 2,
+    and 412 × 915 at 2.625, by comparing a screenshot of the figure's box with the canvas's
+    own pixels: every opaque pixel matches (one device pixel to one canvas pixel, pixelated).
+    `pixelCanvas2` already sized it right; nothing in the menus stretches it. No fix needed.
+  - **The grotto's cast in the bestiary**: `DungeonDef.cast` (`src/core/content.ts`) lists who
+    is fought in a dungeon by id and name (`src/data/dungeons.ts`: the five ids and names of lane
+    C's `src/scene/cast.ts`; a content test keeps them in step and checks each has a portrait).
+    `settleRun` keeps their kills like a table monster's (`knownFoe` in `src/core/run.ts`); no
+    bounty names them. They are not table monsters: that would make them idle-fightable, posted
+    on the board and part of the money sims. The Combat page lists them after the areas, under
+    the dungeon's name: face, name and kills once beaten, a "?" until then. **No save change**:
+    the bestiary's shape is the same and an older build reads the new ids without harm (it
+    already summed every entry for the kill achievements), so the version stays 8.
+  - `captains_coat`'s description now says purple, as the C-scale figure and its icon draw it.
+  - The tab bar still shows the old glyphs: `tabIcon` in `src/art/icons.ts` returns null for
+    every tab.
+
 ## Deferred
 
+- Wave 9: nothing from the brief. Left alone on purpose: the grotto's cast shows no level or
+  drops in the bestiary (their numbers are lane C's, in `src/scene/cast.ts`, and are not
+  duplicated here), and the cast is not fightable idle (that is the "dungeon made idle-able"
+  decision lane C's cast notes leave for later).
 - Nothing from S10's brief; it was all built, past the minimum line. Not built, by choice: an
   extra food slot (see the store), rewards for achievements (the house, S18), unlocks by a
   clear (S16), uses for feathers and pearls, and arrows that can be picked up again (see the
@@ -408,6 +444,12 @@ lane A's is waiting on another lane; the next building session is whatever the r
 
 ## Needs from another lane
 
+- **For lane B:** the five tab icons (`tabIcon` still returns null; the bar picks them up the
+  moment it gives them). `velvet_cap` has a C-scale worn layer but no item icon, so its slot
+  square shows its name.
+- **For lane C:** the grotto's cast now also has rows in `src/data/dungeons.ts` (id and name
+  only, for the bestiary); if `src/scene/cast.ts` renames or adds one, change both, or
+  `tests/data/content.test.ts` says so. Grotto kills reported through `settleRun` now count.
 - Nothing blocking. **For lane B, ids with no picture yet** (all look tidy without one): the
   eight grotto items (icons; worn layers for the six wearables), `velvet_cap` (icon and a worn
   layer: head, a plum velvet cap with a gold pin, the store's cosmetic), and still from S9
@@ -425,6 +467,10 @@ lane A's is waiting on another lane; the next building session is whatever the r
 ## Notes for this lane's next session
 
 - Save is version 8. The next shape change is 9.
+- The character sheet is a paper doll (wave 9). The doll's squares are 56px and the figure's room
+  takes what is left, so a 320px phone still fits; the figure itself is whatever size
+  `characterCanvas2` gives (it picks its own scale from the window). Tests that need what the
+  figure was asked to draw mock `characterCanvas2` around the real one (`tests/ui/figure.test.ts`).
 - **Prices are held by `tests/data/pacing.test.ts`**, through `tests/data/economy.ts`: a new
   gathered thing is priced by the hour of its skill, a new made thing by the chain behind it
   (the content tests also want it dearer than its materials), a new monster's coins by its hour

@@ -244,6 +244,44 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
     ]),
   );
 
+  // A dungeon's cast is fought in its scene, not from here; what has been
+  // beaten there is kept like any kill, and shown after the areas. Anyone not
+  // yet met stays a "?", so there is someone to find out about.
+  const dungeons = Object.values(content.dungeons ?? {})
+    .filter((dungeon) => dungeon.cast?.length)
+    .map((dungeon) =>
+      h('section', { class: 'stack', attrs: { 'data-dungeon': dungeon.id } }, [
+        h('div', { class: 'stack tight' }, [
+          h('h2', { class: 'group-heading', text: dungeon.name }),
+          h('p', {
+            class: 'small muted',
+            text: 'Fought in the dungeon itself, not from here. Everyone beaten there is counted.',
+          }),
+        ]),
+        ...dungeon.cast!.map((foe) => {
+          const kills = state.bestiary[foe.id]?.kills ?? 0;
+          return h(
+            'div',
+            { class: `panel card monster${kills ? '' : ' unmet'}`, attrs: { 'data-cast': foe.id } },
+            [
+              kills
+                ? face(foe, 'small')
+                : h('div', { class: 'portrait small blank', attrs: { 'aria-hidden': 'true' } }, [
+                    h('span', { text: '?' }),
+                  ]),
+              h('div', { class: 'stack tight monster-text' }, [
+                h('h2', { text: kills ? foe.name : '?' }),
+                h('p', {
+                  class: 'small muted',
+                  text: kills ? `Killed ${formatNumber(kills)}` : 'Not beaten yet',
+                }),
+              ]),
+            ],
+          );
+        }),
+      ]),
+    );
+
   const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
   const food = foodPanel(state, content, actions, updates);
   const bounty = bountyEntry(state, content, actions.bounties);
@@ -263,6 +301,7 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
       you,
       food,
       ...areas,
+      ...dungeons,
     ]),
     update,
   };

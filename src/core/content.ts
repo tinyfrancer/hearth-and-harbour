@@ -237,6 +237,18 @@ export interface DungeonDef {
   name: string;
   /** Item ids it can give up, in the order the collection log lists them. */
   loot: readonly string[];
+  /**
+   * Who is fought in it, by the ids its scene reports kills by, in the order
+   * they are listed. Their numbers live with the scene; the idle rules need
+   * only to know them, so that their kills are kept like any monster's.
+   */
+  cast?: readonly DungeonFoe[];
+}
+
+/** One of a dungeon's cast, as far as the idle rules know it. */
+export interface DungeonFoe {
+  id: string;
+  name: string;
 }
 
 /**
