@@ -10,8 +10,12 @@ import {
   itemIconPicture,
   skillIcon,
   skillIconPicture,
+  TAB_ICON_IDS,
+  tabIcon,
+  tabIconPicture,
 } from '../../src/art/icons';
-import type { Shade } from '../../src/art/palette';
+import { DAY, type Shade } from '../../src/art/palette';
+import { TAB_MUTED } from '../../src/art/tabArt';
 
 // The test's own copy of the game's ids (src/data/items.ts and skills.ts), so
 // that art never imports the game and a missing icon fails here by name.
@@ -90,6 +94,7 @@ const ITEMS = [
   'spyglass',
   'brinebeards_anchor',
   'ships_figurehead',
+  'velvet_cap',
 ];
 
 const SKILLS = [
@@ -190,6 +195,32 @@ describe('item and skill icons', () => {
     expect(listed.sort()).toEqual(
       [...ITEMS.map((id) => `item:${id}`), ...SKILLS.map((id) => `skill:${id}`)].sort(),
     );
+  });
+
+  it('draws the five tab icons, each its own, lit and muted, and null for any other tab', () => {
+    const tabs = ['skills', 'bank', 'character', 'town', 'menu'];
+    expect([...TAB_ICON_IDS].sort()).toEqual([...tabs].sort());
+    const seen = new Set<string>();
+    for (const id of tabs) {
+      const pic = tabIconPicture(id)!;
+      expect(pic, id).not.toBeNull();
+      expect([pic.grid.w, pic.grid.h]).toEqual([ICON_SIZE, ICON_SIZE]);
+      // Not empty: most of the square is drawn.
+      const drawn = [...pic.grid.d].filter((c) => c).length;
+      expect(drawn, id).toBeGreaterThan(ICON_SIZE * ICON_SIZE * 0.35);
+      seen.add(pic.grid.d.join(','));
+      // The door gives both states; art.css shows the lit one in the open tab.
+      const el = tabIcon(id)!;
+      expect(el.classList.contains('tab-icon')).toBe(true);
+      expect(el.getAttribute('aria-hidden')).toBe('true');
+      expect(el.querySelectorAll('canvas.tab-icon-on').length).toBe(1);
+      expect(el.querySelectorAll('canvas.tab-icon-off').length).toBe(1);
+    }
+    expect(seen.size).toBe(tabs.length);
+    // Muted is not lit: every colour the icons use differs between the two.
+    for (const shade of Object.keys(DAY.colours) as Shade[])
+      expect(TAB_MUTED.colours[shade], shade).not.toBe(DAY.colours[shade]);
+    for (const id of ['', 'combat', 'toString', '__proto__']) expect(tabIcon(id), id).toBeNull();
   });
 
   it('is shown at a whole number of device pixels, about 32 CSS pixels across', () => {

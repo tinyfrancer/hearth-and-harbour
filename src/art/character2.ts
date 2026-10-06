@@ -18,16 +18,25 @@ import { pixelCanvas2, spriteCanvas } from './town2/raster';
 import { DAY2, paletteFor, type TimeOfDay } from './town2/ramps';
 import { town2Scale } from './town2/scale';
 import { FIG_H, FIG_W, AXIS, SOLE } from './figure2/body';
-import { bonedParts, figure2, WARDROBE2 } from './figure2/dress';
+import { bonedParts, figure2, slottedParts, WARDROBE2 } from './figure2/dress';
+import { backParts, frontWalkParts } from './figure2/views';
 import { recolour } from './figure2/engine';
 import { FOLK2, FOLK_HALF_STEP, folkBoned, folkGrid, folkRig, folkSwap } from './figure2/folk';
 import { HAIRSTYLES2 } from './figure2/hair';
 import { lookSwap } from './figure2/look';
+import { sideWalkGrid } from './figure2/side';
+import { sideDress } from './figure2/sideDress';
+import { FOLK_SIDE } from './figure2/sideFolk';
+import { folkBackParts } from './figure2/folkBack';
 import {
+  BACK_RIG,
+  BACK_SHIELD_RIG,
+  FRONT_WALK_RIG,
   HERO_RIG,
   IDLE2,
   IDLE2_FRAMES,
   WALK2_FRAMES,
+  WALK2_STRIDE,
   posedFigure,
   walkKey,
   type Boned,
@@ -284,16 +293,59 @@ function posedPicture(
   return pic;
 }
 
-function heroParts(look: Partial<Look>, worn: readonly string[], extra: readonly string[]) {
+function heroParts(
+  look: Partial<Look>,
+  worn: readonly string[],
+  extra: readonly string[],
+  facing: Facing2 | 'idle' = 'idle',
+) {
   const safe: Look = { ...DEFAULT_LOOK, ...look };
-  let boned: Boned[];
+  let gear: string[];
+  let body: 'standard' | 'standard_at_ease';
   try {
-    const gear = characterGear2(safe, worn, extra);
-    boned = bonedParts(characterBody2(gear), gear);
+    gear = characterGear2(safe, worn, extra);
+    body = characterBody2(gear);
+    bonedParts(body, gear);
   } catch {
-    boned = bonedParts('standard_at_ease', ['short_hair', ...EVERYDAY]);
+    gear = ['short_hair', ...EVERYDAY];
+    body = 'standard_at_ease';
   }
-  return { boned, rig: HERO_RIG, swap: lookSwap(safe) };
+  const shield = gear.some((id) => slotOf(id) === 'shield');
+  let boned: Boned[] = bonedParts(body, gear);
+  let rig: Rig2 = HERO_RIG;
+  if (facing === 'down') {
+    boned = frontWalkParts(boned, shield);
+    if (!shield) rig = FRONT_WALK_RIG;
+  } else if (facing === 'up') {
+    boned = backParts(slottedParts(body, gear), HAIRSTYLES2[safe.hair]?.gear ?? null);
+    rig = shield ? BACK_SHIELD_RIG : BACK_RIG;
+  }
+  return { boned, rig, swap: lookSwap(safe) };
+}
+
+/** The character walking across in true profile (side.ts), or null if some gear has no side drawing. */
+function sidePicture(
+  key: string,
+  look: Partial<Look>,
+  worn: readonly string[],
+  extra: readonly string[],
+  facing: 'right' | 'left',
+  f: number,
+): Picture2 | null {
+  const kept = posedPics.get(key);
+  if (kept) return kept;
+  const safe: Look = { ...DEFAULT_LOOK, ...look };
+  let dress = null;
+  try {
+    dress = sideDress(characterGear2(safe, worn, extra));
+  } catch {
+    dress = null;
+  }
+  if (!dress) return null;
+  const { grid } = sideWalkGrid(dress, f, WALK2_STRIDE, facing === 'left');
+  const pic = { grid: recolour(grid, lookSwap(safe)), glows: [] };
+  posedPics.set(key, pic);
+  return pic;
 }
 
 /**
@@ -312,9 +364,13 @@ export function characterWalkPicture2(
 ): Picture2 {
   const f = (((Math.floor(frame) % WALK2_FRAMES) + WALK2_FRAMES) % WALK2_FRAMES) | 0;
   const key = `walk ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`;
+  if (facing === 'right' || facing === 'left') {
+    const side = sidePicture(key, look, wornItemIds, extra, facing, f);
+    if (side) return side;
+  }
   return posedPicture(
     key,
-    () => heroParts(look, wornItemIds, extra),
+    () => heroParts(look, wornItemIds, extra, facing),
     walkKey(facing, f),
     facing === 'left',
   )!;
@@ -379,11 +435,26 @@ const folkParts = (id: string) => {
 /** A townsperson walking, as `characterWalkPicture2`; null for an unknown id. */
 export function townsfolkWalkPicture2(id: string, facing: Facing2, frame: number): Picture2 | null {
   const f = (((Math.floor(frame) % WALK2_FRAMES) + WALK2_FRAMES) % WALK2_FRAMES) | 0;
+  const key = `folk walk ${facing} ${f} ${id}`;
+  if (facing === 'right' || facing === 'left') {
+    const kept = posedPics.get(key);
+    if (kept) return kept;
+    const dress = FOLK_SIDE[id]?.();
+    if (!dress) return null;
+    // Townsfolk carry no weapon, so walking left is the right walk mirrored.
+    const { grid } = sideWalkGrid(dress, f, TOWNSFOLK2_STRIDE, false);
+    const pic = {
+      grid: recolour(facing === 'left' ? mirror(grid) : grid, folkSwap(id)),
+      glows: [],
+    };
+    posedPics.set(key, pic);
+    return pic;
+  }
   return posedPicture(
-    `folk walk ${facing} ${f} ${id}`,
-    () => folkParts(id),
+    key,
+    () => (facing === 'up' ? folkBackParts(id) : folkParts(id)),
     walkKey(facing, f, folkRig(id).half),
-    facing === 'left',
+    false,
   );
 }
 

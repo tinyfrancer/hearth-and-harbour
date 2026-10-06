@@ -235,7 +235,7 @@ export function figure2Gallery(): { section: HTMLElement; draw: () => void } {
   const build = () => {
     if (built) return;
     built = true;
-    sub('Walking (B9): toward you, to the right, to the left, and standing, breathing');
+    sub('Walking (B10b): toward you, to the right, to the left, away, and standing, breathing');
     for (const rung of LADDER2)
       walking(rung.name, {
         walk: (when, facing, f) =>

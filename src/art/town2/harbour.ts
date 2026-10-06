@@ -578,9 +578,12 @@ export function wreckRock(): Drawn {
       if (!inside(x, y)) continue;
       let best = 0;
       let bd = Infinity;
+      // B10b: the planes' borders wander (weathered, not cut), so the rock
+      // no longer looks faceted like a gem; the face's plane stays broad.
+      const wander = 1 + (fbm(x, y, 9, 5) - 0.5) * 0.45;
       seeds.forEach((s, i) => {
         // The face's plane is broad; the others crowd round it.
-        const d = Math.hypot(x - s.x, (y - s.y) * 1.2) * (i === 0 ? 0.62 : 1);
+        const d = Math.hypot(x - s.x, (y - s.y) * 1.2) * (i === 0 ? 0.62 : wander);
         if (d < bd) {
           bd = d;
           best = i;
@@ -590,13 +593,14 @@ export function wreckRock(): Drawn {
       const s = seeds[best]!;
       const nz = Math.sqrt(Math.max(0.1, 1 - s.nx * s.nx - s.ny * s.ny));
       const lit = (s.nx * L[0]! + s.ny * L[1]! + nz * L[2]!) / LN;
-      let t = 2.4 + (0.82 - lit) * 2.4;
-      // Weathering in clumps across each plane, never a speckle.
-      t += (clumps(x, y, 23) - 0.5) * 1.2;
+      // Planes a little closer in tone than B9's, weathered in broad clumps.
+      let t = 2.5 + (0.82 - lit) * 1.9;
+      t += (clumps(x, y, 23) - 0.5) * 1.3 + (fbm(x, y, 5, 8) - 0.5) * 0.6;
       put(g, x, y, C('rock', clamp(t, 1, 5)));
     }
   // Where planes meet: a lit lip where the lower plane turns to the light, a
-  // dark crack where it turns away.
+  // dark crack where it turns away; worn away in places, so the edges are
+  // broken lines rather than a cut stone's.
   for (let y = 0; y < H - 1; y++)
     for (let x = 0; x < x1; x++) {
       const me = facet[y * W + x]!;
@@ -605,9 +609,24 @@ export function wreckRock(): Drawn {
       const d = facet[(y + 1) * W + x]!;
       for (const o of [r, d]) {
         if (o < 0 || o === me) continue;
+        if (me !== 0 && o !== 0 && clumps(x, y, 61) < 0.38) continue;
         const a = at(g, x, y) & 7;
         const b = (o === r ? at(g, x + 1, y) : at(g, x, y + 1)) & 7;
-        put(g, x, y, C('rock', b < a ? Math.max(1, a - 1) : Math.min(5, a + 2)));
+        put(g, x, y, C('rock', b < a ? Math.max(1, a - 1) : Math.min(5, a + 1)));
+      }
+    }
+  // Lichen in pale crusts on the planes that face the sky, and pocks: the
+  // weather's marks, in clumps, never one pixel each.
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < x1; x++) {
+      const f = facet[y * W + x]!;
+      if (f <= 0 || !isMat(at(g, x, y), 'rock')) continue;
+      const s = seeds[f]!;
+      if (s.ny < -0.2 && clumps(x, y, 71) > 0.82)
+        put(g, x, y, C('moss', 3 + (clumps(x, y, 72) > 0.5 ? 1 : 0)));
+      else if (clumps(x, y, 81) > 0.88 && isMat(at(g, x, y + 1), 'rock')) {
+        put(g, x, y, C('rock', 5));
+        put(g, x, y + 1, C('rock', 2));
       }
     }
   // Two long cracks running down from the crown, lit on their lower lip.

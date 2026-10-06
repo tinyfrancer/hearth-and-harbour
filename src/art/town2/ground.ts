@@ -473,7 +473,7 @@ export function wheelRuts(
     const l = Math.hypot(dx, dy) || 1;
     const [nx, ny] = [-dy / l, dx / l];
     for (const side of [-1, 1])
-      for (let o = -4; o <= 4; o++) {
+      for (let o = -5; o <= 5; o++) {
         const x = Math.round(cx + nx * (side * gauge * 0.5 + o));
         const y = Math.round(cy + ny * (side * gauge * 0.5 + o));
         const key = y * g.w + x;
@@ -482,43 +482,60 @@ export function wheelRuts(
         const c = at(g, x, y);
         if (!isMat(c, 'cobble')) continue;
         const step = c & 7;
-        if (Math.abs(o) <= 2) put(g, x, y, C('cobble', step >= 5 ? 3 : Math.max(0, step - 2)));
-        else if (Math.abs(o) === 3)
-          put(g, x, y, C('cobble', step >= 5 ? 4 : Math.max(1, step - 1)));
+        // A groove, so it reads at true size (B10b: B9's polished bands were
+        // faint): its floor one smooth polished band a wheel wide with no
+        // joints, its walls a dark line (darkest on the side nearer the
+        // light), the stones beside darkened where water runs.
+        const towardLight = o * (nx * -0.78 + ny * -0.62) > 0;
+        if (Math.abs(o) <= 3) put(g, x, y, C('cobble', clumps(x, y, 23) > 0.6 ? 2 : 1));
+        else if (Math.abs(o) === 4) put(g, x, y, C('cobble', towardLight ? 5 : 4));
         else if (step < 5 && clumps(x, y, 21) > 0.4) dim(g, x, y, 1);
       }
   }
 }
 
 /**
- * A mended patch: square granite setts in the `stone` ramp, a different
- * stone and a different lay from the cobbles round it, in tight courses, a
- * few a shade off, the patch's edge a dark joint.
+ * A mended patch: squarer setts laid in courses among the round cobbles, a
+ * different lay rather than a different colour. B9's were bright granite in
+ * a neat oval with black joints and read as grey rectangles from across the
+ * square (Cody's review); now each sett is granite or a reused cobble, a step
+ * either side of the cobbles' own field, its joint the cobbles' joint tone,
+ * setts of uneven widths, the outline ragged sett by sett and frayed at its
+ * rim where old cobbles were left in, so it reads up close and melts in from
+ * afar.
  */
 export function settPatch(g: TGrid, b: Box, k: number): void {
   const s = Math.max(6, m(0.2));
   const cx = b.x + b.w / 2;
   const cy = b.y + b.h / 2;
-  for (let y = b.y; y < b.y + b.h; y++)
-    for (let x = b.x; x < b.x + b.w; x++) {
+  for (let y = b.y - 4; y < b.y + b.h + 4; y++)
+    for (let x = b.x - 6; x < b.x + b.w + 6; x++) {
       const row = Math.floor((y - b.y) / s);
-      const off = row % 2 ? s >> 1 : 0;
+      const off = Math.floor(hash(row, 3, k) * s);
       const col = Math.floor((x - b.x + off) / s);
-      // A ragged outline, whole setts at a time: an oval, its edge broken by noise.
+      // A ragged outline, whole setts at a time: a lumpy blob, its rim frayed.
       const sx = b.x + col * s - off + s / 2;
       const sy = b.y + row * s + s / 2;
       const a = (sx - cx) / (b.w / 2);
       const bb = (sy - cy) / (b.h / 2);
-      if (a * a + bb * bb > 0.85 + (hash(col, row, k + 9) - 0.5) * 0.5) continue;
+      const lobe = Math.sin(Math.atan2(bb, a) * 3 + k) * 0.25;
+      const r = a * a + bb * bb;
+      const edge = 0.8 + lobe + (hash(col, row, k + 9) - 0.5) * 0.7;
+      if (r > edge) continue;
+      if (r > edge - 0.35 && hash(col, row, k + 5) < 0.45) continue;
+      if (hash(col, row, k + 6) < 0.06) continue;
+      // Uneven setts: some a column narrower, the gap a wider joint.
+      const sw = s - (hash(col, row, k + 7) < 0.35 ? 1 : 0);
       const px = (x - b.x + off) % s;
       const py = (y - b.y) % s;
+      const mat = hash(col, row, k + 8) < 0.55 ? 'rock' : 'cobble';
       const tone =
-        2 + (hash(col, row, k + 1) < 0.3 ? 1 : 0) - (hash(col, row, k + 2) < 0.12 ? 1 : 0);
+        2 + (hash(col, row, k + 1) < 0.35 ? 1 : 0) - (hash(col, row, k + 2) < 0.15 ? 1 : 0);
       let t = tone;
-      if (px === s - 1 || py === s - 1) t = 5;
+      if (px >= sw - 1 || py === s - 1) t = 4;
       else if (px === 0 || py === 0) t = tone - 1;
-      else if (px === s - 2 || py === s - 2) t = tone + 1;
-      put(g, x, y, C('rock', clamp(t, 1, 5)));
+      else if (px === sw - 2 || py === s - 2) t = tone + 1;
+      put(g, x, y, C(mat, clamp(t, 1, 4)));
     }
 }
 
@@ -695,16 +712,28 @@ export function flowerDrift(
     if (!isMat(at(g, x, y), 'grass')) continue;
     const step = colours[Math.floor(hash(i, 3, k) * colours.length)] ?? 1;
     // A plant: its leaves a dark clump, two or three heads on it, one lit.
-    put(g, x - 1, y + 1, C('grass', 4));
-    put(g, x, y + 1, C('grass', 5));
-    put(g, x + 1, y + 1, C('grass', 4));
-    put(g, x, y, C('flower', step));
-    put(g, x + 1, y, C('flower', Math.min(5, step + 1)));
-    if (hash(i, 4, k) < 0.6) {
-      put(g, x - 2, y - 1, C('flower', step));
-      put(g, x - 1, y - 1, C('flower', step === 0 ? 0 : Math.max(0, step - 1)));
-    }
-    if (hash(i, 5, k) < 0.4) put(g, x + 2, y - 2, C('flower', step));
+    // B10b: heads two pixels square and the clump wider, so a drift reads as
+    // flowers at true size rather than a scatter of specks.
+    for (const [dx, dy, s] of [
+      [-2, 2, 4],
+      [-1, 2, 5],
+      [0, 2, 5],
+      [1, 2, 5],
+      [2, 2, 4],
+      [-1, 1, 4],
+      [1, 1, 4],
+    ] as const)
+      put(g, x + dx, y + dy, C('grass', s));
+    const head = (hx: number, hy: number) => {
+      put(g, hx, hy, C('flower', step));
+      put(g, hx + 1, hy, C('flower', step));
+      put(g, hx, hy + 1, C('flower', step));
+      // The shaded quarter: a yellow eye in a white flower, the next dye down in the others.
+      put(g, hx + 1, hy + 1, step === 1 ? C('ochre', 1) : C('flower', Math.min(5, step + 1)));
+    };
+    head(x, y);
+    if (hash(i, 4, k) < 0.6) head(x - 2, y - 2);
+    if (hash(i, 5, k) < 0.4) head(x + 2, y - 2);
   }
 }
 

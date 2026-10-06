@@ -98,7 +98,10 @@ pixel count picked to look right.
 - **The oak is masses on limbs** (B9; B7's crown was one round mass): wide, nearly level limbs from a
   fork, leaf masses at their ends at different heights, light through between them and through
   holes in them, the limbs showing in the gaps. Each mass is a heap of small leaf domes lit from the
-  upper left, darker below and to the right and where it tucks behind a nearer one.
+  upper left, darker below and to the right and where it tucks behind a nearer one. B10b: a dome
+  is a lumpy heap (two or three slow lobes and leaf-sized nicks in its rim, no two alike), lit as a
+  slope in ragged bands, with scattered sprigs of two or three leaves; never a scalloped disc with a
+  lit centre and a ring, which enlarged reads as a rosette.
 - **No ordered dither on grass or water** (B9): at game scale a Bayer dither shows as an even fine
   texture, like cloth. Where two steps meet on a large ground, the edge breaks into clumps a few
   pixels across (`clumps`, `clumpRound` in `texture.ts`), stretched sideways on water so it reads as
@@ -116,7 +119,14 @@ pixel count picked to look right.
   gathered in bunches, worn and salted planking with rust under the ports. The rock is planes
   (each facet lit by which way it faces, its edges a lit lip or a dark crack), its face on one broad
   plane and unchanged, dark and weeded below the tide line with barnacles above; the wreck's ribs
-  are as tall as the rock, with planking still on them.
+  are as tall as the rock, with planking still on them. B10b: the planes' borders wander and their
+  edges are worn away in places, the planes a little closer in tone, lichen in crusts on the
+  sky-facing planes and pocks in clumps, so it reads as weathered stone rather than a cut gem.
+- **Ground marks read at true size** (B10b): a cart rut is a groove a wheel wide, its floor one
+  smooth polished band with no joints, its walls a dark line; a mended patch is squarer setts of
+  granite and reused cobble a step either side of the cobbles' own tone, joints in the cobbles'
+  joint tone, the outline ragged and frayed with old cobbles left in, never a bright grid; a wild
+  flower's head is two pixels square on a wider dark clump.
 - **Each building has its own materials**: the tavern timber, plaster and red tile; the smithy
   rubble with cut quoins, slate and an oak lintel; your house limewash, thatch and blue paint.
 - **Signs read at game scale**: pictures on painted boards (a gull over an anchor, a horseshoe)
@@ -261,7 +271,79 @@ shortened or stretched, nothing is rotated, so lit edges stay unbroken. The rule
   still.
 - **Handedness**: left is the mirror of right, so walking left the hero carries his weapon in the
   hand nearer the viewer (he looks left-handed). Kept on purpose: the weapon is how the ladder reads,
-  and a right-handed hero facing left would carry it behind his body.
+  and a right-handed hero facing left would carry it behind his body. _Superseded in B10b (below):
+  the sword now stays in the right hand._
+
+#### Walking in four facings (B10b)
+
+Cody's review of B9: the side walk read as a shuffle (a body facing the camera on legs striding
+sideways, legs bent by shifting rows, front boots stretched), there was no back view, walking left
+swapped the sword hand, the walk toward the camera was subtle at true size, dresses did not kick and
+the far hand stayed on the hip. What replaced it:
+
+- **Across is a true profile** (`src/art/figure2/rig2.ts`, `side.ts`). The figure is a skeleton
+  posed per frame: each leg two bones (thigh 11, shin 11) from the hip at (28, 44), the knee found
+  from where the foot must be, bending forward; each arm two bones (8 and 6) from the shoulder at
+  (27, 26). A limb is drawn along its bones at its own width (thigh 8 to 6, shin 6 to 5, arm 5 to
+  4), lit across its round from the upper left, so a bent knee is a real bend and the lit edge runs
+  unbroken from hip to ankle. What covers a limb is a stretch of it measured from its root (a
+  trouser from the hip to the ankle, a boot's shaft from 15, a sleeve to 14 or rolled at 6, mail to
+  the elbow, a vambrace from 8, laced bracers 9 to 14), so a garment drawn once fits every pose.
+- **What does not bend is drawn by hand in profile** (`sideHeads.ts`, `sideDress.ts`,
+  `sideFolk.ts`): the head from the H2 rules (round skull, one eye with its lid line and the iris
+  at its front, the brow a skin row above it, a nose lit on top, a jaw shadow from under the ear to
+  the chin, the ear a rim round a darker hollow, never the mouth's red, which reads as a blush),
+  every hairstyle (crown and hang, as at the front), every hat and helm, the torso of every
+  garment (the collar's V, the jerkin's laces at its front edge and the disc's rim at the chest,
+  mail's rings, the coat's braid, the breastplate's lit back and shadowed front), and five boot
+  poses (heel striking toe up, flat, heel rising, high on the toe, hanging in the swing).
+- **Skirts are laid per frame** between the legs that push them: a tunic's, a jerkin's tabs, the
+  mail's skirt, the fauld's lames, a coat's skirts, every long dress. Its front follows the leading
+  knee and shin, its back the trailing one, so a hem kicks with the stride. An apron is a panel in
+  front of the belly, kicked a little by the knee. A cloak hangs from the shoulders behind and
+  trails, more at its hem, with each step.
+- **The gait**: a foot strikes with its heel (frame 0 the near foot, 4 the far), rolls flat and
+  leaves from its toe, down for five frames (the double supports shared), through the air for
+  three: lifted behind, brought past the planted foot with the knee forward, reached out toe up.
+  While a foot is down it moves back exactly the stride each frame (7 for the hero, 4 for
+  townsfolk), and the pixel bearing its weight (the heel, then the sole, then the toe) is the one
+  the flat foot would have there, so it never slides; the heel rises by itself when the hip has
+  gone too far ahead for a flat foot to reach. The hips are lowest as a foot lands (two rows) and
+  highest passing; the head leads by a column.
+- **Arms swing against the legs**, the forearm bending forward on the forward swing. A busy arm
+  does not swing: the shield arm stays bent with the shield on its forearm, the off hand closes on
+  a spyglass, the townsfolk's baskets, tankard, sack and raised arm stay put, the old man's stick
+  is planted where his far foot bears his weight.
+- **Handedness** (the rule): the hero is right-handed in every facing. Walking right his right
+  side is toward the viewer, so the sword is in the near hand, in front of the body, and the
+  shield is on the far forearm, shown as its edge (the face squeezed to its rim, field and device)
+  held out beyond the chest. Walking left his left side is toward the viewer: the shield's face is
+  on the near forearm over the body and the sword is in the far hand behind it, its blade showing
+  above and ahead. The left walk is drawn as the right with the arms' jobs swapped and then
+  mirrored, so light comes from the upper right walking left, as it does when the standing sprite
+  is mirrored; nothing held changes hands. Toward the camera the sword is on the viewer's left;
+  from behind, on the viewer's right. Townsfolk carry no weapon, so their left walk is their right
+  mirrored.
+- **Held things in profile** are the front drawing turned about the fist's own middle column, so
+  the blade leans toward the walk and the guard, knuckle bow and haft keep their places round the
+  fingers; the hand rule holds by construction (the grip under the fist, the rest in front of it).
+  A long blade never lifts the hand above where it hangs standing, so its tip stays on the canvas.
+- **From behind** (`views.ts`, `folkBack.ts`): the front figure mirrored (the figure's right is
+  now the viewer's right) and re-lit so each row is still lit on its left (`flipLit`), with the
+  back of everything in place of its front: the back of the head (a step darker than a face and
+  featureless, so it never reads as one), the back of every hairstyle and head gear (and the hair
+  that shows below a hat's rim), a shirt lit afresh with a fold down the spine, a belt without its
+  buckle, a jerkin without its disc or laces, a coat closed, the quiver across the back, a shield's
+  planks and straps, the cloak over all. With no shield both arms hang.
+- **Toward the camera** the free foot comes up past the planted one with the knee toward the
+  viewer (the thigh foreshortened, the foot lifted seven rows), the foot behind sits two rows up the
+  screen at each contact, the body rides a column over the foot that bears the weight, a skirt's hem
+  is pushed up over the knee that comes forward, and with no shield the far arm hangs and swings
+  like the near one (the near arm's own drawing moved across). Walking away is the same keys with
+  the lifted sole showing.
+- **Timing**: eight frames, 80 ms each for the hero (stride 7, so 87.5 art px/s against the scene's
+  88), 100 ms for townsfolk (stride 4); unchanged from B9. The step (28 art pixels) is long for the
+  figures' short legs, which is why the hips drop two rows at contact.
 
 ### The dungeon at the C scale (B10a; not yet swapped in)
 
@@ -611,6 +693,16 @@ every action card), so they follow the same hand as the town and the figures.
   or for what is not worn, the thing itself: a doubloon (gold, it is money) with another lying
   by it, the figurehead as a carved lady's bust in profile with her paint worn, a purse with its
   string cut for thieving. Brass is the `bronze` ramp, as on the worn layers.
+- **The velvet cap** (B10b): soft plum velvet slouched to one side, a sheen along its crown, its
+  band below, a gold pin at the front; a new icon ramp, `velvet`, the C-scale figure's plum.
+- **Tab icons** (B10b, `tabArt.ts`, through `tabIcon`): one object each, in the item icons' hand
+  and size (24 x 24, shown at the same whole-pixel scale), told apart by silhouette: crossed pick
+  and axe (Skills), an iron-bound strongbox with a gold lock (Bank), the hero's head and shoulders
+  in his teal tunic (Character), a limewashed house under a red roof with a smoking chimney
+  (Town), a sealed scroll (Menu). Two states: lit for the open tab, and muted for the rest (every
+  colour mostly its own lightness in a warm grey lifted toward the bar's muted text, a fifth of its
+  hue kept), so the open tab reads at a glance as its gold label does; `art.css` shows one or the
+  other by `.tab[aria-current='page']`.
 
 ## Portraits
 
