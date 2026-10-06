@@ -781,6 +781,8 @@ describe('the app shell', () => {
       return mount();
     };
     const slot = (id: string): HTMLButtonElement => q(`[data-slot="${id}"]`);
+    /** A slot's square shows a picture; its name and what is in it are said to a screen reader. */
+    const says = (id: string): string => slot(id).getAttribute('aria-label') ?? '';
     const total = (stat: string): string => q(`[data-total="${stat}"]`).textContent ?? '';
     const totalName = (stat: string): string =>
       q(`[data-total="${stat}"]`).previousElementSibling?.textContent ?? '';
@@ -791,17 +793,20 @@ describe('the app shell', () => {
       tab('character');
       expect(q('.sheet canvas[role="img"]')).toBeDefined();
       const slots = [...root.querySelectorAll('[data-slot]')];
-      expect(slots.map((el) => el.querySelector('.slot-name')?.textContent)).toEqual([
+      // Down the left of the figure what is worn on the body, down the right what is carried.
+      expect(slots.map((el) => el.getAttribute('aria-label')?.split(':')[0])).toEqual([
         'Head',
+        'Neck',
         'Body',
         'Legs',
         'Main hand',
         'Off hand',
-        'Neck',
         'Wrist',
         'Ammunition',
       ]);
-      expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
+      // Empty, each square says which slot it is.
+      expect(slot('ammo').textContent).toBe('Ammo');
+      expect(slots.every((el) => el.getAttribute('aria-label')?.endsWith(': Nothing'))).toBe(true);
       expect([total('attack'), total('strength'), total('armour')]).toEqual(['0', '0', '0']);
       expect(totalName('attack')).toBe('Melee attack');
     });
@@ -821,7 +826,7 @@ describe('the app shell', () => {
       press('Equip Iron sword');
       expect(lastToast()).toBe('You take up the Iron sword. Bronze sword goes back to the bank.');
       tab('character');
-      expect(slot('main_hand').textContent).toContain('Iron sword');
+      expect(says('main_hand')).toContain('Iron sword');
       expect([total('attack'), total('strength')]).toEqual(['10', '9']);
       expect(new LocalStorageSaveService().load()).toMatchObject({
         bank: { bronze_sword: 2 },
@@ -851,8 +856,8 @@ describe('the app shell', () => {
       expect(root.querySelector('[data-picker]')).toBeNull();
       slot('off_hand').click();
       q<HTMLButtonElement>('[data-equip="bronze_shield"]').click();
-      expect(slot('main_hand').textContent).toContain('Bronze sword');
-      expect(slot('off_hand').textContent).toContain('Bronze shield');
+      expect(says('main_hand')).toContain('Bronze sword');
+      expect(says('off_hand')).toContain('Bronze shield');
       expect([total('attack'), total('strength'), total('armour')]).toEqual(['6', '5', '6']);
 
       slot('main_hand').click();
@@ -860,7 +865,7 @@ describe('the app shell', () => {
       expect(lastToast()).toBe(
         'You take up the Pine shortbow. Bronze sword and Bronze shield go back to the bank.',
       );
-      expect(slot('off_hand').textContent).toContain('Nothing');
+      expect(says('off_hand')).toContain('Nothing');
       expect(totalName('attack')).toBe('Ranged attack');
       expect([total('attack'), total('strength'), total('armour')]).toEqual(['5', '3', '0']);
 
@@ -874,7 +879,7 @@ describe('the app shell', () => {
       slot('off_hand').click();
       expect(q('[data-picker="off_hand"]').textContent).toContain('needs both hands');
       q<HTMLButtonElement>('[data-equip="bronze_shield"]').click();
-      expect(slot('main_hand').textContent).toContain('Nothing');
+      expect(says('main_hand')).toContain('Nothing');
       expect(new LocalStorageSaveService().load()?.bank).toEqual({
         bronze_sword: 1,
         pine_shortbow: 1,
@@ -891,7 +896,7 @@ describe('the app shell', () => {
       expect(q('[data-picker="head"]').textContent).toContain('Wearing Iron helmet');
       expect(q('[data-picker="head"]').textContent).toContain('Nothing in the bank goes here yet.');
       press('Take off');
-      expect(slot('head').textContent).toContain('Nothing');
+      expect(says('head')).toContain('Nothing');
       expect(total('armour')).toBe('0');
       expect(new LocalStorageSaveService().load()).toMatchObject({
         bank: { iron_helmet: 1 },
@@ -928,7 +933,7 @@ describe('the app shell', () => {
       mount();
       tab('character');
       const slots = [...root.querySelectorAll('[data-slot]')];
-      expect(slots.every((el) => el.textContent?.endsWith('Nothing'))).toBe(true);
+      expect(slots.every((el) => el.getAttribute('aria-label')?.endsWith(': Nothing'))).toBe(true);
       expect(new LocalStorageSaveService().load()).toMatchObject({
         version: GAME_STATE_VERSION,
         look: {},

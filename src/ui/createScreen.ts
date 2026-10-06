@@ -1,4 +1,5 @@
-import { characterCanvas, type Look } from '../art/character';
+import type { Look } from '../art/character';
+import { characterCanvas2 } from '../art/character2';
 import { NAME_MAX_LENGTH, nameProblem } from '../core/state';
 import { button, h } from './dom';
 import { importPanel } from './importPanel';
@@ -13,10 +14,11 @@ interface CreateScreenOptions {
 /** The first thing a new player sees: name and dress a character, or bring a save in. */
 export function createScreen({ onCreate, onImport }: CreateScreenOptions): HTMLElement {
   let look = fullLook({});
-  const figure = h('div', { class: 'figure' }, [characterCanvas(look, [])]);
+  const drawn = (): HTMLCanvasElement => characterCanvas2(look, [], 'sheet');
+  const figure = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [drawn()]);
   const picker = lookPicker(look, (next) => {
     look = next;
-    figure.replaceChildren(characterCanvas(look, []));
+    figure.replaceChildren(drawn());
   });
   const input = h('input', {
     class: 'field',
@@ -47,10 +49,11 @@ export function createScreen({ onCreate, onImport }: CreateScreenOptions): HTMLE
     },
     [
       h('h2', { text: 'Who are you?' }),
+      // The choices sit right under the figure, so each step shows on it at once.
       figure,
+      picker,
       input,
       problem,
-      picker,
       h('button', { class: 'btn primary', text: 'Begin', attrs: { type: 'submit' } }),
     ],
   );

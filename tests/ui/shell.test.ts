@@ -166,18 +166,18 @@ describe('the shell a scene is given', () => {
     });
     click('.tab[data-tab="town"]');
     shell!.settleRun({
-      kills: { dock_rat: 3, deckhand: 4 },
+      kills: { dock_rat: 3, deckhand: 4, kraken: 2 },
       cleared: 'brinebeards_grotto',
       timeMs: 432_100,
     });
     again.save();
     expect(saved()).toMatchObject({
-      bestiary: { dock_rat: { kills: 3, seen: [] } },
+      bestiary: { dock_rat: { kills: 3, seen: [] }, deckhand: { kills: 4, seen: [] } },
       bounty: { monster: 'dock_rat', count: 10, done: 10 },
       dungeons: { brinebeards_grotto: { clears: 1, bestMs: 432_100 } },
     });
-    // The grotto's own cast is not in the tables yet, so counts for nothing.
-    expect(saved()!.bestiary.deckhand).toBeUndefined();
+    // The grotto's cast is kept like any monster; someone in no table or cast counts for nothing.
+    expect(saved()!.bestiary.kraken).toBeUndefined();
     expect(root.querySelector('.toast')?.textContent).toBe(
       'Bounty done: 10 Dock rats. Hand it in.',
     );

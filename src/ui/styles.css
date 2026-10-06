@@ -642,86 +642,129 @@ button.card:active {
   outline-offset: 2px;
 }
 
-/* The character, drawn: on a dark ground, framed like a portrait. */
+/*
+ * The character, drawn: standing on a lit floor in a dark room, framed like a
+ * portrait. The canvas keeps the size the art gave it (whole device pixels);
+ * the room grows around it. The soles are 2 CSS pixels above the canvas's
+ * foot, so the canvas sits into the floor and they stand on it, not on its edge.
+ */
 .figure {
+  --floor: 44px;
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   flex: none;
-  padding: 8px;
-  background: var(--backdrop);
+  min-width: 0;
+  padding: 16px 0 calc(var(--floor) - 14px);
+  background: linear-gradient(
+    to bottom,
+    var(--backdrop) calc(100% - var(--floor)),
+    var(--line) calc(100% - var(--floor)) calc(100% - var(--floor) + var(--px)),
+    var(--panel) calc(100% - var(--floor) + var(--px))
+  );
   border: var(--px) solid var(--line);
+  overflow: hidden;
+}
+
+/* A shadow under the feet, on the floor. */
+.figure::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 34px);
+  bottom: calc(var(--floor) - 17px);
+  width: 68px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--backdrop);
+}
+
+.figure > canvas {
+  position: relative;
 }
 
 .create .figure {
-  align-self: center;
-  padding: 12px 24px;
+  padding-top: 20px;
 }
 
-.sheet-body {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+/* The sheet: the name, then the character with the eight slots down either side. */
+.sheet-name {
+  text-align: center;
 }
 
-.totals {
-  flex: 1;
+.doll {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px 12px;
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  gap: 10px;
+}
+
+.doll-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* The three totals, side by side under the figure: the number large, its name beneath. */
+.totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   margin: 0;
+}
+
+.totals > div {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 8px 4px;
+  background: var(--panel);
+  border: var(--px) solid var(--line);
+  text-align: center;
 }
 
 .totals dt {
   color: var(--text-muted);
-  font-size: 15px;
-  white-space: nowrap;
+  font-size: 14px;
+  line-height: 1.15;
 }
 
 .totals dd {
   margin: 0;
-  text-align: right;
   color: var(--gold-bright);
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
 }
 
-/* The eight slots, two to a row; an open slot's choices span the row beneath it. */
-.slots {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
+/* A slot: a square holding what is worn in it, or the slot's name, dim, when empty. */
 .slot {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 64px;
-  min-width: 0;
-  padding: 8px 10px;
-  background: var(--panel-raised);
+  width: 56px;
+  height: 56px;
+  padding: 2px;
+  background: var(--panel);
   border: var(--px) solid var(--gold);
   border-radius: 0;
   color: var(--text);
   font: inherit;
-  text-align: left;
   cursor: pointer;
 }
 
 .slot.empty {
+  background: var(--backdrop);
   border-color: var(--line);
-}
-
-.slot.empty .slot-item {
   color: var(--text-muted);
 }
 
 .slot[aria-expanded='true'] {
   border-color: var(--gold-bright);
-  background: var(--panel);
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 0;
 }
 
 .slot:focus-visible {
@@ -729,21 +772,28 @@ button.card:active {
   outline-offset: 2px;
 }
 
-.slot-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* An empty slot's name, or a worn thing's name until art draws it an icon. */
+.slot-word {
   max-width: 100%;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
-.slot-item > span:not(.qty) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.slot-qty {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 14px;
+  line-height: 1;
+  text-shadow:
+    1px 1px 0 var(--backdrop),
+    -1px -1px 0 var(--backdrop);
 }
 
 .slot-picker {
-  grid-column: 1 / -1;
   border-color: var(--gold-bright);
 }
 
@@ -765,7 +815,8 @@ button.card:active {
 
 .look-row {
   display: grid;
-  grid-template-columns: 7.5em 48px 1fr 48px;
+  /* The choice takes what is left, so a long name never pushes a button off a narrow screen. */
+  grid-template-columns: minmax(0, 7em) 48px minmax(0, 1fr) 48px;
   align-items: center;
   gap: 8px;
   min-height: 48px;
@@ -845,6 +896,16 @@ button.card:active {
 .monster-text {
   flex: 1;
   min-width: 0;
+}
+
+/* A dungeon's cast: not tapped, so framed quietly, and dimmer still until met. */
+[data-cast] {
+  align-items: center;
+  border-color: var(--line);
+}
+
+[data-cast].unmet .portrait {
+  border-color: var(--line);
 }
 
 .foe-head {
