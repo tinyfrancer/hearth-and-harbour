@@ -8,14 +8,14 @@
  * Everything that matters (face, hat, ears, horns) lies inside the safe box
  * (`PORTRAIT2_SAFE`), so a frame that must crop a portrait can crop to it.
  */
-import { put, stamp, tgrid, type Picture2, type TGrid } from '../town2/cells';
+import { hash, put, stamp, tgrid, type Picture2, type TGrid } from '../town2/cells';
 import { cell } from './cave';
 import type { Mat2 as Mat } from './cave';
 import { outlineIn } from '../figure2/engine';
 import { browShift } from '../figure2/look';
 import type { Mat as TownMat } from '../town2/ramps';
-import { dome, lim, litBy, paint, rod, sprite } from './kit';
-import { eye as beadEye, mass, shade } from './beasts';
+import { dome, furTex, lim, litBy, paint, poly, rod, seam, shaped, sprite } from './kit';
+import { mass, shade } from './beasts';
 import {
   BUST,
   HEAD0,
@@ -509,31 +509,90 @@ const GOBLIN: FaceDef = {
 /* ------------------------------------------------------------ the beasts */
 
 const RAT: FaceDef = {
-  disc: 'stone',
+  disc: 'slate',
   draw(g) {
-    mass(g, 30, 52, 24, 18, 'fur', { base: 3, tex: 'fur' });
-    mass(g, 38, 38, 15, 13, 'fur', { base: 2.6, tex: 'fur', k2: 2 });
-    mass(g, 52, 44, 9, 7, 'fur', { base: 2.4, k2: 3 });
+    // The body behind, hunched.
+    shaped(
+      g,
+      poly([
+        [2, 72],
+        [6, 54],
+        [20, 46],
+        [50, 46],
+        [66, 54],
+        [70, 72],
+      ]),
+      'fur',
+      {
+        base: 2.8,
+        contrast: 1.6,
+        radius: 8,
+        tex: furTex(41, -0.5, 0.22),
+      },
+    );
     // Round ears, pink inside.
-    for (const [x, y] of [
-      [26, 22],
-      [44, 20],
+    for (const [cx, cy, s] of [
+      [17, 18, 2.2],
+      [51, 16, 2.8],
     ] as const) {
-      dome(g, x, y, 7, 7, 'fur', 2.4, 2);
-      dome(g, x + 1, y + 1, 4, 4, 'shell', 3, 1.5);
+      const ear = (x: number, y: number) => Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < 10;
+      shaped(g, ear, 'fur', { base: s, contrast: 1.6, radius: 3 });
+      shaped(g, (x, y) => Math.hypot(x + 0.5 - cx - 1, y + 0.5 - cy - 1) < 6.5, 'shell', {
+        base: 2.8,
+        contrast: 1.4,
+        radius: 3,
+      });
     }
-    beadEye(g, 44, 34);
-    beadEye(g, 45, 35);
-    put(g, 46, 34, cell('eye', 4));
-    paint(g, 58, 41, 4, 4, (x, y) => cell('shell', x === 58 || y === 41 ? 2 : 4));
-    // Teeth, yellow, under the snout.
-    sprite(g, 52, 50, ['aa', 'ab', 'ab'], { a: ['cream', 2], b: ['ochre', 3] });
-    for (const [x0, y0, x1, y1] of [
-      [56, 44, 68, 40],
-      [56, 46, 69, 47],
-      [55, 48, 66, 53],
+    // The head: wide at the cheeks, coming to a point at the nose.
+    const head = poly([
+      [14, 34],
+      [20, 24],
+      [30, 20],
+      [42, 20],
+      [52, 24],
+      [58, 34],
+      [54, 44],
+      [44, 52],
+      [38, 60],
+      [34, 60],
+      [28, 52],
+      [18, 44],
+    ]);
+    shaped(g, head, 'fur', {
+      base: 2.1,
+      contrast: 1.9,
+      radius: 9,
+      tex: (x, y, t) => furTex(43, 0.3, 0.16)(x, y, t - (y > 46 ? 0.6 : 0)),
+    });
+    seam(g, head, 1);
+    // Beady black eyes with a glint, close together, a sly look.
+    for (const ex of [26, 41])
+      sprite(g, ex, 32, ['.aaa.', 'abcca', 'accca', '.aaa.'], {
+        a: ['fur', 5],
+        b: ['eye', 0],
+        c: ['eye', 4],
+      });
+    // A pink nose, whiskers out either side.
+    sprite(g, 33, 55, ['.ab.', 'abbc', '.cc.'], {
+      a: ['shell', 2],
+      b: ['shell', 3],
+      c: ['shell', 4],
+    });
+    for (const [x0, y0, dx, dy] of [
+      [30, 55, -14, -3],
+      [30, 57, -15, 1],
+      [40, 55, 14, -3],
+      [40, 57, 15, 1],
     ] as const)
-      rod(g, x0, y0, x1, y1, 1, 'cream', [3]);
+      for (let i = 0; i <= 12; i++)
+        put(
+          g,
+          x0 + Math.round((dx * i) / 12),
+          y0 + Math.round((dy * i) / 12),
+          cell('cream', i < 6 ? 1 : 2),
+        );
+    // Buck teeth under the nose.
+    sprite(g, 34, 59, ['abba', 'abba'], { a: ['cream', 2], b: ['cream', 0] });
   },
 };
 
@@ -567,164 +626,484 @@ const SAND_CRAB: FaceDef = {
 const GULL: FaceDef = {
   disc: 'sea',
   draw(g) {
-    mass(g, 28, 60, 26, 14, 'sail', { base: 1.8, k: 1.6 });
-    mass(g, 18, 58, 16, 9, 'stone', { base: 2.4, tex: 'feather' });
-    mass(g, 36, 34, 15, 15, 'sail', { base: 1.5, k: 1.6 });
-    // The fierce yellow eye under a flat grey brow.
-    paint(g, 37, 26, 8, 6, (x, y) =>
-      Math.hypot(x - 41, y - 29) < 3 ? cell('gold', y < 29 ? 1 : 2) : 0,
+    // Grey back and a white breast below the head.
+    shaped(
+      g,
+      poly([
+        [0, 72],
+        [2, 58],
+        [14, 50],
+        [30, 48],
+        [44, 54],
+        [50, 72],
+      ]),
+      'smoke',
+      {
+        base: 1.8,
+        contrast: 1.6,
+        radius: 8,
+      },
     );
-    put(g, 41, 29, cell('eye', 4));
-    put(g, 42, 29, cell('eye', 4));
-    paint(g, 35, 24, 12, 2, (_x, y) => cell('stone', y === 24 ? 4 : 5));
-    // The beak, a red spot on its hook, the chip clamped in it.
-    sprite(g, 48, 32, ['aaaaaaaaab..', 'aaaaaaaabbc.', '.ccccccrrbc.', '.aaaaab.....'], {
-      a: ['gold', 1],
-      b: ['gold', 3],
-      c: ['gold', 4],
-      r: ['crimson', 2],
-    });
-    rod(g, 55, 38, 68, 22, 3, 'ochre', [1, 2, 3]);
+    shaped(
+      g,
+      poly([
+        [0, 60],
+        [6, 52],
+        [18, 50],
+        [26, 56],
+        [24, 72],
+        [0, 72],
+      ]),
+      'stone',
+      {
+        base: 2.4,
+        contrast: 1.6,
+        radius: 5,
+        tex: (x, y, t) => ((y + Math.floor(x / 4)) % 4 === 0 ? t + 1 : t),
+      },
+    );
+    // The head, side on: a flat brow, a round white crown, a thick neck.
+    const head = poly([
+      [14, 28],
+      [18, 18],
+      [26, 12],
+      [36, 11],
+      [44, 15],
+      [48, 22],
+      [50, 30],
+      [46, 42],
+      [40, 52],
+      [24, 54],
+      [16, 44],
+    ]);
+    shaped(g, head, 'smoke', { base: 1.3, contrast: 1.8, radius: 9, lo: 0 });
+    seam(g, head, 1);
+    // The beak: long, yellow, hooked at the tip, a red spot, a stolen chip crosswise in it.
+    const beak = poly([
+      [45, 26],
+      [64, 27],
+      [69, 30],
+      [67, 33],
+      [62, 32],
+      [46, 34],
+    ]);
+    shaped(g, beak, 'gold', { base: 1.6, contrast: 1.6, radius: 2 });
+    for (let x = 47; x <= 64; x++) put(g, x, 31, cell('gold', 4));
+    sprite(g, 60, 32, ['ab', 'bb'], { a: ['crimson', 1], b: ['crimson', 3] });
+    // The chip.
+    const chip = poly([
+      [49, 20],
+      [53, 19],
+      [60, 40],
+      [56, 41],
+    ]);
+    shaped(g, chip, 'cream', { base: 0.8, contrast: 1.4, radius: 1, lo: 0 });
+    seam(g, chip, 2);
+    // A fierce eye: a pale ring, a black pupil, a brow drawn down hard.
+    sprite(
+      g,
+      31,
+      17,
+      ['aa......', '.aaaaa..', '...aaaaa', '..bbbbb.', '.bccddb.', '.bccddb.', '..bbbb..'],
+      {
+        a: ['stone', 5],
+        b: ['crimson', 3],
+        c: ['gold', 1],
+        d: ['eye', 4],
+      },
+    );
   },
 };
 
 const BOAR: FaceDef = {
-  disc: 'leaf',
+  disc: 'pine',
   draw(g) {
-    // Shoulders hunched, the head low and long, the snout's disc toward us at the right.
-    mass(g, 26, 64, 28, 14, 'umber', { base: 3, tex: 'fur', k: 2.2 });
-    mass(g, 30, 40, 20, 19, 'umber', { base: 2.8, tex: 'fur', k: 2.4, k2: 2 });
-    mass(g, 50, 48, 13, 11, 'umber', { base: 2.6, tex: 'fur', k2: 3 });
-    // Ears, pointed and laid back.
-    sprite(g, 14, 14, ['a....', 'ab...', 'abb..', '.abbc', '..bcc'], {
-      a: ['umber', 1],
-      b: ['umber', 3],
-      c: ['umber', 5],
+    // Shoulders, a heap of bristle.
+    shaped(
+      g,
+      poly([
+        [0, 72],
+        [4, 54],
+        [18, 48],
+        [54, 48],
+        [68, 54],
+        [72, 72],
+      ]),
+      'umber',
+      {
+        base: 2.8,
+        contrast: 1.6,
+        radius: 8,
+        tex: furTex(31, 0.6, 0.26),
+      },
+    );
+    // Ears out to the sides, pointed, dark inside.
+    const earL = poly([
+      [4, 12],
+      [21, 18],
+      [14, 28],
+    ]);
+    const earR = poly([
+      [51, 18],
+      [68, 10],
+      [59, 27],
+    ]);
+    shaped(g, earL, 'umber', { base: 2.2, contrast: 1.8, radius: 2 });
+    shaped(g, earR, 'umber', { base: 2.8, contrast: 1.8, radius: 2 });
+    shaped(
+      g,
+      poly([
+        [8, 14],
+        [18, 19],
+        [14, 24],
+      ]),
+      'shell',
+      { base: 4.5, contrast: 0.5, radius: 1 },
+    );
+    shaped(
+      g,
+      poly([
+        [55, 19],
+        [64, 13],
+        [59, 23],
+      ]),
+      'shell',
+      { base: 4.5, contrast: 0.5, radius: 1 },
+    );
+    // The head, a great wedge coming at you.
+    const head = poly([
+      [12, 30],
+      [18, 18],
+      [28, 12],
+      [44, 12],
+      [54, 18],
+      [60, 30],
+      [58, 42],
+      [50, 52],
+      [36, 58],
+      [22, 52],
+      [14, 42],
+    ]);
+    shaped(g, head, 'umber', {
+      base: 2.2,
+      contrast: 2,
+      radius: 9,
+      tex: (x, y, t) => {
+        const jowl = (x < 22 || x > 48) && y > 34;
+        return furTex(33, 0.25, 0.2)(x, y, t - (jowl ? 0.9 : 0));
+      },
     });
-    sprite(g, 34, 12, ['....a', '...ab', '..abb', '.abbc', 'abbcc'], {
-      a: ['umber', 2],
-      b: ['umber', 4],
-      c: ['umber', 5],
-    });
-    // Bristles up the crown with brambles caught in them.
-    for (let x = 14; x < 44; x += 2)
-      rod(g, x, 24, x - 2, 17 - Math.abs(x - 28) * 0.15, 1, 'tar', [2]);
-    sprite(g, 22, 15, ['.a.b.', 'aabaa', 'a.c.a', '.a.a.'], {
-      a: ['leaf', 3],
-      b: ['leaf', 5],
-      c: ['crimson', 2],
-    });
-    sprite(g, 36, 13, ['.a.b', 'aaba', '.c.a'], {
-      a: ['leaf', 3],
-      b: ['leaf', 5],
-      c: ['crimson', 2],
-    });
-    // The snout's disc, wet, two nostrils.
-    mass(g, 59, 50, 7, 8, 'shell', { base: 3, k: 2 });
-    for (const y of [47, 53]) {
-      put(g, 60, y, cell('shell', 6));
-      put(g, 61, y, cell('shell', 5));
+    seam(g, head, 1);
+    // A crest of black bristles over the crown, brambles caught in it.
+    for (let x = 20; x <= 52; x++) {
+      const top = 13 - Math.round(3 * Math.sin(((x - 20) / 32) * Math.PI));
+      const tall = 2 + Math.round(hash(x, 1, 35) * 3) + (x % 3 === 0 ? 1 : 0);
+      for (let j = 0; j < tall; j++)
+        put(g, x, top - j, cell('tar', j === tall - 1 ? 4 : 2 + (j % 2)));
     }
-    // A small mean eye, a heavy brow over it.
-    paint(g, 39, 35, 5, 3, (x, y) => (y === 35 ? cell('tar', 3) : cell('gold', x < 41 ? 1 : 2)));
-    put(g, 42, 36, cell('eye', 4));
-    put(g, 42, 37, cell('eye', 4));
-    // Tusks curling up out of the jaw.
-    for (const [x, d] of [
-      [46, -1],
-      [55, 1],
+    for (const [x, y] of [
+      [22, 6],
+      [35, 3],
+      [47, 6],
     ] as const)
-      for (let i = 0; i < 9; i++) {
-        put(g, x + d * Math.round(i * 0.4), 62 - i, cell('cream', i > 5 ? 0 : 1));
-        put(g, x + d * Math.round(i * 0.4) + 1, 62 - i, cell('cream', 3));
-      }
-    paint(g, 44, 58, 14, 2, (_x, y) => cell('shade', y === 58 ? 4 : 3));
+      sprite(g, x, y, ['.ab.c', 'aaba.', '.ad..', 'a....'], {
+        a: ['leaf', 3],
+        b: ['leaf', 5],
+        c: ['crimson', 2],
+        d: ['crimson', 4],
+      });
+    // Small mean eyes, red-rimmed, under brows slanting in.
+    sprite(g, 19, 26, ['aaa.....', '.aaaa...', '..bcda..', '...ee...'], {
+      a: ['tar', 4],
+      b: ['crimson', 2],
+      c: ['gold', 1],
+      d: ['eye', 4],
+      e: ['umber', 4],
+    });
+    sprite(g, 45, 26, ['.....aaa', '...aaaa.', '..adcb..', '...ee...'], {
+      a: ['tar', 4],
+      b: ['crimson', 2],
+      c: ['gold', 1],
+      d: ['eye', 4],
+      e: ['umber', 4],
+    });
+    // Tusks, curling up beside the snout.
+    sprite(g, 17, 38, ['a....', 'ab...', 'ab...', '.ab..', '.abb.', '..bbc', '...cc'], {
+      a: ['cream', 0],
+      b: ['cream', 1],
+      c: ['cream', 3],
+    });
+    sprite(g, 50, 38, ['....a', '...ba', '...ba', '..ba.', '.bba.', 'cbb..', 'cc...'], {
+      a: ['cream', 0],
+      b: ['cream', 2],
+      c: ['cream', 3],
+    });
+    // The snout: a pink disc, wet, two nostrils, the mouth's line under it.
+    const snout = (x: number, y: number) => Math.hypot((x + 0.5 - 36) / 11, (y + 0.5 - 45) / 8) < 1;
+    shaped(g, snout, 'shell', { base: 2.8, contrast: 1.6, radius: 4 });
+    seam(g, snout, 2);
+    for (const nx of [30, 39])
+      sprite(g, nx, 43, ['.aa.', 'abba', '.aa.'], { a: ['shade', 2], b: ['shade', 4] });
+    for (let x = 27; x <= 45; x++) put(g, x, 55 + Math.round(Math.abs(x - 36) / 6), cell('tar', 4));
   },
 };
 
 const WOLF: FaceDef = {
   disc: 'midnight',
   draw(g) {
-    // The ruff, the head in three-quarters, a long muzzle out to the right.
-    mass(g, 30, 64, 28, 14, 'fur', { base: 2.8, tex: 'fur' });
-    mass(g, 30, 36, 17, 17, 'fur', { base: 2.5, tex: 'fur', k2: 2 });
-    mass(g, 50, 44, 17, 8, 'fur', { base: 2.3, tex: 'fur', k2: 3 });
-    mass(g, 48, 52, 13, 4, 'cream', { base: 2.6, k: 1.4 });
-    // Ears, tall and pricked.
-    sprite(
+    // The ruff, thick, over the shoulders.
+    shaped(
       g,
-      14,
-      4,
-      ['.....a', '....ab', '...abb', '..abbc', '.abbbc', 'abbdbc', 'abbdcc', 'bbbccc'],
+      poly([
+        [2, 72],
+        [6, 56],
+        [16, 48],
+        [36, 52],
+        [58, 48],
+        [68, 58],
+        [72, 72],
+      ]),
+      'fur',
       {
-        a: ['fur', 1],
-        b: ['fur', 3],
-        c: ['fur', 5],
-        d: ['shell', 4],
+        base: 2.4,
+        contrast: 1.6,
+        radius: 8,
+        tex: furTex(21, -0.4, 0.22),
       },
     );
-    sprite(
+    // Ears, tall and pricked, dark inside.
+    const earL = poly([
+      [15, 26],
+      [17, 4],
+      [32, 18],
+    ]);
+    const earR = poly([
+      [42, 17],
+      [55, 3],
+      [59, 26],
+    ]);
+    shaped(g, earL, 'fur', { base: 2.2, contrast: 1.8, radius: 2 });
+    shaped(g, earR, 'fur', { base: 2.6, contrast: 1.8, radius: 2 });
+    shaped(
       g,
-      34,
-      3,
-      ['a.....', 'ab....', 'abb...', 'abdb..', 'abdbc.', 'abbbcc', 'bbbccc', 'bbcccc'],
-      {
-        a: ['fur', 1],
-        b: ['fur', 3],
-        c: ['fur', 5],
-        d: ['shell', 4],
-      },
+      poly([
+        [19, 22],
+        [19, 10],
+        [28, 19],
+      ]),
+      'shell',
+      { base: 4, contrast: 0.6, radius: 1 },
     );
-    // Pale eyes under a lowered brow, a dark mask between them.
-    for (const x of [27, 40]) {
-      paint(g, x, 31, 5, 3, (xx, y) =>
-        y === 31 ? cell('fur', 6) : cell('gold', xx <= x + 1 ? 1 : 2),
-      );
-      put(g, x + 3, 32, cell('eye', 4));
-      put(g, x + 3, 33, cell('eye', 4));
-    }
-    paint(g, 33, 27, 6, 10, (x) => cell('fur', x < 35 ? 4 : 5));
-    // The nose at the muzzle's end, the lip drawn back over long teeth.
-    paint(g, 63, 39, 5, 4, (x, y) => cell('tar', x === 63 || y === 39 ? 3 : 5));
+    shaped(
+      g,
+      poly([
+        [46, 18],
+        [54, 9],
+        [55, 22],
+      ]),
+      'shell',
+      { base: 4.5, contrast: 0.6, radius: 1 },
+    );
+    // The head: a broad skull narrowing to a long muzzle, the cheeks' ruff flaring out.
+    const head = poly([
+      [13, 34],
+      [18, 22],
+      [28, 15],
+      [46, 15],
+      [56, 22],
+      [61, 34],
+      [58, 42],
+      [50, 46],
+      [46, 56],
+      [38, 62],
+      [30, 56],
+      [26, 46],
+      [17, 42],
+    ]);
+    shaped(g, head, 'fur', {
+      base: 2.0,
+      contrast: 1.8,
+      radius: 9,
+      tex: (x, y, t) => {
+        // The mask: the brow and between the eyes dark, the muzzle and cheeks pale.
+        const muzzle = x > 28 && x < 46 && y > 38;
+        const cheek = (x < 25 || x > 50) && y > 32;
+        const mask = x > 33 && x < 41 && y > 18 && y < 34;
+        return furTex(23, 0.2, 0.16)(x, y, t + (mask ? 1.4 : 0) - (muzzle || cheek ? 1.2 : 0));
+      },
+    });
+    seam(g, head, 1);
+    // Eyes, pale gold and slanted, under a lowered brow.
+    sprite(g, 22, 29, ['aaaa....', '.abccd..', '..aeed..', '...aa...'], {
+      a: ['fur', 5],
+      b: ['gold', 0],
+      c: ['gold', 1],
+      d: ['eye', 4],
+      e: ['gold', 2],
+    });
+    sprite(g, 43, 29, ['....aaaa', '..dccba.', '..deeba.', '...aa...'], {
+      a: ['fur', 5],
+      b: ['gold', 1],
+      c: ['gold', 1],
+      d: ['eye', 4],
+      e: ['gold', 2],
+    });
+    // The nose, black and wet.
+    sprite(g, 32, 46, ['.abbbbc.', 'abbddbbc', 'bbdbbdbc', '.cccccc.'], {
+      a: ['tar', 1],
+      b: ['tar', 3],
+      c: ['tar', 5],
+      d: ['tar', 6],
+    });
+    // The lip drawn back: long teeth, a dark gum.
     sprite(
       g,
-      46,
-      47,
-      ['aaaaaaaaaaaaaaaaa..', 'bcccbcccbcccbccc...', 'b.c...c...c...c....', 'bbbbbbbbbbbbbbb....'],
+      29,
+      53,
+      ['abbbbbbbbbbbbba', 'acdcdcccdcccdca', '.c.c.......c.c.', '..aaaaaaaaaaa..'],
       {
-        a: ['crimson', 4],
-        b: ['shade', 3],
+        a: ['shade', 3],
+        b: ['crimson', 4],
         c: ['cream', 0],
+        d: ['cream', 2],
       },
     );
   },
 };
 
 const TROLL: FaceDef = {
-  disc: 'moss',
+  disc: 'pine',
   draw(g) {
-    mass(g, 36, 66, 34, 14, 'troll', { base: 3, tex: 'shell' });
-    mass(g, 36, 38, 22, 24, 'troll', { base: 2.6, k: 2.4, tex: 'shell', k2: 3 });
-    // A brow like a ledge, little eyes under it.
-    paint(g, 16, 26, 40, 4, (_x, y) => cell('troll', y === 26 ? 1 : y === 27 ? 2 : 4));
-    for (const x of [24, 42]) {
-      paint(g, x, 30, 5, 3, (xx, y) =>
-        y === 32 ? cell('troll', 5) : cell('gold', xx === x ? 1 : 2),
-      );
-      put(g, x + 3, 31, cell('eye', 4));
-    }
-    mass(g, 36, 40, 6, 5, 'troll', { base: 2, k: 2.4 });
-    // The vast jaw, the underbite, tusks up past the lip.
-    mass(g, 37, 54, 20, 10, 'troll', { base: 2.8, k: 2, k2: 5 });
-    paint(g, 20, 48, 34, 2, (_x, y) => cell('shade', y === 48 ? 4 : 3));
-    for (const x of [22, 50])
-      sprite(g, x, 38, ['.a', 'aa', 'ab', 'ab', 'ab', 'ab', 'ab', 'ab', 'bb', 'bc'], {
+    // Shoulders like boulders, moss on them.
+    shaped(
+      g,
+      poly([
+        [0, 72],
+        [0, 52],
+        [14, 44],
+        [58, 44],
+        [72, 52],
+        [72, 72],
+      ]),
+      'troll',
+      {
+        base: 2.8,
+        contrast: 1.6,
+        radius: 9,
+      },
+    );
+    for (const [x, y, r] of [
+      [10, 52, 4],
+      [62, 50, 3.5],
+      [18, 47, 2.5],
+    ] as const)
+      shaped(g, (xx, yy) => Math.hypot(xx - x, (yy - y) * 1.3) < r, 'moss', {
+        base: 2.4,
+        contrast: 1.8,
+        radius: 2,
+      });
+    // Ears drooping at the sides.
+    shaped(
+      g,
+      poly([
+        [8, 22],
+        [16, 24],
+        [16, 38],
+        [6, 34],
+      ]),
+      'troll',
+      { base: 2.8, contrast: 1.6, radius: 2 },
+    );
+    shaped(
+      g,
+      poly([
+        [56, 24],
+        [64, 22],
+        [66, 34],
+        [56, 38],
+      ]),
+      'troll',
+      { base: 3.2, contrast: 1.6, radius: 2 },
+    );
+    // The head, broad and low, sunk on the shoulders.
+    const head = poly([
+      [12, 26],
+      [18, 12],
+      [30, 7],
+      [44, 7],
+      [56, 12],
+      [60, 26],
+      [58, 44],
+      [36, 50],
+      [14, 44],
+    ]);
+    shaped(g, head, 'troll', {
+      base: 2.1,
+      contrast: 2,
+      radius: 10,
+      tex: (x, y, t) => {
+        const pit = hash(Math.floor(x / 2), Math.floor(y / 2), 77);
+        return t + (pit < 0.07 ? 1 : pit > 0.96 ? -1 : 0);
+      },
+    });
+    seam(g, head, 1);
+    // A brow like a ledge.
+    shaped(
+      g,
+      poly([
+        [14, 22],
+        [24, 17],
+        [36, 20],
+        [48, 17],
+        [58, 22],
+        [58, 26],
+        [14, 26],
+      ]),
+      'troll',
+      {
+        base: 1.6,
+        contrast: 1.6,
+        radius: 2,
+      },
+    );
+    for (let x = 15; x <= 57; x++) put(g, x, 26, cell('troll', 5));
+    // Small yellow eyes deep under it.
+    for (const ex of [22, 43])
+      sprite(g, ex, 27, ['aaaaaaa', 'abccbda', '.aaaaa.'], {
+        a: ['troll', 5],
+        b: ['gold', 1],
+        c: ['gold', 2],
+        d: ['eye', 4],
+      });
+    // The nose: a great lump.
+    const nose = (x: number, y: number) => Math.hypot((x + 0.5 - 36) / 6, (y + 0.5 - 34) / 5) < 1;
+    shaped(g, nose, 'troll', { base: 1.7, contrast: 2, radius: 3 });
+    seam(g, nose, 1);
+    // The underbite, two tusks up over the lip.
+    const jaw = poly([
+      [16, 40],
+      [56, 40],
+      [58, 46],
+      [50, 52],
+      [22, 52],
+      [14, 46],
+    ]);
+    shaped(g, jaw, 'troll', { base: 2.4, contrast: 1.8, radius: 3 });
+    seam(g, jaw, 2);
+    for (let x = 20; x <= 52; x++) put(g, x, 41, cell('shade', 4));
+    for (const tx of [22, 47])
+      sprite(g, tx, 34, ['.a.', 'aab', 'abb', 'abb', 'abc', 'bbc'], {
         a: ['cream', 0],
         b: ['cream', 2],
-        c: ['cream', 4],
+        c: ['cream', 3],
       });
-    for (let i = 0; i < 6; i++)
-      rod(g, 26 + i * 4, 15, 25 + i * 4, 21 + (i % 3) * 2, 2, 'weed', [2, 4]);
+    // Weed hanging from his crown like hair.
+    for (let i = 0; i < 14; i++) {
+      const x = 17 + i * 3;
+      const n = 4 + ((i * 7) % 5);
+      for (let j = 0; j < n; j++)
+        put(g, x + (j > 3 ? (i % 2 ? 1 : -1) : 0), 5 + j + (i % 3), cell('weed', 2 + (j % 3)));
+    }
   },
 };
 
@@ -788,25 +1167,87 @@ const GIANT_CRAB: FaceDef = {
 const PARROT: FaceDef = {
   disc: 'blue',
   draw(g) {
-    // Side-on: the green wing at the shoulder, the red head, the white face patch, a great hooked beak.
-    mass(g, 22, 64, 22, 12, 'feather', { base: 2.8, tex: 'feather' });
-    for (let i = 0; i < 4; i++) rod(g, 6 + i * 6, 64, 2 + i * 6, 72, 3, 'blue', [2, 3, 4]);
-    mass(g, 30, 50, 15, 14, 'crimson', { base: 2.6, k: 2, tex: 'feather' });
-    mass(g, 33, 32, 17, 16, 'crimson', { base: 2.2, k: 2.2, tex: 'feather', k2: 2 });
-    mass(g, 42, 32, 8, 8, 'cream', { base: 1.3, k: 1.2 });
-    for (let i = 0; i < 4; i++) rod(g, 37 + i * 3, 27, 38 + i * 3, 38, 1, 'cream', [3]);
-    paint(g, 40, 28, 6, 6, (x, y) => {
-      const d = Math.hypot(x - 42.5, y - 30.5);
-      return d < 1.5 ? cell('eye', 4) : d < 2.8 ? cell('gold', 2) : 0;
+    // Wings folded below: green, a blue edge, feathers in rows.
+    shaped(
+      g,
+      poly([
+        [4, 72],
+        [6, 56],
+        [18, 46],
+        [34, 48],
+        [46, 58],
+        [50, 72],
+      ]),
+      'grass',
+      {
+        base: 2.4,
+        contrast: 1.6,
+        radius: 7,
+        tex: (x, y, t) => ((y + Math.floor(x / 5)) % 4 === 0 ? t + 1 : t),
+      },
+    );
+    for (let y = 60; y < 72; y++)
+      for (let x = 4; x < 10; x++) if (g.d[y * 72 + x]) put(g, x, y, cell('blue', 2 + (y % 2)));
+    // The head, side on: red, round, a bare white face.
+    const head = poly([
+      [12, 30],
+      [16, 18],
+      [26, 10],
+      [38, 9],
+      [46, 14],
+      [50, 22],
+      [50, 34],
+      [44, 46],
+      [32, 52],
+      [20, 50],
+      [13, 42],
+    ]);
+    shaped(g, head, 'crimson', {
+      base: 1.8,
+      contrast: 1.8,
+      radius: 9,
+      tex: (x, y, t) => ((x + y * 2) % 6 === 0 && y > 20 ? t + 1 : t),
     });
-    put(g, 42, 29, cell('eye', 0));
-    // The upper mandible: a great hook, pale and lit; the lower one dark, open.
-    mass(g, 54, 33, 8, 7, 'cream', { base: 1.8, k: 2 });
-    rod(g, 58, 36, 61, 46, 4, 'cream', [1, 2, 3]);
-    put(g, 61, 47, cell('tar', 3));
-    put(g, 60, 47, cell('tar', 4));
-    mass(g, 52, 47, 6, 4, 'tar', { base: 2.6, k: 2 });
-    paint(g, 50, 42, 8, 3, (_x, y) => cell(y === 42 ? 'shade' : 'crimson', 4));
+    seam(g, head, 1);
+    // The bare face round the eye, white with fine lines.
+    const face = (x: number, y: number) => Math.hypot((x + 0.5 - 40) / 8, (y + 0.5 - 26) / 7) < 1;
+    shaped(g, face, 'sail', { base: 1.2, contrast: 1, radius: 3, lo: 0 });
+    for (const [x, y] of [
+      [35, 30],
+      [37, 31],
+      [39, 32],
+      [36, 23],
+      [34, 26],
+    ] as const)
+      put(g, x, y, cell('stone', 3));
+    // A yellow eye with a black pupil.
+    sprite(g, 38, 22, ['.aa.', 'abca', 'acca', '.aa.'], {
+      a: ['gold', 2],
+      b: ['eye', 0],
+      c: ['eye', 4],
+    });
+    // The great hooked beak, open in a squawk: pale upper hooked over a black lower.
+    const upper = poly([
+      [46, 18],
+      [56, 18],
+      [64, 24],
+      [66, 32],
+      [62, 38],
+      [60, 32],
+      [54, 28],
+      [47, 30],
+    ]);
+    shaped(g, upper, 'sail', { base: 2.4, contrast: 1.6, radius: 3 });
+    seam(g, upper, 1);
+    const lower = poly([
+      [47, 34],
+      [55, 34],
+      [59, 40],
+      [54, 44],
+      [48, 41],
+    ]);
+    shaped(g, lower, 'tar', { base: 3, contrast: 1.4, radius: 2 });
+    sprite(g, 50, 31, ['aaaa', 'abba', '.aa.'], { a: ['shade', 4], b: ['crimson', 4] });
   },
 };
 

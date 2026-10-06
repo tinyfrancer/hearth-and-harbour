@@ -15,7 +15,7 @@ import { darker, hash, put, tgrid, type Cell, type TGrid } from '../town2/cells'
 import { cell } from './cave';
 import type { Mat2 as Mat } from './cave';
 import { outlineIn } from '../figure2/engine';
-import { litBy, lim, paint, rod, sprite } from './kit';
+import { furTex, litBy, lim, paint, poly, rod, seam, shaped, shifted, sprite } from './kit';
 
 /** How far each bone moves in a frame, and a few frame-wide flags. */
 export interface BeastPose {
@@ -432,8 +432,62 @@ const GULL: Beast = {
 
 /* --------------------------------------------------------------- the bramble boar */
 
+/**
+ * The bramble boar: built like a wedge, all of him behind his head. High
+ * humped shoulders, a back that falls to a narrow rump, a long low head with
+ * a disc of a snout, a small red-rimmed eye under a hard brow, tusks curling
+ * up from the lower jaw, a crest of black bristles down the spine with
+ * brambles caught in it, thin legs on black hooves, a twist of a tail.
+ */
+const BOAR_BODY: readonly (readonly [number, number])[] = [
+  [7, 22],
+  [11, 16],
+  [19, 13],
+  [29, 10],
+  [37, 8],
+  [43, 9],
+  [48, 13],
+  [51, 19],
+  [51, 27],
+  [47, 32],
+  [40, 34],
+  [28, 35],
+  [17, 33],
+  [10, 29],
+];
+const BOAR_HEAD: readonly (readonly [number, number])[] = [
+  [43, 13],
+  [49, 13],
+  [55, 17],
+  [60, 22],
+  [63, 26],
+  [64, 30],
+  [61, 33],
+  [55, 33],
+  [49, 31],
+  [45, 27],
+  [43, 20],
+];
+/** A thin leg: a ham or a shoulder at the top tapering to the hock, then the cannon to a hoof. */
+function hoofLeg(g: TGrid, x: number, y: number, ground: number, near: boolean, ham = false): void {
+  const len = ground - 1 - y;
+  const top = ham ? 5 : 4;
+  for (let j = 0; j < len; j++) {
+    const w = j < len * 0.45 ? top - Math.round((j / (len * 0.45)) * (top - 2)) : 2;
+    for (let i = 0; i < w; i++) {
+      const s = (near ? 2 : 3) + (i === 0 ? -1 : i === w - 1 ? 1 : 0) + (j > len * 0.45 ? 1 : 0);
+      put(g, x + i - Math.floor(w / 2), y + j, cell('umber', lim(s, 1, 5)));
+    }
+  }
+  sprite(g, x - 1, y + len, ['aab', 'bcc'], {
+    a: ['tar', near ? 2 : 3],
+    b: ['tar', 4],
+    c: ['tar', 5],
+  });
+}
+
 const BOAR: Beast = {
-  w: 66,
+  w: 68,
   h: 44,
   anchor: { x: 32, y: 42 },
   draw(g, o, p) {
@@ -441,69 +495,185 @@ const BOAR: Beast = {
     const [hx, hy] = o('head');
     const [fx, fy] = o('front');
     const [kx, ky] = o('hind');
-    // Far legs.
-    leg(g, 44 + fx, 30 + by, 45 + fx, 39 + fy, 4, 'umber', [4, 5], 'tar');
-    leg(g, 18 + kx, 30 + by, 16 + kx, 39 + ky, 5, 'umber', [4, 5], 'tar');
-    // The body: a deep chest and a high back, bristles in strokes.
-    mass(g, 30 + bx, 24 + by, 20, 11, 'umber', { base: 3, tex: 'fur', k: 2.2 });
-    mass(g, 42 + bx, 23 + by, 11, 11, 'umber', { base: 3, tex: 'fur', k: 2.2, k2: 2 });
-    // A ridge of bristles down the spine with brambles caught in it.
-    for (let x = 14; x < 48; x++) {
-      const top = Math.round(14 + by - Math.sin(((x - 14) / 34) * Math.PI) * 3);
-      put(g, x + bx, top, cell('tar', x % 2 ? 2 : 3));
-      if (x % 3 === 0) put(g, x + bx, top - 1, cell('tar', 3));
+    // Far legs, in shade.
+    hoofLeg(g, 42 + fx, 30 + by, 41 + fy, false);
+    hoofLeg(g, 15 + kx, 28 + by, 41 + ky, false, true);
+    // The body, its bristle coat in strokes.
+    shaped(g, poly(shifted(BOAR_BODY, bx, by)), 'umber', {
+      base: 2.4,
+      contrast: 2,
+      radius: 8,
+      // Grizzled: the light catches the bristles' tips over the shoulders.
+      tex: (x, y, t) => {
+        const f = furTex(3, 0.7, 0.2)(x - bx, y - by, t);
+        return y - by < 20 && hash(x - bx, y - by, 66) < 0.12 ? f - 1 : f;
+      },
+    });
+    // The belly's shadow and the dark under the chest.
+    shade(g, 29 + bx, 34 + by, 16, 2.2, 1);
+    // A crest of bristles down the spine, standing up in tufts.
+    for (let x = 12; x <= 46; x++) {
+      const t = (x - 12) / 34;
+      const top = Math.round(
+        by + 20 - 12 * Math.sin(t * Math.PI * 0.62) - (t > 0.75 ? (1 - t) * 6 : 0),
+      );
+      const tall = 1 + Math.round(hash(x, 5, 61) * 2) + (x % 3 === 0 ? 1 : 0);
+      for (let j = 1; j <= tall; j++) put(g, x + bx, top - j, cell('tar', j === tall ? 4 : 3));
+      put(g, x + bx, top, cell('tar', 2));
     }
+    // Brambles caught in the bristles: a hooked stem, a leaf, a berry.
     for (const [x, y] of [
-      [20, 13],
-      [31, 10],
-      [41, 11],
-    ] as const) {
-      sprite(g, x + bx, y + by, ['.a.b', 'aaba', 'a.c.', '.a..'], {
+      [18, 10],
+      [30, 6],
+      [40, 5],
+    ] as const)
+      sprite(g, x + bx, y + by, ['.b.c', 'bab.', '.ad.'], {
         a: ['leaf', 3],
         b: ['leaf', 5],
         c: ['crimson', 2],
+        d: ['crimson', 4],
       });
-    }
-    shade(g, 31 + bx, 33 + by, 18, 3, 1);
-    // Near legs.
-    leg(g, 22 + kx, 30 + by, 21 + kx, 40 + ky, 5, 'umber', [3, 4, 5], 'tar');
-    leg(g, 47 + fx, 30 + by, 49 + fx, 40 + fy, 4, 'umber', [2, 3, 4], 'tar');
-    // The head: low and long, a disc of a snout, a small mean eye, tusks curling up.
-    mass(g, 53 + hx, 24 + hy, 8, 7, 'umber', { base: 2.7, tex: 'fur', k2: 5 });
-    mass(g, 60 + hx, 27 + hy, 4, 4, 'umber', { base: 2.5 });
-    paint(g, 62 + hx, 24 + hy, 3, 6, (x, y) =>
-      cell('shell', x === 62 + hx ? 3 : 4 + (y === 26 + hy ? 1 : 0)),
-    );
-    eye(g, 55 + hx, 21 + hy, 'gold');
-    put(g, 54 + hx, 20 + hy, cell('tar', 2));
-    put(g, 55 + hx, 20 + hy, cell('tar', 2));
-    put(g, 56 + hx, 19 + hy, cell('tar', 2));
-    // An ear back, pointed.
-    sprite(g, 48 + hx, 15 + hy, ['..a', '.ab', 'abb', 'bbc'], {
-      a: ['umber', 2],
-      b: ['umber', 3],
-      c: ['umber', 5],
-    });
-    sprite(
-      g,
-      58 + hx,
-      26 + hy,
-      p.open ? ['a...', 'ab..', '.a..', '....', 'c...'] : ['a...', 'ab..', '.ab.'],
-      {
-        a: ['cream', 1],
-        b: ['cream', 3],
-        c: ['shade', 3],
+    // Near legs, lit.
+    hoofLeg(g, 20 + kx, 29 + by, 41 + ky, true, true);
+    hoofLeg(g, 46 + fx, 30 + by, 41 + fy, true);
+    // The head, long and low.
+    // The fold of the neck where the head comes out of the shoulders, in shadow.
+    shade(g, 45 + bx, 24 + by, 3, 9, 1);
+    const head = poly(shifted(BOAR_HEAD, hx, hy));
+    shaped(g, head, 'umber', {
+      base: 2.2,
+      contrast: 2,
+      radius: 5,
+      tex: (x, y, t) => {
+        const f = furTex(9, 0.3, 0.16)(x - hx, y - hy, t);
+        // A paler jowl under the eye, as a wild boar has.
+        return Math.hypot((x - hx - 52) / 5, (y - hy - 26) / 3.5) < 1 ? f - 1 : f;
       },
-    );
-    // The tail, a little twist.
-    sprite(g, 9 + bx, 19 + by, ['.a', 'a.', '.a', 'a.'], { a: ['umber', 3] });
+    });
+    // The cheek's line, where the head comes out of the shoulder: a curve, dark, lit on its far side.
+    for (let y = 14; y <= 31; y++) {
+      const x = Math.round(47 - 2.6 * Math.sin((Math.PI * (y - 14)) / 17));
+      put(g, x + hx, y + hy, cell('umber', 5));
+      if (head(x + hx + 1, y + hy)) put(g, x + hx + 1, y + hy, cell('umber', 2));
+    }
+    void head;
+    // The snout's disc, pink and wet, two nostrils.
+    sprite(g, 61 + hx, 26 + hy, ['.ab.', 'abbc', 'adbd', 'abbc', '.cc.'], {
+      a: ['shell', 2],
+      b: ['shell', 3],
+      c: ['shell', 4],
+      d: ['shade', 3],
+    });
+    // The mouth's line, open when he charges.
+    for (let x = 52; x <= 60; x++) put(g, x + hx, 31 + hy + (x < 55 ? 0 : 0), cell('tar', 4));
+    if (p.open)
+      sprite(g, 53 + hx, 32 + hy, ['abbbbba', '.aaaaa.'], { a: ['tar', 5], b: ['crimson', 4] });
+    // Tusks, curling up from the lower jaw and back.
+    sprite(g, 56 + hx, 24 + hy, ['...a', '..ab', '..ab', '.ab.', 'aab.', 'abc.', 'bc..'], {
+      a: ['cream', 0],
+      b: ['cream', 2],
+      c: ['cream', 3],
+    });
+    // A small, mean eye under a hard brow.
+    sprite(g, 50 + hx, 17 + hy, ['aaab.', '.acda', '..ee.'], {
+      a: ['tar', 4],
+      b: ['tar', 3],
+      c: ['gold', 1],
+      d: ['eye', 4],
+      e: ['umber', 4],
+    });
+    if (p.down) sprite(g, 52 + hx, 19 + hy, ['aaa'], { a: ['tar', 4] });
+    // An ear laid back, pointed, its inside dark.
+    sprite(g, 46 + hx, 6 + hy, ['.a..', '.ab.', 'aab.', 'acdb', 'acdb', 'acdb', '.bbe'], {
+      a: ['umber', 1],
+      b: ['umber', 4],
+      c: ['shell', 3],
+      d: ['shell', 4],
+      e: ['umber', 5],
+    });
+    // The tail, a twist with a tuft.
+    sprite(g, 4 + bx, 19 + by, ['.a.', 'a..', '.a.', '..a', '.bb', 'bb.'], {
+      a: ['umber', 3],
+      b: ['tar', 3],
+    });
   },
 };
 
 /* ----------------------------------------------------------------- the grey wolf */
 
+/**
+ * The grey wolf: lean and long-legged, head low and forward, ears pricked, a
+ * long muzzle with the lip drawn back, pale eyes, a ruff thick over the
+ * shoulders, a darker saddle down the back, the belly tucked, the brush held
+ * low with a dark tip.
+ */
+const WOLF_BODY: readonly (readonly [number, number])[] = [
+  [11, 21],
+  [16, 18],
+  [26, 17],
+  [36, 15],
+  [42, 13],
+  [47, 14],
+  [50, 19],
+  [50, 27],
+  [46, 31],
+  [40, 30],
+  [32, 27],
+  [24, 28],
+  [16, 29],
+  [11, 27],
+];
+const WOLF_HEAD: readonly (readonly [number, number])[] = [
+  [46, 14],
+  [50, 11],
+  [55, 10],
+  [59, 12],
+  [62, 15],
+  [67, 17],
+  [67, 20],
+  [63, 22],
+  [57, 23],
+  [52, 22],
+  [48, 20],
+];
+const WOLF_TAIL: readonly (readonly [number, number])[] = [
+  [13, 20],
+  [9, 23],
+  [5, 28],
+  [3, 33],
+  [5, 35],
+  [8, 32],
+  [12, 27],
+  [15, 24],
+];
+/** A long leg: the upper part thick and lit, a slender lower part, a dark paw. */
+function pawLeg(g: TGrid, x: number, y: number, ground: number, near: boolean, hock = 0): void {
+  const len = ground - y;
+  for (let j = 0; j < len; j++) {
+    const k = j / len;
+    const w = k < 0.35 ? 3 : 2;
+    // A hind leg bends back at the hock.
+    const dx = hock
+      ? Math.round(
+          hock * Math.sin(Math.min(1, k / 0.55) * Math.PI * 0.5) -
+            (k > 0.55 ? hock * ((k - 0.55) / 0.45) : 0),
+        )
+      : 0;
+    for (let i = 0; i < w; i++) {
+      const s = (near ? 2 : 3) + (i === 0 ? -1 : i === w - 1 ? 1 : 0) + (k > 0.4 ? 1 : 0);
+      put(g, x + i - 1 - dx, y + j, cell('fur', lim(s - 1, 1, 5)));
+    }
+  }
+  sprite(g, x - 2, ground - 1, ['abbc', '.ccd'], {
+    a: ['fur', near ? 2 : 3],
+    b: ['fur', near ? 3 : 4],
+    c: ['fur', 5],
+    d: ['fur', 5],
+  });
+}
+
 const WOLF: Beast = {
-  w: 68,
+  w: 70,
   h: 46,
   anchor: { x: 32, y: 44 },
   draw(g, o, p) {
@@ -511,57 +681,161 @@ const WOLF: Beast = {
     const [hx, hy] = o('head');
     const [fx, fy] = o('front');
     const [kx, ky] = o('hind');
-    // The tail: bushy, low, a dark tip.
-    mass(g, 9 + bx, 27 + by, 6, 3.5, 'fur', { base: 2.6, tex: 'fur', k2: 4 });
-    paint(g, 2 + bx, 27 + by, 4, 4, (x, y) =>
-      Math.hypot(x - 4 - bx, y - 29 - by) < 2.2 ? cell('fur', 5) : 0,
-    );
-    // Far legs.
-    leg(g, 45 + fx, 30 + by, 47 + fx, 41 + fy, 3, 'fur', [4, 5], 'fur');
-    leg(g, 20 + kx, 30 + by, 17 + kx, 41 + ky, 3, 'fur', [4, 5], 'fur');
-    // The body: lean, a deep chest, a tucked belly, the ruff at the shoulders.
-    mass(g, 28 + bx, 25 + by, 16, 7.5, 'fur', { base: 2.8, tex: 'fur', k: 2.2 });
-    mass(g, 42 + bx, 24 + by, 9, 9, 'fur', { base: 2.6, tex: 'fur', k: 2.2, k2: 2 });
-    mass(g, 28 + bx, 30 + by, 13, 2.5, 'cream', { base: 3, k: 1 });
-    shade(g, 30 + bx, 31 + by, 15, 2, 1);
-    // Near legs: long, a paw each.
-    leg(g, 22 + kx, 30 + by, 22 + kx, 42 + ky, 4, 'fur', [2, 3, 4], 'fur');
-    leg(g, 45 + fx, 30 + by, 49 + fx, 42 + fy, 3, 'fur', [2, 3, 4], 'fur');
-    // The head: pricked ears, a long muzzle, a pale eye, the lip drawn back.
-    mass(g, 52 + hx, 17 + hy, 7, 6, 'fur', { base: 2.5, tex: 'fur', k2: 7 });
-    mass(g, 59 + hx, 20 + hy, 6, 3, 'fur', { base: 2.4, k2: 8 });
-    paint(g, 56 + hx, 21 + hy, 9, 3, (x, y) =>
-      y === 22 + hy && x < 64 + hx ? cell('cream', 2) : 0,
-    );
-    sprite(g, 47 + hx, 7 + hy, ['..a.', '.ab.', 'abbc', 'abbc'], {
+    // The brush, low, its tip dark.
+    shaped(g, poly(shifted(WOLF_TAIL, bx, by)), 'fur', {
+      base: 2.0,
+      contrast: 1.6,
+      radius: 3,
+      tex: (x, y, t) => (y - by > 31 ? t + 2 : furTex(4, -0.6, 0.2)(x - bx, y - by, t)),
+    });
+    // Far legs, in shade.
+    pawLeg(g, 44 + fx, 28 + by, 43 + fy, false);
+    pawLeg(g, 15 + kx, 26 + by, 43 + ky, false, 3);
+    // The body: grey, a dark saddle along the back, the belly and chest pale.
+    shaped(g, poly(shifted(WOLF_BODY, bx, by)), 'fur', {
+      base: 1.6,
+      contrast: 1.8,
+      radius: 6,
+      tex: (x, y, t) => {
+        const ly = y - by;
+        const lx = x - bx;
+        const saddle = ly < 21 - (lx > 36 ? 3 : 0) ? 1 : 0;
+        const belly = ly > 25 + (lx < 30 ? 1 : 0) || (lx > 43 && ly > 22) ? -1 : 0;
+        if (belly) return lim(t - 1, 0, 2);
+        return furTex(5, 0.8, 0.18)(lx, ly, t + saddle + belly);
+      },
+    });
+    // The ruff: a ragged edge of thick fur standing up over the shoulders.
+    for (let x = 38; x <= 47; x++) {
+      const top = Math.round(by + 14 - (x - 38) * 0.15 - (x % 3 === 1 ? 1 : 0));
+      put(g, x + bx, top, cell('fur', x % 2 ? 2 : 3));
+      if (x % 3 === 1) put(g, x + bx, top - 1, cell('fur', 3));
+    }
+    shade(g, 30 + bx, 29 + by, 14, 1.6, 1);
+    // Near legs, lit.
+    pawLeg(g, 20 + kx, 26 + by, 43 + ky, true, 3);
+    pawLeg(g, 47 + fx, 28 + by, 43 + fy, true);
+    // The head, long, the muzzle paler beneath.
+    shaped(g, poly(shifted(WOLF_HEAD, hx, hy)), 'fur', {
+      base: 1.5,
+      contrast: 1.9,
+      radius: 4,
+      tex: (x, y, t) =>
+        y - hy > 19 && x - hx > 52 ? t - 1 : furTex(8, 0.2, 0.12)(x - hx, y - hy, t),
+    });
+    // The cheek's ruff edge behind the jaw.
+    for (const [x, y] of [
+      [49, 15],
+      [48, 16],
+      [48, 17],
+      [49, 18],
+      [48, 19],
+      [50, 20],
+    ] as const)
+      put(g, x + hx, y + hy, cell('fur', 4));
+    // Ears pricked, the near one in front, dark inside.
+    sprite(g, 50 + hx, 3 + hy, ['.a...', '.ab..', 'aabb.', 'acbb.', 'acdb.', 'acdbb', '.bbbe'], {
+      a: ['fur', 1],
+      b: ['fur', 3],
+      c: ['fur', 4],
+      d: ['fur', 5],
+      e: ['fur', 5],
+    });
+    sprite(g, 54 + hx, 4 + hy, ['.a..', 'aab.', 'abb.', 'acbb', 'acbb', '.bbd'], {
       a: ['fur', 2],
       b: ['fur', 4],
       c: ['fur', 5],
+      d: ['fur', 5],
     });
-    sprite(g, 52 + hx, 7 + hy, ['.a..', '.ab.', 'abbc', 'abbc'], {
-      a: ['fur', 1],
-      b: ['fur', 3],
-      c: ['fur', 5],
+    // A pale eye, slanted, under a dark brow.
+    sprite(g, 56 + hx, 12 + hy, ['aa...', '.bca', '..a.'], {
+      a: ['fur', 5],
+      b: ['gold', 1],
+      c: ['eye', 4],
     });
-    eye(g, 55 + hx, 16 + hy, 'gold');
-    put(g, 54 + hx, 15 + hy, cell('fur', 5));
-    put(g, 56 + hx, 15 + hy, cell('fur', 5));
-    put(g, 65 + hx, 19 + hy, cell('tar', 4));
-    put(g, 65 + hx, 20 + hy, cell('tar', 4));
+    if (p.down) sprite(g, 57 + hx, 13 + hy, ['aaa'], { a: ['fur', 5] });
+    // The nose, black, at the muzzle's tip.
+    sprite(g, 65 + hx, 16 + hy, ['ab', 'bb'], { a: ['tar', 2], b: ['tar', 4] });
+    // The mouth: the lip drawn back over teeth, open when it bites.
     if (p.open)
-      sprite(g, 57 + hx, 22 + hy, ['abababa', 'ccccccc', '.a.a.a.'], {
-        a: ['cream', 0],
-        b: ['crimson', 3],
+      sprite(g, 56 + hx, 20 + hy, ['aaaaaaaa.', 'bwbwbwb..', 'cccccc...', '.w.w.w...'], {
+        a: ['tar', 4],
+        b: ['crimson', 4],
         c: ['shade', 3],
+        w: ['cream', 0],
       });
-    else sprite(g, 57 + hx, 22 + hy, ['a.a.a.c', 'cccccc.'], { a: ['cream', 0], c: ['shade', 3] });
+    else
+      sprite(g, 56 + hx, 20 + hy, ['aaaaaaaaa', '.w.w.ww..'], { a: ['tar', 4], w: ['cream', 0] });
   },
 };
 
 /* ---------------------------------------------------------------- the marsh troll */
 
+/**
+ * The marsh troll: a head over the hero and three times as broad, hunched,
+ * the head sunk low and forward between shoulders like boulders, arms long
+ * enough to drag the knuckles, a pot belly, short bowed legs on flat feet.
+ * A heavy brow over small yellow eyes, a lump of a nose, an underbite with
+ * two tusks, ears drooping, moss on the shoulders and weed for hair.
+ */
+const TROLL_TORSO: readonly (readonly [number, number])[] = [
+  [20, 34],
+  [26, 25],
+  [36, 20],
+  [48, 19],
+  [57, 23],
+  [62, 31],
+  [62, 45],
+  [58, 57],
+  [52, 66],
+  [28, 66],
+  [22, 57],
+  [19, 45],
+];
+const TROLL_HEAD: readonly (readonly [number, number])[] = [
+  [41, 22],
+  [46, 15],
+  [54, 14],
+  [60, 18],
+  [63, 25],
+  [62, 31],
+  [56, 34],
+  [47, 34],
+  [42, 30],
+];
+const TROLL_JAW: readonly (readonly [number, number])[] = [
+  [43, 29],
+  [63, 28],
+  [65, 33],
+  [61, 39],
+  [50, 40],
+  [44, 37],
+];
+/** A thick limb from (x0, y0) to (x1, y1), its width tapering, lit on its upper left. */
+function limb(
+  g: TGrid,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  w0: number,
+  w1: number,
+  base: number,
+): void {
+  const len = Math.hypot(x1 - x0, y1 - y0);
+  const nx = -(y1 - y0) / len;
+  const ny = (x1 - x0) / len;
+  const pts: [number, number][] = [
+    [x0 - (nx * w0) / 2, y0 - (ny * w0) / 2],
+    [x1 - (nx * w1) / 2, y1 - (ny * w1) / 2],
+    [x1 + (nx * w1) / 2, y1 + (ny * w1) / 2],
+    [x0 + (nx * w0) / 2, y0 + (ny * w0) / 2],
+  ];
+  shaped(g, poly(pts), 'troll', { base, contrast: 1.6, radius: Math.min(w0, w1) / 2 });
+}
+
 const TROLL: Beast = {
-  w: 80,
+  w: 82,
   h: 92,
   anchor: { x: 38, y: 90 },
   draw(g, o, p) {
@@ -569,57 +843,184 @@ const TROLL: Beast = {
     const [hx, hy] = o('head');
     const [ax, ay] = o('arms');
     const [lx, ly] = o('legs');
-    // Legs: short, bowed, huge feet.
-    leg(g, 30 + lx, 66 + by, 26 + lx, 86 + ly, 8, 'troll', [3, 4, 5]);
-    leg(g, 46 - lx, 66 + by, 50 - lx, 86 - ly, 8, 'troll', [2, 3, 4]);
-    for (const [x, d] of [
-      [20 + lx, 0],
-      [45 - lx, 1],
-    ] as const)
-      paint(g, x, 84, 14, 5, (xx, y) =>
-        cell('troll', (y === 84 ? 2 : 3) + d + (xx > x + 10 ? 1 : 0)),
-      );
-    // The far arm, hanging behind to the knuckles.
-    rod(g, 52 + bx, 34 + by, 60 + ax, 56 + ay, 9, 'troll', [3, 4, 5]);
-    rod(g, 60 + ax, 56 + ay, 62 + ax, 74 + ay, 8, 'troll', [3, 4, 5]);
-    // The body: a great hunched back and belly, mossy, a loincloth of hide.
-    mass(g, 38 + bx, 48 + by, 22, 22, 'troll', { base: 3, k: 2.4, tex: 'shell', k2: 5 });
-    mass(g, 42 + bx, 56 + by, 15, 13, 'troll', { base: 2.6, k: 2, k2: 6 });
-    paint(g, 25 + bx, 64 + by, 30, 9, (x, y) => {
-      const r = (x - 25 - bx) / 30;
-      if (y > 64 + by + 6 + Math.round(Math.sin(r * 9) * 1.5)) return 0;
-      return cell('hide', y === 64 + by ? 2 : r > 0.65 ? 4 : 3);
-    });
-    for (let i = 0; i < 14; i++) {
-      const x = Math.round(20 + bx + hash(i, 1, 41) * 36);
-      const y = Math.round(30 + by + hash(i, 2, 41) * 14);
-      sprite(g, x, y, ['ab', 'bc'], { a: ['moss', 1], b: ['moss', 3], c: ['moss', 4] });
-    }
-    // The near arm, forward, a fist the size of a head.
-    rod(g, 24 + bx, 36 + by, 18 + ax, 58 + ay, 10, 'troll', [1, 2, 3, 4]);
-    rod(g, 18 + ax, 58 + ay, 22 + ax, 74 + ay, 9, 'troll', [2, 3, 4]);
-    mass(g, 22 + ax, 77 + ay, 7, 6, 'troll', { base: 2.3, k: 2.2 });
-    // The head: sunk between the shoulders, heavy brows, a vast underbite with tusks.
-    mass(g, 46 + hx, 24 + hy, 11, 10, 'troll', { base: 2.5, k: 2.4, k2: 9 });
-    mass(g, 50 + hx, 31 + hy, 10, 6, 'troll', { base: 2.8, k: 2, k2: 10 });
-    paint(g, 40 + hx, 19 + hy, 16, 3, (_x, y) =>
-      y === 19 + hy ? cell('troll', 1) : cell('troll', 4),
+    // The far arm, behind, in shade: shoulder, elbow, a fist by the knee.
+    limb(g, 58 + bx, 30 + by, 67 + ax, 50 + ay, 11, 9, 3.4);
+    limb(g, 67 + ax, 50 + ay, 66 + ax, 70 + ay, 9, 8, 3.4);
+    shaped(
+      g,
+      poly(
+        shifted(
+          [
+            [60, 68],
+            [72, 68],
+            [74, 75],
+            [70, 80],
+            [61, 79],
+            [59, 74],
+          ],
+          ax,
+          ay,
+        ),
+      ),
+      'troll',
+      {
+        base: 3.2,
+        contrast: 1.6,
+        radius: 3,
+      },
     );
-    eye(g, 45 + hx, 22 + hy, 'gold');
-    eye(g, 51 + hx, 22 + hy, 'gold');
-    // The nose, a lump.
-    mass(g, 50 + hx, 26 + hy, 2.6, 2.4, 'troll', { base: 2, k: 2 });
-    if (p.open) paint(g, 43 + hx, 31 + hy, 16, 4, (_x, y) => cell('shade', y === 31 + hy ? 4 : 3));
-    else paint(g, 43 + hx, 31 + hy, 16, 1, () => cell('shade', 4));
-    sprite(g, 44 + hx, 27 + hy, ['a.........a.', 'ab........ab', 'ab........ab', 'b..........b'], {
-      a: ['cream', 1],
-      b: ['cream', 3],
+    // Short bowed legs and broad flat feet.
+    limb(g, 47 - lx + bx, 62 + by, 50 - lx, 84 + ly, 11, 9, 3.2);
+    limb(g, 30 + lx + bx, 62 + by, 27 + lx, 84 + ly, 12, 9, 2.4);
+    for (const [x, d, s] of [
+      [44 - lx, ly, 3],
+      [18 + lx, ly, 2],
+    ] as const)
+      shaped(
+        g,
+        poly([
+          [x, 83 + d],
+          [x + 14, 83 + d],
+          [x + 17, 87 + d],
+          [x + 16, 89],
+          [x - 1, 89],
+          [x - 1, 85 + d],
+        ]),
+        'troll',
+        {
+          base: s,
+          contrast: 1.5,
+          radius: 2,
+          hi: 5,
+        },
+      );
+    // The torso: the hunched back, shoulders like boulders, the belly.
+    shaped(g, poly(shifted(TROLL_TORSO, bx, by)), 'troll', {
+      base: 2.6,
+      contrast: 2.2,
+      radius: 11,
+      tex: (x, y, t) => {
+        const lx2 = x - bx;
+        const ly2 = y - by;
+        // Warts and pits in the hide, a paler belly.
+        const pit = hash(Math.floor(lx2 / 2), Math.floor(ly2 / 2), 71);
+        const belly = Math.hypot((lx2 - 42) / 13, (ly2 - 52) / 11) < 1 ? -0.8 : 0;
+        return t + belly + (pit < 0.08 ? 1 : pit > 0.95 ? -1 : 0);
+      },
     });
-    // Weed hanging from his crown.
-    for (let i = 0; i < 7; i++) {
-      const x = 38 + hx + i * 2;
-      for (let j = 0; j < 3 + (i % 3); j++) put(g, x, 14 + hy + j, cell('weed', 2 + (j % 3)));
+    // The navel and the belly's fold.
+    put(g, 43 + bx, 55 + by, cell('troll', 5));
+    for (let x = 32; x <= 52; x++)
+      put(g, x + bx, 60 + by + Math.round(Math.abs(x - 42) / 7), cell('troll', 4));
+    // A loincloth of hide on a rope, its hem ragged.
+    paint(g, 25 + bx, 62 + by, 31, 10, (x, y) => {
+      const r = x - 25 - bx;
+      const hem = 66 + by + Math.round(Math.sin(r * 0.9) * 1.5 + (r > 12 && r < 20 ? 3 : 0));
+      if (y > hem) return 0;
+      if (y === 62 + by) return cell('linen', r % 3 === 0 ? 3 : 2);
+      return cell(
+        'hide',
+        (y === 63 + by ? 2 : 3) + (r > 20 ? 1 : 0) + (hash(r, y, 73) < 0.1 ? 1 : 0),
+      );
+    });
+    // Moss in cushions on the shoulders.
+    for (const [x, y, r] of [
+      [30, 25, 3],
+      [36, 22, 2.5],
+      [55, 24, 2.5],
+      [24, 33, 2],
+    ] as const)
+      shaped(g, (xx, yy) => Math.hypot(xx - x - bx, (yy - y - by) * 1.3) < r, 'moss', {
+        base: 2.6,
+        contrast: 1.8,
+        radius: 2,
+      });
+    // The head, sunk between the shoulders.
+    const head = poly(shifted(TROLL_HEAD, hx, hy));
+    shaped(g, head, 'troll', { base: 1.8, contrast: 2, radius: 6 });
+    seam(g, head, 2);
+    // Ears drooping at the sides.
+    sprite(g, 38 + hx, 23 + hy, ['.aa.', 'abbc', 'abcc', '.bcc', '..cd'], {
+      a: ['troll', 2],
+      b: ['troll', 3],
+      c: ['troll', 4],
+      d: ['troll', 5],
+    });
+    // The jaw: an underbite, open when he roars.
+    const jaw = poly(shifted(TROLL_JAW, hx, hy + (p.open ? 2 : 0)));
+    shaped(g, jaw, 'troll', { base: 2.2, contrast: 1.8, radius: 4 });
+    seam(g, jaw, 2);
+    if (p.open) paint(g, 46 + hx, 30 + hy, 15, 2, () => cell('shade', 4));
+    else for (let x = 45; x <= 61; x++) put(g, x + hx, 30 + hy, cell('troll', 6));
+    // Tusks up from the underbite.
+    for (const tx of [47, 59])
+      sprite(g, tx + hx, 26 + hy + (p.open ? 2 : 0), ['a.', 'ab', 'ab', 'bc'], {
+        a: ['cream', 0],
+        b: ['cream', 2],
+        c: ['cream', 3],
+      });
+    // A brow like a ledge, small yellow eyes under it.
+    for (let x = 45; x <= 61; x++) {
+      put(g, x + hx, 20 + hy, cell('troll', 1));
+      put(g, x + hx, 21 + hy, cell('troll', x > 57 ? 5 : 4));
     }
+    if (p.down) {
+      sprite(g, 48 + hx, 23 + hy, ['aaa....aaa'], { a: ['troll', 6] });
+    } else {
+      sprite(g, 48 + hx, 22 + hy, ['abc....abc'], {
+        a: ['gold', 1],
+        b: ['eye', 4],
+        c: ['troll', 5],
+      });
+    }
+    // The nose, a lump.
+    shaped(g, (x, y) => Math.hypot(x - 55 - hx, (y - 25 - hy) * 1.2) < 3, 'troll', {
+      base: 2,
+      contrast: 2,
+      radius: 2,
+    });
+    // Weed hanging from his crown like hair.
+    for (let i = 0; i < 8; i++) {
+      const x = 44 + hx + i * 2;
+      const n = 3 + ((i * 7) % 4);
+      for (let j = 0; j < n; j++)
+        put(g, x + (j > 2 ? -1 : 0), 13 + hy + j, cell('weed', 2 + (j % 3)));
+    }
+    // The near arm, forward: a shoulder like a boulder, the forearm to a fist the size of a head.
+    const upper = poly([
+      [25 + bx - 6, 32 + by],
+      [25 + bx + 6, 32 + by],
+      [14 + ax + 5, 52 + ay],
+      [14 + ax - 5, 52 + ay],
+    ]);
+    limb(g, 25 + bx, 32 + by, 14 + ax, 52 + ay, 13, 11, 2.2);
+    seam(g, upper, 1);
+    limb(g, 14 + ax, 52 + ay, 16 + ax, 70 + ay, 11, 9, 2.1);
+    shaped(
+      g,
+      poly(
+        shifted(
+          [
+            [9, 68],
+            [23, 67],
+            [25, 74],
+            [21, 80],
+            [11, 80],
+            [8, 75],
+          ],
+          ax,
+          ay,
+        ),
+      ),
+      'troll',
+      {
+        base: 2.1,
+        contrast: 1.8,
+        radius: 3,
+      },
+    );
+    // Knuckles.
+    for (const kx of [11, 15, 19]) put(g, kx + ax, 69 + ay, cell('troll', 1));
   },
 };
 

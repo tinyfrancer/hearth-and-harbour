@@ -3,7 +3,7 @@
  * solids in the town's cells (material and step), lit from the upper left.
  * Pure arithmetic on grids; nothing here touches a canvas.
  */
-import { put, type Cell, type TGrid } from '../town2/cells';
+import { bevel, FLAT_LIGHT, hash, put, type Cell, type TGrid } from '../town2/cells';
 import { cell } from './cave';
 import type { Mat2 as Mat } from './cave';
 
@@ -149,3 +149,96 @@ export function sprite(
     }
   });
 }
+
+/** A point-in-polygon test at pixel centres (even-odd), for silhouettes given as corners. */
+export function poly(
+  points: readonly (readonly [number, number])[],
+): (x: number, y: number) => boolean {
+  return (x, y) => {
+    const px = x + 0.5;
+    const py = y + 0.5;
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const [xi, yi] = points[i]!;
+      const [xj, yj] = points[j]!;
+      if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+}
+
+/** The polygon moved by (dx, dy). */
+export const shifted = (
+  points: readonly (readonly [number, number])[],
+  dx: number,
+  dy: number,
+): [number, number][] => points.map(([x, y]) => [x + dx, y + dy]);
+
+/**
+ * A silhouette shaded as a solid: every pixel `inside` takes `mat` at a step
+ * from how lit its bevel is (rounded edges `radius` deep, lit from the upper
+ * left), `base` where it faces the viewer, `contrast` steps either way, then
+ * `tex` may move it (fur strokes, scales). The town's `solid`, for the cave's
+ * materials too.
+ */
+export function shaped(
+  g: TGrid,
+  inside: (x: number, y: number) => boolean,
+  mat: Mat,
+  o: {
+    base: number;
+    contrast: number;
+    radius: number;
+    lo?: number;
+    hi?: number;
+    tex?: (x: number, y: number, t: number) => number;
+  },
+): Uint8Array {
+  const { w, h } = g;
+  const mask = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (inside(x, y)) mask[y * w + x] = 1;
+  const lit = bevel(mask, w, h, o.radius);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!mask[i]) continue;
+      let t = o.base + (o.contrast * (FLAT_LIGHT - lit[i]!)) / 0.5;
+      if (o.tex) t = o.tex(x, y, t);
+      put(g, x, y, cell(mat, lim(t, o.lo ?? 1, o.hi ?? 5)));
+    }
+  return mask;
+}
+
+/**
+ * A part laid over another of the same stuff, drawn apart from it: every
+ * drawn pixel just outside `inside` (below it, left of it or right of it)
+ * goes `n` steps darker, a seam of shadow, so a troll's head reads in front
+ * of his shoulders and a boar's cheek in front of his neck.
+ */
+export function seam(g: TGrid, inside: (x: number, y: number) => boolean, n = 2): void {
+  const hit: number[] = [];
+  for (let y = 0; y < g.h; y++)
+    for (let x = 0; x < g.w; x++) {
+      const i = y * g.w + x;
+      if (!g.d[i] || inside(x, y)) continue;
+      if (inside(x, y - 1) || inside(x - 1, y) || inside(x + 1, y)) hit.push(i);
+    }
+  for (const i of hit) {
+    const c = g.d[i]!;
+    g.d[i] = (c & ~7) | Math.min(5, Math.max(c & 7, (c & 7) + n));
+  }
+}
+
+/**
+ * Fur lying back along a body: short strokes a step darker, their lit tips a
+ * step lighter, worked out from position so it never swims between frames of
+ * the same pose. `along` leans the strokes.
+ */
+export const furTex =
+  (k: number, along = 0.5, dense = 0.2) =>
+  (x: number, y: number, t: number): number => {
+    const stroke = hash(Math.floor((x + y * along) / 2), y, 7 + k);
+    if (stroke < dense) return t + 1;
+    if (stroke > 0.92 && t < 3.5) return t - 1;
+    return t;
+  };

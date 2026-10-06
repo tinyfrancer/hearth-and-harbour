@@ -12,15 +12,13 @@
  * small, long-eared and green under a hood with a longbow.
  */
 import { DEPTH } from '../depth';
-import { mirror, stamp, stepOf, tgrid, type Cell, type TGrid } from '../town2/cells';
+import { mirror, stepOf, tgrid, type Cell, type TGrid } from '../town2/cells';
 import { cell, matOf } from './cave';
-import { cyl } from '../town2/texture';
-import { dome, lim, paint, rod, sprite } from './kit';
 import type { Mat2 as Mat } from './cave';
 import type { Glow } from '../raster';
 import { HEAD, HEAD_AT } from '../figure2/body';
 import { bonedParts } from '../figure2/dress';
-import { outlineIn, recolour, type Part2, type Pins } from '../figure2/engine';
+import { recolour, type Part2, type Pins } from '../figure2/engine';
 import { swap2 } from './cave';
 import { turnRow } from '../figure2/folk';
 import {
@@ -32,7 +30,8 @@ import {
   type Boned,
   type Key2,
 } from '../figure2/walk';
-import { dyed, laid, repaint } from './pose';
+import { dyed, gridPart, laid, repaint } from './pose';
+import { strikeArm, windupArm, type Sleeve, type SwingKind } from './swing';
 
 const [HX, HY] = HEAD_AT;
 const FACE = /[KWIbBstuvw]/;
@@ -73,6 +72,8 @@ interface Person {
   /** Rows taken out to make a shorter person (counted on the posed figure; the soles stay put). */
   readonly shorter?: readonly number[];
   readonly glows?: (key: Key2) => readonly Glow[];
+  /** What they strike with, and the sleeve on the striking arm. */
+  readonly swing: { readonly kind: SwingKind; readonly sleeve: Sleeve };
 }
 
 const b = (part: Part2, bone: Boned['bone']): Boned => ({ part, bone });
@@ -160,6 +161,7 @@ const DECKHAND: Person = {
     return part;
   },
   own: [b(DECKHAND_HEAD, 'head'), b(DECKHAND_KNOT, 'head')],
+  swing: { kind: 'hook', sleeve: { upper: 'crimson', fore: 'skin' } },
   skin: 'skingolden',
   hair: 'hairblack',
 };
@@ -221,101 +223,9 @@ const SMUGGLER: Person = {
     return part;
   },
   own: [b(SMUGGLER_HEAD, 'head'), b(BOTTLE, 'far')],
+  swing: { kind: 'cutlass', sleeve: { upper: 'tar', fore: 'tar' } },
   skin: 'skin',
   hair: 'hairblack',
-};
-
-/* ----------------------------------------------------------- the powder monkey */
-
-/** Bald and stubbled, a gap-toothed grin, brows up: gleeful, and a grown man. */
-const MONKEY_HEAD = headPart(
-  [
-    '...............',
-    '....sosttu.....',
-    '..ssoossstttu..',
-    '.ssoossssttuuv.',
-    '.sBBsssssBBtuv.',
-    '.ssssssssttuuv.',
-    '.sssssssstttuv.',
-    'stsKIKsstKIKuvu',
-    'tusWIWsstWIWuvv',
-    'stssssssttttuvu',
-    '.hsssssttuutuh.',
-    '.hswWdWdWdwuh..',
-    '..hswwwwwwuh...',
-    '...hhssshhh....',
-    '....hhhhhh.....',
-    '.....tuuvw.....',
-    '.....tuuvw.....',
-    '....ttuuvvw....',
-  ],
-  { h: ['hair', 4], d: ['shade', 3], W: ['eye', 0] },
-);
-
-/**
- * His arms and the keg, drawn on the shortened figure (so the keg clears his
- * head): both arms raised, the keg held up over him with its fuse alight;
- * wound back, the keg behind his head; thrown, his arms out after it.
- */
-function monkeyTop(mode: 'hold' | 'wind' | 'throw', breath: number): TGrid {
-  const g = tgrid(56, 72);
-  const up = breath;
-  const arm = (
-    sx: number,
-    sy: number,
-    ex: number,
-    ey: number,
-    hx: number,
-    hy: number,
-    far: boolean,
-  ) => {
-    const steps = far ? [2, 3, 4] : [1, 2, 3];
-    rod(g, sx, sy, ex, ey, 3, 'skin', steps);
-    rod(g, ex, ey, hx, hy, 3, 'skin', steps);
-    dome(g, hx + 0.5, hy + 0.5, 2.2, 2.2, 'skin', far ? 3 : 2, 1.5);
-  };
-  if (mode === 'throw') {
-    arm(33, 37 - up, 39, 37 - up, 46, 33 - up, true);
-    arm(21, 37 - up, 29, 38 - up, 42, 34 - up, false);
-    return outlineIn(g);
-  }
-  const kx = mode === 'wind' ? 17 : 20;
-  const ky = (mode === 'wind' ? 3 : 4) - up;
-  // The keg, lying across his hands: staves lit on top, iron hoops, the skull, the fuse.
-  paint(g, kx, ky, 17, 10, (x, y) => {
-    const ny = ((y - ky + 0.5) / 10) * 2 - 1;
-    const nx = ((x - kx + 0.5) / 17) * 2 - 1;
-    if (Math.abs(nx) > 0.97 && Math.abs(ny) > 0.6) return 0;
-    const t = cyl(ny, 2.4, 1.4);
-    const hoop = x === kx + 3 || x === kx + 13;
-    return hoop
-      ? cell('iron', lim(t, 1, 5))
-      : cell('wood', lim(t + (Math.abs(nx) > 0.9 ? 1 : 0), 1, 5));
-  });
-  sprite(g, kx + 7, ky + 3, ['ccc', 'KcK', '.c.'], { c: ['plaster', 1], K: ['wood', 5] });
-  sprite(g, kx + 15, ky - 4, ['.FE', '.f.', 'f..', 'f..'], {
-    f: ['tar', 2],
-    F: ['ember', 1],
-    E: ['ember', 3],
-  });
-  const hx = kx + 2;
-  arm(21, 36 - up, 16, 25 - up, hx, ky + 9, false);
-  arm(34, 36 - up, 38, 25 - up, kx + 15, ky + 9, true);
-  return outlineIn(g);
-}
-
-const MONKEY: Person = {
-  gear: ['leather_jerkin', 'linen_trousers', 'leather_belt'],
-  body: 'standard_at_ease',
-  worn: (part, id) => {
-    if (id === 'leather_jerkin') return dyed(part, 'tan', 'umber');
-    return part;
-  },
-  own: [b(MONKEY_HEAD, 'head')],
-  skin: 'skinbrown',
-  hair: 'hair',
-  shorter: [26, 30, 34, 46, 48, 50, 52, 55, 57, 59],
-  glows: () => [],
 };
 
 /* ----------------------------------------------------------------- the footpad */
@@ -362,6 +272,7 @@ const FOOTPAD: Person = {
     return part;
   },
   own: [b(FOOTPAD_HEAD, 'head')],
+  swing: { kind: 'cudgel', sleeve: { upper: 'hide', fore: 'hide' } },
   skin: 'skinpale',
   hair: 'hair',
 };
@@ -415,6 +326,7 @@ const GOBLIN: Person = {
     return part;
   },
   own: [b(GOBLIN_HEAD, 'head'), ...GOBLIN_EARS],
+  swing: { kind: 'bow', sleeve: { upper: 'leather', fore: 'skin' } },
   skin: 'goblin',
   hair: 'hairblack',
   shorter: [24, 28, 32, 36, 45, 47, 49, 51, 53, 56, 58, 60],
@@ -435,34 +347,16 @@ function partsOf(p: Person): Boned[] {
   const out: Boned[] = [];
   // Walk the gear one piece at a time, so each part knows whose it is.
   const base = bonedParts(body, []).filter((x) => x.part !== HEAD);
-  const monkeyArms = p === MONKEY;
-  for (const x of base) {
-    if (monkeyArms && (x.bone === 'near' || x.bone === 'nearHeld' || x.bone === 'far')) continue;
-    out.push(x);
-  }
+  for (const x of base) out.push(x);
   for (const id of p.gear) {
     const withGear = bonedParts(body, [id]).slice(bonedParts(body, []).length);
     for (const x of withGear) {
       const part = p.worn ? p.worn(x.part, id) : x.part;
       if (!part) continue;
-      if (
-        monkeyArms &&
-        (x.bone === 'near' || x.bone === 'far') &&
-        id === 'leather_jerkin' &&
-        isSleeve(part)
-      )
-        continue;
       out.push({ part, bone: x.bone });
     }
   }
   return [...out, ...p.own];
-}
-
-/** Whether a part lies off the body's side (a sleeve), not across it. */
-function isSleeve(part: Part2): boolean {
-  const x0 = part.at[0];
-  const x1 = part.at[0] + Math.max(...part.rows.map((r) => r.length));
-  return x1 < 24 || x0 > 32;
 }
 
 /** Rows taken out of a posed figure to make a shorter person, the soles kept where they are. */
@@ -475,36 +369,35 @@ function shortened(g: TGrid, rows: readonly number[]): TGrid {
   return out;
 }
 
-/** A frame of a person posed by `key`, recoloured to their skin and hair, shortened if they are. */
-function personFrame(id: string, key: Key2): { grid: TGrid; glows: Glow[] } {
+/**
+ * A frame of a person posed by `key`, recoloured to their skin and hair,
+ * shortened if they are. Winding up and striking, the near arm and what it
+ * holds are drawn again for the blow (swing.ts); with a bow, both arms.
+ */
+function personFrame(id: string, key: Key2, pose: PersonPose): { grid: TGrid; glows: Glow[] } {
   const p = PEOPLE[id]!;
-  const parts = partsOf(p);
+  let parts = partsOf(p);
+  if (pose === 'windup' || pose === 'strike') {
+    const gone = new Set([
+      'near',
+      'nearHeld',
+      ...(p.swing.kind === 'bow' ? ['far', 'farHeld'] : []),
+    ]);
+    const arm = pose === 'windup' ? windupArm : strikeArm;
+    parts = [
+      ...parts.filter((x) => !gone.has(x.bone)),
+      { part: gridPart(arm(p.swing.kind, p.swing.sleeve), 80, { bone: 'body' }), bone: 'body' },
+    ];
+  }
   let grid = posedFigure(parts, HERO_RIG, key);
   grid = recolour(grid, swap2({ skin: p.skin, hair: p.hair, brow: p.hair }));
-  const shorter = p.shorter ?? [];
-  grid = shortened(grid, shorter);
-  let glows: Glow[] = [];
-  if (p === MONKEY) {
-    const mode = key === MONKEY_THROW ? 'throw' : key === MONKEY_WIND ? 'wind' : 'hold';
-    const top = recolour(monkeyTop(mode, key.breath ?? 0), swap2({ skin: p.skin }));
-    stamp(grid, top, 0, 0);
-    if (mode !== 'throw')
-      glows = [
-        {
-          x: (mode === 'wind' ? 17 : 20) + 16.5,
-          y: (mode === 'wind' ? 3 : 4) - (key.breath ?? 0) - 2.5,
-          radius: 10,
-          strength: 0.75,
-          always: true,
-        },
-      ];
-  }
-  return { grid, glows };
+  grid = shortened(grid, p.shorter ?? []);
+  return { grid, glows: [] };
 }
 
 /** The poses each person has, as keys on the hero's rig. */
-const WINDUP: Key2 = { ...STAND2, armNear: { dx: -4, dy: -8 }, lean: -1, bob: 0 };
-const STRIKE: Key2 = { ...STAND2, armNear: { dx: 20, dy: -3 }, lean: 2, bob: 1 };
+const WINDUP: Key2 = { ...STAND2, lean: -1, bob: 0 };
+const STRIKE: Key2 = { ...STAND2, lean: 2, bob: 1 };
 const HURT: Key2 = {
   ...STAND2,
   armNear: { dx: -3, dy: -2 },
@@ -513,8 +406,6 @@ const HURT: Key2 = {
   bob: 1,
 };
 const BUCKLE: Key2 = { ...STAND2, armNear: { dx: -2, dy: 3 }, lean: -1, bob: 3 };
-const MONKEY_WIND: Key2 = { ...STAND2, lean: -1 };
-const MONKEY_THROW: Key2 = { ...STAND2, lean: 2, bob: 1 };
 
 export type PersonPose = 'idle' | 'walk' | 'windup' | 'strike' | 'hurt' | 'fall';
 
@@ -528,17 +419,16 @@ export const PERSON_FRAMES: Readonly<Record<PersonPose, number>> = {
   fall: 2,
 };
 
-function keyOf(id: string, pose: PersonPose, frame: number): Key2 {
-  const monkey = id === 'powder_monkey';
+function keyOf(pose: PersonPose, frame: number): Key2 {
   switch (pose) {
     case 'idle':
       return IDLE2[frame % 2]!;
     case 'walk':
       return walkKey('right', frame, 12);
     case 'windup':
-      return monkey ? MONKEY_WIND : WINDUP;
+      return WINDUP;
     case 'strike':
-      return monkey ? MONKEY_THROW : STRIKE;
+      return STRIKE;
     case 'hurt':
       return HURT;
     case 'fall':
@@ -558,14 +448,14 @@ export function personPose(id: string, pose: PersonPose, frame: number): PersonF
   if (!Object.hasOwn(PEOPLE, id)) return null;
   const f = Math.abs(Math.floor(frame)) % PERSON_FRAMES[pose];
   if (pose === 'fall' && f === 1) {
-    const { grid } = personFrame(id, BUCKLE);
+    const { grid } = personFrame(id, BUCKLE, 'fall');
     const lying = laid(grid);
     // On its back: the feet where they stood, the head behind, the back on the ground.
     let low = 0;
     for (let i = 0; i < lying.d.length; i++) if (lying.d[i]) low = Math.floor(i / lying.w);
     return { grid: lying, glows: [], anchor: { x: 58, y: low } };
   }
-  const { grid, glows } = personFrame(id, keyOf(id, pose, f));
+  const { grid, glows } = personFrame(id, keyOf(pose, f), pose);
   return { grid, glows, anchor: { x: 28, y: 70 } };
 }
 

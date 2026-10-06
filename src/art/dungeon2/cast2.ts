@@ -85,6 +85,21 @@ const STANDING: BeastKeys = {
   fall: [{ at: { body: [0, 2], head: [0, 2] } }, {}],
 };
 
+/** The troll raises both fists over his head and brings them down; struck, he rocks back. */
+const TROLL_KEYS: BeastKeys = {
+  idle: [{}, { at: { body: [0, -1], head: [0, -1], arms: [0, -1] } }],
+  walk: [
+    { at: { legs: [1, -2], body: [0, 0], arms: [-1, 0] } },
+    { at: { legs: [0, 0], body: [0, -1], head: [0, -1], arms: [0, -1] } },
+    { at: { legs: [-1, 2], body: [0, 0], arms: [1, 0] } },
+    { at: { legs: [0, 0], body: [0, -1], head: [0, -1], arms: [0, -1] } },
+  ],
+  windup: [{ at: { arms: [-2, -14], head: [-1, -1], body: [-1, -1] }, open: true }],
+  strike: [{ at: { arms: [5, 6], head: [3, 2], body: [2, 1] }, open: true }],
+  hurt: [{ at: { head: [-3, -1], body: [-2, 0], arms: [-3, -2] }, open: true }],
+  fall: [{ at: { body: [-1, 3], head: [-1, 4], arms: [-2, 4] }, open: true }, {}],
+};
+
 const BEAST_KEYS: Readonly<Record<string, BeastKeys>> = {
   dock_rat: FOUR_FEET,
   bramble_boar: FOUR_FEET,
@@ -93,7 +108,7 @@ const BEAST_KEYS: Readonly<Record<string, BeastKeys>> = {
   giant_crab: crabKeys(2),
   ships_parrot: PARROT_KEYS,
   thieving_gull: STANDING,
-  marsh_troll: STANDING,
+  marsh_troll: TROLL_KEYS,
   bramble_wyrm: STANDING,
 };
 
