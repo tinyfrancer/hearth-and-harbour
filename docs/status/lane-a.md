@@ -504,6 +504,31 @@ run's save (designed under the notes, "A run that survives a reload"), with lane
     draws no pixels): the figure filling its frame, the names fitting at 360, the glide, the
     crop's look; those are the screenshots.
 
+- Wave 11b: the tab bar and the doll's icons (the two parts of wave 11's brief #45 did not
+  reach; PR in this branch, `lane-a/w11b-tabbar-icons`). **No save change** (still 8).
+  - **Tab bar, checked** at 320, 360, 390 and 430 wide (3x; 320 at 2x): the five icons show,
+    32 CSS pixels over their labels. The open tab differs from the rest by more than lightness
+    already: a 4-pixel gold bar along its top (shape), a lighter panel behind it, the icon in
+    full colour against the muted one, and a gold label. Not bolded: the pixel font smears when
+    the browser fakes a bold. **Fixed**: at 360 "Character" (70 CSS pixels) filled its 72-pixel
+    share to the pixel, so its lit panel ended at the letters (and at 320 the label spilled into
+    its neighbours). A tab now has 4 pixels of air a side and never gets narrower than its
+    label: equal at 390 and 430, Character 78 and the rest 70.5 at 360, 78 and 60.5 at 320.
+  - **The doll's icons** (`dollIcon` in `src/ui/figure.ts`): an item worn on the sheet was art's
+    32-pixel icon (1.33 CSS pixels an art pixel) in a 56-pixel square beside a hero at three, so
+    the squares looked half empty and the icons a finer grain than the hero. The doll now shows
+    art's own `itemIcon` canvas at two CSS pixels an art pixel (48, the square's inside), at a
+    whole number of device pixels per art pixel (6 at 3x, 4 at 2x, 5 at 2.625x), so it stays
+    crisp; the art size is read off the canvas through the door's `iconScale`, not assumed. The
+    slot's choices, the bank and every other list keep the 32-pixel icon beside 18-pixel text,
+    where it sits well (checked; no figure there). Nothing in `src/art` changed.
+  - **Tests** (`tests/ui/figure.test.ts`, new, no expectation changed): the doll's icon is 96
+    device pixels drawn and 48 CSS shown at 3x while the choices under it stay 32; whole device
+    pixels per art pixel at 2x (4) and 2.625x (5).
+  - **Screens**: `/home/claude/lane-shots/w11-a/tabs-before/` and `tabs-after/`: each tab bar
+    close-up with Skills, Bank and Character open, and the Skills, Bank and Character screens,
+    at 360, 390 and 430 (and 320 after).
+
 ## Deferred
 
 - Wave 11: **saving a dungeon run** is designed below ("A run that survives a reload"), not
@@ -535,6 +560,10 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
   or the stage's) would let the header be the same everywhere.
 - **For lane C, the run's save** (the design below): `snapshotRun`/`restoreRun` and the two shell
   calls, when it is scheduled.
+- **For lane B (wave 11b), optional:** the doll shows item icons at 2 CSS pixels an art pixel
+  now (48 CSS), next to the hero at 3. Nothing looks wrong at that size; the necklaces and
+  bracelets use about the middle third of their 24-pixel grid, so they read smaller in their
+  squares than the helmet or the tunic, and could be drawn to fill more of it if wanted.
 - **For lane B (wave 11):** faces for the five thieving marks, if wanted (`steal_fisherman`,
   `steal_fish_stall`, `steal_sailor`, `steal_pedlar`, `steal_strongbox`); the cards show
   `portrait2(id)` the moment it gives one. `portraitScales2(2.625).mini` is 1 device pixel, so
@@ -606,6 +635,12 @@ was picked up with it (nothing is settled until the run ends).
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
 
 ### Weak list (wave 11)
+
+- The doll's icons are 2 CSS pixels an art pixel beside a hero at 3: closer than before, not the
+  same grain (3 would be 72 pixels, wider than the squares). At 2.625x art pads the icon's
+  canvas to a whole CSS step, so the picture sits about 2 pixels up and left of the square's
+  centre there.
+- The tab bar's shares are a few pixels unequal at 360 and below (Character is wider).
 
 - Opening a slot with many choices on a short phone scrolls the doll out of view: the choices
   start at the screen's top, so the figure is not seen while choosing (it shows the new thing as

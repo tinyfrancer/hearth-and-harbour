@@ -193,9 +193,15 @@ h2 {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/*
+ * Equal shares, except that a tab never gets narrower than its label and a
+ * little air: at 360 wide "Character" would fill its share to the pixel and
+ * its lit panel would end at the letters, so it takes a few pixels from the rest.
+ */
 .tab {
   flex: 1;
-  min-width: 0;
+  min-width: max-content;
+  padding: 0 4px;
   height: var(--tabbar-height);
   display: flex;
   flex-direction: column;

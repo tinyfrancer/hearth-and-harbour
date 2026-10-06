@@ -8,7 +8,7 @@ import { button, h, titled } from './dom';
 import { formatNumber } from './format';
 import { SLOT_NAMES, gearText, statName } from './gear';
 import { recordsEntry } from './logScreen';
-import { heroFigure } from './figure';
+import { dollIcon, heroFigure } from './figure';
 import { fullLook, lookPicker } from './look';
 import type { View } from './view';
 
@@ -176,7 +176,7 @@ export function characterView(
     const worn = state.equipment[slot];
     const name = worn ? (content.items[worn.item]?.name ?? worn.item) : 'Nothing';
     const open = panel === slot;
-    const icon = worn ? itemIcon(worn.item) : null;
+    const icon = worn ? dollIcon(worn.item) : null;
     const count = worn && slot === 'ammo' ? h('span', { class: 'slot-qty qty' }) : null;
     if (count) {
       // Arrows go as they are shot, with the sheet open.
