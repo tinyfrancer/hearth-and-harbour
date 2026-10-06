@@ -146,7 +146,7 @@ function tap(root: ParentNode, at: Point): void {
       { width: TOWN2_W, height: TOWN2_H },
     );
   }
-  const canvas = root.querySelector('canvas')!;
+  const canvas = root.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
   const css = run ? k : 1;
   const where = {
     bubbles: true,

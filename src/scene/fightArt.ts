@@ -24,8 +24,10 @@
 import {
   CAVE_DUSK,
   FOE2_SIZES,
+  FUSE_LIGHT2,
   dungeonPropSprite2,
   dungeonProp2,
+  flicker2,
   dungeonTile2,
   foeFrames2,
   foePicture2,
@@ -36,7 +38,7 @@ import {
   type Foe2Size,
 } from '../art/dungeonArt2';
 import { WALK2_STRIDE } from '../art/character2';
-import type { Glow } from '../art/raster';
+import { addGlow, type Glow } from '../art/raster';
 import { cell, outlined, tgrid, type Picture2 } from '../art/town2/cells';
 import type { Mat } from '../art/town2/ramps';
 import {
@@ -292,7 +294,7 @@ export class FoePictures {
     key: string,
     shown: FoeShown,
     feet: Point,
-  ): { image: HTMLCanvasElement; feet: Point } | null {
+  ): { image: HTMLCanvasElement; feet: Point; glows: readonly Glow[] } | null {
     const pic = foePicture2(monster, shown.pose, shown.facing, shown.frame, shown.phase);
     if (!pic) return null;
     const plain = foeSprite2(
@@ -309,7 +311,7 @@ export class FoePictures {
     const { w, h } = pic.picture.grid;
     const box = { x: qx - pic.feet.x, y: qy - pic.feet.y, w, h };
     const local = glowsIn(this.glows, box);
-    if (local.length === 0) return { image: plain, feet: pic.feet };
+    if (local.length === 0) return { image: plain, feet: pic.feet, glows: pic.picture.glows };
     let mine = this.lit.get(key);
     if (!mine) {
       mine = new Map();
@@ -329,7 +331,7 @@ export class FoePictures {
       mine.delete(k);
       mine.set(k, image);
     }
-    return { image: image ?? plain, feet: pic.feet };
+    return { image: image ?? plain, feet: pic.feet, glows: pic.picture.glows };
   }
 }
 
@@ -940,6 +942,43 @@ const LOOT: Picture2 = (() => {
 })();
 const LOOT_FEET = { x: 7, y: 13 };
 
+/** The half-width of a lit fuse's glow on its canvas. */
+const FUSE_R = Math.ceil(FUSE_LIGHT2.radius);
+/** How many strengths of a fuse's flicker are painted. */
+const FUSE_STEPS = 4;
+const fuseGlows: (HTMLCanvasElement | null)[] = [];
+
+/**
+ * A lit fuse's light on what is about it, at a strength (its glow wavering
+ * by `flicker2`): light alone, laid over the ground under everyone, in a few
+ * painted steps of strength.
+ */
+function fuseGlow(strength: number): HTMLCanvasElement | null {
+  if (typeof ImageData === 'undefined' || typeof document === 'undefined') return null;
+  const i = Math.max(
+    0,
+    Math.min(FUSE_STEPS - 1, Math.round((strength / FUSE_LIGHT2.strength) * (FUSE_STEPS - 1))),
+  );
+  if (fuseGlows[i] !== undefined) return fuseGlows[i]!;
+  const size = 2 * FUSE_R + 1;
+  const px = new Float64Array(size * size * 4);
+  // Half the fuse's strength on the ground: the flame is in his hands, above it.
+  addGlow(px, size, size, {
+    x: FUSE_R + 0.5,
+    y: FUSE_R + 0.5,
+    radius: FUSE_LIGHT2.radius,
+    strength: (0.5 * FUSE_LIGHT2.strength * (i + 1)) / FUSE_STEPS,
+  });
+  const data = new Uint8ClampedArray(px.length);
+  for (let j = 0; j < px.length; j++) data[j] = px[j]!;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.getContext('2d')?.putImageData(new ImageData(data, size, size), 0, 0);
+  fuseGlows[i] = canvas;
+  return canvas;
+}
+
 /** The pictures a run's fight is drawn with that do not change with the foe: kept per room look. */
 export interface FightArt {
   readonly foes: FoePictures;
@@ -1004,6 +1043,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
   );
   const actors: Standing[] = [];
   const shadows: Placed[] = [];
+  const fuses: Point[] = [];
   const boxes: Box[] = [];
   for (const foe of here) {
     // A fallen foe blinks out at the last.
@@ -1031,6 +1071,12 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         w: drawn.image.width + 2,
         h: drawn.image.height + 2,
       });
+      // What glows in its hands (the powder monkey's lit fuse) lights the ground about him.
+      for (const g of drawn.glows) {
+        const at = { x: feet.x - drawn.feet.x + g.x, y: feet.y - drawn.feet.y + g.y };
+        fuses.push(at);
+        boxes.push(around(at, FUSE_LIGHT2.radius + 1));
+      }
     }
     // A contact shadow under anything standing on the ground.
     if (lift === 0 && cells && size.shadow > 0) {
@@ -1179,6 +1225,10 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     },
     ground(ctx) {
       for (const s of shadows) ctx.drawImage(s.image, s.x, s.y);
+      fuses.forEach((at, i) => {
+        const glow = fuseGlow(flicker2({ ...FUSE_LIGHT2, x: 0, y: 0 }, clock, i).strength);
+        if (glow) ctx.drawImage(glow, Math.round(at.x) - FUSE_R, Math.round(at.y) - FUSE_R);
+      });
       if (ripples.length > 0) drawRipples(ctx, ripples, clock);
       if (lifted < 1) {
         for (const d of room.doors) {
