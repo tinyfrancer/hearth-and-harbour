@@ -11,6 +11,7 @@
  * Every piece is drawn once, on first ask, and kept.
  */
 import { outlined, type Picture2 } from './cells';
+import { FACTS_TABLE } from './facts';
 import { pier, rowboat, ship, wreckRock } from './harbour';
 import { house } from './house';
 import {
@@ -274,6 +275,26 @@ const MAKE: Readonly<Record<Town2Id, () => [Picture2, Meta]>> = {
   tavern_smoke: () => unlined(smoke(false), 'above'),
   smithy_smoke: () => unlined(smoke(true), 'above'),
 };
+
+/** Everything about a piece but its drawing: what a scene needs to lay out the town before (or without) drawing it. */
+export type Town2Facts = Omit<Town2Piece, 'picture'>;
+
+/**
+ * Every piece's facts, written down (lane C's need, B9): so the layout, the
+ * walking map and the scene's data can be had without drawing anything.
+ * They are the drawn pieces' own facts; `tests/art/town2.test.ts` draws
+ * every piece and holds that they match, so a redrawn piece whose size or
+ * base line moves fails until this table is brought up to date.
+ */
+export const TOWN2_FACTS: Readonly<Record<Town2Id, Town2Facts>> = FACTS_TABLE;
+
+/** One piece's facts by id, without drawing it. */
+export const town2Facts = (id: Town2Id): Town2Facts => TOWN2_FACTS[id];
+
+/** Lets go of every drawn piece (they are drawn again when next asked for). */
+export function forgetTown2Pieces(): void {
+  made.clear();
+}
 
 const made = new Map<Town2Id, Town2Piece>();
 

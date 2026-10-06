@@ -58,6 +58,10 @@ export const GALLERY2_GROUPS: readonly {
   readonly name: string;
   readonly ids: readonly Town2Id[];
 }[] = [
+  {
+    name: 'Redrawn after Cody’s review (B9): the ship, the rock and its wreck, the oak, the three pines, your house’s eyebrow window',
+    ids: ['ship', 'wreck_rock', 'oak', 'pine', 'pine_2', 'pine_3', 'house'],
+  },
   { name: 'The tavern', ids: ['tavern'] },
   { name: 'The smithy', ids: ['smithy'] },
   { name: 'Your house', ids: ['house'] },
@@ -78,7 +82,7 @@ export const GALLERY2_GROUPS: readonly {
 ];
 // Pictures wider than the page scroll across at game scale rather than shrink, so detail is seen as it will be.
 
-/** Four phone screens of the composed town, by their top-left in the town (360 wide, 480 tall). */
+/** Phone screens of the composed town, by their top-left in the town (360 wide, 480 tall). */
 export const PHONE_VIEWS: readonly {
   readonly name: string;
   readonly x: number;
@@ -88,6 +92,8 @@ export const PHONE_VIEWS: readonly {
   { name: 'The well, the square and the pier', x: 580, y: 1000 },
   { name: 'The harbour', x: 620, y: 1420 },
   { name: 'Your house and the oak', x: 840, y: 300 },
+  { name: 'The square’s west side: the stall, a mended patch, the drain (B9)', x: 20, y: 1000 },
+  { name: 'The woodcutters’ grove: the path, stumps, flowers (B9)', x: 120, y: 300 },
 ];
 export const PHONE_VIEW_H = 480;
 

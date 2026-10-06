@@ -2,7 +2,8 @@
  * The C-scale figures in the art gallery (Menu, Art gallery, "See the new
  * figures at the finer scale"): the hero in every look, the gear ladder at
  * true size and enlarged, every piece of gear worn, every townsperson, and a
- * row of them at the new tavern's door. Drawn only when asked, a picture at a
+ * row of them at the new tavern's door; and (B9) every rung and every
+ * townsperson walking each way and breathing. Drawn only when asked, a picture at a
  * time; one button turns it all to dusk and back on the same canvases.
  */
 import { DEFAULT_LOOK, LOOK_CHOICES, type Look } from '../character';
@@ -11,16 +12,22 @@ import {
   FIGURE2_SOLE_Y,
   ITEM_LAYERS2,
   KNIGHT_GEAR2,
+  TOWNSFOLK2_FRAME_MS,
   TOWNSFOLK2_IDS,
   c2Scale,
+  characterIdlePicture2,
   characterPicture2,
+  characterWalk2,
+  townsfolkIdle2,
   townsfolkName2,
   townsfolkPicture2,
+  townsfolkWalk2,
 } from '../character2';
 import { deviceSize } from '../canvas';
 import { dim, stamp, tgrid, type Picture2 } from '../town2/cells';
 import { cut, plate } from '../town2/gallery2';
-import { pixelCanvas2, repaint2 } from '../town2/raster';
+import { pixelCanvas2, repaint2, spriteCanvas } from '../town2/raster';
+import { walkPreview, type Walker2 } from './walkGallery';
 import { DAY2, DUSK2, type TimeOfDay } from '../town2/ramps';
 import { town2Layout, town2Picture } from '../town2/town';
 
@@ -215,10 +222,37 @@ export function figure2Gallery(): { section: HTMLElement; draw: () => void } {
     jobs.push({ cell, label, make, want });
   };
 
+  const walking = (label: string, who: Walker2) => {
+    const cell = el('figure', 'gallery-shot');
+    cell.append(walkPreview(who, game(), dpr(), () => time, label));
+    cell.append(el('figcaption', 'muted', label));
+    const box = el('div', 'gallery-scroll');
+    box.append(cell);
+    body.append(box);
+  };
+
   let built = false;
   const build = () => {
     if (built) return;
     built = true;
+    sub('Walking (B9): toward you, to the right, to the left, and standing, breathing');
+    for (const rung of LADDER2)
+      walking(rung.name, {
+        walk: (when, facing, f) =>
+          characterWalk2(DEFAULT_LOOK, rung.items, when, facing, f, rung.extra ?? []),
+        idle: (when, f) =>
+          spriteCanvas(
+            `gallery idle ${rung.name} ${f}`,
+            characterIdlePicture2(DEFAULT_LOOK, rung.items, f, rung.extra ?? []),
+            when === 'day' ? DAY2 : DUSK2,
+          ),
+      });
+    for (const id of TOWNSFOLK2_IDS)
+      walking(townsfolkName2(id) ?? id, {
+        walk: (when, facing, f) => townsfolkWalk2(id, when, facing, f),
+        idle: (when, f) => townsfolkIdle2(id, when, f),
+        frameMs: TOWNSFOLK2_FRAME_MS,
+      });
     sub('At the tavern door');
     shot(
       'The alewife, the hero in iron, the smith, the hero in her everyday clothes, the trader',

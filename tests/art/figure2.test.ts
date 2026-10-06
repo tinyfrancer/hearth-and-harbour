@@ -19,13 +19,13 @@ import {
   townsfolkSprite2,
 } from '../../src/art/character2';
 import { DEPTH } from '../../src/art/depth';
-import { BODIES2, FIST2, GRIP_X } from '../../src/art/figure2/body';
+import { BODIES2, FACE_AXIS, FIST2, GRIP_X } from '../../src/art/figure2/body';
 import { WARDROBE2, dress2, partsOf } from '../../src/art/figure2/dress';
 import { pixels, type Gear2 } from '../../src/art/figure2/engine';
 import { FOLK2 } from '../../src/art/figure2/folk';
 import { browShift, contrast, HAIR_COLOUR2, SKIN2 } from '../../src/art/figure2/look';
 import { isMat, matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
-import type { Mat } from '../../src/art/town2/ramps';
+import { DAY2, DUSK2, type Mat } from '../../src/art/town2/ramps';
 
 // The hero and the townsfolk at the C scale (docs/style-guide.md, "Figures at
 // the C scale"): built beside the current figures, through doors of the same
@@ -171,7 +171,7 @@ describe('the hero in every look', () => {
         }
   });
 
-  it('mirrors the eyes about the centre column in every look and under every head gear', () => {
+  it('mirrors the eyes about the face’s centre line, a column toward the facing, in every look and under every head gear', () => {
     const heads = [
       [],
       ...WEARABLES.filter(
@@ -186,11 +186,10 @@ describe('the hero in every look', () => {
           for (let x = 0; x < 56; x++)
             if (isMat(at(g, x, y), 'eye')) eyes.push([x, y, at(g, x, y)]);
         expect(eyes.length, `${JSON.stringify(look)} ${worn}`).toBe(12);
-        for (const [x, y, c] of eyes)
-          expect(at(g, 2 * FIGURE2_ANCHOR_X - x, y), `${x},${y}`).toBe(c);
+        for (const [x, y, c] of eyes) expect(at(g, 2 * FACE_AXIS - x, y), `${x},${y}`).toBe(c);
         // The iris in the middle of each eye: the gaze is straight out.
         const irises = [...new Set(eyes.filter(([, , c]) => stepOf(c) === 3).map(([x]) => x))];
-        expect(irises.sort((a, b) => a - b)).toEqual([FIGURE2_ANCHOR_X - 3, FIGURE2_ANCHOR_X + 3]);
+        expect(irises.sort((a, b) => a - b)).toEqual([FACE_AXIS - 3, FACE_AXIS + 3]);
       }
   });
 
@@ -516,7 +515,7 @@ describe('the townsfolk at the C scale', () => {
     }
   });
 
-  it('mirrors their eyes about the centre column, but for the captain’s patch', () => {
+  it('mirrors their eyes about the face’s centre line, but for the captain’s patch', () => {
     for (const id of TOWNSFOLK2_IDS) {
       const g = townsfolkPicture2(id)!.grid;
       const eyes: [number, number, number][] = [];
@@ -525,13 +524,12 @@ describe('the townsfolk at the C scale', () => {
       if (id === 'pirate') {
         expect(eyes.length).toBe(6);
         expect([...new Set(eyes.filter(([, , c]) => stepOf(c) === 3).map(([x]) => x))]).toEqual([
-          FIGURE2_ANCHOR_X + 3,
+          FACE_AXIS + 3,
         ]);
         continue;
       }
       expect(eyes.length, id).toBe(12);
-      for (const [x, y, c] of eyes)
-        expect(at(g, 2 * FIGURE2_ANCHOR_X - x, y), `${id} ${x},${y}`).toBe(c);
+      for (const [x, y, c] of eyes) expect(at(g, 2 * FACE_AXIS - x, y), `${id} ${x},${y}`).toBe(c);
     }
   });
 });
@@ -541,5 +539,57 @@ describe('dressing', () => {
     expect(() => partsOf('standard', ['teal_tunic', 'linen_tunic'])).toThrow();
     expect(() => partsOf('standard', ['nonsense'])).toThrow();
     expect(() => partsOf('nobody', [])).toThrow();
+  });
+});
+
+// ------------------------------------------------------------- B9's fixes
+
+/** CIE L*a*b* of a hex colour, for how far apart two colours look. */
+function lab(hex: string): [number, number, number] {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+const deltaE = (a: string, b: string) => {
+  const [p, q] = [lab(a), lab(b)];
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+};
+
+describe('bronze at the C scale (B9)', () => {
+  it('is a true bronze, apart from gold and from every hair colour, by day and at dusk', () => {
+    for (const pal of [DAY2, DUSK2]) {
+      const bronze = pal.colours.bronze;
+      for (const other of [...Object.values(HAIR_COLOUR2), 'gold'] as Mat[]) {
+        // Step by step, lit side to shadow side: never close to the same step of the other.
+        const d = [1, 2, 3, 4].map((s) => deltaE(bronze[s]!, pal.colours[other][s]!));
+        expect(Math.min(...d), `${pal.name} ${other} ${d.map(Math.round)}`).toBeGreaterThan(12);
+        expect(d.reduce((a, b) => a + b) / 4, `${pal.name} ${other}`).toBeGreaterThan(20);
+      }
+      // Its shadows lean olive-brown (more yellow than red, and darker than its lit steps).
+      const [, a3, b3] = lab(bronze[3]!);
+      expect(b3).toBeGreaterThan(a3);
+      expect(lab(bronze[3]!)[0]).toBeLessThan(lab(bronze[1]!)[0] - 15);
+    }
+  });
+});
+
+describe('the at-ease hand (B9)', () => {
+  it('hangs open where the fist would close, the arm down by the hip, not on the belt', () => {
+    const ease = BODIES2.find((b) => b.id === 'standard_at_ease')!;
+    const hand = ease.parts.find((p) => p.at[0] === FIST2.at[0] && p.at[1] === FIST2.at[1])!;
+    expect(hand).toBeDefined();
+    expect(hand).not.toBe(FIST2);
+    // Nothing of the empty hand is over the belt.
+    const g = dress2('standard_at_ease', EVERYDAY);
+    for (const [x, y, c] of pixels(hand)) {
+      expect(y).toBeGreaterThan(38);
+      expect(at(g, x, y)).toBe(c);
+    }
   });
 });

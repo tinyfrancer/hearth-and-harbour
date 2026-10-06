@@ -50,7 +50,23 @@ export interface Part2 {
   readonly cast?: boolean;
   /** Whether it takes the shadow of what lies over it. Default true; a fist does not, so it always shows whole. */
   readonly shaded?: boolean;
+  /**
+   * What it moves with when the figure walks or breathes (walk.ts). Left out,
+   * it is worked out from the slot it is worn in and where it lies.
+   */
+  readonly bone?: Bone;
 }
+
+/**
+ * What a part moves with in a walk (walk.ts): the head; the body (rigid with
+ * the hips); `trunk`, the body above the hips and the legs below; `legs`,
+ * split between the near and far leg at the crotch; `skirt`, the body above
+ * the hips and swaying below; the cloak; an arm (`near`, `far`), bent by its
+ * joints; and what an arm's hand holds (`nearHeld`, `farHeld`), carried
+ * rigidly with the wrist so the hand rule holds in every frame.
+ */
+export type Bone =
+  'head' | 'body' | 'trunk' | 'legs' | 'skirt' | 'cloak' | 'near' | 'nearHeld' | 'far' | 'farHeld';
 
 /** A posed body. */
 export interface Body2 {
@@ -170,6 +186,9 @@ export function partIn(part: Part2, swap: Partial<Record<Mat, Mat>>): Part2 {
   }
   return { ...part, mat: part.mat && (swap[part.mat] ?? part.mat), pins };
 }
+
+/** A part that moves with `bone` when the figure walks. */
+export const on = (bone: Bone, part: Part2): Part2 => ({ ...part, bone });
 
 /** A part moved by (dx, dy). */
 export const moved = (part: Part2, dx: number, dy: number): Part2 => ({

@@ -6,8 +6,7 @@
  * Cloth is flat where it hangs flat: a lit column down its left, its shadow
  * down its right, and folds only where it is pulled or gathered (under the
  * belt, at the elbow, from the knee), each widening as it falls. Parts that
- * cover the weapon forearm come in two poses (`pose`), the hand closed or at
- * rest.
+ * cover the weapon forearm are marked (`hold`).
  */
 import { DEPTH } from '../depth';
 import type { Mat } from '../town2/ramps';
@@ -15,10 +14,13 @@ import { cloth, runs, type Extent, type Gear2, type Part2 } from './engine';
 
 const { LEGS, FEET, SHIRT, BELT } = DEPTH;
 
-/** A part worn only in one pose of the weapon arm. */
-export type Posed = Part2 & { readonly pose?: 'hold' | 'ease' };
+/**
+ * A part on the weapon forearm. Since B9 both bodies share that forearm (the
+ * empty hand hangs where the fist would close), so it is worn whatever the
+ * hand does; the mark says which parts a later pose of that arm must redraw.
+ */
+export type Posed = Part2 & { readonly pose?: 'hold' };
 export const hold = (p: Part2): Posed => ({ ...p, pose: 'hold' });
-export const ease = (p: Part2): Posed => ({ ...p, pose: 'ease' });
 
 const rows = (a: number, b: number, x0: number, x1: number): Extent[] =>
   Array.from({ length: b - a + 1 }, (_, i): Extent => [a + i, x0, x1]);
@@ -49,47 +51,64 @@ export const TORSO: readonly Extent[] = [
   ...rows(44, 45, 20, 36),
   [46, 27, 36],
 ];
-/** The folds a belt pulls into a tunic: short above it, spreading below it to the hem. */
-const BELTED: readonly (readonly (readonly [number, number])[])[] = [
+/** A fold given by its key points, [row, column]; `cloth` runs it unbroken between them. */
+type Fold = readonly (readonly [number, number])[];
+
+/**
+ * The everyday tunic is cut close and belted, and the weight is on the near
+ * leg: one fold drawn in to the belt over the chest; below it the cloth is
+ * pulled taut over the raised near hip, so a long fold runs from the hip out
+ * to the hem, the far side hangs slack in a shorter fold that swings out, and
+ * a short fold breaks the hem under the buckle.
+ */
+const FITTED: readonly Fold[] = [
   [
-    [33, 25],
-    [34, 25],
-    [35, 25],
+    [32, 25],
+    [35, 26],
   ],
   [
-    [33, 29],
-    [34, 29],
-    [35, 29],
-  ],
-  [
-    [38, 24],
-    [39, 24],
-    [40, 23],
-    [41, 23],
-    [42, 23],
-    [43, 22],
-    [44, 22],
+    [38, 25],
+    [42, 24],
     [45, 22],
   ],
   [
-    [38, 28],
-    [39, 28],
-    [40, 28],
-    [41, 28],
-    [42, 28],
-    [43, 28],
-    [44, 28],
-    [45, 28],
+    [40, 31],
+    [45, 34],
   ],
   [
-    [38, 32],
-    [39, 32],
-    [40, 33],
-    [41, 33],
-    [42, 33],
-    [43, 34],
-    [44, 34],
-    [45, 34],
+    [43, 28],
+    [45, 28],
+  ],
+];
+/**
+ * The villager's linen is loose and bloused over the belt: short sags above
+ * it where the cloth puffs out, and below it three folds of different lengths,
+ * the far one longest where the slack falls.
+ */
+const BLOUSED: readonly Fold[] = [
+  [
+    [33, 24],
+    [35, 24],
+  ],
+  [
+    [32, 28],
+    [35, 28],
+  ],
+  [
+    [34, 31],
+    [35, 32],
+  ],
+  [
+    [38, 23],
+    [41, 22],
+  ],
+  [
+    [39, 27],
+    [44, 26],
+  ],
+  [
+    [38, 31],
+    [45, 33],
   ],
 ];
 /** The neck's opening, a V with a lit lip on its shadow side. */
@@ -105,24 +124,18 @@ const V_NECK: readonly (readonly [number, number, number])[] = [
 
 /** The near sleeve, shoulder to elbow, the same in both poses. */
 export const NEAR_SLEEVE_UPPER: readonly Extent[] = [
-  [25, 20, 22],
-  [26, 19, 22],
-  [27, 18, 22],
-  [28, 17, 22],
-  ...rows(29, 32, 17, 21),
+  [25, 19, 22],
+  [26, 18, 22],
+  [27, 17, 22],
+  [28, 16, 22],
+  ...rows(29, 32, 16, 21),
   ...rows(33, 34, 16, 21),
 ];
-/** On to the wrist, the hand closed at the hip... */
+/** On to the wrist, the hand by the hip. */
 export const NEAR_SLEEVE_HOLD: readonly Extent[] = [
   [35, 17, 20],
   [36, 17, 20],
   [37, 16, 19],
-];
-/** ...or resting on the belt. */
-export const NEAR_SLEEVE_EASE: readonly Extent[] = [
-  [35, 17, 21],
-  [36, 19, 22],
-  [37, 21, 22],
 ];
 /** The far sleeve: out to the elbow and back in to the wrist at the hip. */
 export const FAR_SLEEVE: readonly Extent[] = [
@@ -144,11 +157,10 @@ const tunic = (id: string, mat: Mat, steps?: readonly [number, number, number, n
   id,
   slot: 'shirt',
   parts: [
-    cloth(SHIRT, mat, TORSO, { steps, folds: BELTED, hems: [45, 46], fix: V_NECK, turn: 0.7 }),
+    cloth(SHIRT, mat, TORSO, { steps, folds: FITTED, hems: [45, 46], fix: V_NECK, turn: 0.7 }),
     cloth(SHIRT + 0.5, mat, FAR_SLEEVE, { steps, hems: [37], turn: 0.5 }),
     cloth(SHIRT + 0.5, mat, NEAR_SLEEVE_UPPER, { steps, turn: 0.55 }),
     hold(cloth(SHIRT + 0.5, mat, NEAR_SLEEVE_HOLD, { steps, hems: [37] })),
-    ease(cloth(BELT + 0.3, mat, NEAR_SLEEVE_EASE, { steps, hems: [37] })),
   ],
 });
 
@@ -163,7 +175,7 @@ const LINEN_TUNIC: Gear2 = {
   parts: [
     cloth(SHIRT, 'linen', TORSO, {
       steps: [1, 2, 3, 4],
-      folds: BELTED,
+      folds: BLOUSED,
       hems: [45, 46],
       turn: 0.7,
       fix: [...V_NECK, [27, 25, 4], [29, 25, 4], [27, 26, 3], [29, 27, 4]],

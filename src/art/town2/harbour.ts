@@ -7,10 +7,10 @@
  * waterline foam and say where their waterline is.
  */
 import type { Glow } from '../raster';
-import { at, cell, dim, hash, isMat, oval, put, segment, solid, tgrid } from './cells';
+import { at, cell, dim, hash, isMat, oval, put, segment, tgrid } from './cells';
 import type { Drawn } from './props';
 import { m } from './scale';
-import { bayer, clamp, cyl, fbm } from './texture';
+import { clamp, clumps, cyl, fbm, noise } from './texture';
 import { beamH, beamV } from './walls';
 
 const C = cell;
@@ -201,36 +201,120 @@ export function ship(): Drawn {
     for (let i = 0; i < pw; i++) put(g, px + i, py - 3, C('crimson', 2));
     oval(g, px + pw / 2, py + pw / 2, 3, 3, C('iron', 4));
     oval(g, px + pw / 2 - 1, py + pw / 2 - 1, 1.5, 1.5, C('shade', 4));
+    // Rust weeping from the port's sill.
+    for (const [sx, len] of [
+      [px + 2, 9 + n * 2],
+      [px + pw - 4, 6 + ((n * 5) % 4)],
+    ] as const)
+      for (let j = 0; j < len; j++)
+        if (isMat(at(g, sx, py + pw + j), 'tar'))
+          put(g, sx, py + pw + j, C('wood', j < len / 2 ? 4 : 5));
   }
-  // The stern cabin: a raised house with a lit window.
-  const cabX = x0 + Math.round(hullL * 0.78);
-  const cabW = m(2.0);
-  const cabTop = deck - sheer(cabX + cabW) - m(1.2);
-  for (let y = cabTop; y < deck - sheer(cabX); y++)
-    for (let i = 0; i < cabW; i++) {
-      let t = 2;
-      if ((y - cabTop) % 6 === 5) t = 4;
-      if (i === 0) t = 1;
-      if (i === cabW - 1) t = 5;
-      put(g, cabX + i, y, C('tar', t));
+  // The hull's wear (B9): butt joints staggered strake by strake, planks
+  // bleached by salt along the top and at the waterline, tar run down the
+  // seams, and rust weeping from under each gun port.
+  for (let x = x0 + 4; x < x0 + hullL - 4; x++)
+    for (let y = deckAt(x); y < wl - m(0.4); y++) {
+      if (!isMat(at(g, x, y), 'tar')) continue;
+      const j = y - deckAt(x);
+      const strake = Math.floor(j / 6);
+      if ((x + strake * 23) % 41 === 0 && j % 6 !== 5) dim(g, x, y, 2);
+      const salt = noise(x, y, 9, 61);
+      if ((j < 10 || wl - y < m(0.8)) && salt > 0.72 && j % 6 !== 5)
+        put(g, x, y, C('tar', Math.max(1, (at(g, x, y) & 7) - 1)));
     }
-  for (let i = -2; i < cabW + 2; i++) {
-    put(g, cabX + i, cabTop - 1, C('tar', 1));
-    put(g, cabX + i, cabTop, C('tar', 3));
+  // The stern castle (B9; B7's was a plain box): the quarterdeck raised over
+  // the great cabin, a row of three windows in gilded frames under a carved
+  // band, a balustraded gallery round the stern, a taffrail with turned
+  // balusters along the top, and the stern lantern.
+  const cabX = x0 + Math.round(hullL * 0.76);
+  const cabR = x0 + hullL - 2;
+  const cabTop = deck - sheer(cabR) - m(1.25);
+  for (let x = cabX; x < cabR; x++) {
+    const yb = deck - sheer(x);
+    for (let y = cabTop; y < yb; y++) {
+      const j = y - cabTop;
+      let t = j % 6 === 5 ? 4 : 2 + (hash(Math.floor((x + j * 3) / 30), j >> 3, 5) < 0.2 ? 1 : 0);
+      if (x === cabX) t = 1;
+      else if (x === cabX + 1) t = 2;
+      else if (x > cabR - 4) t = 4;
+      put(g, x, y, C('tar', t));
+    }
   }
-  const winX = cabX + m(0.5);
-  const winY = cabTop + m(0.3);
-  for (let j = 0; j < m(0.45); j++)
-    for (let i = 0; i < m(0.75); i++) {
-      const bar = i === Math.round(m(0.75) / 2) || j === Math.round(m(0.45) / 2);
-      put(g, winX + i, winY + j, bar ? C('gold', 3) : C('glass', j < 2 ? 5 : 3));
+  // The carved band under the windows and the quarterdeck's edge above them.
+  const bandY = cabTop + m(0.95);
+  for (let x = cabX; x < cabR; x++) {
+    put(g, x, cabTop - 1, C('tar', 1));
+    put(g, x, cabTop, C('tar', 3));
+    for (let j = 0; j < 3; j++)
+      put(g, x, bandY + j, C('gold', j === 0 ? 2 : j === 2 ? 4 : x % 4 < 2 ? 3 : 2));
+  }
+  // Three windows in gilded frames, the middle one lit at dusk.
+  const winW = m(0.42);
+  const winH = m(0.55);
+  const winY = cabTop + m(0.25);
+  const gap = Math.round((cabR - cabX - 3 * winW) / 4);
+  for (let n = 0; n < 3; n++) {
+    const wx = cabX + gap + n * (winW + gap);
+    for (let j = -1; j <= winH; j++)
+      for (let i = -1; i <= winW; i++) {
+        const frame = i < 0 || j < 0 || i === winW || j === winH;
+        const bar = i === winW >> 1 || j === winH >> 1;
+        const lit = n === 1;
+        put(
+          g,
+          wx + i,
+          winY + j,
+          frame
+            ? C('gold', i < 0 || j < 0 ? 2 : 4)
+            : bar
+              ? C('gold', 3)
+              : C(lit ? 'glass' : 'pane', j < winH / 2 ? 4 : 3),
+        );
+      }
+    if (n === 1)
+      glows.push({ x: wx + winW / 2, y: winY + winH / 2, radius: m(1.3), strength: 0.45 });
+  }
+  // The stern gallery: a walk with a balustrade round the transom, its floor lit along its edge.
+  const galY = bandY + 4;
+  const galX0 = cabR - m(0.8);
+  for (let x = galX0; x < cabR + m(0.35); x++) {
+    put(g, x, galY + 7, C('tar', 1));
+    put(g, x, galY + 8, C('tar', 4));
+    put(g, x, galY, C('wood', 1));
+    if ((x - galX0) % 3 === 0)
+      for (let j = 1; j < 7; j++) put(g, x, galY + j, C('wood', j === 1 ? 2 : 3));
+  }
+  // The taffrail along the top, turned balusters under its rail, and the stern lantern.
+  const tY = cabTop - m(0.5);
+  for (let x = cabX - 2; x < cabR + 2; x++) {
+    put(g, x, tY, C('wood', 1));
+    put(g, x, tY + 1, C('wood', 3));
+    if ((x - cabX) % 4 === 1)
+      for (let j = 2; j < m(0.5) - 1; j++) put(g, x, tY + j, C('wood', j === 4 ? 1 : 3));
+  }
+  const lx = cabR - 2;
+  for (let j = 0; j < m(0.6); j++) put(g, lx, tY - j, C('iron', 3));
+  for (let j = 0; j < 9; j++)
+    for (let i = 0; i < 7; i++) {
+      const edge = i === 0 || i === 6 || j === 0 || j === 8;
+      put(
+        g,
+        lx - 3 + i,
+        tY - m(0.6) - 9 + j,
+        edge ? C('iron', i === 0 ? 2 : 4) : C('lamp', j < 4 ? 1 : 2),
+      );
     }
-  glows.push({ x: winX + m(0.37), y: winY + m(0.22), radius: m(1.2), strength: 0.4 });
-  // Rail along the deck.
-  for (let x = x0 + 4; x < x0 + hullL - 2; x++) {
-    const y = deck - sheer(x) - 4;
-    put(g, x, y, C('tar', 1));
-    if (x % 10 === 0) for (let j = 1; j < 4; j++) put(g, x, y + j, C('tar', 3));
+  glows.push({ x: lx, y: tY - m(0.6) - 5, radius: m(1.6), strength: 0.55 });
+  // The bulwark along the waist: a cap rail lit on top, planks under it, a
+  // stanchion every so often, scuppers at deck level.
+  for (let x = x0 + 4; x < cabX; x++) {
+    const y = deck - sheer(x) - 5;
+    put(g, x, y, C('wood', 1));
+    put(g, x, y + 1, C('tar', 2));
+    for (let j = 2; j < 5; j++)
+      put(g, x, y + j, C('tar', (x - x0) % 12 === 0 ? 1 : j === 4 ? 4 : 3));
+    if ((x - x0) % 24 === 6) put(g, x, y + 5, C('shade', 3));
   }
   // The bowsprit, out over the bow.
   const bsY = deck - sheer(x0) - 2;
@@ -250,14 +334,22 @@ export function ship(): Drawn {
   for (let i = -m(2.4); i < m(2.4); i++)
     for (let j = 0; j < 4; j++)
       put(g, mx + mw / 2 + i, yardY + j, C('wood', j === 0 ? 1 : j === 3 ? 5 : 3));
-  // The furled sail on the yard: a fat roll of canvas, gathered by gaskets.
-  for (let i = -m(2.2); i < m(2.2); i++) {
-    const ph = ((i + 1000) % 16) / 16;
-    const rr = 7 + Math.round(Math.sin(ph * Math.PI) * 3);
+  // The furled sail on the yard (B9): canvas gathered in bunches between the
+  // gaskets, each bunch a soft bulge lit on its upper left with a crease
+  // running into the tie, the roll fattest at the bunt in the middle where
+  // the slack hangs lowest.
+  const half = m(2.2);
+  for (let i = -half; i < half; i++) {
+    const ph = ((i + 1000) % 18) / 18;
+    const bunt = Math.max(0, 1 - Math.abs(i) / (half * 0.35));
+    const rr = 6 + Math.round(Math.sin(ph * Math.PI) * 3 + bunt * 5);
     for (let j = 0; j < rr; j++) {
-      const gasket = ph < 0.1;
-      const t = j < 2 ? 1 : j > rr - 3 ? 4 : ph < 0.3 ? 3 : 2;
-      put(g, mx + mw / 2 + i, yardY + 4 + j, gasket ? C('linen', 4) : C('sail', t));
+      const gasket = ph < 0.08;
+      let t = j < 2 ? 1 : j > rr - 3 ? 4 : 2;
+      if (!gasket && ph < 0.25 && j > 1) t = 3;
+      if (!gasket && ph > 0.4 && ph < 0.55 && j > 2 && j < rr - 2) t = 1;
+      if (!gasket && j > 2 && j < rr - 2 && Math.abs(ph - 0.75) < 0.04) t = 3;
+      put(g, mx + mw / 2 + i, yardY + 4 + j, gasket ? C('linen', j === 0 ? 3 : 4) : C('sail', t));
     }
   }
   // Crow's nest.
@@ -295,15 +387,49 @@ export function ship(): Drawn {
   };
   rig(mx, mTop + 4, x0 + 6 - m(3.0), bsY - Math.round(m(3.0) * 0.35));
   rig(mx + mw, mTop + 4, x0 + hullL - 4, deck - sheer(x0 + hullL - 4) - 4);
-  for (let s = 0; s < 4; s++) {
-    rig(mx + 1, nestY + m(0.4), mx - m(0.6) - s * 7, deck - sheer(mx - m(0.6)) - 4);
-    rig(mx + mw - 1, nestY + m(0.4), mx + mw + m(0.6) + s * 7, deck - sheer(mx + m(0.6)) - 4);
-  }
-  for (let s = 0; s < 4; s++)
-    for (let j = 0; j < 3; j++) {
-      const y = nestY + m(0.4) + Math.round(((deck - nestY) * (j + 1)) / 4);
-      segment(g, mx - m(0.15) * (j + 1) - 2, y, mx + mw + m(0.15) * (j + 1) + 1, y, C('tar', 4));
+  // The shrouds (B9): four a side from under the crow's nest down to the
+  // channels on the hull's side, each a dark line with a lit pixel every few
+  // rows where the light catches the tarred rope; the deadeyes at their feet;
+  // and the ratlines, the rungs the crew climb by, tied across between
+  // neighbouring shrouds every five rows. B7 drew them as three long bars.
+  const nestFoot = nestY + m(0.4);
+  for (const side of [-1, 1]) {
+    const feet: [number, number][] = [];
+    for (let s = 0; s < 4; s++) {
+      const fx = side < 0 ? mx - m(0.5) - s * 11 : mx + mw + m(0.5) + s * 11;
+      feet.push([fx, deck - sheer(fx) - 1]);
     }
+    const top = side < 0 ? mx + 1 : mx + mw - 1;
+    const at2 = (s: number, y: number) => {
+      const [fx, fy] = feet[s]!;
+      return top + ((fx - top) * (y - nestFoot)) / (fy - nestFoot);
+    };
+    for (let s = 0; s < 4; s++) {
+      const [fx, fy] = feet[s]!;
+      for (let y = nestFoot; y <= fy; y++) {
+        const x = Math.round(at2(s, y));
+        if (!isMat(at(g, x, y), 'sail')) put(g, x, y, C('tar', y % 7 === 0 ? 2 : 3));
+      }
+      // The deadeye and its chainplate on the hull.
+      oval(g, fx, fy - 2, 2, 2, C('wood', 3));
+      put(g, fx - 1, fy - 3, C('wood', 1));
+      for (let j = 0; j < 7; j++) put(g, fx, fy + j, C('iron', 3));
+    }
+    for (let y = nestFoot + 5; y < feet[0]![1] - 4; y += 7)
+      for (let s = 0; s < 3; s++) {
+        const a = Math.round(at2(s, y));
+        const b = Math.round(at2(s + 1, y));
+        for (let x = Math.min(a, b) + 1; x < Math.max(a, b); x++)
+          if (!isMat(at(g, x, y), 'sail') && !isMat(at(g, x, y), 'wood')) put(g, x, y, C('tar', 2));
+      }
+  }
+  // The jib furled along the bowsprit, and the topping lift up to the boom's end.
+  for (let i = 6; i < m(2.6); i++) {
+    const x = x0 + 6 - i;
+    const y = bsY - Math.round(i * 0.35) - 3;
+    put(g, x, y, C('sail', i % 9 === 0 ? 4 : 1));
+    put(g, x, y + 1, C('sail', i % 9 === 0 ? 4 : 3));
+  }
   // The black flag at the masthead, a skull on it, rippling away to the right.
   const fx = mx + mw;
   const fw = m(1.5);
@@ -333,7 +459,18 @@ export function ship(): Drawn {
   return { grid: g, glows };
 }
 
-/** The rock with a face, half a ship's ribs and a broken mast against it, weed and barnacles at its foot. */
+/**
+ * The rock with a face, the ribs of a wreck and its broken mast against it,
+ * weed and barnacles at the tide line. Redrawn in B9: B7's rock was a lumpy
+ * speckled solid with no form and the wreck's ribs were sticks beside it.
+ * The rock is now planes: broad facets, each lit by which way it faces, the
+ * face itself on one broad plane turned to the viewer so it reads exactly as
+ * before; the facets meet in edges (a lit lip where a plane turns to the
+ * light, a dark crack where it turns away), strata run across it, and below
+ * the tide line it is dark and wet under a fringe of weed with barnacles
+ * crusted above. The wreck is half a hull: heavy curved ribs as tall as the
+ * rock, a keelson, a few strakes of planking still nailed on.
+ */
 export function wreckRock(): Drawn {
   const W = m(5.2);
   const H = m(3.6);
@@ -342,25 +479,57 @@ export function wreckRock(): Drawn {
   const ry = m(1.4);
   const cx = m(1.9);
   const cy = H - ry - 3;
-  // The wreck's ribs and mast behind the rock, to its right.
-  const ribX = cx + m(1.3);
-  for (let n = 0; n < 4; n++) {
-    const bx = ribX + n * m(0.55);
-    const top = H - m(1.6) - n * m(0.2) + (n % 2) * 6;
-    for (let y = top; y < H - 3; y++) {
-      const curve = Math.round(Math.pow((H - 3 - y) / (H - 3 - top), 1.6) * m(0.35));
-      for (let i = 0; i < 6; i++)
-        put(g, bx + i - curve, y, C('tar', i === 0 ? 1 : i === 5 ? 5 : 2 + (y % 9 === 0 ? 1 : 0)));
-    }
-  }
-  for (let i = 0; i < m(2.4); i++)
-    for (let j = 0; j < 5; j++)
+  const tide = H - m(0.55);
+  // The wreck, behind the rock to its right: the keelson along the bottom,
+  // five ribs curving up out of the water, thick and dark with weathered
+  // lit edges, the planking still on the lower ribs.
+  const ribX = cx + m(1.05);
+  const keelY = H - m(0.5);
+  for (let i = 0; i < m(2.9); i++)
+    for (let j = 0; j < 7; j++)
       put(
         g,
-        ribX - 4 + i,
-        H - m(0.75) + j - Math.round(i * 0.12),
-        C('tar', j === 0 ? 1 : j === 4 ? 5 : 3),
+        ribX - 6 + i,
+        keelY + j - Math.round(i * 0.1),
+        C('tar', j === 0 ? 1 : j === 6 ? 5 : 3),
       );
+  for (let n = 0; n < 5; n++) {
+    const bx = ribX + n * m(0.55);
+    const top = m(0.5) + n * m(0.18) + (n % 2) * 8;
+    const bottom = keelY + 2 - Math.round(n * m(0.55) * 0.1);
+    const broken = n === 3;
+    for (let y = broken ? top + m(0.7) : top; y < bottom; y++) {
+      const f = (bottom - y) / (bottom - top);
+      // Ribs curve: out from the keel, then up and in toward the top.
+      const curve = Math.round(Math.sin(f * Math.PI * 0.85) * m(0.45));
+      const w = 9 - Math.round(f * 3);
+      for (let i = 0; i < w; i++) {
+        let t = i === 0 ? 1 : i === 1 ? 2 : i >= w - 2 ? 5 : 3;
+        if ((y + n * 5) % 13 === 0 && i > 1) t = 4;
+        put(g, bx + i - curve, y, C('tar', t));
+      }
+      // A splintered top.
+      if (y === (broken ? top + m(0.7) : top))
+        for (let i = 0; i < w; i += 2)
+          put(g, bx + i - curve, y - 1 - (i % 4 === 0 ? 1 : 0), C('tar', 2));
+    }
+  }
+  // Strakes of planking across the lower ribs, some sprung.
+  for (let s = 0; s < 4; s++) {
+    const sy = keelY - 10 - s * 9;
+    const len = m(2.4) - s * m(0.45);
+    for (let i = 0; i < len; i++) {
+      if (s === 2 && i > len * 0.45 && i < len * 0.62) continue;
+      const droop = s === 3 && i > len * 0.6 ? Math.round((i - len * 0.6) * 0.3) : 0;
+      for (let j = 0; j < 6; j++)
+        put(
+          g,
+          ribX - 2 + i,
+          sy + j + droop - Math.round(i * 0.08),
+          C('wood', j === 0 ? 3 : j === 5 ? 5 : 4),
+        );
+    }
+  }
   // The broken mast leaning across, a rag of sail still on it.
   const ax = ribX + m(0.8);
   const ay = H - 6;
@@ -375,34 +544,88 @@ export function wreckRock(): Drawn {
       if (hash(px, py, 3) < 0.1) continue;
       put(g, px, py, C('sail', 2 + (i % 5 === 0 ? 1 : 0) + Math.round(j / 10)));
     }
-  // The rock: a lumpy solid, lit top-left, with cracks.
+  // The rock's outline: a lumpy mass, flatter below.
   const inside = (x: number, y: number) => {
     const a = (x - cx) / rx;
     const b = (y - cy) / ry;
     const lump = (fbm(x, y, 18, 4) - 0.5) * 0.5;
     return a * a + b * b * (b > 0 ? 0.6 : 1) < 1 + lump && y < H - 3;
   };
-  solid(g, 0, 0, Math.round(cx + rx + 6), H, inside, 'rock', {
-    base: 2.4,
-    contrast: 1.5,
-    radius: 10,
-    jitter: 0.5,
-    k: 7,
-  });
-  // Cracks, lit on their lower lip.
-  for (let n = 0; n < 6; n++) {
-    let x = cx - rx * 0.6 + hash(n, 1, 9) * rx * 1.2;
-    let y = cy - ry * 0.5 + hash(n, 2, 9) * ry;
-    for (let s = 0; s < 10; s++) {
+  // Its planes: seeds over the mass, each facing a way of its own; the
+  // middle one, where the face is, turned straight to the viewer.
+  const fy = cy - m(0.2);
+  const seeds: { x: number; y: number; nx: number; ny: number }[] = [
+    { x: cx, y: fy + m(0.2), nx: -0.05, ny: -0.05 },
+  ];
+  for (let n = 0; n < 11; n++) {
+    const a = (n / 11) * Math.PI * 2 + hash(n, 1, 21) * 0.5;
+    const r = 0.62 + hash(n, 2, 21) * 0.3;
+    const x = cx + Math.cos(a) * rx * r;
+    const y = cy + Math.sin(a) * ry * r * 0.9;
+    seeds.push({
+      x,
+      y,
+      nx: Math.cos(a) * 0.75 + (hash(n, 3, 21) - 0.5) * 0.5,
+      ny: Math.sin(a) * 0.75 + (hash(n, 4, 21) - 0.5) * 0.5,
+    });
+  }
+  const L = [-0.55, -0.72, 0.78];
+  const LN = Math.hypot(...L);
+  const facet = new Int8Array(W * H).fill(-1);
+  const x1 = Math.round(cx + rx + 6);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < x1; x++) {
+      if (!inside(x, y)) continue;
+      let best = 0;
+      let bd = Infinity;
+      seeds.forEach((s, i) => {
+        // The face's plane is broad; the others crowd round it.
+        const d = Math.hypot(x - s.x, (y - s.y) * 1.2) * (i === 0 ? 0.62 : 1);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      });
+      facet[y * W + x] = best;
+      const s = seeds[best]!;
+      const nz = Math.sqrt(Math.max(0.1, 1 - s.nx * s.nx - s.ny * s.ny));
+      const lit = (s.nx * L[0]! + s.ny * L[1]! + nz * L[2]!) / LN;
+      let t = 2.4 + (0.82 - lit) * 2.4;
+      // Weathering in clumps across each plane, never a speckle.
+      t += (clumps(x, y, 23) - 0.5) * 1.2;
+      put(g, x, y, C('rock', clamp(t, 1, 5)));
+    }
+  // Where planes meet: a lit lip where the lower plane turns to the light, a
+  // dark crack where it turns away.
+  for (let y = 0; y < H - 1; y++)
+    for (let x = 0; x < x1; x++) {
+      const me = facet[y * W + x]!;
+      if (me < 0) continue;
+      const r = facet[y * W + x + 1]!;
+      const d = facet[(y + 1) * W + x]!;
+      for (const o of [r, d]) {
+        if (o < 0 || o === me) continue;
+        const a = at(g, x, y) & 7;
+        const b = (o === r ? at(g, x + 1, y) : at(g, x, y + 1)) & 7;
+        put(g, x, y, C('rock', b < a ? Math.max(1, a - 1) : Math.min(5, a + 2)));
+      }
+    }
+  // Two long cracks running down from the crown, lit on their lower lip.
+  for (const [sx, sy, drift] of [
+    [cx + m(0.9), cy - ry * 0.75, 0.35],
+    [cx - m(1.15), cy - ry * 0.4, -0.25],
+  ] as const) {
+    let x = sx;
+    let y = sy;
+    for (let s = 0; s < m(1.2); s++) {
       if (!inside(Math.round(x), Math.round(y))) break;
       put(g, x, y, C('rock', 5));
-      if (inside(Math.round(x), Math.round(y) + 1)) put(g, x, y + 1, C('rock', 1));
-      x += hash(n, s, 3) - 0.4;
-      y += hash(s, n, 4) < 0.5 ? 1 : 0;
+      if (inside(Math.round(x), Math.round(y) + 1)) put(g, x + 1, y, C('rock', 1));
+      x += drift + (hash(s, 3, 9) - 0.5) * 0.9;
+      y += 1;
     }
   }
   // The face: two hollow eyes with brows that slope in sorrow, and a downturned mouth.
-  const fy = cy - m(0.2);
   for (const s of [-1, 1]) {
     const ex = cx + s * m(0.45);
     oval(g, ex, fy, 4.5, 3.5, C('rock', 5));
@@ -416,16 +639,30 @@ export function wreckRock(): Drawn {
     put(g, cx + i, y, C('rock', 6));
     put(g, cx + i, y + 1, C('rock', 1));
   }
-  // Weed and barnacles at the tide line, foam at the foot.
-  for (let x = 0; x < W; x++)
-    for (let y = H - m(0.5); y < H - 3; y++) {
+  // Below the tide line the rock is dark and wet; along it hangs a fringe of
+  // weed in strands of different lengths, and above it barnacles crust in
+  // clusters, pale and lit on top. The ribs' feet are weeded too.
+  for (let x = 0; x < W; x++) {
+    const ripple = Math.round(Math.sin(x / 6) * 1.5);
+    const strand = 3 + Math.floor(hash(x >> 1, 7, 13) * 7);
+    for (let y = tide - 10 + ripple; y < H - 3; y++) {
       const c = at(g, x, y);
-      if (!isMat(c, 'rock')) continue;
-      const v = fbm(x, y, 6, 8);
-      if (v > 0.5) put(g, x, y, C('moss', v > 0.7 ? 3 : 5));
-      else if (hash(x, y, 9) < 0.08) put(g, x, y, C('linen', 1));
-      if (bayer(x, y) < (y - (H - m(0.5))) / m(0.5)) dim(g, x, y, 1);
+      if (!isMat(c, 'rock') && !isMat(c, 'tar')) continue;
+      const below = y - (tide + ripple);
+      if (below >= 0) {
+        const wet = Math.min(5, (c & 7) + 1 + (below > 6 ? 1 : 0));
+        put(g, x, y, isMat(c, 'tar') ? C('tar', 5) : C('rock', wet));
+        if (below < strand && ((x >> 1) + (below >> 2)) % 3 !== 2)
+          put(g, x, y, C('moss', below === 0 ? 4 : 5));
+      } else if (below > -9 && isMat(c, 'rock')) {
+        const k = hash(x >> 1, (y + 100) >> 1, 17);
+        if (k < 0.16 + (below + 9) * 0.03) {
+          put(g, x, y, C('linen', 1));
+          if (isMat(at(g, x, y + 1), 'rock')) put(g, x, y + 1, C('rock', 5));
+        }
+      }
     }
+  }
   for (let x = 0; x < W; x++)
     if (at(g, x, H - 4)) put(g, x, H - 3, C('sea', (x * 3) % 7 === 0 ? 1 : 0));
   return { grid: g, glows: [] };

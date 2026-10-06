@@ -13,10 +13,10 @@
  */
 import { DEPTH } from '../depth';
 import { cloth, runs, type Gear2, type Part2, type Pins } from './engine';
-import { ease, hold } from './clothes';
+import { hold } from './clothes';
 import { gripPart, straightBlade } from './held';
 
-const { CLOAK, ARMOUR, LEGS, BELT, WRIST, HELD_FRONT, SHIELD } = DEPTH;
+const { CLOAK, ARMOUR, LEGS, WRIST, HELD_FRONT, SHIELD } = DEPTH;
 
 const block = (
   x: number,
@@ -89,7 +89,6 @@ const KNIGHT_PLATE: Gear2 = {
     // Vambraces: the far forearm, and the near one in each pose.
     block(36, 35, WRIST, ['..1123', '.11234', '11234']),
     hold(block(16, 35, WRIST, ['.0123', '.1123', '01234'])),
-    ease(block(18, 35, BELT + 0.4, ['01123', '..01234', '....123'])),
   ],
 };
 

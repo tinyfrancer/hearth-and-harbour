@@ -91,7 +91,32 @@ pixel count picked to look right.
   gathered low on the slope and along hips. Never single dashes.
 - **Pines are tiers of drooping boughs**: each bough's upper face lit (most on the sun's side), its
   underside in shadow, its tips drooping to points, each tier casting a band of shadow on the next.
-  The oak is clumps of leaf domes with small leaf clusters on them, darker toward its lower right.
+  No two tiers alike (B9, after B7's read as chevrons): each has its own gap from the one above, and
+  each side of it its own reach, droop and number of needle clumps; now and then a bough is broken
+  short. The three pines differ in kind, not only size: a full even young tree, a short wind-bent
+  gappy one, a tall old one with heavy drooping boughs.
+- **The oak is masses on limbs** (B9; B7's crown was one round mass): wide, nearly level limbs from a
+  fork, leaf masses at their ends at different heights, light through between them and through
+  holes in them, the limbs showing in the gaps. Each mass is a heap of small leaf domes lit from the
+  upper left, darker below and to the right and where it tucks behind a nearer one.
+- **No ordered dither on grass or water** (B9): at game scale a Bayer dither shows as an even fine
+  texture, like cloth. Where two steps meet on a large ground, the edge breaks into clumps a few
+  pixels across (`clumps`, `clumpRound` in `texture.ts`), stretched sideways on water so it reads as
+  ripples. Shadows on grass and water break the same way.
+- **Grounds have structure people made** (B9): the square has ways worn pale by feet from each door
+  to the well and down to the pier, cart ruts from the road's mouth to the cargo, a drain across it
+  into the gutter (so it reads as fields of cobbles, not a sea), patches mended in granite setts,
+  moss in the joints along its edges, puddles in its hollows showing the sky, leaves blown against
+  its kerbs. The street has stones along its paths, a trodden way to the grove and stumps in it,
+  drifts of wild flowers (a plant is a dark clump with two or three heads), long grass in clumps
+  against posts and rocks, stones lying in twos and threes, a garden bed by your door. Each is
+  placed by hand in `town.ts`, never scattered by noise.
+- **The ship and the rock** (B9): the ship has a stern castle (three gilded windows, a gallery, a
+  taffrail with balusters, the stern lantern), shrouds with deadeyes and ratlines, a furled sail
+  gathered in bunches, worn and salted planking with rust under the ports. The rock is planes
+  (each facet lit by which way it faces, its edges a lit lip or a dark crack), its face on one broad
+  plane and unchanged, dark and weeded below the tide line with barnacles above; the wreck's ribs
+  are as tall as the rock, with planking still on them.
 - **Each building has its own materials**: the tavern timber, plaster and red tile; the smithy
   rubble with cut quoins, slate and an oak lintel; your house limewash, thatch and blue paint.
 - **Signs read at game scale**: pictures on painted boards (a gull over an anchor, a horseshoe)
@@ -111,9 +136,9 @@ The hero and the townsfolk redrawn for the C-scale town, beside the current figu
 (`src/art/figure2/`, door `src/art/character2.ts`). Cody chose the study's H2 head ("Let's go h2,
 with whatever enhancements you see fit"); what follows is what it was drawn to.
 
-- **Canvas and anchor.** A figure is 56 × 72 art pixels, outline included. Its face and eyes are
-  centred on column 28; the soles' outline is row 70, the lowest row drawn; row 71 and the outer
-  columns stay empty. The anchor, where a figure stands, is (28, 70): the middle of the soles. Every
+- **Canvas and anchor.** A figure is 56 × 72 art pixels, outline included. Its skull is centred on
+  column 28 (its face a column right of that since B9); the soles' outline is row 70, the lowest row
+  drawn; row 71 and the outer columns stay empty. The anchor, where a figure stands, is (28, 70): the middle of the soles. Every
   part is drawn a pixel inside the canvas so the outline always fits. Figures face right as drawn;
   mirror for left.
 - **Proportions.** About 64 pixels tall, 4.6 heads: hair top at row 6, jaw at row 19, shoulders 22 to
@@ -123,8 +148,8 @@ with whatever enhancements you see fit"); what follows is what it was drawn to.
   between them and the nose: a lid line over the outer and inner corners, the iris in the middle,
   two rows tall (its top cutting the lid line), whites either side. The study's H2 had two-pixel
   eyes with the iris on the inner side, which read as cross-eyed enlarged; centring the iris and
-  opening it to two rows is what fixed it (the eye tests hold it: mirror-symmetric about column 28,
-  irises at columns 25 and 31). A nose lit on its left, a three-pixel mouth, no blush. Only a
+  opening it to two rows is what fixed it (the eye tests hold it: mirror-symmetric about the face's
+  centre line, column 29 since B9, irises at columns 26 and 32). A nose lit on its left, a three-pixel mouth, no blush. Only a
   deliberate patch (the captain's) breaks the mirror.
 - **Hair** is drawn in `hair`, a pixel proud of the skull, and split as before into a crown (what
   head gear covers) and what hangs (locks, a braid, the nape), so under any helmet or hood only the
@@ -145,13 +170,34 @@ with whatever enhancements you see fit"); what follows is what it was drawn to.
   skirt from the hips), widening as they fall. Plate is never bevelled automatically: each plate has
   a white specular where the light strikes it, a ridge between its lit and shaded facets, and a dark
   lower edge where one lame overlaps the next.
-- **The stance.** Square to the viewer from the neck up, with life below: the weight on the near leg
-  (the viewer's left), that hip a row higher (the belt tilts, the hem hangs a row lower on the other
-  side), that shoulder a row lower, the far leg eased with its knee in and its foot turned out. The
-  far hand rests on the hip, the elbow out; the near hand closes on what it holds out from the hip,
-  or with nothing held rests on the belt. Both poses share everything but the near forearm; any
-  part covering that forearm comes in both (`hold` and `ease`). Legs and arms are separate parts, so
-  a walk cycle can be built on them.
+- **The stance.** The weight on the near leg (the viewer's left), that hip a row higher (the belt
+  tilts, the hem hangs a row lower on the other side), that shoulder a row lower, the far leg eased
+  with its knee in and its foot turned out. The far hand rests on the hip, the elbow out; the near
+  arm hangs a little out from the hip, its hand closed on what it holds or, with nothing held, open
+  and easy where the fist would be (B9: B8 rested it on the belt, which with the other hand on the
+  hip read as both hands at the waist). Both poses share the whole arm, so every sleeve, bracer and
+  vambrace is drawn once (`hold` marks them).
+- **The three-quarter rule** (B9). Figures face right as drawn, a little turned toward it: the
+  face's centre line is a column right of the skull's (`FACE_AXIS`, 29), so the near cheek shows
+  more, the far ear is hidden behind the far cheek, and nose, mouth and chin sit a column over; the
+  near shoulder is a pixel broader. The eyes still mirror each other, about the face's own centre
+  line, irises at columns 26 and 32, so the gaze stays straight out. Anything worn that is drawn to
+  the face, not the skull (a helm's nasal, a hood's opening), moves with it; hair and the rest of
+  head gear follow the skull. The body stays square, because every wearable is fitted to it;
+  townsfolk faces are turned row by row (`turnRow` in `folk.ts`).
+- **Bronze** (B9) is an old metal's colour: a warm cream glint over a dull brass-brown, its shadows
+  going olive-brown, darker than blonde hair at every step and apart from every hair colour, from
+  gold and from the hunter's tan (measured in `tests/art/figure2.test.ts`). B8's pale yellow read as
+  gold and sat on blonde hair.
+- **Folds belong to the garment** (B9). No two garments share a set of folds: a fitted tunic is
+  pulled taut over the raised hip and hangs slack on the far side; loose linen blouses over its
+  belt in short sags; stiff leather creases across at the knee rather than folding; a full skirt
+  fans out from whatever pushes it (a basket on the hip), a slim one hangs in one long fold and one
+  that starts at the knee; an apron gathers under its tie; a heavy coat parts its skirts and drags
+  toward a weighted pocket.
+- **Mail catches light by the body under it** (B9), not row by row: a bright patch high on the
+  chest, a few rings at a glint, darker under the chest and the arm, the skirt hanging in two folds,
+  and here and there a ring set crooked a step darker, so no row is a perfect repeat.
 - **The hand rule at this size.** The fist is 5 × 5 (thumb over the top, knuckles, two rows of
   fingers) at columns 14 to 18, rows 39 to 43; every grip is two columns (15 and 16) under it. A held
   thing shows directly above the fist (a guard, a haft, a binding) and directly below it (a pommel, a
@@ -166,13 +212,56 @@ with whatever enhancements you see fit"); what follows is what it was drawn to.
   long sword to the top of the canvas). Shields grow buckler → heater → kite; blades reach higher.
 - **Townsfolk** are each a person of their own, drawn whole, told apart by silhouette first, then
   dyes, then something in their hands: the smith (bald, bearded, leather apron, a hammer hanging head
-  down), the trader (a green headscarf, a violet dress, a basket on her hip and an apple held up),
-  the captain (tricorn, patch, red coat, a hook, a peg, his cutlass point down), the alewife (a broad
-  bun low at the back, a madder dress, a dulled cream apron, a tankard), the market woman (a braid,
-  a knotted ochre shawl, a basket hanging from her fist), the docker (a flat cap, a waistcoat, his
-  forearms crossing at a slant, the top hand gripping the other arm), the old man (stooped a head
-  lower, a long grey beard, a stick). Auburn is deeper and redder than the study's, so it no longer
-  sits on golden skin at the same value.
+  down), the trader (a green headscarf, a violet dress, a basket on her hip and an apple offered on
+  her open palm, out from her side), the captain (tricorn, patch, red coat, a hook, a turned wooden
+  peg, his cutlass point down), the alewife (a broad bun low at the back, a madder dress, a dulled
+  cream apron, a tankard), the market woman (a braid, a knotted ochre shawl, a flat basket of loaves
+  and apples on her head, steadied by her raised arm), the docker (a flat cap, a waistcoat, a sack
+  of grain on his far shoulder, its neck in his raised hand), the old man (stooped a head lower, a
+  long grey beard, a stick). Auburn is deeper and redder than the study's, so it no longer sits on
+  golden skin at the same value.
+- **A gesture must read at true size** (B9): a gesture is a shape against the street, not a few
+  pixels on the figure's own clothes. B8's apple at the trader's chest, the market woman's hand at
+  her knot and the docker's folded arms were each lost on the body at 3 device pixels; an arm held
+  out, raised, or carrying something bigger than a hand reads from across the square.
+- **A peg leg is not a leg**: two pixels wide, dark wood turned in a cup, a neck and a bead, an
+  iron ferrule, no boot, the trouser leg tied off above it.
+
+#### Walking (B9)
+
+Every figure walks without a second drawing of anything (`src/art/figure2/walk.ts`). Each part
+moves with a bone: the head, the body, the near or far leg (split at the crotch), the near or far
+arm, what each hand holds, a skirt, a cloak. A frame is a key (how far each foot is from where it
+stands and how high it is lifted, where each knee is, how far each hand swings, how far the body
+bobs, how far a hem and a cloak sway), and each bone is bent by its joints a whole row at a time:
+a row moves sideways by its share of the joint's move, rows are dropped or repeated where a leg is
+shortened or stretched, nothing is rotated, so lit edges stay unbroken. The rules:
+
+- **Eight frames a cycle**, the same clock for every facing: contact (heels apart, body down), the
+  weight taken, passing (the free foot lifted past the planted one, body level), pushing off (body
+  highest, the back heel up), then the same with the legs swapped.
+- **Across** (right; left is the exact mirror): the hips close toward each other so the legs
+  scissor about one line, the feet lengthen toward the walk (toe first), the head leads by a
+  column, the near hand swings against the near leg. **Toward the camera**: the feet stay under the
+  hips and step by lifting, a lifted knee shortening its leg; the body bobs; the hands swing a
+  little. There is no back view (see the status file).
+- **No sliding**: the planted foot moves back exactly the ground's stride each frame, 7 art pixels
+  for the hero (a half step of 14), 4 for townsfolk (they stroll, and a long skirt still covers the
+  step). Show frames for stride ÷ speed.
+- **Half the foot is always on the ground**: a heel lifts while its toe stays down, or a toe while
+  its heel stays down; every frame has a sole on the anchor's row.
+- **The hand rule holds in every frame**: what a hand holds moves rigidly with its wrist, so the
+  grip stays under the fingers and the fist shows whole; the forearm is bent to meet it.
+- **Busy arms do not swing**: a basket on the hip, a full tankard, a sack on the shoulder stay put;
+  a hammer hanging from a fist swings. The far hand on the hero's hip stays on the hip, its shield
+  swaying a little.
+- **The far leg is behind** everything but the cloak, so a near leg stepping across covers it and
+  throws its step of shadow on it. A skirt sways from the hips; a cloak trails, most at its hem.
+- **Breathing**: two frames; the second lifts the chest, shoulders, arms and head one row, the legs
+  still.
+- **Handedness**: left is the mirror of right, so walking left the hero carries his weapon in the
+  hand nearer the viewer (he looks left-handed). Kept on purpose: the weapon is how the ladder reads,
+  and a right-handed hero facing left would carry it behind his body.
 
 ### What the swap supersedes
 

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { SCREEN_ART_WIDTH, gameScale } from '../../src/art/canvas';
 import { TOWN_IDS, townLayout, townPiece } from '../../src/art/town';
 import { LINE, cell, matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
-import { TOWN2_IDS, town2Piece, type Town2Id } from '../../src/art/town2/pieces';
+import {
+  TOWN2_FACTS,
+  TOWN2_IDS,
+  town2Facts,
+  town2Piece,
+  type Town2Id,
+} from '../../src/art/town2/pieces';
 import { rasterize2 } from '../../src/art/town2/raster';
 import { DAY2, DUSK2, MATS, STEPS } from '../../src/art/town2/ramps';
 import { METRE, WORLD2_WIDTH, m, town2Scale } from '../../src/art/town2/scale';
@@ -17,6 +23,7 @@ import {
   town2Layout,
   town2Picture,
   town2Walk,
+  forgetTown2Grids,
 } from '../../src/art/town2/town';
 
 const SLOW = { timeout: 120000 };
@@ -309,5 +316,53 @@ describe('the current town, untouched', () => {
   it('still gives the approved mock-up’s pieces and layout', () => {
     expect([townPiece('tavern').w, townPiece('tavern').h]).toEqual([150, 118]);
     expect(townLayout().find((p) => p.id === 'tavern')).toEqual({ id: 'tavern', x: 6, y: 20 });
+  });
+});
+
+describe('B9: what lane C asked for', () => {
+  it('writes down every piece’s facts, and they are the drawn piece’s own', SLOW, () => {
+    for (const id of TOWN2_IDS) {
+      const { picture, ...drawn } = town2Piece(id);
+      expect(picture.grid.w).toBe(drawn.w);
+      expect(town2Facts(id), id).toEqual(drawn);
+      expect(TOWN2_FACTS[id]).toBe(town2Facts(id));
+    }
+  });
+
+  it('puts the far buoy where a camera on a walkable tile can show it', () => {
+    // The narrowest and shortest view the scene shows on a phone (360 x 600
+    // art pixels), centred on the walker a little above the feet, clamped to
+    // the town as the scene's camera is.
+    const view = { w: 360, h: 600, rise: 30 };
+    const buoy = town2Layout().find((p) => p.name === 'buoy-far')!;
+    const piece = town2Facts('buoy');
+    const { cols, rows, solid } = town2Walk();
+    const clamp = (v: number, size: number, world: number) =>
+      Math.min(Math.max(v - size / 2, 0), world - size);
+    let seen = false;
+    for (let r = 0; r < rows && !seen; r++)
+      for (let c = 0; c < cols && !seen; c++) {
+        if (solid[r * cols + c]) continue;
+        const x0 = clamp(c * TOWN2_TILE + 12, view.w, TOWN2_W);
+        const y0 = clamp(r * TOWN2_TILE + 12 - view.rise, view.h, TOWN2_H);
+        seen =
+          buoy.x >= x0 &&
+          buoy.x + piece.w <= x0 + view.w &&
+          buoy.y >= y0 &&
+          buoy.y + piece.h <= y0 + view.h;
+      }
+    expect(seen).toBe(true);
+    expect(groundAt(buoy.x + piece.foot, buoy.base - 4)).toBe('sea');
+  });
+
+  it('lets go of the composed grids when asked, and composes them again the same', SLOW, () => {
+    const before = town2Ground('day');
+    forgetTown2Grids();
+    const after = town2Ground('day');
+    expect(after).not.toBe(before);
+    expect(after.grid.d).toEqual(before.grid.d);
+    const tavern = town2Piece('tavern');
+    forgetTown2Grids({ pieces: true });
+    expect(town2Piece('tavern')).not.toBe(tavern);
   });
 });
