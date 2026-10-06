@@ -263,6 +263,79 @@ shortened or stretched, nothing is rotated, so lit edges stay unbroken. The rule
   hand nearer the viewer (he looks left-handed). Kept on purpose: the weapon is how the ladder reads,
   and a right-handed hero facing left would carry it behind his body.
 
+### The dungeon at the C scale (B10a; not yet swapped in)
+
+Brinebeard's Grotto redrawn for a 64-pixel person (`src/art/dungeon2/`, doors
+`src/art/dungeonArt2.ts` and `src/art/portraits2.ts`), beside the first scale's dungeon, which the
+section "Dungeons" below still describes until lane C switches the rooms over. The first dungeon
+sets the look of the ones after it.
+
+- **Palette.** The cave's ramps live in `src/art/dungeon2/cave.ts`, six steps and a line like the
+  town's, through the same day and dusk shifts: `caverock` (cooler and more violet than the town's
+  rock, so a cave reads as underground), `cavesand` (greyer than the beach, calm under a lantern),
+  `shoal` (shallow water over sand, green-teal, set by hand at dusk or it glows), `deep` (the cave's
+  sea, much darker than the shoal), `weed`, and the hides of things that live there (`fur`, `crab`,
+  `feather`, `troll`, `goblin`) and `ember` (a lit fuse, never shifted). They are numbered apart
+  from the town's materials, and the cave palettes (`CAVE_DUSK`, `CAVE_DAY`) are the town's with
+  these added, so a figure looks the same in the cave as at dusk in town. Floors never use red or
+  orange: warnings and loot must stand out on them.
+- **Tiles are 24 × 24, textured from their place in the room**, not in the tile, so a room shows no
+  grid. A tile told its neighbours joins them in curves: higher ground spills over lower (sand over
+  wet sand, land over water with a broken line of foam, shallows over the deep), floors darken
+  under a wall's foot and beside a deck. A wear's occasional detail (a shell, a pool, weed) keeps
+  off the tile's edges, so every wear meets its neighbours as the plain tile does.
+- **Walls stand two tiles tall** (B6's one-tile wall was a third of a person): the upper face
+  rounds over from the rock's top at a ragged lip that catches a little light, the face is lumps
+  of rock lit by the floor below, then the tide's mark (barnacles, weed in clumps) and a wet dark
+  foot that whatever stands in front reads against. The rock's top, seen from above, is quiet:
+  tumbled lumps each with a lit rim on its upper left, cracks between some; the eye should slide
+  off it.
+- **Light, not darkness.** Tiles are drawn as lit ground; a room is lit afterwards. Below each
+  lantern (its pool lies about a metre and a half below the flame, flattened as the floor is seen)
+  the ground is lifted a step at the heart and left as drawn in a ring; beyond every pool it is a
+  step darker, and two past the far corners. Edges break in clumps. The lantern's warm glow is
+  added as the town's lamps' are. So a cave is pools of its own colours in the dark, never a grey
+  wash, and the same tiles serve a lit room and an unlit one.
+- **Foes stand as the hero's peers.** People are on the hero's 56 × 72 canvas and anchor, built on
+  the figure engine and the H2 head, and walk and breathe on its rig; the powder monkey a head
+  shorter, the goblin shorter still. Creatures and the captain have canvases of their own with
+  their feet as data. Size carries threat: the rat and the sand crab below the knee, the gull and
+  the parrot small, the boar and the wolf at the hip, the giant crab as wide as a rowing boat,
+  the troll a head over the hero and three times as broad, the captain a head and more taller.
+- **Creatures are silhouettes shaded as solids** (a shape given by its corners, lit by its bevel
+  from the upper left), with fur in short strokes, a seam of shadow where a part lies over one of
+  the same stuff (a troll's head on his shoulders, a boar's cheek on his neck), and features
+  placed by hand: the boar's wedge, crest of bristles with brambles in it, snout disc and tusks;
+  the wolf's pricked ears, long muzzle, ruff and low brush; the troll's hunch, knuckle-dragging
+  fists, brow like a ledge and underbite.
+- **Every foe has the poses a fight shows**: standing (two breaths), walking, the wind-up a blow is
+  telegraphed by (a weapon cocked back over the shoulder, claws or fists raised, the keg drawn back),
+  the blow (the weapon driven out along the line of it, so it reaches toward whoever is struck),
+  the recoil, the recoil in the flash of a blow (every step lifted three toward its glint, the
+  outline kept: the figure blazes in its own colours rather than going white), and the fall:
+  buckling, then down, on its back (crabs, birds), its belly (four-footed things, the wyrm) or its
+  side (people, the troll). Left is the mirror of right.
+- **The powder monkey** is a small, wiry grown man, never a child: bald and stubbled, a gap-toothed
+  grin with the brows up, an open vest over a bare chest, a red kerchief, ragged breeches, bare
+  feet, the keg over his head in both hands with a painted skull and a lit fuse. **Brinebeard's
+  coat is purple**, as the item says.
+
+#### Portraits at the C scale (B10a)
+
+- **72 × 72**, the head about three times the figures' H2 head (eyes seven wide with the iris
+  centred and whites either side, brows a row above), drawn at that size, never scaled from a
+  sprite; a bust on a dark disc, each face in the colours of its figure.
+- **Never cropped**: shown at 2, 4/3 and 2/3 CSS pixels per art pixel, a face fills the fight
+  screen's frame and the lists' and fits the dungeon's 48-pixel panel whole. Everything that names a
+  face (head, hat, ears, horns, whiskers, the gesture beside it) lies above row 56, inside its
+  declared safe box; below it only shoulders and beard ends, which the frame's bottom cuts.
+- **Animals keep the silhouette that names them** (the boar's snout and tusks under a bristle
+  crest, the wolf's ears and muzzle, the rat's round ears and whiskers, the gull side-on with its
+  stolen chip, the parrot's hooked beak in a squawk) and an expression in the brows and mouth.
+- **The hero's** is drawn in the look worn: skin, hair and its colour under any head gear, brows in
+  the hair's colour at the step that stands clear of the skin (as the figures' are), the head gear
+  and the body garment worn.
+
 ### What the swap supersedes
 
 When lane C switches the scene to the C-scale town, these parts of the guide above stop applying to
