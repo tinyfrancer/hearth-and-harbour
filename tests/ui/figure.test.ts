@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIGURE2_H, FIGURE2_W, IDLE2_FRAME_MS, LOOK_CHOICES2 } from '../../src/art/character2';
+import { iconScale } from '../../src/art/icons';
 import { newGame } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
@@ -254,6 +255,46 @@ describe('the character sheet', () => {
     expect(q('[data-slot="ammo"] .slot-qty').textContent).toBe('120');
     expect(q('[data-slot="ammo"]').getAttribute('aria-label')).toBe('Ammunition: Bronze arrows');
     expect(q('[data-slot="wrist"]').textContent).toBe('Wrist');
+  });
+
+  it('fills a square with what is worn, at two CSS pixels an art pixel, whole on the device', () => {
+    // At 3x art draws its icon at 4 device pixels an art pixel (32 CSS); the doll shows it
+    // at 6 (48 CSS, a square's inside); the bank's choices under the doll stay at 32.
+    vi.stubGlobal('devicePixelRatio', 3);
+    try {
+      geared({ iron_sword: 1, iron_helmet: 1 });
+      wear('main_hand', 'iron_sword');
+      const sword = q<HTMLCanvasElement>('[data-slot="main_hand"] canvas.doll-icon');
+      expect([sword.width, sword.height]).toEqual([96, 96]);
+      expect([sword.style.width, sword.style.height]).toEqual(['48px', '48px']);
+      q<HTMLButtonElement>('[data-slot="head"]').click();
+      const choice = q<HTMLCanvasElement>('[data-equip="iron_helmet"] canvas.icon');
+      expect(choice.style.width).toBe('32px');
+      expect(choice.classList).not.toContain('doll-icon');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the doll’s icons whole at 2x and at 2.625x', () => {
+    // Device pixels an art pixel: 4 at 2x (48 CSS), 5 at 2.625x (art pads its canvas to a
+    // whole CSS step there, so the element is a little wider than the picture).
+    for (const [dpr, perArtPixel] of [
+      [2, 4],
+      [2.625, 5],
+    ] as const) {
+      vi.stubGlobal('devicePixelRatio', dpr);
+      try {
+        geared({ iron_sword: 1 });
+        wear('main_hand', 'iron_sword');
+        const sword = q<HTMLCanvasElement>('[data-slot="main_hand"] canvas.doll-icon');
+        const shownDevicePx = parseFloat(sword.style.width) * dpr;
+        const drawnDevicePx = sword.width;
+        expect((shownDevicePx / drawnDevicePx) * iconScale(dpr)).toBeCloseTo(perArtPixel, 9);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    }
   });
 
   it('names what is worn under the doll, in its order, without a slot being opened', () => {

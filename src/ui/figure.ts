@@ -6,6 +6,7 @@ import {
   IDLE2_FRAME_MS,
   characterIdle2,
 } from '../art/character2';
+import { iconScale, itemIcon } from '../art/icons';
 
 /**
  * The hero drawn large for a menu, breathing: lane B's breath frames
@@ -85,4 +86,30 @@ export function heroFigure(look: Look, worn: readonly string[], cssScale: number
       draw(shown);
     },
   };
+}
+
+/**
+ * CSS pixels to an art pixel for what is worn, in the doll's squares. The
+ * menus' usual 32px icon is a third of a CSS pixel finer than one and leaves
+ * the 56px squares half empty beside a hero at three; two fills a square's
+ * 48px inside with a 24-pixel icon and comes nearer the hero's own pixels.
+ */
+export const DOLL_ICON_SCALE = 2;
+
+/**
+ * An item's icon for the doll: art's own canvas (`itemIcon`), shown at a whole
+ * number of device pixels per art pixel near `DOLL_ICON_SCALE`, so every art
+ * pixel stays a crisp square (6 at 3x, 4 at 2x, 5 at 2.625x). Null when art
+ * has not drawn the item. Its art size is read off the canvas, not assumed.
+ */
+export function dollIcon(itemId: string): HTMLCanvasElement | null {
+  const icon = itemIcon(itemId);
+  if (!(icon instanceof HTMLCanvasElement)) return null;
+  const dpr = ratio();
+  const per = deviceScale(DOLL_ICON_SCALE, dpr);
+  const drawn = iconScale(dpr);
+  icon.style.width = `${((icon.width / drawn) * per) / dpr}px`;
+  icon.style.height = `${((icon.height / drawn) * per) / dpr}px`;
+  icon.classList.add('doll-icon');
+  return icon;
 }
