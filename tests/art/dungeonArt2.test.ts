@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { dungeonProp, dungeonTile, foePicture } from '../../src/art/dungeonArt';
 import {
   aroundOf,
@@ -80,6 +80,9 @@ const FOE_IDS = [
 ];
 const VILLAGERS = ['alewife', 'market', 'docker', 'elder'];
 const PEOPLE = ['deckhand', 'smuggler', 'powder_monkey', 'footpad', 'goblin_poacher'];
+
+// Every test here draws a good deal of art; CI's runners are slower than a laptop.
+vi.setConfig({ testTimeout: 30_000 });
 
 const drawn = (g: TGrid) => {
   let n = 0;
@@ -355,16 +358,17 @@ describe('every foe at the C scale', () => {
             expect(drawn(right.picture.grid), `${id} ${pose} ${f}`).toBeGreaterThan(80);
             // Left is the exact mirror, feet and glows with it.
             expect(left.feet).toEqual({ x: w - 1 - right.feet.x, y: right.feet.y });
-            for (let y = 0; y < h; y += 3)
+            let off = 0;
+            for (let y = 0; y < h; y++)
               for (let x = 0; x < w; x++)
-                expect(left.picture.grid.d[y * w + x]).toBe(
-                  right.picture.grid.d[y * w + (w - 1 - x)],
-                );
+                if (left.picture.grid.d[y * w + x] !== right.picture.grid.d[y * w + (w - 1 - x)])
+                  off++;
+            expect(off, `${id} ${pose} ${f} mirrored`).toBe(0);
             right.picture.glows.forEach((g, i) => expect(left.picture.glows[i]!.x).toBe(w - g.x));
           }
       }
     }
-  });
+  }, 60_000);
 
   it('stands every foe on its feet: something drawn on the row just above them, standing', () => {
     for (const id of FOE2_IDS) {
