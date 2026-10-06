@@ -162,3 +162,16 @@
   background: var(--backdrop);
   border: var(--px) solid var(--gold);
 }
+
+/* The C-scale town: drawn on request, its whole-town pictures wider than the screen. */
+.gallery-town2,
+.gallery-town2-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gallery-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}

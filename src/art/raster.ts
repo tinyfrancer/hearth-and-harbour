@@ -64,16 +64,18 @@ export function colourPixels(pic: Picture, palette: Palette): Float64Array {
 }
 
 /** Whether a glow is lit in this palette. */
-export function shines(glow: Glow, palette: Palette): boolean {
+export function shines(glow: Glow, palette: Pick<Palette, 'lightsOn'>): boolean {
   return glow.byDay ? !palette.lightsOn : glow.always === true || palette.lightsOn;
 }
 
 /**
  * Adds light the way a canvas does with 'lighter' and a radial gradient: the
  * light fades from `strength` at the centre to nothing at the radius,
- * sampled at each pixel's centre, and adds to what is there.
+ * sampled at each pixel's centre, and adds to what is there. `px` is one
+ * RGBA value per art pixel, as `colourPixels` makes (the C-scale town's
+ * raster shares it).
  */
-function addGlow(px: Float64Array, w: number, h: number, glow: Glow): void {
+export function addGlow(px: Float64Array, w: number, h: number, glow: Glow): void {
   const x0 = Math.max(0, Math.floor(glow.x - glow.radius));
   const x1 = Math.min(w - 1, Math.ceil(glow.x + glow.radius));
   const y0 = Math.max(0, Math.floor(glow.y - glow.radius));
