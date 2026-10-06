@@ -11,12 +11,22 @@ import { dungeonView } from './dungeonView';
 import { GROTTO } from './grotto';
 import { Hero, dressOf } from './hero';
 import { closePanel, startPlay, type Play } from './play';
-import { stage, type StageArt } from './stage';
-import { TOWN_START, town } from './town';
-import { centreOf, type Cell, type Point } from './tileMap';
-import { previewTown2 } from './preview';
-import type * as Town2Place from './town2Place';
+import { stage } from './stage';
+import type { Cell } from './tileMap';
+import { BOAT_LANDING2 } from './town2';
 import type { Town2Art } from './town2Art';
+import {
+  LANDING2,
+  START2,
+  art2Now,
+  forget2,
+  prepareTown,
+  town2Stage,
+  townLoading,
+  townProgress,
+  townReady,
+  wear2,
+} from './town2Place';
 
 /**
  * Where the hero was and what was open when the Town tab was last on screen.
@@ -26,32 +36,14 @@ import type { Town2Art } from './town2Art';
  */
 let play: Play | null = null;
 
-/**
- * The C-scale town, loaded only when the preview is on (`town2Place.ts`):
- * null until then, so the current town's players never download it.
- */
-let town2: typeof Town2Place | null = null;
-let loading: Promise<void> | null = null;
-
-/** Loads the C-scale town's code. The Town tab starts it itself; tests wait for it. */
-export function loadTown2(): Promise<void> {
-  loading ??= import('./town2Place').then((m) => {
-    town2 = m;
-  });
-  return loading;
-}
-
-/** Where the hero first stands in the town this page shows. */
-const startOfTown = (): Point => (previewTown2() && town2 ? town2.START2 : centreOf(TOWN_START));
-
-/** Where the boat lands him back from a dungeon, in the town this page shows. */
-const landingOfTown = (): Point =>
-  previewTown2() && town2 ? town2.LANDING2 : centreOf(BOAT_LANDING);
-
 /** Day or dusk chosen with the sun-and-moon button, for this session; null follows the clock. */
 let chosen: TimeOfDay | null = null;
 
-/** The player's character as the town and dungeons draw him, kept until his look or gear changes. */
+/**
+ * The player's character as the dungeons draw him (at their own, older
+ * scale), kept until his look or gear changes: made the first time a boat
+ * rows out, not before. The town draws him itself (`town2Place.ts`).
+ */
 let hero: Hero | null = null;
 
 /** A dungeon run under way, kept like `play` so a rebuilt tab carries on with it. */
@@ -67,8 +59,8 @@ let settled = false;
  */
 const asked = { paused: false, full: false };
 
-/** Where the boat leaves from and lands: on the quay beside it, looking at it. */
-export const BOAT_LANDING: Cell = { col: 9, row: 19 };
+/** Where the boat leaves from and lands: on the quay beside it, looking at it (24-pixel tiles). */
+export const BOAT_LANDING: Cell = BOAT_LANDING2;
 
 let grotto: Dungeon | null = null;
 const dungeons = (id: string): Dungeon | null => {
@@ -79,6 +71,37 @@ const dungeons = (id: string): Dungeon | null => {
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
 
+// The town is worked out in a worker as soon as the page has loaded, so it is
+// usually ready before the Town tab is first opened. Only where there are
+// workers: without one (tests) it is worked out when the tab asks.
+if (typeof Worker === 'function' && typeof window !== 'undefined')
+  setTimeout(() => prepareTown(now()), 0);
+
+/**
+ * What shows while the town is still coming: its name, a line, and a bar of
+ * the work's real steps, in the scene's own frame. Never a dark empty scene.
+ */
+function loadingCard(): { el: HTMLElement; update(): void } {
+  const fill = h('span', { class: 'scene-loading-fill' });
+  const el = h('div', { class: 'scene-loading', attrs: { role: 'status' } }, [
+    h('div', { class: 'scene-loading-card' }, [
+      h('h2', { text: 'Gullwick' }),
+      h('p', { text: 'The tide is bringing the town in.' }),
+      h('span', { class: 'scene-loading-bar', attrs: { 'aria-hidden': 'true' } }, [fill]),
+    ]),
+  ]);
+  let shown = -1;
+  const update = (): void => {
+    // In whole quarters, as steps of a pixel bar rather than a smooth slide.
+    const k = Math.round(townProgress() * 4) / 4;
+    if (k === shown) return;
+    shown = k;
+    fill.style.transform = `scaleX(${k})`;
+  };
+  update();
+  return { el, update };
+}
+
 /**
  * What the Town tab shows: the town, or a dungeon run reached from it. This
  * is the scene lane's one door into the app: `src/ui/app.ts` calls it and
@@ -86,19 +109,22 @@ const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
  * touching the shell.
  */
 export function townView(state: GameState, content: Content, shell?: Shell): View {
-  const two = previewTown2();
-  if (two) void loadTown2();
+  prepareTown(now());
   /** The state as of the last frame: what a run starts from. */
   let latest = state;
-  // The dungeons draw the hero at the current scale whichever town is shown; only the current town lights him.
-  hero ??= new Hero(dressOf(state), two ? [] : town().art.lights);
-  hero.wear(state);
-  const me = hero;
-  /** Waiting for the C-scale town's code: the tab is shown, empty, until it comes. */
-  let waiting = two && !town2;
+  hero?.wear(state);
+  wear2(state);
+  /** The dungeons' hero, made when first needed. */
+  const dungeonHero = (): Hero => {
+    hero ??= new Hero(dressOf(latest));
+    hero.wear(latest);
+    return hero;
+  };
 
   const host = h('div', { class: 'scene-host' });
   let current: View;
+  /** Over the town until its first picture is in. */
+  let loading: ReturnType<typeof loadingCard> | null = null;
 
   /** Tells the shell what a run needs, and remembers what was asked. */
   const tell = (paused: boolean, full: boolean): void => {
@@ -110,29 +136,21 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     asked.paused = paused;
   };
 
-  /** The town this page shows, and how it is drawn. */
-  const place = (): {
-    scene: ReturnType<typeof town>['scene'];
-    art: StageArt;
-    scaleOf?: (device: { width: number; height: number }) => number;
-    focusRise?: number;
-  } => {
-    if (two && town2) {
-      town2.wear2(latest);
-      return town2.town2Stage();
-    }
-    const { scene, art } = town();
-    return {
-      scene,
-      art: { ...art, walkerAt: (feet, facing, palette) => me.at(feet, facing, palette.lightsOn) },
-    };
+  /** The loading card on its own, while the town's facts are not yet in. */
+  const showComing = (): void => {
+    loading ??= loadingCard();
+    current = { el: h('div', { class: 'scene' }) };
+    host.replaceChildren(current.el, loading.el);
   };
 
   const showTown = (): void => {
-    play ??= startPlay(startOfTown());
-    const shown = place();
+    if (!townReady()) {
+      showComing();
+      return;
+    }
+    play ??= startPlay(START2);
     current = stage({
-      ...shown,
+      ...town2Stage(),
       play: play!,
       keep: (next) => {
         play = next;
@@ -153,7 +171,13 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       label: 'Gullwick, the town. Tap the ground to walk there, or tap something to walk up to it.',
       fallback: 'The town needs a browser that can draw on a canvas.',
     });
-    host.replaceChildren(current.el);
+    if (townLoading()) {
+      loading ??= loadingCard();
+      host.replaceChildren(current.el, loading.el);
+    } else {
+      loading = null;
+      host.replaceChildren(current.el);
+    }
   };
 
   const showDungeon = (dungeon: Dungeon): void => {
@@ -164,7 +188,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       keep: (next) => {
         run = next;
       },
-      hero: me,
+      hero: dungeonHero(),
       leave,
       // The run is over: its spoils go home, and the idle task carries on while the results are read.
       finished: () => {
@@ -212,8 +236,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     tell(false, false);
     run = null;
     play = {
-      ...play!,
-      walker: { at: landingOfTown(), path: [] },
+      ...(play ?? startPlay(START2)),
+      walker: { at: LANDING2, path: [] },
       facing: 'left',
       heading: null,
       open: null,
@@ -223,7 +247,6 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 
   const inRun = run && dungeons(run.dungeon);
   if (inRun) showDungeon(inRun);
-  else if (waiting) current = { el: h('div', { class: 'scene' }) };
   else showTown();
 
   let first = true;
@@ -242,13 +265,18 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
           else if (asked.paused || asked.full) tell(false, false);
         }
         latest = next;
-        me.wear(next);
-        if (waiting && town2) {
-          waiting = false;
-          if (!run) showTown();
-        }
-        if (two) town2?.wear2(next);
+        hero?.wear(next);
+        wear2(next);
+        // The facts came in: the town can be walked, under the loading card until its picture comes.
+        if (!run && loading && !current.update && townReady()) showTown();
         current.update?.(next);
+        if (loading) {
+          loading.update();
+          if (!run && !townLoading()) {
+            loading.el.remove();
+            loading = null;
+          }
+        }
       } finally {
         busy = false;
       }
@@ -261,7 +289,7 @@ export function resetTown(): void {
   play = null;
   chosen = null;
   hero = null;
-  town2?.forget2();
+  forget2();
   run = null;
   settled = false;
   asked.paused = false;
@@ -281,12 +309,12 @@ export function heroAt(): { x: number; y: number; walking: boolean; open: string
 
 /** Where things stand in town: as left, or the start before the tab has been shown. */
 function shownPlay(): Play {
-  return play ?? startPlay(startOfTown());
+  return play ?? startPlay(START2);
 }
 
-/** The C-scale town's look while the preview shows it. For tests and the frame-rate check. */
+/** The town's look, once it is coming. For tests and the frame-rate check. */
 export function town2ArtNow(): Town2Art | null {
-  return town2?.art2Now() ?? null;
+  return art2Now();
 }
 
 /** The dungeon run under way, if any. For tests and screenshot scripts. */
@@ -299,7 +327,7 @@ export function keepRun(next: Run): void {
   if (run) run = next;
 }
 
-/** The hero's pictures, for tests: how many times he has been drawn afresh. */
+/** The dungeons' hero, for tests: how many times he has been drawn afresh. Null until a boat rows out. */
 export function heroNow(): Hero | null {
   return hero;
 }

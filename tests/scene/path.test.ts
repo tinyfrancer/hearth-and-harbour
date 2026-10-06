@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { clearLine, findPath, nearestReachable, route } from '../../src/scene/path';
 import { TILE, centreOf, isSolid, parseMap, type Cell } from '../../src/scene/tileMap';
-import { TOWN_START, town } from '../../src/scene/town';
+import { TOWN2_TILE } from '../../src/art/town2/town';
+import { TOWN2_START_CELL, town2Scene } from '../../src/scene/town2';
 
 const kinds = { floor: { solid: false }, wall: { solid: true } };
 const map = (rows: string[]) => parseMap(rows, { '.': 'floor', '#': 'wall' }, kinds);
@@ -145,11 +146,11 @@ describe('route', () => {
   });
 
   it('finds its way round the town’s buildings to the end of the pier', () => {
-    const { map } = town().scene;
-    const end = { col: 14, row: 30 };
-    const legs = route(map, centreOf(TOWN_START), centreOf(end));
-    expect(legs.at(-1)).toEqual(centreOf(end));
-    let at = centreOf(TOWN_START);
+    const { map } = town2Scene();
+    const end = centreOf({ col: 29, row: 77 }, TOWN2_TILE);
+    const legs = route(map, centreOf(TOWN2_START_CELL, TOWN2_TILE), end);
+    expect(legs.at(-1)).toEqual(end);
+    let at = centreOf(TOWN2_START_CELL, TOWN2_TILE);
     for (const leg of legs) {
       expect(clearLine(map, at, leg)).toBe(true);
       at = leg;

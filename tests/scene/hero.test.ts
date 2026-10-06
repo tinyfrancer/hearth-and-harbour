@@ -4,12 +4,12 @@ import { get } from '../../src/art/grid';
 import { townPiece } from '../../src/art/town';
 import { newGame, type GameState } from '../../src/core/state';
 import { Hero, dressKey, dressOf } from '../../src/scene/hero';
-import { centreOf } from '../../src/scene/tileMap';
-import { town } from '../../src/scene/town';
-import { HERO_FEET } from '../../src/scene/townArt';
+import { HERO_FEET } from '../../src/scene/walkerArt';
 
-const { scene, art } = town();
-const byId = (id: string) => scene.things.find((t) => t.id === id)!;
+// The dungeons' hero, at the first scale (40 x 50): the town draws its own (`town2Art.ts`).
+
+/** A lantern, as a dungeon room's lights give them. */
+const lantern = { x: 200, y: 200, radius: 40, strength: 0.6 };
 
 const fresh = (): GameState => newGame('Cody', 0);
 const armed = (state: GameState): GameState => ({
@@ -67,17 +67,16 @@ describe('the hero is the player’s own character', () => {
   });
 
   it('is lit at dusk by the lamps near him, from a few kept pictures', () => {
-    const hero = new Hero(dressOf(armed(fresh())), art.lights);
+    const hero = new Hero(dressOf(armed(fresh())), [lantern]);
     const plain = hero.at({ x: 0, y: 0 }, 'right', false);
-    const lamp = byId('lamp-west').footprint[0]!;
-    const beside = centreOf({ col: lamp.col + 1, row: lamp.row });
+    const beside = { x: lantern.x + 16, y: lantern.y + 20 };
     const lit = hero.at(beside, 'right', true);
     expect(lit.glows.length).toBeGreaterThan(0);
     // The same place to within a few pixels is the same picture, so it is painted once.
     expect(hero.at({ x: beside.x + 1, y: beside.y }, 'right', true)).toBe(lit);
     // By day, or far from any light, he is the plain picture.
     expect(hero.at(beside, 'right', false)).toBe(plain);
-    expect(hero.at(centreOf({ col: 22, row: 5 }), 'right', true)).toBe(plain);
+    expect(hero.at({ x: 600, y: 600 }, 'right', true)).toBe(plain);
     // Facing left, the mirrored picture: his sword hand on the other side.
     const left = hero.at(beside, 'left', false);
     expect(left).not.toBe(plain);

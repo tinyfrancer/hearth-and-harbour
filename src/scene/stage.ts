@@ -2,7 +2,6 @@ import type { Palette } from '../art/palette';
 import type { Picture } from '../art/raster';
 import { h } from '../ui/dom';
 import type { View } from '../ui/view';
-import type { Ambient } from './ambient';
 import { cameraFor, type Size } from './camera';
 import { paletteFor, type TimeOfDay } from './daylight';
 import {
@@ -13,6 +12,7 @@ import {
   markerBox,
   overlaps,
   type Frame,
+  type Image,
   type Placed,
   type Standing,
 } from './draw';
@@ -29,7 +29,7 @@ import {
   type Facing,
   type Play,
 } from './play';
-import { canvasFit, cssToArt, sceneScale, tapToWorld, viewSize } from './scale';
+import { canvasFit, cssToArt, pixelFit, sceneScale, tapToWorld, viewSize } from './scale';
 import { footprintCentreX, thingAt, usable, type Box, type Opens, type Scene } from './things';
 import { cellAt, mapSize, tileOf, type Cell, type Point } from './tileMap';
 
@@ -71,7 +71,7 @@ const widthOf = (look: Look): number => (isPicture(look) ? look.grid.w : look.wi
 
 /** The map with everything that stands still on it, composed once, and those things in depth order. */
 export interface StillPicture {
-  readonly still: HTMLCanvasElement;
+  readonly still: Image;
   readonly standing: readonly Standing[];
 }
 
@@ -113,9 +113,7 @@ export interface StageArt {
     feet: Point,
     palette: Palette,
   ): { readonly picture: Look; readonly middle: Point } | null;
-  /** Things that move by themselves: smoke, birds, water. */
-  readonly ambient?: readonly Ambient[];
-  /** The same, for a scene that paints its own: `ambient`'s already on canvases. */
+  /** Things that move by themselves, already painted: smoke, birds, water. */
   readonly life?: readonly Life[];
 }
 
@@ -178,7 +176,7 @@ function stillOf(
 
 /** What moved since the last frame drew, by what it was: compared to find the patches to redraw. */
 interface Drawn {
-  readonly image: HTMLCanvasElement;
+  readonly image: Image;
   readonly box: Box;
 }
 
@@ -274,6 +272,15 @@ export interface Insets {
 
 const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
 
+/**
+ * Buttons laid over a scene, in CSS pixels from the scene's top-left: the
+ * sun-and-moon button. Placed from here (not only in `scene.css`) so the
+ * check that nothing tappable hides under a button reads the same numbers.
+ */
+export const SCENE_BUTTONS = {
+  light: { left: 8, top: 8, width: 48, height: 48 },
+} as const;
+
 export interface StageOptions {
   readonly scene: Scene;
   readonly art: StageArt;
@@ -289,6 +296,15 @@ export interface StageOptions {
   readonly scaleOf?: (device: Size) => number;
   /** How far above the walker's feet the camera looks, in art pixels: `FOCUS_RISE` by default. */
   readonly focusRise?: number;
+  /**
+   * Draw at one canvas pixel per art pixel and let the browser enlarge the
+   * canvas by the whole scale (`image-rendering: pixelated`), rather than
+   * drawing every device pixel: a ninth of the work a frame at 3x. For a
+   * scene of nothing but whole art pixels (the town); a scene that writes
+   * words or thin lines at device resolution (a dungeon's fight) keeps the
+   * default.
+   */
+  readonly pixelated?: boolean;
   /**
    * Room the camera keeps clear at the edges for buttons over the scene: the
    * walker is centred in what is left, and a map smaller than that is centred
@@ -340,7 +356,7 @@ export function stage(options: StageOptions): View {
   const tile = tileOf(scene.map);
   const rise = options.focusRise ?? FOCUS_RISE;
   /** A number for each still a scene made itself, to tell them apart in what was last shown. */
-  const stillIds = new WeakMap<HTMLCanvasElement, number>();
+  const stillIds = new WeakMap<Image, number>();
   // People who turn to look at the walker.
   const turners = scene.things.filter((t) => t.sprite?.turned);
   const canvas = h(
@@ -358,6 +374,11 @@ export function stage(options: StageOptions): View {
       },
     },
   });
+  const place = SCENE_BUTTONS.light;
+  lightButton.style.left = `${place.left}px`;
+  lightButton.style.top = `${place.top}px`;
+  lightButton.style.width = `${place.width}px`;
+  lightButton.style.height = `${place.height}px`;
   const el = h('div', { class: 'scene' }, [canvas, options.light ? lightButton : null]);
 
   let play = options.play;
@@ -452,9 +473,18 @@ export function stage(options: StageOptions): View {
     return { x: cam.x - room.left, y: cam.y - room.top };
   };
 
+  /** The canvas's own size when it is drawn at one pixel per art pixel (`pixelated`). */
+  let artSize: Size = { width: 0, height: 0 };
+
   /** Sizes the canvas to the scene's box: whole CSS pixels, whole device pixels, never stretched. */
   const fit = (box: Size): void => {
-    const next = canvasFit(box, window.devicePixelRatio || 1);
+    const dpr = window.devicePixelRatio || 1;
+    let next: { css: Size; device: Size };
+    if (options.pixelated) {
+      const fitted = pixelFit(box, dpr, scaleOf);
+      artSize = fitted.art;
+      next = fitted;
+    } else next = canvasFit(box, dpr);
     if (next.css.width !== css.width || next.css.height !== css.height) {
       canvas.style.width = `${next.css.width}px`;
       canvas.style.height = `${next.css.height}px`;
@@ -567,9 +597,11 @@ export function stage(options: StageOptions): View {
     const made = art.still ? art.still(palette) : ground && stillOf(scene, ground, palette, turned);
     // Art that cannot be painted (jsdom) means no context is asked for either.
     if (!made) return;
-    if (canvas.width !== device.width || canvas.height !== device.height) {
-      canvas.width = device.width;
-      canvas.height = device.height;
+    // Pixelated, the canvas holds one pixel per art pixel and the browser enlarges it.
+    const backing = options.pixelated ? artSize : device;
+    if (canvas.width !== backing.width || canvas.height !== backing.height) {
+      canvas.width = backing.width;
+      canvas.height = backing.height;
       shownLast = '';
     }
     ctx ??= canvas.getContext('2d');
@@ -594,14 +626,6 @@ export function stage(options: StageOptions): View {
     const underfoot: Placed[] = [];
     const above: Placed[] = [];
     const moving = new Map<string, Drawn>();
-    (art.ambient ?? []).forEach((a, i) => {
-      const sprite = a.at(now);
-      const image = sprite && canvasOf(sprite.picture, palette);
-      if (!sprite || !image) return;
-      const placed = { image, x: sprite.at.x, y: sprite.at.y };
-      (a.layer === 'ground' ? underfoot : above).push(placed);
-      moving.set(`ambient ${i}`, { image, box: boxOf(placed) });
-    });
     (art.life ?? []).forEach((a, i) => {
       const placed = a.at(now, palette);
       if (!placed) return;
@@ -632,7 +656,7 @@ export function stage(options: StageOptions): View {
 
     const frame: Frame = {
       backdrop: palette.colours.navy2,
-      scale,
+      scale: options.pixelated ? 1 : scale,
       camera: cam,
       still: made.still,
       standing: made.standing,
@@ -675,7 +699,7 @@ export function stage(options: StageOptions): View {
 
   /** A number for a still the scene made itself: a new one means the whole view is drawn again. */
   let stillCount = 0;
-  function stillId(still: HTMLCanvasElement): number {
+  function stillId(still: Image): number {
     let id = stillIds.get(still);
     if (id === undefined) {
       id = stillCount++;

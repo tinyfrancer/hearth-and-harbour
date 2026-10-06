@@ -11,7 +11,7 @@ import { ellipse, grid, line, outline, rect, type Grid } from '../art/grid';
 import { picture, type Picture } from '../art/raster';
 import type { Facing } from './play';
 import type { Point } from './tileMap';
-import { mirrored } from './townArt';
+import { mirrored } from './walkerArt';
 
 /**
  * A heavy attack: a patch of ground marked first, filling until it lands, and

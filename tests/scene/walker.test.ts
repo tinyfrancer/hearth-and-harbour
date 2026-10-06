@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { WALK_SPEED, step, walkTo, type Walker } from '../../src/scene/walker';
 import { centreOf } from '../../src/scene/tileMap';
-import { TOWN_START, town } from '../../src/scene/town';
+import { TOWN2_TILE } from '../../src/art/town2/town';
+import { TOWN2_START_CELL, WALK_SPEED2, town2Scene } from '../../src/scene/town2';
 
 describe('step', () => {
   const walker: Walker = {
@@ -41,15 +42,17 @@ describe('step', () => {
 
 describe('walkTo', () => {
   it('walks across the town to where it was sent, at walking speed', () => {
-    let walker: Walker = { at: centreOf(TOWN_START), path: [] };
-    const target = centreOf({ col: 2, row: 18 });
-    walker = walkTo(town().scene.map, walker, target);
+    let walker: Walker = { at: centreOf(TOWN2_START_CELL, TOWN2_TILE), path: [] };
+    // Round the stall and down the beach's stairs to the sand.
+    const target = centreOf({ col: 3, row: 60 }, TOWN2_TILE);
+    walker = walkTo(town2Scene().map, walker, target);
     expect(walker.path.at(-1)).toEqual(target);
     const length = walker.path.reduce((sum, p, i) => {
       const from = i === 0 ? walker.at : walker.path[i - 1]!;
       return sum + Math.hypot(p.x - from.x, p.y - from.y);
     }, 0);
-    walker = step(walker, (length / WALK_SPEED) * 1000 + 1);
+    expect(WALK_SPEED2).toBeGreaterThan(WALK_SPEED);
+    walker = step(walker, (length / WALK_SPEED2) * 1000 + 1, WALK_SPEED2);
     expect(walker.at).toEqual(target);
     expect(walker.path).toEqual([]);
   });

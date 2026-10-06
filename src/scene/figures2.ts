@@ -7,6 +7,10 @@
  *
  * Written first against a stand-in (today's figures blown up), while lane B
  * drew these; swapping to lane B's door was a change to this file alone.
+ *
+ * A figure is painted either onto a canvas here (the hero, whose look and gear
+ * change) or as plain pixels (`pixels`), which a worker can make: the
+ * townsfolk are painted off the main thread with the rest of the town.
  */
 import type { Look } from '../art/character';
 import {
@@ -32,9 +36,24 @@ export const FIGURE2_ANCHOR_X = ANCHOR_X;
 /** The row of the soles of the feet: the figure's base line, its lowest row drawn. */
 export const FIGURE2_SOLE_Y = SOLE_Y;
 
-/** The townsfolk the town has words for, by today's ids (lane B also draws villagers). */
-export const TOWNSFOLK2 = ['smith', 'trader', 'pirate'] as const;
+/** The townsfolk, by lane B's ids: the three with work to offer, and the villagers. */
+export const TOWNSFOLK2 = [
+  'smith',
+  'trader',
+  'pirate',
+  'alewife',
+  'market',
+  'docker',
+  'elder',
+] as const;
 export type Townsfolk2 = (typeof TOWNSFOLK2)[number];
+
+/** Pixels with no canvas: one RGBA value per art pixel, row by row. */
+export interface Raw {
+  readonly w: number;
+  readonly h: number;
+  readonly data: Uint8ClampedArray;
+}
 
 /** A figure as the C-scale town shows it. */
 export interface Figure2 {
@@ -55,7 +74,25 @@ export interface Figure2 {
    * already lit. Null where nothing can be painted (no canvas, as in tests).
    */
   paint(facing: Facing, time: TimeOfDay, glows: readonly Glow[]): HTMLCanvasElement | null;
+  /** The same as plain pixels, with no canvas: for a worker, or a test. */
+  pixels(facing: Facing, time: TimeOfDay, glows: readonly Glow[]): Raw;
 }
+
+/*
+ * THE WALK CYCLE PLUGS IN HERE. Lane B is drawing walk frames into
+ * `src/art/character2.ts` (B9); until they land a walker is the standing
+ * figure with the stage's one-pixel bob. When they do:
+ *
+ *  1. Add `frame` (0 = standing, 1..n = the stride) to `paint` and `pixels`
+ *     above, and take each frame's picture from lane B's door in `figureOf`
+ *     below (keep one `Picture2` per frame and facing, made on first ask).
+ *  2. `Hero2.at` (`town2Art.ts`) picks the frame from `play.walked` (the
+ *     stride is `STRIDE2`, 8 art pixels a half-step) and keys its kept
+ *     pictures by frame as well as facing and light; drop `bob` for him.
+ *  3. Townsfolk stand still and keep frame 0; nothing in the worker changes.
+ *
+ * Nothing else in the scene looks at how a figure is drawn.
+ */
 
 /** The player's character in their look and gear, as the C-scale town shows them. */
 export function heroFigure2(look: Look, worn: readonly string[]): Figure2 {
@@ -80,21 +117,29 @@ function figureOf(right: Picture2): Figure2 {
       drawn.left = Math.min(drawn.left, x);
       drawn.right = Math.max(drawn.right, x);
     }
+  const pixels = (facing: Facing, time: TimeOfDay, glows: readonly Glow[]): Raw => {
+    const pic = pictures[facing];
+    return {
+      w: pic.grid.w,
+      h: pic.grid.h,
+      data: cellPixels({ grid: pic.grid, glows: [...pic.glows, ...glows] }, palette2(time)),
+    };
+  };
   return {
     w: g.w,
     h: g.h,
     drawn,
+    pixels,
     paint(facing, time, glows) {
       if (typeof ImageData === 'undefined' || typeof document === 'undefined') return null;
-      const pic = pictures[facing];
+      const raw = pixels(facing, time, glows);
       const canvas = document.createElement('canvas');
-      canvas.width = pic.grid.w;
-      canvas.height = pic.grid.h;
+      canvas.width = raw.w;
+      canvas.height = raw.h;
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
-      const data = cellPixels({ grid: pic.grid, glows: [...pic.glows, ...glows] }, palette2(time));
       ctx.putImageData(
-        new ImageData(data as Uint8ClampedArray<ArrayBuffer>, pic.grid.w, pic.grid.h),
+        new ImageData(raw.data as Uint8ClampedArray<ArrayBuffer>, raw.w, raw.h),
         0,
         0,
       );

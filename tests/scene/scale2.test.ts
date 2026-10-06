@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { cameraFor } from '../../src/scene/camera';
-import { TOWN_SIZE, canvasFit, sceneScale, viewSize } from '../../src/scene/scale';
+import { cssStep } from '../../src/art/canvas';
+import {
+  TOWN_SIZE,
+  canvasFit,
+  pixelFit,
+  scaleFor,
+  sceneScale,
+  viewSize,
+} from '../../src/scene/scale';
 import { TOWN2_SCENE } from '../../src/scene/town2Place';
 import { TOWN2_H, TOWN2_W } from '../../src/art/town2/town';
 
-// The scale belongs to the scene shown: the current town and the dungeons
-// keep a 270-wide world on 16-pixel tiles; the C-scale town is 360 wide on
+// The scale belongs to the scene shown: the dungeons keep a 270-wide world on
+// 16-pixel tiles (`TOWN_SIZE`, the first town's); the town is 360 wide on
 // 24-pixel tiles. Both are whole device pixels an art pixel on every phone.
 
 /** The Town tab's canvas on a phone `css` wide (the app is never wider than 480), as the stage fits it. */
@@ -83,5 +91,50 @@ describe('the camera in the C-scale town', () => {
 
   it('follows the hero freely in the middle of town', () => {
     expect(cameraFor({ x: 700, y: 1200 }, view, world)).toEqual({ x: 505, y: 837 });
+  });
+});
+
+describe('the town drawn at one canvas pixel per art pixel and enlarged', () => {
+  const phones: [number, number, number][] = [
+    [360, 683, 3],
+    [390, 727.4, 3],
+    [430, 815, 3],
+    [393, 700, 2.75],
+    [412, 731, 2.625],
+    [375, 560, 2],
+    [480, 700, 1],
+  ];
+
+  for (const [width, height, dpr] of phones) {
+    it(`enlarges by exactly the scale both ways at ${width} CSS pixels and ${dpr}x`, () => {
+      const box = { width, height };
+      const fit = pixelFit(box, dpr, scaleFor(TOWN2_SCENE));
+      // Each art pixel is exactly `scale` device pixels, and the CSS size is whole device pixels.
+      expect(fit.device).toEqual({
+        width: fit.art.width * fit.scale,
+        height: fit.art.height * fit.scale,
+      });
+      expect(fit.css.width * dpr).toBeCloseTo(fit.device.width, 9);
+      expect(fit.css.height * dpr).toBeCloseTo(fit.device.height, 9);
+      const step = cssStep(dpr);
+      expect(Number.isInteger(Math.round((fit.css.width / step) * 1e9) / 1e9)).toBe(true);
+      // The scale is the one the scene would have chosen for this canvas, and nothing is stretched.
+      expect(fit.scale).toBe(sceneScale(fit.device, TOWN2_SCENE));
+      expect(fit.css.width).toBeLessThanOrEqual(width);
+      expect(fit.css.height).toBeLessThanOrEqual(height);
+      // Never more than a step or two of the box lost.
+      const plain = canvasFit(box, dpr);
+      expect(plain.device.width - fit.device.width).toBeLessThan(2 * fit.scale * step * dpr);
+    });
+  }
+
+  it('is the same view as drawing every device pixel on a 390-wide phone at 3x', () => {
+    const fit = pixelFit({ width: 390, height: 727.4 }, 3, scaleFor(TOWN2_SCENE));
+    expect(fit).toEqual({
+      art: { width: 390, height: 727 },
+      device: { width: 1170, height: 2181 },
+      css: { width: 390, height: 727 },
+      scale: 3,
+    });
   });
 });
