@@ -22,7 +22,22 @@ export function walkTo(map: TileMap, walker: Walker, target: Point): Walker {
  * one short.
  */
 export function step(walker: Walker, ms: number, speed = WALK_SPEED): Walker {
-  let left = (speed * Math.max(ms, 0)) / 1000;
+  return stepBy(walker, ms, speed).walker;
+}
+
+/**
+ * `step`, and how far the walker went along the path: round a corner that is
+ * more than the straight line from where it was to where it is, and what the
+ * walk cycle counts, so a frame that turns a corner shows the same stride as
+ * two frames either side of it.
+ */
+export function stepBy(
+  walker: Walker,
+  ms: number,
+  speed = WALK_SPEED,
+): { walker: Walker; distance: number } {
+  const all = (speed * Math.max(ms, 0)) / 1000;
+  let left = all;
   let at = walker.at;
   let path = walker.path;
   while (path.length > 0 && left > 0) {
@@ -37,5 +52,6 @@ export function step(walker: Walker, ms: number, speed = WALK_SPEED): Walker {
       left = 0;
     }
   }
-  return path === walker.path && at === walker.at ? walker : { at, path };
+  if (path === walker.path && at === walker.at) return { walker, distance: 0 };
+  return { walker: { at, path }, distance: all - left };
 }

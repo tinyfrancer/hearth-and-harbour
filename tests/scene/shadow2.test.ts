@@ -54,9 +54,34 @@ describe('the contact shadow', () => {
         layShadow(g, { x: 30, y: 8 }, 'day');
         const under = g.d[8 * g.w + 30]!;
         expect(matOf(under)).toBe(mat);
-        expect(stepOf(under)).toBe(Math.min(5, step + 2));
+        // Under the soles: two steps down, or on the busy cobbles and flagstones the ground's step 5.
+        const busy = mat === 'cobble' || mat === 'stone';
+        expect(stepOf(under)).toBe(busy ? 5 : Math.min(5, step + 2));
         // Far off, untouched.
         expect(g.d[0]).toBe(cell(mat, step));
+      }
+  });
+
+  it('reads as one dark shape on the busy cobbles and flagstones, and stays light on grass', () => {
+    for (const time of ['day', 'dusk'] as const)
+      for (const step of [0, 1, 2, 3]) {
+        const after = (mat: Mat) => {
+          const g = ground(mat, step);
+          layShadow(g, { x: 30, y: 8 }, time);
+          return contactShadow(time).map((p) => ({
+            n: p.n,
+            step: stepOf(g.d[(8 + p.dy) * g.w + 30 + p.dx]!),
+          }));
+        };
+        for (const mat of ['cobble', 'stone'] as Mat[])
+          for (const { n, step: now } of after(mat)) {
+            // A step further than on grass, and never lighter than a floor: core 5, penumbra 4.
+            expect(now).toBeGreaterThanOrEqual(Math.min(5, step + n + 1));
+            expect(now).toBeGreaterThanOrEqual(n === 2 ? 5 : 4);
+            expect(now).toBeLessThanOrEqual(5);
+          }
+        // On grass it stays as it was: two under the soles, one round them.
+        for (const { n, step: now } of after('grass')) expect(now).toBe(Math.min(5, step + n));
       }
   });
 

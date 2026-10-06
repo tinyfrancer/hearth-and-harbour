@@ -19,7 +19,8 @@
  *   letter in exactly one other room.
  */
 import { HIGH_WATER, waterAt } from './tide';
-import { type Cell, type TileKind, type TileMap } from './tileMap';
+import { DUNGEON } from './dungeonMetrics';
+import { TILE, type Cell, type TileKind, type TileMap } from './tileMap';
 
 export type RoomTile =
   'rock' | 'floor' | 'sand' | 'planks' | 'shallows' | 'water' | 'door' | 'end' | 'prop' | 'bars';
@@ -228,6 +229,8 @@ export function groundMap(g: Ground, state: GroundState): TileMap<RoomTile> {
       rows: g.rows,
       tiles: g.tiles.map((line, row) => line.map((_, col) => tileAt(g, col, row, at))),
       kinds: state.shut ? SHUT_KINDS : ROOM_KINDS,
+      // At the first scale a map's tile is the default; at another it says so (`dungeonMetrics.ts`).
+      ...(DUNGEON.tile === TILE ? {} : { tile: DUNGEON.tile }),
     };
     maps.set(key, map);
   }

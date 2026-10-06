@@ -6,6 +6,8 @@ import { advancePlay, startPlay, tapAt } from '../../src/scene/play';
 import { cellAt, centreOf, isSolid, mapSize } from '../../src/scene/tileMap';
 import {
   BOAT_LANDING2,
+  STANDING2,
+  STROLLERS2,
   TOWN2_START_CELL,
   TOWNSFOLK2_AT,
   WALK_SPEED2,
@@ -28,9 +30,9 @@ describe('the C-scale town scene', () => {
     expect(WALK_SPEED2).toBe(88);
   });
 
-  it('is solid exactly where lane B’s walking map is, and where the townsfolk stand', () => {
+  it('is solid exactly where lane B’s walking map is, and where the townsfolk who stand stand', () => {
     const walk = town2Walk();
-    const folk = new Set(TOWNSFOLK2_AT.map((p) => `${p.at.col},${p.at.row}`));
+    const folk = new Set(STANDING2.map((p) => `${p.at.col},${p.at.row}`));
     for (let row = 0; row < walk.rows; row++)
       for (let col = 0; col < walk.cols; col++) {
         const solid = isSolid(map, { col, row });
@@ -58,6 +60,8 @@ describe('the C-scale town scene', () => {
     for (const thing of things.filter(usable)) {
       // Deep in the forest a pine is only looked at, as the current town's edge pines were.
       if (thing.id.startsWith('pine-forest') && spotsBeside(map, thing).length === 0) continue;
+      // Someone who strolls is walked up to where they are (`stroll.test.ts`).
+      if (STROLLERS2.some((p) => p.id === thing.id)) continue;
       const spot = approach(map, start, thing);
       if (!spot || !findPath(map, TOWN2_START_CELL, spot)) unreachable.push(thing.id);
     }
@@ -128,11 +132,14 @@ describe('the C-scale town scene', () => {
     expect(byId('house').use!.name).toBe('Your house');
     expect(byId('oak').use!.button!.opens).toEqual({ skill: 'woodcutting' });
     expect(byId('pine-forest-47').use!.button!.opens).toEqual({ skill: 'woodcutting' });
-    // Deep in the forest, and the far buoy past the camera's reach, are only looked at.
-    for (const id of ['pine-forest-0', 'pine-forest-1', 'pine-forest-46', 'buoy-far']) {
+    // Deep in the forest pines are only looked at.
+    for (const id of ['pine-forest-0', 'pine-forest-1', 'pine-forest-46']) {
       expect(byId(id).tap, id).toBeUndefined();
       expect(byId(id).use, id).toBeUndefined();
     }
+    // The far buoy, moved by lane B to where the pier's end shows it, says what the near one does.
+    expect(byId('buoy-far').use).toBe(byId('buoy').use);
+    expect(byId('buoy-far').tap).toBeDefined();
     expect(byId('bush-west').use!.button!.opens).toEqual({ skill: 'foraging' });
     expect(byId('boulder-1').use!.button!.opens).toEqual({ skill: 'mining' });
   });
@@ -145,11 +152,17 @@ describe('the C-scale town scene', () => {
   });
 
   it('puts the townsfolk where their work is, each talked to from beside them', () => {
-    for (const p of TOWNSFOLK2_AT) {
+    for (const p of STANDING2) {
       const thing = byId(p.id);
       expect(isSolid(map, p.at)).toBe(true);
       expect(thing.spots!.length).toBeGreaterThan(0);
       for (const spot of thing.spots!) expect(spot.row).toBe(p.at.row);
+    }
+    // Those who stroll stand in nobody's way and are tapped where they are.
+    for (const p of STROLLERS2) {
+      expect(isSolid(map, p.at), p.id).toBe(false);
+      expect(byId(p.id).tap, p.id).toBeUndefined();
+      expect(byId(p.id).footprint, p.id).toEqual([]);
     }
     // The captain stands on the pier's boards.
     const captain = TOWNSFOLK2_AT.find((p) => p.id === 'captain')!;
@@ -165,7 +178,7 @@ describe('the C-scale town scene', () => {
       expect(walk.solid[p.at.row * walk.cols + p.at.col], id).toBe(0);
       expect(p.use.says!.length, id).toBeGreaterThanOrEqual(3);
       expect(p.use.duskSays!.length, id).toBeGreaterThanOrEqual(1);
-      expect(approach(map, start, byId(id)), id).not.toBeNull();
+      if (!p.stroll) expect(approach(map, start, byId(id)), id).not.toBeNull();
     }
     const names = TOWNSFOLK2_AT.map((p) => p.use.name);
     expect(new Set(names).size).toBe(names.length);

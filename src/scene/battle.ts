@@ -39,30 +39,25 @@ import { groundMap, standable, wading, type Ground, type RoomTile } from './grou
 import { clearLine, route } from './path';
 import { advancePlay, facingToward, type Facing, type Play } from './play';
 import { cycleTide, surgeTide, type TideNow } from './tide';
-import { step } from './walker';
-import {
-  TILE,
-  cellAt,
-  centreOf,
-  inMap,
-  isSolid,
-  type Cell,
-  type Point,
-  type TileMap,
-} from './tileMap';
+import { step, WALK_SPEED } from './walker';
+import { DUNGEON, far } from './dungeonMetrics';
+import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
+
+/** A tile's side in the dungeons, in art pixels. */
+const T = DUNGEON.tile;
 
 /** The rules act every this many ms of the run's clock. Every timer is a whole number of them. */
 export const TICK_MS = 100;
 /** How near, feet to feet, the hero must be to strike with a weapon in hand. */
-export const MELEE_REACH = 30;
+export const MELEE_REACH = far(30);
 /** How far beside his target a hero with a blade stands to strike it. */
-export const MELEE_STAND = 24;
+export const MELEE_STAND = far(24);
 /** How far a bow reaches, with nothing solid but water between. */
-export const RANGED_REACH = 120;
+export const RANGED_REACH = far(120);
 /** A monster arriving within reach waits at least this long before its first blow. */
 export const WINDUP_MS = 800;
 /** Loot this near the hero's feet is picked up. */
-export const PICKUP = 14;
+export const PICKUP = far(14);
 /** From the last blow of a run to its results. */
 export const BEAT_MS = 1200;
 /** How long a number or a flash stays on screen. */
@@ -77,16 +72,16 @@ export const WASH_PACE = 3;
 /** Washed off: a fraction of the hero's hit points, never the last one. */
 export const FLOOD_HURT = 1 / 14;
 /** A brig's first cells open once the hero is this far inside its doors. */
-export const RELEASE_STEP = 40;
+export const RELEASE_STEP = far(40);
 /** Something said over a speaker's head lasts this long. */
 export const SAY_MS = 2600;
 
 /** Wide swing: reaches everything this near. */
-export const SWEEP_REACH = 40;
+export const SWEEP_REACH = far(40);
 /** Brace: how long it waits for a heavy blow before it lapses. */
 export const BRACE_MS = 6000;
 /** Step back: how far, and how many times walking pace. */
-export const STEP_BACK = 40;
+export const STEP_BACK = far(40);
 export const STEP_BACK_PACE = 4;
 
 export type AbilityId = 'sweep' | 'brace' | 'double' | 'step_back';
@@ -469,7 +464,10 @@ export function reachOf(fighter: Fighter): number {
 export function inSight(map: TileMap, a: Point, b: Point): boolean {
   const steps = Math.max(1, Math.ceil(distance(a, b) / 4));
   for (let i = 1; i < steps; i++) {
-    const cell = cellAt({ x: a.x + ((b.x - a.x) * i) / steps, y: a.y + ((b.y - a.y) * i) / steps });
+    const cell = cellAt(
+      { x: a.x + ((b.x - a.x) * i) / steps, y: a.y + ((b.y - a.y) * i) / steps },
+      T,
+    );
     if (!inMap(map, cell)) return false;
     const tile = map.tiles[cell.row]![cell.col];
     if (tile === 'rock' || (isSolid(map, cell) && tile === 'door')) return false;
@@ -694,7 +692,7 @@ function hurtHero(w: Work, dealt: number, hero: Point): void {
 
 /** A heavy blow landing: on the hero if he is in it, halved if he braced. */
 function land(w: Work, t: Telegraph, map: TileMap, hero: Point, def: MonsterDef | null): void {
-  const under = cellAt(t.at);
+  const under = cellAt(t.at, T);
   const tile = inMap(map, under) ? map.tiles[under.row]![under.col] : undefined;
   const doused = !!t.douse && (tile === 'water' || tile === 'shallows');
   effect(w, { kind: 'landed', at: t.at, radius: t.radius, from: w.clock, mark: t, doused });
@@ -726,7 +724,7 @@ const standing = (w: Work, room: string): Writable<Foe>[] =>
 
 /** The ground under some feet, now. */
 function tileUnder(map: TileMap<RoomTile>, at: Point): RoomTile | undefined {
-  const cell = cellAt(at);
+  const cell = cellAt(at, T);
   return inMap(map, cell) ? map.tiles[cell.row]![cell.col] : undefined;
 }
 
@@ -748,7 +746,7 @@ const NEIGHBOURS: readonly [number, number][] = [
  * room with nowhere dry at all, which the grotto's rooms never are.
  */
 export function shoreOf(map: TileMap<RoomTile>, at: Point): Point | null {
-  const start = cellAt(at);
+  const start = cellAt(at, T);
   if (!inMap(map, start)) return null;
   const seen = new Set<number>([start.row * map.cols + start.col]);
   let ring: Cell[] = [start];
@@ -758,14 +756,14 @@ export function shoreOf(map: TileMap<RoomTile>, at: Point): Point | null {
     for (const cell of ring) {
       const tile = map.tiles[cell.row]![cell.col];
       if (tile !== 'door' && standable(tile) && !isSolid(map, cell)) {
-        const d = distance(centreOf(cell), at);
+        const d = distance(centreOf(cell, T), at);
         if (d < bestDistance) {
           best = cell;
           bestDistance = d;
         }
       }
     }
-    if (best) return centreOf(best);
+    if (best) return centreOf(best, T);
     const next: Cell[] = [];
     for (const cell of ring) {
       for (const [dc, dr] of NEIGHBOURS) {
@@ -798,7 +796,7 @@ function doorsOf(ground: Ground): Point[] {
   const out: Point[] = [];
   ground.tiles.forEach((line, row) =>
     line.forEach((t, col) => {
-      if (t === 'door') out.push(centreOf({ col, row }));
+      if (t === 'door') out.push(centreOf({ col, row }, T));
     }),
   );
   return out;
@@ -821,7 +819,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
 
   // The sea: washed off covered ground, slowed in the shallows. Fliers fly over it.
   if (w.wash && next.walker.path.length === 0) w.wash = null;
-  if (!w.wash && isSolid(map, cellAt(hero)) && tileUnder(map, hero) === 'water') {
+  if (!w.wash && isSolid(map, cellAt(hero, T)) && tileUnder(map, hero) === 'water') {
     const shore = shoreOf(map, hero);
     if (shore) {
       w.wash = shore;
@@ -914,7 +912,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     const wave = w.released[place.room] ?? 0;
     w.released[place.room] = wave + 1;
     for (const cell of place.ground.bars[wave]!)
-      effect(w, { kind: 'released', at: centreOf(cell), from: w.clock });
+      effect(w, { kind: 'released', at: centreOf(cell, T), from: w.clock });
     for (const foe of here) {
       if (foe.wave !== wave) continue;
       foe.aware = true;
@@ -965,7 +963,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     } else {
       const slot = chaseTo(w, map, hero, target.at);
       const end = next.walker.path.at(-1);
-      if (!end || distance(end, slot) > TILE / 2)
+      if (!end || distance(end, slot) > T / 2)
         next = { ...next, walker: { at: hero, path: walkPath(map, hero, slot) } };
     }
   }
@@ -1060,19 +1058,19 @@ function act(
     const away = backOff(map, foe.at, hero, kind.keep - d);
     if (away) {
       const end = foe.path.at(-1);
-      if (!end || distance(end, away) > TILE / 2) foe.path = [away];
+      if (!end || distance(end, away) > T / 2) foe.path = [away];
     }
   } else {
     // Walk up beside the hero, as near as it likes to be, without pushing past one already closer.
     const crowded = here.some(
-      (o) => o !== foe && alive(o) && distance(o.at, hero) < d && distance(o.at, foe.at) < 12,
+      (o) => o !== foe && alive(o) && distance(o.at, hero) < d && distance(o.at, foe.at) < far(12),
     );
     if (arrived(foe.at, hero, kind.keep) || crowded) {
       foe.path = [];
     } else {
       const slot = kind.keep > BESIDE_MOST ? hero : besideOf(map, foe.at, hero, kind.keep);
       const end = foe.path.at(-1);
-      if (!end || distance(end, slot) > TILE / 2) foe.path = walkPath(map, foe.at, slot);
+      if (!end || distance(end, slot) > T / 2) foe.path = walkPath(map, foe.at, slot);
     }
   }
   if (d <= kind.reach) {
@@ -1091,9 +1089,9 @@ function act(
   return false;
 }
 
-/** Somewhere `far` further from `from`, straight away from it or as near that as the room allows. */
-function backOff(map: TileMap, at: Point, from: Point, far: number): Point | null {
-  const length = Math.max(TILE, Math.min(64, far));
+/** Somewhere `by` further from `from`, straight away from it or as near that as the room allows. */
+function backOff(map: TileMap, at: Point, from: Point, by: number): Point | null {
+  const length = Math.max(T, Math.min(far(64), by));
   const away = Math.atan2(at.y - from.y, at.x - from.x);
   for (const turn of [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2]) {
     for (const k of [1, 0.6]) {
@@ -1123,7 +1121,7 @@ function fly(w: Work, place: Place, foe: Writable<Foe>, map: TileMap, hero: Poin
   }
   if (foe.flight!.mode === 'in') {
     const to = besideOf(map, foe.at, hero, foeKind(foe.monster).keep);
-    if (foe.path.length === 0 && distance(foe.at, to) <= 2) {
+    if (foe.path.length === 0 && distance(foe.at, to) <= far(2)) {
       foe.flight = { ...foe.flight!, mode: 'down', until: w.clock + flies.downMs };
       foe.engaged = false;
       return false;
@@ -1227,10 +1225,10 @@ export function floorBounds(g: Ground): {
     g.tiles.forEach((line, row) =>
       line.forEach((t, col) => {
         if (t === 'rock' || t === 'door' || t === 'prop' || t === 'bars') return;
-        left = Math.min(left, col * TILE + TILE / 2);
-        right = Math.max(right, col * TILE + TILE / 2);
-        top = Math.min(top, row * TILE);
-        bottom = Math.max(bottom, row * TILE + TILE);
+        left = Math.min(left, col * T + T / 2);
+        right = Math.max(right, col * T + T / 2);
+        top = Math.min(top, row * T);
+        bottom = Math.max(bottom, row * T + T);
       }),
     );
     made = { left, right, top, bottom };
@@ -1240,7 +1238,7 @@ export function floorBounds(g: Ground): {
 }
 
 /** Someone keeping `keep` from another stands beside them this far off, level with their feet. */
-const BESIDE_MOST = 40;
+const BESIDE_MOST = far(40);
 
 /**
  * Where to stand to fight someone at `other`, coming from `from`: beside
@@ -1252,7 +1250,7 @@ export function besideOf(map: TileMap, from: Point, other: Point, gap: number): 
   const side = from.x < other.x ? -1 : 1;
   for (const s of [side, -side]) {
     const p = { x: other.x + s * gap, y: other.y };
-    if (!isSolid(map, cellAt(p)) && clearLine(map, other, p)) return p;
+    if (!isSolid(map, cellAt(p, T)) && clearLine(map, other, p)) return p;
   }
   return other;
 }
@@ -1262,7 +1260,7 @@ export function arrived(at: Point, other: Point, keep: number): boolean {
   if (keep > BESIDE_MOST) return distance(at, other) <= keep;
   const dx = Math.abs(at.x - other.x);
   const dy = Math.abs(at.y - other.y);
-  return (dy <= 6 && dx <= keep + 3) || distance(at, other) <= keep * 0.6;
+  return (dy <= far(6) && dx <= keep + far(3)) || distance(at, other) <= keep * 0.6;
 }
 
 /** Where the hero walks to strike his target: beside it for a blade; straight at it for a bow. */
@@ -1295,6 +1293,7 @@ function moveHero(w: Work, play: Play, ms: number): Play {
 const NO_SCENE = {
   map: { cols: 0, rows: 0, tiles: [], kinds: {} } as TileMap,
   things: [],
+  speed: far(WALK_SPEED),
 };
 
 function moveFoes(w: Work, place: Place, ms: number): void {

@@ -5,9 +5,16 @@ import { CONTENT } from '../../src/data';
 import { cameraFor } from '../../src/scene/camera';
 import { SCENE_BUTTONS } from '../../src/scene/stage';
 import { centreOf, type Point } from '../../src/scene/tileMap';
-import { BOAT_LANDING2, TOWN2_START_CELL, TOWNSFOLK2_AT, town2Scene } from '../../src/scene/town2';
+import {
+  BOAT_LANDING2,
+  STANDING2,
+  STROLLERS2,
+  TOWN2_START_CELL,
+  TOWNSFOLK2_AT,
+  town2Scene,
+} from '../../src/scene/town2';
 import { STEPS, town2Facts, type TownAnswer, type TownRequest } from '../../src/scene/town2Facts';
-import { FOCUS_RISE2, hero2Now } from '../../src/scene/town2Place';
+import { FOCUS_RISE2, hero2Now, strollersAt } from '../../src/scene/town2Place';
 import { heroAt, heroNow, resetTown, town2ArtNow, townView } from '../../src/scene/townView';
 import type { Shell, View } from '../../src/ui/view';
 
@@ -102,11 +109,18 @@ function wait(view: View, ms: number): void {
 
 const thing = (id: string) => town2Scene().things.find((t) => t.id === id)!;
 
+/** Where to tap a thing, or someone strolling where they are now. */
+function middleOf(id: string): Point {
+  const box = thing(id).tap;
+  if (box) return { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+  const feet = strollersAt()[STROLLERS2.findIndex((p) => p.id === id)]!;
+  return { x: feet.x, y: feet.y - 30 };
+}
+
 /** Walks up to a thing by its name, from wherever the hero is, in hops a screen long. */
 function walkUpTo(view: View, id: string): HTMLElement | null {
-  const box = thing(id).tap!;
-  const target = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
   for (let hop = 0; hop < 12; hop++) {
+    const target = middleOf(id);
     const hero = heroAt();
     const dx = target.x - hero.x;
     const dy = target.y - hero.y;
@@ -248,6 +262,30 @@ describe('the Town tab', () => {
     expect(heard.size).toBe(4);
   });
 
+  it('stops someone strolling when they are tapped, and they wait for the hero to talk', () => {
+    const view = shown();
+    const i = STROLLERS2.findIndex((p) => p.id === 'elder');
+    // Wait until the old man is on his way somewhere.
+    let before = strollersAt()[i]!;
+    for (let k = 0; k < 400; k++) {
+      wait(view, 100);
+      const now = strollersAt()[i]!;
+      const moving = now.x !== before.x || now.y !== before.y;
+      before = now;
+      if (moving) break;
+    }
+    tap(view, middleOf('elder'));
+    const stopped = strollersAt()[i]!;
+    expect(heroAt().walking).toBe(true);
+    wait(view, 6000);
+    expect(strollersAt()[i]).toEqual(stopped);
+    expect(view.el.querySelector('.scene-panel h2')!.textContent).toBe(STROLLERS2[i]!.use.name);
+    // Closed, he goes on his way.
+    view.el.querySelector<HTMLButtonElement>('.scene-panel-close')!.click();
+    wait(view, 3000);
+    expect(strollersAt()[i]).not.toEqual(stopped);
+  });
+
   it('follows the clock for day and dusk, and its button flips it for the session', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 9, 4, 12, 0));
@@ -347,7 +385,7 @@ describe('the town coming into view', () => {
           foam: { x: 0, y: 0, image: bitmap() },
           smoke: facts.smoke.map(() => [bitmap(), bitmap()]),
           gull: { right: bitmap(), left: bitmap() },
-          folk: TOWNSFOLK2_AT.map(() => ({ right: bitmap(), left: bitmap() })),
+          folk: STANDING2.map(() => [0, 1].map(() => ({ right: bitmap(), left: bitmap() }))),
           cells: new Int16Array(TOWN2_W * TOWN2_H),
         },
       });
@@ -371,7 +409,7 @@ describe('the town coming into view', () => {
     expect(card(view)).not.toBeNull();
     expect(card(view)!.getAttribute('role')).toBe('status');
     expect(card(view)!.textContent).toMatch(/Gullwick/);
-    expect(view.el.querySelector('canvas')).toBeNull();
+    expect(view.el.querySelector('canvas.scene-canvas')).toBeNull();
     const worker = FakeWorker.made[0]!;
     expect(worker.asked).toEqual({ time: expect.any(String), facts: true });
     expect(fill(view)).toBe('scaleX(0)');
@@ -380,7 +418,7 @@ describe('the town coming into view', () => {
     worker.answer({ kind: 'facts', facts: town2Facts() });
     worker.answer({ kind: 'step', step: 2 });
     wait(view, 50);
-    expect(view.el.querySelector('canvas')).not.toBeNull();
+    expect(view.el.querySelector('canvas.scene-canvas')).not.toBeNull();
     expect(card(view)).not.toBeNull();
     expect(fill(view)).toBe(`scaleX(${Math.round(((2 + 1) / (STEPS + 1)) * 4) / 4})`);
 

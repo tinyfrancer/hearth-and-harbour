@@ -64,6 +64,12 @@ export interface Thing {
   readonly tap?: Box;
   /** Where a person stands to use it. Without them, any open tile beside its footprint. */
   readonly spots?: readonly Cell[];
+  /**
+   * Where exactly to stand on each of `spots`, in art pixels, where that is
+   * not the tile's middle: someone is talked to from far enough off that the
+   * two do not overlap. One for each spot, in the same order.
+   */
+  readonly stand?: readonly Point[];
   readonly use?: Use;
   /**
    * Walking up to this opens another thing's panel instead: a stall's counter

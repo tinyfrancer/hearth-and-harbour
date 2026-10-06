@@ -11,6 +11,7 @@ import { dungeonView } from './dungeonView';
 import { GROTTO } from './grotto';
 import { Hero, dressOf } from './hero';
 import { closePanel, startPlay, type Play } from './play';
+import { loadingScene } from './loadingScene';
 import { stage } from './stage';
 import type { Cell } from './tileMap';
 import { BOAT_LANDING2 } from './town2';
@@ -78,28 +79,13 @@ if (typeof Worker === 'function' && typeof window !== 'undefined')
   setTimeout(() => prepareTown(now()), 0);
 
 /**
- * What shows while the town is still coming: its name, a line, and a bar of
- * the work's real steps, in the scene's own frame. Never a dark empty scene.
+ * What shows while the town is still coming: a little harbour scene with the
+ * boat pulling in as the work's real steps are done, the town's name, a line
+ * and a bar (`loadingScene.ts`). Never a dark empty scene.
  */
 function loadingCard(): { el: HTMLElement; update(): void } {
-  const fill = h('span', { class: 'scene-loading-fill' });
-  const el = h('div', { class: 'scene-loading', attrs: { role: 'status' } }, [
-    h('div', { class: 'scene-loading-card' }, [
-      h('h2', { text: 'Gullwick' }),
-      h('p', { text: 'The tide is bringing the town in.' }),
-      h('span', { class: 'scene-loading-bar', attrs: { 'aria-hidden': 'true' } }, [fill]),
-    ]),
-  ]);
-  let shown = -1;
-  const update = (): void => {
-    // In whole quarters, as steps of a pixel bar rather than a smooth slide.
-    const k = Math.round(townProgress() * 4) / 4;
-    if (k === shown) return;
-    shown = k;
-    fill.style.transform = `scaleX(${k})`;
-  };
-  update();
-  return { el, update };
+  const card = loadingScene(now());
+  return { el: card.el, update: () => card.update(townProgress(), performance.now()) };
 }
 
 /**

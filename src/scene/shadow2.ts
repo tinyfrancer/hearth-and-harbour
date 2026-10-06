@@ -12,7 +12,8 @@
  * the light is lower and the penumbra reaches further, as the art lane's
  * ground shadows lengthen.
  */
-import { darker } from '../art/town2/cells';
+import { darker, matOf, stepOf } from '../art/town2/cells';
+import type { Mat } from '../art/town2/ramps';
 import type { TimeOfDay } from './daylight';
 import type { Box } from './things';
 import type { Point } from './tileMap';
@@ -45,6 +46,29 @@ const inside = (o: Oval, x: number, y: number): boolean => {
   const b = (y + 0.5 - o.cy) / o.ry;
   return a * a + b * b <= 1;
 };
+
+/**
+ * Grounds too busy for a shadow of a step or two to read: the cobbles, whose
+ * ramp is the town's palest and narrowest and whose every stone is already
+ * shaded from a lit top to a dark joint, and the flagstones, the well's
+ * paving and the quay (stone), laid in joints the same way. Two steps down
+ * there vanished among the joints, which are as dark. So on these the shadow
+ * goes a step further and is also never lighter than a floor: the core at
+ * least the ground's step 5, the penumbra its step 4. Inside it the stones'
+ * light tops go, and it reads as one dark shape under the feet, still in the
+ * ground's own colours. Grass, sand, the road and the boards keep one and
+ * two steps, where those already read.
+ */
+const BUSY: ReadonlySet<Mat> = new Set<Mat>(['cobble', 'stone']);
+const BUSY_FLOOR: Readonly<Record<1 | 2, number>> = { 1: 4, 2: 5 };
+
+/** A shadow's darkening on the cell `c`: its own steps, and more on busy ground. */
+function shade(c: number, n: 1 | 2): number {
+  if (!BUSY.has(matOf(c) as Mat)) return darker(c, n);
+  const dark = darker(c, n + 1);
+  // A step 6 (a line) stays as it is; anything else at least the floor.
+  return (dark & ~7) | Math.max(stepOf(dark), BUSY_FLOOR[n]);
+}
 
 const made = new Map<TimeOfDay, readonly ShadowPixel[]>();
 
@@ -94,7 +118,7 @@ export function layShadow(cells: Cells, feet: Point, time: TimeOfDay): void {
     const y = fy + p.dy;
     if (x < 0 || y < 0 || x >= cells.w || y >= cells.h) continue;
     const i = y * cells.w + x;
-    cells.d[i] = darker(cells.d[i]!, p.n);
+    cells.d[i] = shade(cells.d[i]!, p.n);
   }
 }
 
@@ -113,6 +137,6 @@ export function shadowCells(ground: Cells, feet: Point, time: TimeOfDay, out: Ce
     const x = fx + p.dx;
     const y = fy + p.dy;
     if (x < 0 || y < 0 || x >= ground.w || y >= ground.h) continue;
-    out.d[(p.dy - box.y) * out.w + (p.dx - box.x)] = darker(ground.d[y * ground.w + x]!, p.n);
+    out.d[(p.dy - box.y) * out.w + (p.dx - box.x)] = shade(ground.d[y * ground.w + x]!, p.n);
   }
 }
