@@ -36,6 +36,7 @@ import { PROP_IDS } from './grottoProps';
 import { grottoCastPlate, grottoPropsPlate, grottoRoomPlate, grottoTilesPlate } from './grottoRoom';
 import { figure2Gallery } from './figure2/gallery';
 import { town2Gallery } from './town2/gallery2';
+import { dungeon2Gallery } from './dungeon2/gallery';
 
 /** Space between pictures in a row, in CSS pixels (kept whole so pixels stay on the grid). */
 const GAP = 8;
@@ -181,6 +182,8 @@ export function artGallery(): HTMLElement {
     figures2.section.scrollIntoView({ block: 'start' });
   });
   page.append(jumpFigures);
+  const dungeon2 = dungeon2Gallery(); // The dungeon at the C scale (B10a), likewise.
+  page.append(dungeon2.button);
 
   // The grotto first: the newest art, judged where it will be seen, at dusk.
   const room = grottoRoomPlate();
@@ -341,6 +344,7 @@ export function artGallery(): HTMLElement {
     ),
     town2.section,
     figures2.section,
+    dungeon2.section,
   );
 
   const folk = townsfolkPlate();
