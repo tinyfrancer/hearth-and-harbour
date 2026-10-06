@@ -5,7 +5,7 @@
  * canvas.
  */
 import { approach, footprintCentreX, panelFor, thingAt, usable, type Scene } from './things';
-import { cellAt, centreOf, type Cell, type Point } from './tileMap';
+import { cellAt, centreOf, tileOf, type Cell, type Point } from './tileMap';
 import { step, walkTo, type Walker } from './walker';
 
 export type Facing = 'left' | 'right';
@@ -75,8 +75,8 @@ export const NOTICE = 40;
  * (`right`) unless the walker is near and off to their left, when they turn
  * to look at him. A walker straight in front of them is looked at as drawn.
  */
-export function turnedTo(at: Point, walker: Point): Facing {
-  if (Math.abs(walker.x - at.x) > NOTICE || Math.abs(walker.y - at.y) > NOTICE) return 'right';
+export function turnedTo(at: Point, walker: Point, notice = NOTICE): Facing {
+  if (Math.abs(walker.x - at.x) > notice || Math.abs(walker.y - at.y) > notice) return 'right';
   return walker.x < at.x - 2 ? 'left' : 'right';
 }
 
@@ -84,9 +84,9 @@ export function turnedTo(at: Point, walker: Point): Facing {
 export const STRIDE = 6;
 
 /** How far a walker is lifted off the ground mid-stride: one pixel every other half-step, while walking. */
-export function bob(play: Play): number {
+export function bob(play: Play, stride = STRIDE): number {
   if (play.walker.path.length === 0) return 0;
-  return Math.floor(play.walked / STRIDE) % 2;
+  return Math.floor(play.walked / stride) % 2;
 }
 
 /**
@@ -111,7 +111,11 @@ export function tapAt(scene: Scene, play: Play, point: Point, min = 0): Play {
       };
     return {
       ...play,
-      walker: walkTo(scene.map, { at: play.walker.at, path: [] }, centreOf(spot)),
+      walker: walkTo(
+        scene.map,
+        { at: play.walker.at, path: [] },
+        centreOf(spot, tileOf(scene.map)),
+      ),
       heading: thing.id,
       open: null,
     };
@@ -121,7 +125,7 @@ export function tapAt(scene: Scene, play: Play, point: Point, min = 0): Play {
 
 /** Time passing: the walker walks, turns the way they go, and opens what they were heading for. */
 export function advancePlay(scene: Scene, play: Play, ms: number): Play {
-  const moved = step(play.walker, ms);
+  const moved = step(play.walker, ms, scene.speed);
   let { facing, walked } = play;
   if (moved !== play.walker) {
     facing = facingAfter(facing, play.walker.at, moved.at);
@@ -129,7 +133,7 @@ export function advancePlay(scene: Scene, play: Play, ms: number): Play {
   }
   if (play.heading && moved.path.length === 0) {
     const thing = scene.things.find((t) => t.id === play.heading);
-    if (thing) facing = facingToward(facing, moved.at, footprintCentreX(thing));
+    if (thing) facing = facingToward(facing, moved.at, footprintCentreX(thing, tileOf(scene.map)));
     const id = thing ? panelFor(thing) : play.heading;
     return { ...play, walker: moved, facing, walked, heading: null, ...opened(play, id) };
   }
@@ -163,7 +167,7 @@ export function steer(
   point: Point,
   aimed: Cell | null,
 ): { play: Play; aimed: Cell } {
-  const cell = cellAt(point);
+  const cell = cellAt(point, tileOf(scene.map));
   if (aimed && aimed.col === cell.col && aimed.row === cell.row) return { play, aimed };
   return {
     play: { ...play, walker: walkTo(scene.map, play.walker, point), heading: null, open: null },

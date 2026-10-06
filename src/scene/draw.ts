@@ -175,7 +175,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame, patch: Bo
     ctx.fillRect(patch.x, patch.y, patch.w, patch.h);
   }
   if (x1 > x0 && y1 > y0) ctx.drawImage(still, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
-  for (const p of frame.underfoot) if (overlaps(boxOf(p), patch)) ctx.drawImage(p.image, p.x, p.y);
+  for (const p of frame.underfoot) within(ctx, p, patch);
   if (frame.target && overlaps(markerBox(frame.target), patch))
     drawTarget(ctx, frame.target, frame.marker);
   frame.ground?.(ctx);
@@ -185,12 +185,55 @@ export function drawFrame(ctx: CanvasRenderingContext2D, frame: Frame, patch: Bo
     ctx.beginPath();
     for (const b of boxes) ctx.rect(b.x, b.y, b.w, b.h);
     ctx.clip();
-    for (const s of list) ctx.drawImage(s.image, s.x, s.y);
+    const around = within2(bounds(boxes), patch);
+    for (const s of list) within(ctx, s, around);
     ctx.restore();
   }
-  for (const p of frame.above) if (overlaps(boxOf(p), patch)) ctx.drawImage(p.image, p.x, p.y);
+  for (const p of frame.above) within(ctx, p, patch);
   frame.over?.(ctx);
   ctx.restore();
+}
+
+/** The smallest box holding every one of `boxes`. */
+function bounds(boxes: readonly Box[]): Box {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const b of boxes) {
+    x0 = Math.min(x0, b.x);
+    y0 = Math.min(y0, b.y);
+    x1 = Math.max(x1, b.x + b.w);
+    y1 = Math.max(y1, b.y + b.h);
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** Where two boxes overlap (empty, with no width, where they do not). */
+function within2(a: Box, b: Box): Box {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  return {
+    x,
+    y,
+    w: Math.max(0, Math.min(a.x + a.w, b.x + b.w) - x),
+    h: Math.max(0, Math.min(a.y + a.h, b.y + b.h) - y),
+  };
+}
+
+/**
+ * Copies only the part of a placed image inside `clip`. The pixels are the
+ * same as copying it whole under a clip (whole art pixels, no smoothing), but
+ * a big picture (a building, the shore's foam) redrawn for a figure in front
+ * of it costs its overlap with the figure, not its whole size at the scale.
+ */
+function within(ctx: CanvasRenderingContext2D, p: Placed, clip: Box): void {
+  const x0 = Math.max(p.x, clip.x);
+  const y0 = Math.max(p.y, clip.y);
+  const x1 = Math.min(p.x + p.image.width, clip.x + clip.w);
+  const y1 = Math.min(p.y + p.image.height, clip.y + clip.h);
+  if (x1 <= x0 || y1 <= y0) return;
+  ctx.drawImage(p.image, x0 - p.x, y0 - p.y, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
 }
 
 /** A small cross on the ground where the walk ends. */

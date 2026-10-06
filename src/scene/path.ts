@@ -9,6 +9,7 @@ import {
   centreOf,
   inMap,
   isSolid,
+  tileOf,
   type Cell,
   type Point,
   type TileMap,
@@ -20,6 +21,11 @@ import {
  * straightened route from shaving the corner of a wall.
  */
 export const FOOT_HALF = 4;
+
+/** The half-width of a walker's feet on this map: `FOOT_HALF` on 16-pixel tiles, in proportion on others. */
+export function footHalf(map: TileMap): number {
+  return (FOOT_HALF * tileOf(map)) / TILE;
+}
 
 const DIAGONAL = Math.SQRT2;
 const STEPS: readonly { dc: number; dr: number; cost: number }[] = [
@@ -131,7 +137,7 @@ function nearestIn(map: TileMap, reach: Reach, target: Cell): Cell | null {
  * earlier in the list breaks a tie), or null if it can reach none of them.
  */
 export function cheapest(map: TileMap, from: Point, cells: readonly Cell[]): Cell | null {
-  const reach = reachFrom(map, cellAt(from));
+  const reach = reachFrom(map, cellAt(from, tileOf(map)));
   let best: Cell | null = null;
   let bestCost = Infinity;
   for (const cell of cells) {
@@ -149,16 +155,17 @@ export function cheapest(map: TileMap, from: Point, cells: readonly Cell[]): Cel
 const LINE_STEP = 2;
 
 /** Whether a walker's feet can go from `a` to `b` in a straight line without touching a solid tile. */
-export function clearLine(map: TileMap, a: Point, b: Point, half = FOOT_HALF): boolean {
+export function clearLine(map: TileMap, a: Point, b: Point, half = footHalf(map)): boolean {
+  const tile = tileOf(map);
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / LINE_STEP));
   for (let i = 0; i <= steps; i++) {
     const x = a.x + ((b.x - a.x) * i) / steps;
     const y = a.y + ((b.y - a.y) * i) / steps;
     // A box that only touches a tile's edge is not in it.
-    const left = Math.floor((x - half) / TILE);
-    const right = Math.ceil((x + half) / TILE) - 1;
-    const top = Math.floor((y - half) / TILE);
-    const bottom = Math.ceil((y + half) / TILE) - 1;
+    const left = Math.floor((x - half) / tile);
+    const right = Math.ceil((x + half) / tile) - 1;
+    const top = Math.floor((y - half) / tile);
+    const bottom = Math.ceil((y + half) / tile) - 1;
     for (let row = top; row <= bottom; row++) {
       for (let col = left; col <= right; col++) {
         if (isSolid(map, { col, row })) return false;
@@ -175,16 +182,20 @@ export function clearLine(map: TileMap, a: Point, b: Point, half = FOOT_HALF): b
  * the walk goes across open ground rather than in steps along the grid.
  */
 export function route(map: TileMap, from: Point, to: Point): Point[] {
-  const start = cellAt(from);
+  const tile = tileOf(map);
+  const start = cellAt(from, tile);
   const reach = reachFrom(map, start);
-  const target = cellAt({
-    x: Math.min(Math.max(to.x, 0), map.cols * TILE - 1),
-    y: Math.min(Math.max(to.y, 0), map.rows * TILE - 1),
-  });
+  const target = cellAt(
+    {
+      x: Math.min(Math.max(to.x, 0), map.cols * tile - 1),
+      y: Math.min(Math.max(to.y, 0), map.rows * tile - 1),
+    },
+    tile,
+  );
   const goal = nearestIn(map, reach, target);
   const cells = goal && pathIn(map, reach, goal);
   if (!cells) return [];
-  const points = cells.map(centreOf);
+  const points = cells.map((cell) => centreOf(cell, tile));
   const legs: Point[] = [];
   let at = from;
   for (let i = 0; i < points.length;) {

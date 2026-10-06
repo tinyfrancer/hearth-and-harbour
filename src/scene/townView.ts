@@ -11,9 +11,12 @@ import { dungeonView } from './dungeonView';
 import { GROTTO } from './grotto';
 import { Hero, dressOf } from './hero';
 import { closePanel, startPlay, type Play } from './play';
-import { stage } from './stage';
+import { stage, type StageArt } from './stage';
 import { TOWN_START, town } from './town';
-import { centreOf, type Cell } from './tileMap';
+import { centreOf, type Cell, type Point } from './tileMap';
+import { previewTown2 } from './preview';
+import type * as Town2Place from './town2Place';
+import type { Town2Art } from './town2Art';
 
 /**
  * Where the hero was and what was open when the Town tab was last on screen.
@@ -21,7 +24,29 @@ import { centreOf, type Cell } from './tileMap';
  * coming back to the tab should find things as they were left. It lasts as
  * long as the page does; a position in town is not part of the save.
  */
-let play: Play = startPlay(centreOf(TOWN_START));
+let play: Play | null = null;
+
+/**
+ * The C-scale town, loaded only when the preview is on (`town2Place.ts`):
+ * null until then, so the current town's players never download it.
+ */
+let town2: typeof Town2Place | null = null;
+let loading: Promise<void> | null = null;
+
+/** Loads the C-scale town's code. The Town tab starts it itself; tests wait for it. */
+export function loadTown2(): Promise<void> {
+  loading ??= import('./town2Place').then((m) => {
+    town2 = m;
+  });
+  return loading;
+}
+
+/** Where the hero first stands in the town this page shows. */
+const startOfTown = (): Point => (previewTown2() && town2 ? town2.START2 : centreOf(TOWN_START));
+
+/** Where the boat lands him back from a dungeon, in the town this page shows. */
+const landingOfTown = (): Point =>
+  previewTown2() && town2 ? town2.LANDING2 : centreOf(BOAT_LANDING);
 
 /** Day or dusk chosen with the sun-and-moon button, for this session; null follows the clock. */
 let chosen: TimeOfDay | null = null;
@@ -61,12 +86,16 @@ const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
  * touching the shell.
  */
 export function townView(state: GameState, content: Content, shell?: Shell): View {
-  const { scene, art } = town();
+  const two = previewTown2();
+  if (two) void loadTown2();
   /** The state as of the last frame: what a run starts from. */
   let latest = state;
-  hero ??= new Hero(dressOf(state), art.lights);
+  // The dungeons draw the hero at the current scale whichever town is shown; only the current town lights him.
+  hero ??= new Hero(dressOf(state), two ? [] : town().art.lights);
   hero.wear(state);
   const me = hero;
+  /** Waiting for the C-scale town's code: the tab is shown, empty, until it comes. */
+  let waiting = two && !town2;
 
   const host = h('div', { class: 'scene-host' });
   let current: View;
@@ -81,14 +110,30 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     asked.paused = paused;
   };
 
-  const showTown = (): void => {
-    current = stage({
+  /** The town this page shows, and how it is drawn. */
+  const place = (): {
+    scene: ReturnType<typeof town>['scene'];
+    art: StageArt;
+    scaleOf?: (device: { width: number; height: number }) => number;
+    focusRise?: number;
+  } => {
+    if (two && town2) {
+      town2.wear2(latest);
+      return town2.town2Stage();
+    }
+    const { scene, art } = town();
+    return {
       scene,
-      art: {
-        ...art,
-        walkerAt: (feet, facing, palette) => me.at(feet, facing, palette.lightsOn),
-      },
-      play,
+      art: { ...art, walkerAt: (feet, facing, palette) => me.at(feet, facing, palette.lightsOn) },
+    };
+  };
+
+  const showTown = (): void => {
+    play ??= startPlay(startOfTown());
+    const shown = place();
+    current = stage({
+      ...shown,
+      play: play!,
       keep: (next) => {
         play = next;
       },
@@ -100,7 +145,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       },
       press: (opens) => {
         // Coming back to town should not find the panel still open over the square.
-        play = closePanel(play);
+        play = closePanel(shownPlay());
         if ('tab' in opens) shell?.openTab(opens.tab);
         else if ('skill' in opens) shell?.openSkill(opens.skill);
         else enter(opens.dungeon);
@@ -167,8 +212,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     tell(false, false);
     run = null;
     play = {
-      ...play,
-      walker: { at: centreOf(BOAT_LANDING), path: [] },
+      ...play!,
+      walker: { at: landingOfTown(), path: [] },
       facing: 'left',
       heading: null,
       open: null,
@@ -178,6 +223,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 
   const inRun = run && dungeons(run.dungeon);
   if (inRun) showDungeon(inRun);
+  else if (waiting) current = { el: h('div', { class: 'scene' }) };
   else showTown();
 
   let first = true;
@@ -197,6 +243,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         }
         latest = next;
         me.wear(next);
+        if (waiting && town2) {
+          waiting = false;
+          if (!run) showTown();
+        }
+        if (two) town2?.wear2(next);
         current.update?.(next);
       } finally {
         busy = false;
@@ -207,9 +258,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 
 /** Puts the hero back at the start with nothing open, no run, and the clock in charge. For tests. */
 export function resetTown(): void {
-  play = startPlay(centreOf(TOWN_START));
+  play = null;
   chosen = null;
   hero = null;
+  town2?.forget2();
   run = null;
   settled = false;
   asked.paused = false;
@@ -218,12 +270,23 @@ export function resetTown(): void {
 
 /** Where the hero is, whether he is on his way somewhere, and what is open. For tests. */
 export function heroAt(): { x: number; y: number; walking: boolean; open: string | null } {
+  const play = shownPlay();
   return {
     x: play.walker.at.x,
     y: play.walker.at.y,
     walking: play.walker.path.length > 0 || play.heading !== null,
     open: play.open,
   };
+}
+
+/** Where things stand in town: as left, or the start before the tab has been shown. */
+function shownPlay(): Play {
+  return play ?? startPlay(startOfTown());
+}
+
+/** The C-scale town's look while the preview shows it. For tests and the frame-rate check. */
+export function town2ArtNow(): Town2Art | null {
+  return town2?.art2Now() ?? null;
 }
 
 /** The dungeon run under way, if any. For tests and screenshot scripts. */

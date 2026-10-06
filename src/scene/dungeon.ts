@@ -147,7 +147,7 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
     const starts = cellsOf(rows, 's');
     const ends = cellsOf(rows, 'x');
     if (starts.length > 1 || ends.length > 1) throw new Error(`Room ${id} has two starts or ends.`);
-    const perches = (plan.perches?.[id] ?? []).map(centreOf);
+    const perches = (plan.perches?.[id] ?? []).map((c) => centreOf(c));
     const foes = plan.foes?.[id] ?? [];
     for (const foe of foes) {
       if (foeKind(foe.monster).flies) {
@@ -170,7 +170,7 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
       end: ends[0] ?? null,
       foes,
       perches,
-      spawns: (plan.spawns?.[id] ?? []).map(centreOf),
+      spawns: (plan.spawns?.[id] ?? []).map((c) => centreOf(c)),
       title: plan.titles?.[id] ?? null,
     };
   }
