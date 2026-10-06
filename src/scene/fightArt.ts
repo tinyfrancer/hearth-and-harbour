@@ -108,7 +108,7 @@ const WORDS = "'Pixelify Sans', ui-monospace, monospace";
 
 /** A colour of the cave's dusk, by the town's materials. */
 const tone = (m: Mat, step: number): string => CAVE_DUSK.colours[m][step]!;
-const C = {
+export const FIGHT_COLOURS = {
   ink: tone('shade', 2),
   shade: tone('shade', 0),
   red: tone('crimson', 2),
@@ -131,6 +131,7 @@ const C = {
   hurt: tone('crimson', 1),
   heal: tone('grass', 0),
 } as const;
+const C = FIGHT_COLOURS;
 
 /* ----- Who stands how ----- */
 

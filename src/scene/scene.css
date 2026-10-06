@@ -29,6 +29,19 @@
 }
 
 /*
+ * A scene's words and thin lines, over its canvas at the screen's own
+ * resolution (a dungeon fight's numbers and health bars): exactly over the
+ * canvas, taking no taps, and never enlarged.
+ */
+.scene-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+}
+
+/*
  * The sun-and-moon button: flips day and dusk for the session. Its icon is
  * drawn in 4px squares (one pixel each), from the menu colours.
  */

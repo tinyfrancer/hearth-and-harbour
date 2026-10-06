@@ -239,15 +239,15 @@ function overlays(room: Room, g: TGrid, level: number, warn: boolean): void {
       if (height < 0) continue;
       const x0 = col * T;
       const y0 = row * T;
-      if (ground.stone && height === 0) {
-        // The grating the sea comes up through: iron bars over the stone, each with its shadow.
+      const all = { level, shut: false, released: 0 };
+      if (ground.stone && height === 0 && tileAt(ground, col, row, all) === 'sand') {
+        // The grating the sea comes up through, while it is dry: iron bars over the stone, each with its shadow.
         for (let i = 2; i < T; i += 6)
           for (let j = 0; j < T; j++) {
             g.d[(y0 + j) * g.w + x0 + i] = cell('iron', 3);
             g.d[(y0 + j) * g.w + x0 + i + 1] = darker(at(g, x0 + i + 1, y0 + j), 3);
           }
       }
-      const all = { level, shut: false, released: 0 };
       const covering =
         warn &&
         ((ground.stone &&

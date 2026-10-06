@@ -29,7 +29,15 @@ import {
   type Facing,
   type Play,
 } from './play';
-import { canvasFit, cssToArt, pixelFit, sceneScale, tapToWorld, viewSize } from './scale';
+import {
+  canvasFit,
+  cssToArt,
+  overlayFit,
+  pixelFit,
+  sceneScale,
+  tapToWorld,
+  viewSize,
+} from './scale';
 import { footprintCentreX, thingAt, usable, type Box, type Opens, type Scene } from './things';
 import { cellAt, mapSize, tileOf, type Cell, type Point } from './tileMap';
 
@@ -756,11 +764,10 @@ export function stage(options: StageOptions): View {
     cam: Point,
     scale: number,
   ): void => {
-    const w = Math.round(css.width * (window.devicePixelRatio || 1));
-    const hgt = Math.round(css.height * (window.devicePixelRatio || 1));
-    if (over.width !== w || over.height !== hgt) {
-      over.width = w;
-      over.height = hgt;
+    const fitted = overlayFit(css, window.devicePixelRatio || 1, device, scale);
+    if (over.width !== fitted.width || over.height !== fitted.height) {
+      over.width = fitted.width;
+      over.height = fitted.height;
       overlaid = true;
     }
     if (!extra?.overlay && !overlaid) return;
@@ -770,12 +777,10 @@ export function stage(options: StageOptions): View {
     topCtx.clearRect(0, 0, over.width, over.height);
     overlaid = false;
     if (!extra?.overlay) return;
-    // Device pixels per art pixel on this canvas, whatever the scene's own canvas holds.
-    const k = w / Math.max(1, css.width);
-    const per = (scale * w) / Math.max(1, device.width);
+    const per = fitted.perArt;
     topCtx.setTransform(per, 0, 0, per, -cam.x * per, -cam.y * per);
     topCtx.imageSmoothingEnabled = false;
-    extra.overlay(topCtx, k / per);
+    extra.overlay(topCtx, fitted.k);
     overlaid = true;
   };
 

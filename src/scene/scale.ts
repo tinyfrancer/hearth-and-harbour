@@ -166,3 +166,23 @@ export function tapToWorld(
 export function dungeonScale(device: Size, width = SCENE_WIDTH): number {
   return Math.max(1, Math.floor(Math.min(device.width, device.height) / width));
 }
+
+/**
+ * A scene's overlay for words and thin lines (`StageOptions.overlay`): as
+ * big on the page as the scene's canvas, `css`, and a device pixel per pixel
+ * whatever the scene's own canvas holds (`device` covered at `scale` device
+ * pixels an art pixel). `perArt` is how many of its pixels an art pixel
+ * takes, so drawing in art pixels lands on the scene's own; `k` is how many
+ * art pixels a CSS pixel is, for sizes given in CSS pixels.
+ */
+export function overlayFit(
+  css: Size,
+  dpr: number,
+  device: Size,
+  scale: number,
+): { width: number; height: number; perArt: number; k: number } {
+  const width = Math.round(css.width * dpr);
+  const height = Math.round(css.height * dpr);
+  const perArt = (scale * width) / Math.max(1, device.width);
+  return { width, height, perArt, k: width / Math.max(1, css.width) / perArt };
+}
