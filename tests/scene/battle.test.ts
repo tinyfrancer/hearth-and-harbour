@@ -54,6 +54,7 @@ import { GROTTO_CAST } from '../../src/scene/cast';
 import { FOE_KINDS } from '../../src/scene/foes';
 import { GROTTO } from '../../src/scene/grotto';
 import { startPlay, type Play } from '../../src/scene/play';
+import { DUNGEON, far } from '../../src/scene/dungeonMetrics';
 import { centreOf, isSolid, type Point } from '../../src/scene/tileMap';
 import { WALK_SPEED } from '../../src/scene/walker';
 
@@ -94,7 +95,10 @@ const melee = (over: Partial<Fighter> = {}): Fighter => ({
 const archer = (over: Partial<Fighter> = {}): Fighter =>
   melee({ style: 'ranged', skill: RANGED, arrows: 50, ...over });
 
-const P = (x: number, y: number): Point => ({ x, y });
+/** A place in the rooms here, given in first-scale pixels (as these tests were written) at the dungeons' scale. */
+const P = (x: number, y: number): Point => ({ x: far(x), y: far(y) });
+/** A tile's side in the dungeons. */
+const T = DUNGEON.tile;
 
 function battle(fighter: Fighter, foes: [string, Point][], seed = 7): Battle {
   return startBattle(
@@ -157,7 +161,7 @@ describe('targeting and reach', () => {
     const b = awake(battle(archer(), [['sand_crab', P(200, 40)]]));
     const rat = foe(b);
     expect(inReach(b, map, P(100, 40), rat)).toBe(true);
-    expect(inReach(b, map, P(200 - RANGED_REACH - 1, 40), rat)).toBe(false);
+    expect(inReach(b, map, { x: far(200) - RANGED_REACH - 1, y: far(40) }, rat)).toBe(false);
     // The pillar at columns 14-16, rows 4-5 stands between.
     expect(inReach(b, map, P(200, 104), { ...rat, at: P(200, 104) })).toBe(true);
     expect(inReach(b, map, P(184, 40), { ...rat, at: P(280, 40) })).toBe(true);
@@ -176,7 +180,7 @@ describe('targeting and reach', () => {
     expect(foeAt(b, 'hall', P(200, 80))?.monster).toBe('smuggler');
     expect(foeAt(b, 'hall', P(100, 95))?.monster).toBe('dock_rat');
     expect(foeAt(b, 'hall', P(100, 75))).toBeNull();
-    expect(foeAt(b, 'hall', P(100, 75), 40)?.monster).toBe('dock_rat');
+    expect(foeAt(b, 'hall', P(100, 75), far(40))?.monster).toBe('dock_rat');
     expect(foeAt(b, 'yard', P(200, 80))).toBeNull();
   });
 });
@@ -188,7 +192,7 @@ describe('enemies', () => {
     const hero = startPlay(P(100, 40));
     const n = run(near, hero, 600);
     expect(foe(n.battle).aware).toBe(true);
-    expect(foe(n.battle).at.x).toBeLessThan(160);
+    expect(foe(n.battle).at.x).toBeLessThan(P(160, 0).x);
     expect(foe(run(far, hero, 600).battle).aware).toBe(false);
 
     // Arriving beside him starts its wind-up: no blow lands sooner.
@@ -276,7 +280,7 @@ describe('the telegraph', () => {
             at: P(200, 0),
             radius: k.boss!.volleys.half,
             shape: 'line',
-            bottom: 400,
+            bottom: far(400),
             from: 0,
             lands: v.warnMs,
             origin: null,
@@ -292,8 +296,8 @@ describe('the telegraph', () => {
     (_id, mark, warnMs) => {
       const out = walkOutOf(mark);
       // Half a second to see it and tap, on top of the walk; in the shallows, a quarter.
-      expect(warnMs).toBeGreaterThanOrEqual((1000 * out) / WALK_SPEED + 500);
-      expect(warnMs).toBeGreaterThanOrEqual((1000 * out) / (WALK_SPEED * WADE_PACE) + 250);
+      expect(warnMs).toBeGreaterThanOrEqual((1000 * out) / far(WALK_SPEED) + 500);
+      expect(warnMs).toBeGreaterThanOrEqual((1000 * out) / (far(WALK_SPEED) * WADE_PACE) + 250);
       expect(warnMs % TICK_MS).toBe(0);
     },
   );
@@ -332,7 +336,7 @@ describe('the telegraph', () => {
     // Straight away from the middle, from the moment it appears.
     const out = {
       ...play,
-      walker: { at: play.walker.at, path: [P(t.at.x - t.radius - 6, t.at.y)] },
+      walker: { at: play.walker.at, path: [{ x: t.at.x - t.radius - far(6), y: t.at.y }] },
     };
     const hp = b.hp;
     const after = run(b, out, t.lands - b.clock + 50, 16);
@@ -344,7 +348,7 @@ describe('the telegraph', () => {
   it('judges by exactly where his feet are when it lands: inside the edge hit, on it not', () => {
     const { b } = slam();
     const t = foe(b).heavy!;
-    const at = (d: number) => startPlay(P(t.at.x - d, t.at.y));
+    const at = (d: number) => startPlay({ x: t.at.x - d, y: t.at.y });
     const inside = run(b, at(t.radius - 0.5), t.lands - b.clock, TICK_MS);
     const edge = run(b, at(t.radius), t.lands - b.clock, TICK_MS);
     expect(b.hp - inside.battle.hp).toBe(t.damage);
@@ -421,7 +425,7 @@ describe('abilities, cooldowns and food', () => {
     const stepped = useAbility(b, place(), play, 1);
     expect(stepped.battle.dash).not.toBeNull();
     const after = run(stepped.battle, stepped.play, 200, 16);
-    expect(after.play.walker.at.x).toBeCloseTo(110 - STEP_BACK, 5);
+    expect(after.play.walker.at.x).toBeCloseTo(P(110, 0).x - STEP_BACK, 5);
   });
 
   it('eats one from the food slot to heal, with a short wait between', () => {
@@ -481,7 +485,7 @@ describe('a run with something to fight', () => {
     const tryDoor = advanceRun(
       plan,
       r,
-      { ...r.play, walker: { at: r.play.walker.at, path: [centreOf(door.cell)] } },
+      { ...r.play, walker: { at: r.play.walker.at, path: [centreOf(door.cell, T)] } },
       100,
     );
     expect(tryDoor.doorway).toBeNull();
@@ -498,7 +502,10 @@ describe('a run with something to fight', () => {
     const door = plan.rooms.hall!.doors[0]!;
     r = {
       ...r,
-      play: { ...r.play, walker: { at: centreOf(door.inside), path: [centreOf(door.cell)] } },
+      play: {
+        ...r.play,
+        walker: { at: centreOf(door.inside, T), path: [centreOf(door.cell, T)] },
+      },
     };
     for (let i = 0; i < 100 && r.room === 'hall'; i++) r = advanceRun(plan, r, r.play, 16);
     for (let i = 0; i < 40 && r.doorway; i++) r = advanceRun(plan, r, r.play, 16);

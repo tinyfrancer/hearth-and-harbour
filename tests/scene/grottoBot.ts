@@ -39,6 +39,7 @@ import {
 import { groundMap, standable, type RoomTile } from '../../src/scene/ground';
 import { GROTTO } from '../../src/scene/grotto';
 import { clearLine } from '../../src/scene/path';
+import { DUNGEON, far } from '../../src/scene/dungeonMetrics';
 import { TIDE_WARN_MS, rising } from '../../src/scene/tide';
 import {
   cellAt,
@@ -50,6 +51,8 @@ import {
 } from '../../src/scene/tileMap';
 
 export const GROTTO_DUNGEON: Dungeon = buildDungeon(GROTTO);
+/** A tile's side in the dungeons; every distance below is a first-scale one through `far`. */
+const T = DUNGEON.tile;
 export const ORDER = ['pools', 'store', 'bridge', 'brig', 'cove'];
 
 /**
@@ -129,7 +132,7 @@ function floodingSoon(run: Run): TileMap<RoomTile> | null {
 
 const wet = (map: TileMap<RoomTile> | null, p: Point): boolean => {
   if (!map) return false;
-  const c = cellAt(p);
+  const c = cellAt(p, T);
   return !inMap(map, c) || map.tiles[c.row]![c.col] === 'water';
 };
 
@@ -139,24 +142,26 @@ function safeSpot(run: Run, map: TileMap<RoomTile>, marks: readonly Telegraph[])
   const soon = floodingSoon(run);
   let best: Point | null = null;
   let bestCost = Infinity;
-  for (let r = 10; r <= 112; r += 6) {
+  for (let r = far(10); r <= far(112); r += far(6)) {
     for (let a = 0; a < 24; a++) {
       const t = (a / 24) * Math.PI * 2;
       const p = { x: hero.x + Math.cos(t) * r, y: hero.y + Math.sin(t) * r };
-      const c = cellAt(p);
+      const c = cellAt(p, T);
       if (!inMap(map, c) || isSolid(map, c) || !standable(map.tiles[c.row]![c.col])) continue;
       if (map.tiles[c.row]![c.col] === 'door') continue;
       // Clear of every mark by a few pixels, and not about to go under.
       if (
         marks.some(
           (m) =>
-            inMark(m, p) || inMark(m, { x: p.x + 4, y: p.y }) || inMark(m, { x: p.x - 4, y: p.y }),
+            inMark(m, p) ||
+            inMark(m, { x: p.x + far(4), y: p.y }) ||
+            inMark(m, { x: p.x - far(4), y: p.y }),
         )
       )
         continue;
       if (wet(soon, p)) continue;
       const straight = clearLine(map, hero, p);
-      const cost = straight ? r : r * 1.6 + 20;
+      const cost = straight ? r : r * 1.6 + far(20);
       if (!straight && walkPath(map, hero, p).length === 0) continue;
       if (cost < bestCost) {
         best = p;
@@ -186,7 +191,7 @@ export function decide(run: Run): Run {
     const spot = safeSpot(run, map, marks);
     if (spot) {
       const end = run.play.walker.path.at(-1);
-      if (!end || distance(end, spot) > 8 || b.chase) {
+      if (!end || distance(end, spot) > far(8) || b.chase) {
         return {
           ...run,
           battle: stopChasing(b),
@@ -235,7 +240,7 @@ export function decide(run: Run): Run {
       current &&
       reachable(current) &&
       b.chase &&
-      distance(current.at, hero) <= distance(nearest.at, hero) + 16;
+      distance(current.at, hero) <= distance(nearest.at, hero) + far(16);
     if (!keep) {
       const aimed = targetFoe(b, place, run.play, nearest.key);
       return { ...run, battle: aimed.battle, play: aimed.play };
@@ -246,12 +251,15 @@ export function decide(run: Run): Run {
     // Only what cannot be reached is left (a parrot up on its perch, cells not yet open):
     // stand in the middle of the room and let it come.
     const room = dungeon.rooms[run.room]!;
-    const middle = centreOf({
-      col: Math.floor(room.map.cols / 2),
-      row: Math.floor(room.map.rows / 2),
-    });
+    const middle = centreOf(
+      {
+        col: Math.floor(room.map.cols / 2),
+        row: Math.floor(room.map.rows / 2),
+      },
+      T,
+    );
     const end = run.play.walker.path.at(-1);
-    if (run.play.walker.path.length === 0 && distance(hero, middle) > 48 && !end) {
+    if (run.play.walker.path.length === 0 && distance(hero, middle) > far(48) && !end) {
       return {
         ...run,
         play: { ...run.play, walker: { at: hero, path: walkPath(map, hero, middle) } },
@@ -262,15 +270,16 @@ export function decide(run: Run): Run {
   // The room is clear: what fell, then the way on.
   const pile = b.piles
     .filter(
-      (p) => p.room === run.room && distance(walkPath(map, hero, p.at).at(-1) ?? hero, p.at) <= 12,
+      (p) =>
+        p.room === run.room && distance(walkPath(map, hero, p.at).at(-1) ?? hero, p.at) <= far(12),
     )
     .sort((a, c) => distance(a.at, hero) - distance(c.at, hero))[0];
   const room = dungeon.rooms[run.room]!;
   const onward = room.doors.find((d) => d.to === ORDER[ORDER.indexOf(run.room) + 1]);
-  const goal = pile ? pile.at : onward ? centreOf(onward.cell) : null;
+  const goal = pile ? pile.at : onward ? centreOf(onward.cell, T) : null;
   if (!goal) return run;
   const end = run.play.walker.path.at(-1);
-  if (!end || distance(end, goal) > 4 || run.play.walker.path.length === 0) {
+  if (!end || distance(end, goal) > far(4) || run.play.walker.path.length === 0) {
     const path = walkPath(map, hero, goal);
     return { ...run, play: { ...run.play, walker: { at: hero, path } } };
   }
