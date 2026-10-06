@@ -399,7 +399,7 @@ lane A's is waiting on another lane; the next building session is whatever the r
     positive best time, known running counts with the streak no longer than the best).
   - The bank card's "From" now names the dungeon and the shops too.
 
-- Wave 9: the C-scale hero in the menus, the grotto's cast in the bestiary (PR to follow):
+- Wave 9: the C-scale hero in the menus, the grotto's cast in the bestiary (PR #37):
   - **Character sheet** (`src/ui/characterScreen.ts`): the hero is lane B's C-scale figure
     (`characterCanvas2(look, worn, 'sheet')`, 56 × 72 art pixels at 112 × 144 CSS on a 2x or 3x
     phone), standing on a lit floor with a shadow in a dark framed room (`.figure` in
