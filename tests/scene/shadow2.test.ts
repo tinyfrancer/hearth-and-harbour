@@ -6,6 +6,8 @@ import {
   layShadow,
   shadowBox,
   shadowCells,
+  CORE_FLOOR,
+  PENUMBRA_FLOOR,
   type Cells,
 } from '../../src/scene/shadow2';
 
@@ -54,10 +56,32 @@ describe('the contact shadow', () => {
         layShadow(g, { x: 30, y: 8 }, 'day');
         const under = g.d[8 * g.w + 30]!;
         expect(matOf(under)).toBe(mat);
-        expect(stepOf(under)).toBe(Math.min(5, step + 2));
+        // Two steps down, and never lighter than the core's floor: one even shade on busy ground.
+        expect(stepOf(under)).toBe(Math.min(5, Math.max(step + 2, CORE_FLOOR.day)));
         // Far off, untouched.
         expect(g.d[0]).toBe(cell(mat, step));
       }
+  });
+
+  it('evens busy ground out under the feet nearly to one shade, deeper at dusk, with a soft dithered edge', () => {
+    // Light stones and dark mortar side by side: under the soles they come to one shade.
+    for (const time of ['day', 'dusk'] as const) {
+      const g = ground('cobble', 1);
+      for (let x = 0; x < g.w; x += 3)
+        for (let y = 0; y < g.h; y++) g.d[y * g.w + x] = cell('cobble', 4);
+      layShadow(g, { x: 30, y: 8 }, time);
+      const core = [29, 30, 31].map((x) => stepOf(g.d[8 * g.w + x]!));
+      // Three steps apart on the bare ground; at most one under the feet.
+      expect(Math.max(...core) - Math.min(...core)).toBeLessThanOrEqual(1);
+      expect(Math.min(...core)).toBe(CORE_FLOOR[time]);
+      expect(CORE_FLOOR[time]).toBeLessThanOrEqual(5);
+      expect(PENUMBRA_FLOOR[time]).toBeLessThan(CORE_FLOOR[time]);
+    }
+    expect(CORE_FLOOR.dusk).toBeGreaterThan(CORE_FLOOR.day);
+    // The fringe: past the penumbra, every other pixel a step down, never a hard oval edge.
+    const fringe = contactShadow('day').filter((p) => p.floor === 0);
+    expect(fringe.length).toBeGreaterThan(10);
+    for (const p of fringe) expect(Math.abs((p.dx + p.dy) % 2)).toBe(0);
   });
 
   it('cuts the same shadow for someone walking as is laid for someone standing', () => {

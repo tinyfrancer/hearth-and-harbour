@@ -23,9 +23,9 @@
  * A frame allocates nothing here but the hero's shadow, a few hundred bytes
  * when his feet move to another pixel.
  */
+import type { Look } from '../art/character';
 import type { Palette } from '../art/palette';
 import { shines, type Glow } from '../art/raster';
-import { rasterize2 } from '../art/town2/raster';
 import { TOWN2_H, TOWN2_W } from '../art/town2/town';
 import type { GameState } from '../core/state';
 import type { TimeOfDay } from './daylight';
@@ -37,8 +37,11 @@ import {
   FIGURE2_W,
   heroFigure2,
   type Figure2,
+  type PoseBook,
 } from './figures2';
+import type { PoseCells, PoseRequest } from './figures2Worker';
 import { dressKey, dressOf } from './hero';
+import { breathAt, type Pose2 } from './gait';
 import { turnedTo, type Facing } from './play';
 import { shadowBox, shadowCells, type Cells } from './shadow2';
 import type { Life, StillPicture } from './stage';
@@ -48,16 +51,20 @@ import {
   folkBox,
   paintTown,
   town2Facts,
+  type Facings,
   type Raw,
   type TownAnswer,
   type TownFacts,
   type TownPaint,
   type TownStep,
 } from './town2Facts';
-import { glowsIn, palette2, reaches } from './town2Paint';
+import { glowsIn, palette2, pixels1, reaches } from './town2Paint';
 
 /** Where a figure's feet are in its canvas, facing right: the stage's `heroFeet`. */
 export const FIGURE2_FEET: Point = { x: FIGURE2_ANCHOR_X, y: FIGURE2_SOLE_Y };
+
+/** How far apart the townsfolk's breaths fall, so they do not all breathe at once. */
+const FOLK_BREATH_OFFSET_MS = 370;
 
 /** How long each frame of smoke and of the foam shows. */
 export const SMOKE_FRAME_MS = 450;
@@ -109,7 +116,16 @@ export const onTheSpot: Painter = (time, wantFacts, calls) => {
   if (canPaint()) calls.done(paintTown(time, (step) => calls.step?.(step)));
 };
 
-/** A worker per request, let go once it answers; on the spot if one cannot be had. */
+/**
+ * How long a worker may go on after answering, keeping the town for next
+ * time, before the page lets it go regardless. It closes itself long before.
+ */
+const KEEPING_MS = 30_000;
+
+/**
+ * A worker per request, on the spot if one cannot be had or it fails. Once
+ * it has answered it keeps the town for next time and closes itself.
+ */
 export const inAWorker: Painter = (time, wantFacts, calls) => {
   let worker: Worker;
   try {
@@ -119,21 +135,26 @@ export const inAWorker: Painter = (time, wantFacts, calls) => {
     return;
   }
   let factsIn = !wantFacts;
+  let answered = false;
+  const fail = (): void => {
+    worker.terminate();
+    if (!answered) onTheSpot(time, !factsIn, calls);
+    answered = true;
+  };
   worker.onmessage = (event: MessageEvent<TownAnswer>) => {
     const answer = event.data;
     if (answer.kind === 'facts') {
       factsIn = true;
       calls.facts?.(answer.facts);
     } else if (answer.kind === 'step') calls.step?.(answer.step);
+    else if (answer.kind === 'failed') fail();
     else {
-      worker.terminate();
+      answered = true;
+      setTimeout(() => worker.terminate(), KEEPING_MS);
       calls.done(answer.paint);
     }
   };
-  worker.onerror = () => {
-    worker.terminate();
-    onTheSpot(time, !factsIn, calls);
-  };
+  worker.onerror = fail;
   worker.postMessage({ time, facts: wantFacts });
 };
 
@@ -142,17 +163,59 @@ export const painter = (): Painter => (typeof Worker === 'function' ? inAWorker 
 
 /* ----- The hero ----- */
 
+/**
+ * Draws a figure's poses somewhere other than the page's thread, answering
+ * with them by key; or null where it cannot (tests), and the figure draws
+ * each pose itself the first time it shows.
+ */
+export type Poser = (look: Look, worn: readonly string[]) => Promise<PoseBook>;
+
+/** A worker per outfit, let go once it answers. */
+export const poseInAWorker: Poser = (look, worn) =>
+  new Promise((resolve, reject) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('./figures2Worker.ts', import.meta.url), { type: 'module' });
+    } catch (e) {
+      reject(e);
+      return;
+    }
+    worker.onmessage = (event: MessageEvent<PoseCells[]>) => {
+      worker.terminate();
+      resolve(
+        new Map(event.data.map((p) => [p.key, { grid: { w: p.w, h: p.h, d: p.d }, glows: [] }])),
+      );
+    };
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(e);
+    };
+    worker.postMessage({ look, worn: [...worn] } satisfies PoseRequest);
+  });
+
+/** The poser this browser should use: a worker where there is one. */
+export const poser = (): Poser | null => (typeof Worker === 'function' ? poseInAWorker : null);
+
 /** How finely the hero's light follows him, in art pixels: one lit picture per step of this. */
 const LIGHT_STEP = 6;
-/** Lit pictures of the hero kept at once; the oldest goes first. */
-const LIT_KEPT = 48;
+/**
+ * Lit pictures of the hero kept at once, the least lately shown going first:
+ * every frame of a stride for every place along a lamp-lit street, 16 KB
+ * each, so walking back past a lamp finds them all made.
+ */
+export const LIT_KEPT = 192;
 
 /**
  * The hero at the C scale: his figure in the player's look and gear from
  * the adapter, kept until he changes, and lit at dusk by the lights near
- * him, each lit picture made once for a place and kept a while.
+ * him. Every picture is made once, for its pose (frame and facing), time of
+ * day and, lit, its place, and kept: walking past a lamp paints each frame
+ * once per place at most, never again on later animation frames.
  */
 export class Hero2 {
+  private readonly poser: Poser | null;
+  /** The poses drawn elsewhere for what he wears now, once they are in. */
+  private book: PoseBook | null = null;
   private look: GameState['look'] | null = null;
   private equipment: GameState['equipment'] | null = null;
   private key = '';
@@ -163,6 +226,13 @@ export class Hero2 {
   private lights: readonly Glow[] = [];
   /** How many times he has been drawn afresh, for tests. */
   drawn = 0;
+  /** How many pictures of him have been painted, for tests: each pose, time and light once. */
+  painted = 0;
+
+  /** `poser` draws his poses off the page's thread; without one he draws each as it first shows. */
+  constructor(poser: Poser | null = null) {
+    this.poser = poser;
+  }
 
   /** Takes the state's look and gear; true if he now looks different. */
   wear(state: GameState): boolean {
@@ -173,9 +243,26 @@ export class Hero2 {
     const key = dressKey(dress);
     if (key === this.key) return false;
     this.key = key;
-    this.figure = heroFigure2(dress.look, dress.worn);
+    this.book = null;
+    const poser = this.poser;
+    this.figure = poser
+      ? heroFigure2(dress.look, dress.worn, () => this.book)
+      : heroFigure2(dress.look, dress.worn);
     this.drawn += 1;
     this.forget();
+    poser?.(dress.look, dress.worn).then(
+      (book) => {
+        // Only if he still wears it: a newer outfit asked for its own.
+        if (this.key !== key) return;
+        this.book = book;
+        // Pictures made while the poses were coming stood as drawn: they go.
+        this.forget();
+      },
+      () => {
+        // No worker after all: he draws each pose as it first shows.
+        if (this.key === key) this.figure = heroFigure2(dress.look, dress.worn);
+      },
+    );
     return true;
   }
 
@@ -196,6 +283,11 @@ export class Hero2 {
     return this.key;
   }
 
+  /** The column under his feet in a pose's picture. */
+  anchorX(pose: Pose2): number {
+    return pose.heading === 'left' ? FIGURE2_W - 1 - FIGURE2_ANCHOR_X : FIGURE2_ANCHOR_X;
+  }
+
   /** Lets every picture of him go. */
   forget(): void {
     for (const c of [...this.plain.values(), ...this.lit.values()]) if (c) release(c);
@@ -204,44 +296,59 @@ export class Hero2 {
     this.last.x = NaN;
   }
 
-  /** The last answer, to give again while he stands in the same light: most frames. */
+  /** The last answer, to give again while nothing about him has changed: most frames. */
   private readonly last = {
     x: NaN,
     y: NaN,
-    facing: 'right' as Facing,
+    pose: null as Pose2 | null,
     time: 'day' as TimeOfDay,
     image: null as HTMLCanvasElement | null,
   };
 
-  /** He as he stands with his feet at `feet`, facing either way, at this time of day. */
-  at(feet: Point, facing: Facing, time: TimeOfDay): HTMLCanvasElement | null {
+  /** He as he stands or walks with his feet at `feet`, in a pose, at this time of day. */
+  at(feet: Point, pose: Pose2, time: TimeOfDay): HTMLCanvasElement | null {
     const qx = Math.round(feet.x / LIGHT_STEP);
     const qy = Math.round(feet.y / LIGHT_STEP);
     const last = this.last;
-    if (last.x === qx && last.y === qy && last.facing === facing && last.time === time)
+    if (last.x === qx && last.y === qy && last.pose === pose && last.time === time)
       return last.image;
-    const image = this.find(qx * LIGHT_STEP, qy * LIGHT_STEP, facing, time);
+    const image = this.find(qx * LIGHT_STEP, qy * LIGHT_STEP, pose, time);
     last.x = qx;
     last.y = qy;
-    last.facing = facing;
+    last.pose = pose;
     last.time = time;
     last.image = image;
     return image;
   }
 
-  private find(x: number, y: number, facing: Facing, time: TimeOfDay): HTMLCanvasElement | null {
+  private find(x: number, y: number, pose: Pose2, time: TimeOfDay): HTMLCanvasElement | null {
     if (!this.figure) return null;
-    const plainKey = `${facing} ${time}`;
-    if (!this.plain.has(plainKey)) this.plain.set(plainKey, this.figure.paint(facing, time, []));
-    const plain = this.plain.get(plainKey)!;
+    const plainKey = `${pose.key} ${time}`;
+    let plain = this.plain.get(plainKey);
+    if (plain === undefined) {
+      plain = this.figure.paint(pose, time, []);
+      this.painted += 1;
+      this.plain.set(plainKey, plain);
+    }
     if (time === 'day') return plain;
+    // Lights are looked for at a place, whatever the pose: most places at dusk have none.
+    const ax = this.anchorX(pose);
+    const box = { x: x - ax, y: y - FIGURE2_SOLE_Y, w: FIGURE2_W, h: FIGURE2_H };
+    if (!this.lights.some((g) => reaches(g, box))) return plain;
     const key = `${plainKey} ${x} ${y}`;
     const kept = this.lit.get(key);
-    if (kept !== undefined) return kept ?? plain;
-    const ax = facing === 'left' ? FIGURE2_W - 1 - FIGURE2_ANCHOR_X : FIGURE2_ANCHOR_X;
-    const box = { x: x - ax, y: y - FIGURE2_SOLE_Y, w: FIGURE2_W, h: FIGURE2_H };
+    if (kept !== undefined) {
+      // Shown again: the last to go.
+      this.lit.delete(key);
+      this.lit.set(key, kept);
+      return kept ?? plain;
+    }
     const local = glowsIn(this.lights, box, palette2(time));
-    const made = local.length ? this.figure.paint(facing, time, local) : null;
+    let made: HTMLCanvasElement | null = null;
+    if (local.length) {
+      made = this.figure.paint(pose, time, local);
+      this.painted += 1;
+    }
     if (this.lit.size >= LIT_KEPT) {
       const oldest = this.lit.keys().next().value!;
       const c = this.lit.get(oldest);
@@ -265,6 +372,8 @@ class Shadow {
   private readonly cells: Cells;
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D | null;
+  /** The shadow's pixels, painted into again at each step. */
+  private readonly image: ImageData;
   private readonly lights: readonly Glow[];
   private readonly glows: Glow[] = [];
   private fx = NaN;
@@ -284,6 +393,7 @@ class Shadow {
     this.canvas.width = this.box.w;
     this.canvas.height = this.box.h;
     this.ctx = this.canvas.getContext('2d');
+    this.image = new ImageData(this.box.w, this.box.h);
     const palette = palette2(time);
     this.lights = lights.filter((g) => shines(g, palette));
   }
@@ -303,13 +413,9 @@ class Shadow {
     this.glows.length = 0;
     for (const g of this.lights)
       if (reaches(g, here)) this.glows.push({ ...g, x: g.x - x0, y: g.y - y0 });
-    const image = rasterize2({ grid: this.cells, glows: this.glows }, palette2(this.time), 1);
-    this.ctx.clearRect(0, 0, this.box.w, this.box.h);
-    this.ctx.putImageData(
-      new ImageData(image.data as Uint8ClampedArray<ArrayBuffer>, image.width),
-      0,
-      0,
-    );
+    // Into one image kept for it: a step allocates only the colours on the way.
+    pixels1({ grid: this.cells, glows: this.glows }, palette2(this.time), this.image.data);
+    this.ctx.putImageData(this.image, 0, 0);
     return this.canvas;
   }
 }
@@ -323,7 +429,11 @@ interface Made {
   readonly foam: Placed | null;
   readonly smoke: readonly (readonly (Placed | null)[])[];
   readonly gull: { readonly right: Image | null; readonly left: Image | null };
-  readonly folk: readonly { readonly right: Standing | null; readonly left: Standing | null }[];
+  /** Each townsperson's pictures, breath by breath (as drawn, then breathing in), each way. */
+  readonly folk: readonly (readonly {
+    readonly right: Standing | null;
+    readonly left: Standing | null;
+  }[])[];
   readonly shadow: Shadow;
   readonly images: Image[];
 }
@@ -367,13 +477,16 @@ function madeOf(paint: TownPaint<ImageBitmap | Raw>, facts: TownFacts): Made | n
     });
   });
   const folk = paint.folk.map((f, i) => {
-    const stand = (facing: Facing): Standing | null => {
-      const image = show(facing === 'right' ? f.right : f.left);
+    const stand = (facing: Facing, from: Facings<ImageBitmap | Raw>): Standing | null => {
+      const image = show(facing === 'right' ? from.right : from.left);
       if (!image) return null;
       const box = folkBox(i, facing);
       return { image, x: box.x, y: box.y, base: feetOf(TOWNSFOLK2_AT[i]!).y };
     };
-    return { right: stand('right'), left: stand('left') };
+    const out = { right: stand('right', f), left: stand('left', f) };
+    // A town painted without the breath in stands still, as drawn.
+    const inhale = f.inhale && { right: stand('right', f.inhale), left: stand('left', f.inhale) };
+    return inhale ? [out, inhale] : [out];
   });
   return {
     time: paint.time,
@@ -390,7 +503,7 @@ function madeOf(paint: TownPaint<ImageBitmap | Raw>, facts: TownFacts): Made | n
 /** Everything the stage needs to draw the town, beside the hero. */
 export interface Town2Art {
   still(palette: Palette): StillPicture | null;
-  standers(palette: Palette, walker: Point): readonly Standing[];
+  standers(palette: Palette, walker: Point, now?: number): readonly Standing[];
   shadowAt(
     feet: Point,
     palette: Palette,
@@ -491,13 +604,16 @@ export function town2Art(facts: TownFacts, options: Town2ArtOptions = {}): Town2
       return hold(palette.name)?.still ?? null;
     },
 
-    standers(palette, walker) {
+    standers(palette, walker, now = 0) {
       const m = hold(palette.name);
       if (!m) return NO_STANDERS;
       folkShown.length = 0;
       for (let i = 0; i < m.folk.length; i++) {
         const turned = turnedTo(folkFeet[i]!, walker, NOTICE2) === 'left';
-        const s = turned ? m.folk[i]!.left : m.folk[i]!.right;
+        // Each breathes in their own time, so the square does not breathe as one.
+        const breaths = m.folk[i]!;
+        const frames = breaths[breathAt(now + i * FOLK_BREATH_OFFSET_MS) % breaths.length]!;
+        const s = turned ? frames.left : frames.right;
         if (s) folkShown.push(s);
       }
       return folkShown;

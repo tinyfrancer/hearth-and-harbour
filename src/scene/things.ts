@@ -7,7 +7,16 @@
 import type { Picture } from '../art/raster';
 import type { Shell } from '../ui/view';
 import { cheapest } from './path';
-import { TILE, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
+import {
+  TILE,
+  centreOf,
+  inMap,
+  isSolid,
+  tileOf,
+  type Cell,
+  type Point,
+  type TileMap,
+} from './tileMap';
 
 /** A box in art pixels. */
 export interface Box {
@@ -64,6 +73,12 @@ export interface Thing {
   readonly tap?: Box;
   /** Where a person stands to use it. Without them, any open tile beside its footprint. */
   readonly spots?: readonly Cell[];
+  /**
+   * Exactly where on each of `spots` (in the same order) the walker stops,
+   * when not the tile's middle: beside a person, far enough out not to stand
+   * in them. Data, like the spots; never measured from a picture.
+   */
+  readonly stands?: readonly Point[];
   readonly use?: Use;
   /**
    * Walking up to this opens another thing's panel instead: a stall's counter
@@ -152,6 +167,12 @@ export function spotsBeside(map: TileMap, thing: Thing): Cell[] {
  */
 export function approach(map: TileMap, from: Point, thing: Thing): Cell | null {
   return cheapest(map, from, spotsBeside(map, thing));
+}
+
+/** Where on `spot` to stop to use a thing: its own stand there, or the tile's middle. */
+export function standOn(map: TileMap, thing: Thing, spot: Cell): Point {
+  const i = thing.spots?.findIndex((s) => s.col === spot.col && s.row === spot.row) ?? -1;
+  return (i >= 0 && thing.stands?.[i]) || centreOf(spot, tileOf(map));
 }
 
 /**

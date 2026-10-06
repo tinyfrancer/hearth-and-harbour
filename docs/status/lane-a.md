@@ -431,6 +431,43 @@ lane A's is waiting on another lane; the next building session is whatever the r
   - The tab bar still shows the old glyphs: `tabIcon` in `src/art/icons.ts` returns null for
     every tab.
 
+- Wave 10 (built with lane C's work in one PR): the menus' weak spots. No save change (still 8).
+  - **Character sheet** (`characterScreen.ts`, `portrait.ts`, `styles.css`): the hero is three CSS
+    pixels to an art pixel wherever the doll leaves him room (every phone from 350 wide; two on
+    anything narrower, `sheetScale`), a whole number of device pixels at 2x, 3x and 2.625x, and
+    fills his frame from the floor to just under its top: the empty dark above his head is gone.
+    He breathes (lane B's `characterIdlePicture2`): two canvases, one shown, swapped by the view's
+    `update`; the breath in is drawn the first time it is wanted. Nothing else is rebuilt.
+  - **What is worn, at a glance**: two columns under the doll in its own order, a line each, a
+    worn thing by name, an empty slot dimmed ("Neck: empty"); hidden from screen readers, which
+    hear it from the squares. The 56 px squares are unchanged.
+  - **An opened slot**: its choices now come straight under the doll, in place of the names, and
+    the screen stays where the player had it, then glides just far enough to show them: their foot
+    if they fit, their top at the screen's top if not, never up (`scrollToShow` in `app.ts`; no
+    glide with reduced motion). "Change look" does the same for the look's steppers. Closing keeps
+    the place too.
+  - **Creator** (`createScreen.ts`): the hero is four CSS pixels to an art pixel on a tall phone
+    and three on a 360 x 740 one (`creatorScale`: the largest whole number in about two fifths of
+    the screen's height), in a portrait frame sized to him and centred, the steppers right under
+    him at the same width, so each step shows on him at once; the title's line no longer leaves a
+    word alone on its last line.
+  - **Total-kill achievements and grotto kills: kept.** The only achievement that counts every
+    kill is "Pest Control: Win your first fight", and a fight won in the grotto is a fight won; it
+    is the first rung, so counting a harder fight makes nothing easier. Achievements that name a
+    monster count that monster alone ("Rat Catcher" is dock rats, wherever they fall). Pinned in
+    `tests/ui/shell.test.ts` (a hundred deckhands earn the first, not "Rat Catcher"; a hundred rats
+    do). A later "kill N of anything" achievement should say whether the grotto counts, in its
+    words.
+  - Checked in Chromium at 390 x 844 and 430 x 932 at 3x, 360 x 740 at 3x and 2x, touch: the
+    sheet in linen and bow and in iron, with a slot open, and the creator, before and after, in
+    `/home/claude/lane-shots/w10-ca/before/` and `after/`. Not checked in Safari (no WebKit
+    build here).
+  - Tests (`tests/ui/figure.test.ts`, rewritten where the figure changed: the figure's size is now
+    three CSS pixels an art pixel, and what it shows is read from its frame's `data-look` and
+    `data-worn` rather than a mocked `characterCanvas2`): the scales, the breath swapping in place,
+    the worn names in order, the choices under the doll, the scroll into view and `scrollToShow`'s
+    rules; `tests/ui/shell.test.ts` for the achievements decision.
+
 ## Deferred
 
 - Wave 9: nothing from the brief. Left alone on purpose: the grotto's cast shows no level or
@@ -468,9 +505,9 @@ lane A's is waiting on another lane; the next building session is whatever the r
 
 - Save is version 8. The next shape change is 9.
 - The character sheet is a paper doll (wave 9). The doll's squares are 56px and the figure's room
-  takes what is left, so a 320px phone still fits; the figure itself is whatever size
-  `characterCanvas2` gives (it picks its own scale from the window). Tests that need what the
-  figure was asked to draw mock `characterCanvas2` around the real one (`tests/ui/figure.test.ts`).
+  takes what is left, so a 320px phone still fits; the figure is `portrait()` (`src/ui/portrait.ts`)
+  at `sheetScale()` CSS pixels an art pixel (wave 10). What it shows is on its frame as
+  `data-look` and `data-worn`, which the tests read.
 - **Prices are held by `tests/data/pacing.test.ts`**, through `tests/data/economy.ts`: a new
   gathered thing is priced by the hour of its skill, a new made thing by the chain behind it
   (the content tests also want it dearer than its materials), a new monster's coins by its hour

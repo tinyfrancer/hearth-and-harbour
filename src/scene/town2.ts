@@ -16,6 +16,8 @@ import {
   town2Walk,
   type Placement2,
 } from '../art/town2/town';
+import { HERO_SPEED2 } from './gait';
+import { footHalf } from './path';
 import { blockFootprints, spotsBeside, type Scene, type Thing, type Use } from './things';
 import {
   cellAt,
@@ -31,10 +33,13 @@ import type { Townsfolk2 } from './figures2';
 
 const T = TOWN2_TILE;
 
-/** How fast the hero walks at the C scale: as many of his own heights a second as at the old scale. */
-export const WALK_SPEED2 = 88;
-/** Art pixels per half-step of the hero's bob: the old rhythm at the new speed. */
-export const STRIDE2 = 8;
+/**
+ * How fast the hero walks at the C scale: exactly as fast as lane B's walk
+ * cycle pushes the ground back (`WALK2_STRIDE` art pixels each
+ * `WALK2_FRAME_MS`), so his feet never slide. About as many of his own
+ * heights a second as at the old scale.
+ */
+export const WALK_SPEED2 = HERO_SPEED2;
 /** How near the hero comes before someone standing about turns to him: the old distance, scaled. */
 export const NOTICE2 = 54;
 
@@ -238,12 +243,12 @@ const LOOKOUTS: Readonly<Record<string, readonly Cell[]>> = {
 };
 
 /**
- * Placements that are only looked at for now: the far buoy lies south-east of
- * anything the camera can show from where the hero can stand (lane B is asked
- * to move it). Its picture stays; it takes no taps until it can be seen.
- * `tests/scene/reach.test.ts` holds every tappable thing to being tappable.
+ * Placements that are only looked at, by name: none today (the far buoy was,
+ * until lane B moved it into the pier's view). Its picture stays; a thing
+ * here takes no taps. `tests/scene/reach.test.ts` holds every tappable thing
+ * to being tappable.
  */
-const LOOKED_AT_ONLY: ReadonlySet<string> = new Set(['buoy-far']);
+const LOOKED_AT_ONLY: ReadonlySet<string> = new Set([]);
 
 /** The townsfolk: where each stands, which sides the hero talks to them from, and their figure. */
 export interface Townsperson2 {
@@ -341,6 +346,28 @@ function personOf(p: Townsperson2): Thing {
   };
 }
 
+/**
+ * How far apart the hero and someone he talks to stand, feet to feet, in art
+ * pixels: most of a tile and a half, so two people facing each other, each about 30
+ * across with what they hold in front, stand close but clear of each other.
+ */
+export const TALK_GAP = 34;
+
+/**
+ * Where the hero stops beside a townsperson, on each of their sides: out to
+ * `TALK_GAP` from their feet, or as far out as his own tile allows (his feet
+ * kept off the tile beyond) where that one is solid.
+ */
+function standsBeside(map: TileMap, p: Townsperson2): Point[] {
+  const feet = feetOf(p);
+  const within = T / 2 - footHalf(map);
+  return p.sides.map((d) => {
+    const beyond = { col: p.at.col + 2 * d, row: p.at.row };
+    const out = isSolid(map, beyond) ? Math.min(TALK_GAP - T, within) : TALK_GAP - T;
+    return { x: feet.x + d * (T + out), y: feet.y };
+  });
+}
+
 type Ground2 = keyof typeof TOWN2_SOLID;
 
 /** The ground alone, as tiles: what is under each tile's middle, before anything stands on it. */
@@ -379,11 +406,14 @@ export function buildTown2Scene(): Scene {
   });
   for (let i = 0; i < things.length; i++)
     if (LOOKED_AT_ONLY.has(things[i]!.id)) things[i] = scenery(things[i]!);
+  for (const p of TOWNSFOLK2_AT) {
+    const i = things.findIndex((t) => t.id === p.id);
+    things[i] = { ...things[i]!, stands: standsBeside(map, p) };
+  }
   return {
     map,
     things,
     speed: WALK_SPEED2,
-    stride: STRIDE2,
     notice: NOTICE2,
   };
 }

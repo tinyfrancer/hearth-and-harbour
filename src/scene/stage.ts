@@ -98,7 +98,7 @@ export interface StageArt {
    * the walker by their feet: drawn again only when one of them changes (turns
    * to look at the walker at `walker`).
    */
-  standers?(palette: Palette, walker: Point): readonly Standing[];
+  standers?(palette: Palette, walker: Point, now: number): readonly Standing[];
   /**
    * The ground as it is this frame, for a scene whose ground changes (a
    * dungeon's tide). Each different picture is composed once and kept.
@@ -108,6 +108,13 @@ export interface StageArt {
   readonly heroFeet: Point;
   /** The walker standing at `feet`, facing either way, in this palette's light. */
   walkerAt(feet: Point, facing: Facing, palette: Palette): Look;
+  /**
+   * The walker this frame, for a scene whose walker steps in frames of its
+   * own (a walk cycle, a breath): the picture and the column of it under the
+   * feet. Used in place of `walkerAt`, and the stage's one-pixel bob is not
+   * added: the frames carry their own.
+   */
+  walkerPose?(feet: Point, play: Play, palette: Palette, now: number): WalkerFrame;
   /** The walker's shadow on the ground at `feet`, and the point of it that goes under the feet. */
   shadowAt(
     feet: Point,
@@ -115,6 +122,12 @@ export interface StageArt {
   ): { readonly picture: Look; readonly middle: Point } | null;
   /** Things that move by themselves, already painted: smoke, birds, water. */
   readonly life?: readonly Life[];
+}
+
+/** A walker's picture this frame and the column under the middle of its soles. */
+export interface WalkerFrame {
+  readonly image: Look;
+  readonly feetX: number;
 }
 
 type Still = { still: HTMLCanvasElement; standing: Standing[] } | null;
@@ -611,14 +624,18 @@ export function stage(options: StageOptions): View {
     const feet = round(play.walker.at);
     const left = play.facing === 'left';
     const extra = options.extra?.(now, palette) ?? null;
-    const walkerPicture = art.walkerAt(feet, play.facing, palette);
+    const posed = art.walkerPose?.(feet, play, palette, now) ?? null;
+    const walkerPicture = posed ? posed.image : art.walkerAt(feet, play.facing, palette);
     const plainWalker = imageOf(walkerPicture, palette);
     const walkerImage = plainWalker && extra?.walker ? extra.walker(plainWalker) : plainWalker;
     const walker: Standing | null = walkerImage && {
       image: walkerImage,
       // Mirrored, the column under the feet moves to the other side of the picture.
-      x: feet.x - (left ? widthOf(walkerPicture) - 1 - art.heroFeet.x : art.heroFeet.x),
-      y: feet.y - art.heroFeet.y - bob(play, scene.stride),
+      x:
+        feet.x -
+        (posed ? posed.feetX : left ? widthOf(walkerPicture) - 1 - art.heroFeet.x : art.heroFeet.x),
+      // A walker in frames of its own steps up and down in them; the bob is for the rest.
+      y: feet.y - art.heroFeet.y - (posed ? 0 : bob(play, scene.stride)),
       base: feet.y,
     };
     const shadow = art.shadowAt(feet, palette);
@@ -643,7 +660,7 @@ export function stage(options: StageOptions): View {
     }
     if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
     const actors: Standing[] = walker ? [walker] : [];
-    const standers = art.standers?.(palette, play.walker.at) ?? [];
+    const standers = art.standers?.(palette, play.walker.at, now) ?? [];
     standers.forEach((s, i) => {
       actors.push(s);
       moving.set(`stander ${i}`, { image: s.image, box: boxOf(s) });

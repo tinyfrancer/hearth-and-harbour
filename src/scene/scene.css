@@ -182,25 +182,47 @@
 .scene-loading-card h2 {
   font-size: 20px;
   color: var(--gold-bright);
+  text-align: center;
+}
+
+/* The hero by the signpost, at the town's own scale: crisp, never smoothed. */
+.scene-loading-sign {
+  display: flex;
+  justify-content: center;
+  margin: -4px 0 2px;
+}
+
+.scene-loading-sign > canvas {
+  image-rendering: pixelated;
+}
+
+.scene-loading-sign > canvas[hidden] {
+  display: none;
 }
 
 .scene-loading-card p {
   color: var(--text);
+  text-align: center;
+  text-wrap: balance;
 }
 
+/* The work's real steps, a block each, lit as each is done. */
 .scene-loading-bar {
-  display: block;
-  height: 12px;
+  display: flex;
+  gap: var(--px);
+  height: 14px;
+  padding: var(--px);
   background: var(--panel);
   border: var(--px) solid var(--line);
 }
 
-.scene-loading-fill {
-  display: block;
-  height: 100%;
+.scene-loading-step {
+  flex: 1;
+  background: var(--backdrop);
+}
+
+.scene-loading-step.done {
   background: var(--gold);
-  transform: scaleX(0);
-  transform-origin: left;
 }
 
 /* ----- The Town tab's two scenes: the town, and a dungeon run reached from it. ----- */

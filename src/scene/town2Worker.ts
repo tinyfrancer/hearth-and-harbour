@@ -9,22 +9,32 @@
  * on the page's thread. Elsewhere the pixels are handed over as they are
  * (without copying) and the page composes them.
  *
- * The page starts one worker per request and lets it go after the answer,
- * which also lets go of the art lane's cell grids it composed.
+ * A town worked out once is kept for the next visit (`town2Cache.ts`), and
+ * one kept from before is sent at once instead of being worked out, as long
+ * as it was made by this very build. Keeping happens after the town is sent.
+ *
+ * The page starts one worker per request; the worker closes itself once it
+ * has answered and kept what it made, which also lets go of the art lane's
+ * cell grids it composed.
  */
+import { forgetTown2Grids } from '../art/town2/town';
+import { keep, recall, versionOf, type Shelf } from './town2Cache';
 import {
   buffersOf,
   paintTown,
   town2Facts,
   type Raw,
   type TownAnswer,
+  type TownFacts,
   type TownPaint,
   type TownRequest,
 } from './town2Facts';
+import { canKeep, idbShelf, pngPacker } from './town2Shelf';
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<TownRequest>) => void) | null;
   postMessage(message: TownAnswer, transfer?: Transferable[]): void;
+  close(): void;
 };
 
 /** A picture on a bitmap of its own. */
@@ -63,7 +73,13 @@ function onBitmaps(paint: TownPaint<Raw>): TownPaint<ImageBitmap> | null {
       foam: { ...paint.foam, image: bitmapOf(paint.foam.image) },
       smoke: paint.smoke.map((frames) => frames.map(bitmapOf)),
       gull: { right: maybe(paint.gull.right), left: maybe(paint.gull.left) },
-      folk: paint.folk.map((f) => ({ right: maybe(f.right), left: maybe(f.left) })),
+      folk: paint.folk.map((f) => ({
+        right: maybe(f.right),
+        left: maybe(f.left),
+        ...(f.inhale
+          ? { inhale: { right: maybe(f.inhale.right), left: maybe(f.inhale.left) } }
+          : {}),
+      })),
     };
   } catch {
     return null;
@@ -79,17 +95,54 @@ function bitmapsOf(paint: TownPaint<ImageBitmap>): Transferable[] {
     ...paint.smoke.flat(),
     paint.gull.right,
     paint.gull.left,
-    ...paint.folk.flatMap((f) => [f.right, f.left]),
+    ...paint.folk.flatMap((f) => [
+      f.right,
+      f.left,
+      f.inhale?.right ?? null,
+      f.inhale?.left ?? null,
+    ]),
   ];
   return [...all.filter((b): b is ImageBitmap => b !== null), paint.cells.buffer as ArrayBuffer];
 }
 
-scope.onmessage = (event) => {
-  const { time, facts } = event.data;
-  if (facts) scope.postMessage({ kind: 'facts', facts: town2Facts() });
+/** The version towns are kept under by this build, or null where nothing is kept. */
+const version = canKeep() ? versionOf(import.meta.url, import.meta.env.DEV) : null;
+
+async function answer({ time, facts: wantFacts }: TownRequest): Promise<void> {
+  const shelf: Shelf | null = version ? idbShelf() : null;
+  if (shelf && version) {
+    const kept = await recall(shelf, pngPacker, time, version);
+    if (kept) {
+      if (wantFacts) scope.postMessage({ kind: 'facts', facts: kept.facts });
+      scope.postMessage({ kind: 'town', paint: kept.paint, kept: true }, bitmapsOf(kept.paint));
+      return;
+    }
+  }
+  let facts: TownFacts | null = null;
+  if (wantFacts) {
+    facts = town2Facts();
+    scope.postMessage({ kind: 'facts', facts });
+  }
   scope.postMessage({ kind: 'step', step: 1 });
   const paint = paintTown(time, (step) => scope.postMessage({ kind: 'step', step }));
+  // The art lane's composed cell grids (6 MB a time of day) are done with once painted.
+  forgetTown2Grids();
+  // The cells go to the page without copying; what is kept is a copy made first.
+  const cells = shelf ? paint.cells.slice() : null;
   const bitmaps = onBitmaps(paint);
   if (bitmaps) scope.postMessage({ kind: 'town', paint: bitmaps }, bitmapsOf(bitmaps));
   else scope.postMessage({ kind: 'town', paint }, buffersOf(paint));
+  if (shelf && version && cells && bitmaps)
+    await keep(shelf, pngPacker, time, version, facts ?? town2Facts(), { ...paint, cells });
+}
+
+scope.onmessage = (event) => {
+  answer(event.data).then(
+    () => scope.close(),
+    // Anything thrown: the page works the town out itself.
+    () => {
+      scope.postMessage({ kind: 'failed' });
+      scope.close();
+    },
+  );
 };

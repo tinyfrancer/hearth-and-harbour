@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { WALK2_FRAME_MS, WALK2_STRIDE } from '../../src/art/character2';
 import { town2Layout, TOWN2_START, TOWN2_TILE, town2Walk } from '../../src/art/town2/town';
 import { approach, spotsBeside, thingAt, usable, type Thing } from '../../src/scene/things';
 import { findPath } from '../../src/scene/path';
@@ -25,7 +26,8 @@ describe('the C-scale town scene', () => {
     expect(map.tile).toBe(24);
     expect(mapSize(map)).toEqual({ width: 1440, height: 2136 });
     expect(scene.speed).toBe(WALK_SPEED2);
-    expect(WALK_SPEED2).toBe(88);
+    // As fast as lane B's stride pushes the ground back, whatever lane B makes it.
+    expect(WALK_SPEED2).toBe((WALK2_STRIDE / WALK2_FRAME_MS) * 1000);
   });
 
   it('is solid exactly where lane B’s walking map is, and where the townsfolk stand', () => {
@@ -97,10 +99,12 @@ describe('the C-scale town scene', () => {
     expect(play.open).toBe('smithy');
   });
 
-  it('crosses the square at 88 art pixels a second', () => {
+  it('crosses the square at a stride a walk frame, about 88 art pixels a second', () => {
     let play = tapAt(scene, startPlay(start), { x: start.x + 264, y: start.y + 48 });
     play = advancePlay(scene, play, 1000);
-    expect(play.walked).toBeCloseTo(88, 5);
+    expect(play.walked).toBeCloseTo((1000 / WALK2_FRAME_MS) * WALK2_STRIDE, 5);
+    expect(play.walked).toBeGreaterThan(80);
+    expect(play.walked).toBeLessThan(96);
   });
 
   it('says and opens what the first town did, under the names it gave', () => {
@@ -128,11 +132,14 @@ describe('the C-scale town scene', () => {
     expect(byId('house').use!.name).toBe('Your house');
     expect(byId('oak').use!.button!.opens).toEqual({ skill: 'woodcutting' });
     expect(byId('pine-forest-47').use!.button!.opens).toEqual({ skill: 'woodcutting' });
-    // Deep in the forest, and the far buoy past the camera's reach, are only looked at.
-    for (const id of ['pine-forest-0', 'pine-forest-1', 'pine-forest-46', 'buoy-far']) {
+    // Deep in the forest pines are only looked at.
+    for (const id of ['pine-forest-0', 'pine-forest-1', 'pine-forest-46']) {
       expect(byId(id).tap, id).toBeUndefined();
       expect(byId(id).use, id).toBeUndefined();
     }
+    // The far buoy is in the camera's reach from the pier's end, and says what the near one does.
+    expect(byId('buoy-far').use).toBe(byId('buoy').use);
+    expect(byId('buoy-far').tap).toBeDefined();
     expect(byId('bush-west').use!.button!.opens).toEqual({ skill: 'foraging' });
     expect(byId('boulder-1').use!.button!.opens).toEqual({ skill: 'mining' });
   });

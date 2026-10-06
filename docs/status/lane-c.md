@@ -2,8 +2,9 @@
 
 **Next session: S16: Dungeon progression and replay** (brief to come in `docs/lanes.md`). Waiting
 in this lane besides: the dungeons at the C scale (the plan is under Notes, with what it needs from
-lane B by id), and wiring lane B's walk cycle into `figures2.ts` once it is on `main` (the place is
-marked in that file; the steps are under Notes).
+lane B by id; lane B's B10 draws it). **When lane B adds `'up'` to `Facing2`**, the change here is
+one line: in `headingFor` (`src/scene/gait.ts`) the line marked `UP` becomes `return 'up';`.
+Everything else (the poses, the worker that draws them, the pictures kept) follows from it.
 
 ## The town's map
 
@@ -27,8 +28,12 @@ Everything is in art pixels; walking tiles are 24 (`TOWN2_TILE`). The town is la
   on a tile of their own (solid), is talked to from the side(s) listed, and casts a contact
   shadow laid into the ground when it is painted.
 - Start: lane B's `TOWN2_START` (26, 56); the boat lands him at (18, 59).
-- Scenery only (no tap, no words): forest pines with nowhere to stand beside them, and
-  `buoy-far` (`LOOKED_AT_ONLY` in `town2.ts`) until lane B moves it into the camera's reach.
+- Scenery only (no tap, no words): forest pines with nowhere to stand beside them.
+  `buoy-far` is tapped from the pier's end like the near buoy since wave 10 (`LOOKED_AT_ONLY` in
+  `town2.ts` is empty, kept for anything that needs it again).
+- Talking: the hero stops beside a person at `TALK_GAP` (34 art pixels, feet to feet) on their
+  side, or as far out as his tile allows where the tile beyond is solid (30); `stands` on the
+  person's thing, one per spot.
 
 ## The grotto's map
 
@@ -55,6 +60,103 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
 - Lanterns hang only on rock with open floor below (north-facing walls).
 
 ## Done
+
+- **Wave 10 (lanes C and A together): the walk, the talk, the wait, and the weak spots.**
+  - **The walk cycle** (lane B's B9) in town, for the hero (`gait.ts`, `figures2.ts`,
+    `town2Art.ts`, `town2Place.ts`). Every number is read from `character2.ts`; none is written
+    here. The frame is `floor(walked / WALK2_STRIDE) % WALK2_FRAMES` from where this walk began, so
+    feet never slide whatever the frame rate (tested at 10, 20 and 40 ms frames giving the same
+    frames); it starts at the contact frame when a walk starts and goes back to standing the moment
+    it stops. The speed is `WALK2_STRIDE / WALK2_FRAME_MS` (87.5 art px/s; was a literal 88).
+    Facing: the way the next leg of the walk goes; down the screen (steeper than 1.5 rows a
+    column) the `'down'` frames; across and on diagonals the side frames, lane B's own `'left'`
+    frames, never mirrored here; up the screen, the side frames of the last way across, as lane B
+    asks. That choice is one function, `headingFor`; when `'up'` exists its marked line becomes
+    `return 'up';` and nothing else changes (the list of headings the worker draws is derived from
+    that function). Standing: lane B's breath (`characterIdlePicture2`, `IDLE2_FRAMES`,
+    `IDLE2_FRAME_MS`), the standing picture mirrored to face left. The stage's one-pixel bob is not
+    added to a walker in frames of his own (`StageArt.walkerPose`, new and optional: the dungeons
+    keep `walkerAt` and their bob, unchanged).
+  - **The hero's poses are drawn in a worker** (`figures2Worker.ts`, `posesFor`): lane B's
+    posing takes 3 to 10 ms a pose and made about 3 MB of garbage a second on the page while
+    walking, the first walk each way stuttering frame by frame on a slow phone. A worker draws
+    every pose for an outfit (26 pictures) when he is dressed; until they are in (about a fifth of
+    a second) he stands as drawn. Without workers (tests) each pose is drawn on first showing.
+  - **Lighting is kept per pose**: a lit picture of the hero is made once per pose (frame and
+    facing), time of day and 6-pixel place, and kept (192, least lately shown going first); a place
+    no light reaches uses the plain picture without painting. A test walks him past a lamp twice
+    at 60 fps and holds the second pass to no painting at all.
+  - **Townsfolk breathe** (lane B's `townsfolkIdlePicture2`), painted in the worker with the rest
+    of the town and each in their own time (370 ms apart). None of them walks yet: they stand where
+    their work is, so the walk cycle is wired for the hero only; `townsfolkFigure2` takes walk
+    frames by the same `Pose2` the day one strolls.
+  - **Standing to talk**: the hero stops beside a person on their side, 34 art pixels feet to feet
+    (30 where his tile's far side is solid), never overlapping them, facing them; they turn to face
+    him (as before, by `turnedTo`). Spoken to again from where he stands, he does not walk off and
+    back. `Thing.stands` is data on the scene, one point per spot.
+  - **`buoy-far`** is tappable from the pier's end; `reach.test.ts` covers it at 360, 390 and 430
+    wide like everything else.
+  - **The town kept between visits** (`town2Cache.ts` the rules, pure; `town2Shelf.ts` the
+    browser's: IndexedDB database `hearth-and-harbour-town`, apart from the save, PNG pictures and
+    the ground's cells gzipped): 1.4 MB a time of day. Kept under the worker's own hashed address,
+    which the build names by its content (checked: one changed constant, a new name; the same
+    source, the same name), so a deploy that changes a pixel never shows an old town. Nothing is
+    kept on the dev server. Anything less than sound (another build, another format, a picture
+    that will not unpack, a town that does not fit, a shelf that throws) works the town out afresh;
+    keeping is done after the town is sent, and the worker closes itself after (the page lets it go
+    after 30 s regardless; a worker that fails says so and the page works the town out itself).
+    Cold and warm screenshots of the town match pixel for pixel but for what moves.
+  - **First open**, production build, 390 x 844 at 3x, headless Chromium, Town tab tapped as soon
+    as the page is up: cold 2.5 s from load (2.2 s from the tap); warm 0.40 to 0.54 s from load
+    (0.11 to 0.17 s from the tap). With the page's CPU throttled 4x (CDP throttles the page's
+    thread, not workers): cold 4.0 s (2.8 from the tap), warm 0.96 to 1.13 s (0.24 to 0.29). The
+    cold time is mostly lane B's `town2Ground` composing the ground (1.8 s of the worker's 2.3);
+    the layout and walk map need no drawing now (`TOWN2_FACTS`), the gulls' sizes come from the
+    facts, and `forgetTown2Grids()` lets the composed grids go once painted.
+  - **The loading card** is the scene's own: the player's character, breathing, waiting by the
+    town's signpost on a patch of cobbles with contact shadows, at twice the town's scale in the
+    time of day's light (`townSign.ts`: one piece, the hero, lane B's cobble painter and this lane's
+    shadows; nothing of the town's heavy work), the name, a line, and a bar of four blocks lit one
+    per real step of the work.
+  - **Frame spikes** (one walking frame a minute of 50 to 83 ms): traced, three causes. (1) A tap
+    searched the whole map allocating a cell object for every step it tried: 25 to 32 ms of a
+    pointer event at 4x. The search now reads a solid grid kept per map and a heap of two plain
+    arrays, the same order and so exactly the same routes (dungeon tests unchanged): 2.2 to 0.43 ms
+    a route, a tap on a person 4.3 to 0.8 ms. (2) Lane B's posing on the page (above). (3) The
+    hero's shadow was painted through lane B's `rasterize2`, which makes a view object for every
+    pixel, at every pixel his feet move; now `pixels1` (`colourCells` and one copy) into an image
+    kept for it, the shadow's box worked out once. Allocation while walking at dusk went from about
+    5.3 MB/s to 1.3 MB/s (sampling heap profile, dev build, a quarter of what is left is the test
+    harness's clock). Measured on a production build, 390 x 844 at 3x, 4x CPU throttle, 61 s of
+    walking round town by taps every 2.6 s: by day 60.0 fps, median 16.7 ms, p95 19.8, p99 22.8,
+    worst 39 (3 frames over 34 ms); at dusk 60.0 fps, p95 20.9, p99 24.6, worst 56 (5 over 34). The
+    machine had a load of about 2.6 on two cores from other sessions throughout; one run by day had
+    a cluster up to 201 ms not seen again in a rerun, taken for that.
+  - **Contact shadow**: each part now has a floor as well as its steps down (the core never
+    lighter than step 4 of its ground's ramp by day, 5 at dusk; the penumbra 3, and 4 at dusk), so
+    busy cobbles even out into one shade under the feet instead of keeping every stone's contrast,
+    and a dithered fringe a step down round the penumbra keeps the edge soft. Never the line step.
+    Crops on grass, road, cobbles, flagstones, sand, the pier and the quay at day and dusk, before
+    and after, in `/home/claude/lane-shots/w10-ca/`.
+  - **Dungeons**: untouched in look and rules; their tests unchanged and passing. The path search
+    is shared and gives the same routes. Nothing learned changes the C-scale plan below.
+  - Tests: `gait` (frame by distance at three frame lengths, speed from lane B's constants,
+    facing each way, the 'up' rule, standing and breathing, starting at contact), `stand` (every
+    townsperson's stands, walking up to each, facing, they face him, no walk off and back),
+    `town2Cache` (kept and recalled, another build, every kind of unsound keep, shelves that
+    throw, no keeping in development), `figures2` (every pose from lane B, anchors, the hero lit
+    once per pose and place), `townView` (the card's picture and block bar, the worker left to keep
+    the town, a failed worker, the hero's poses from a worker), `shadow2` (busy ground evened, the
+    fringe). **Expectations changed on purpose**: `town2.test.ts` (the pace is lane B's stride over
+    its frame time, not 88; `buoy-far` is tappable), `townView.test.ts` (the card's bar is blocks,
+    not a scaled fill; the stand-in worker tells the town's worker from the poses' one),
+    `shadow2.test.ts` and `town2Paint.test.ts` (a shadow may darken light ground to the core's
+    floor, more than two steps), `figures2.test.ts` (`paint` takes a pose).
+  - Walked on a phone-shaped screen (390 x 844 at 3x, touch) in every direction, by day and at
+    dusk; talked to the smith, the trader, the alewife, the old man, the docker and the captain at
+    both, and to the far buoy; frame strips, GIFs and close-ups in `/home/claude/lane-shots/w10-ca/`.
+    **Not checked in Safari or WebKit** (no WebKit build here), nor on the live site (not reachable
+    from this sandbox).
 
 - **S16a: the C-scale town is the town.** No query string, no preview: the Town tab shows lane
   B's C-scale town with lane B's C-scale figures for everyone. The dungeons are untouched (same
@@ -499,13 +601,13 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
   raw-pixel path, which composes on the page and costs one long frame on first open and each
   flip), and the frame rates on a real phone. If Safari smooths, the way back is one line:
   `pixelated: true` off in `town2Stage()` (`town2Place.ts`), at the old frame cost.
-- From S16a: one walking frame in a minute or so still runs 50–83 ms (p95 stays 16.7), most
-  likely a path search over the 60 x 89 map on a tap, or a collection; not chased.
-- From S16a: the town is worked out afresh on every page load (about 2 s of a worker's time, 25 MB
-  held for one time of day); nothing is cached between visits.
-- From S16a: the loading card is honest but plain: the scene's panel on the backdrop, no picture.
-- From S16a: the townsfolk stand close beside whoever talks to them (their canvases are wider than
-  a tile), so the hero and, say, the alewife overlap a little while they talk.
+- From wave 10: the cold first open is still about 2.5 s, most of it lane B's ground composition;
+  a second visit is about 0.5 s. Splitting the worker's work across two workers (the ground in
+  one, the pieces, folk and facts in the other) would save perhaps half a second cold; not done.
+- From wave 10: IndexedDB in workers and `OffscreenCanvas.convertToBlob` are what the keeping
+  needs; a browser without either simply works the town out every time. Unchecked in Safari.
+- From wave 10: the hero's first fifth of a second in a new outfit shows him standing as drawn
+  while the poses come from their worker; a walk begun in that moment glides for a step.
 - From S15: **a run is not saved while it lasts**: a reload, or a phone that drops the page while
   locked, loses a seven-to-ten-minute run and what it picked up. Turning to portrait and the page
   going to the background both pause it cleanly (the background is tested: ten minutes away
@@ -518,21 +620,20 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
   does not report kills by monster, so bounties do not count dungeon kills (lane A noted the
   same); no fall animation beyond a red blink; the foes' figures are placeholders (B6); a heavy
   attack's circle is drawn over rock as well as floor.
-- Walk cycle.
 - Ship, boat and buoys do not bob; the waterline foam on the ship and rock does not move.
 
 ## Needs from another lane
 
-- **Lane B, for the town**: (1) `buoy-far` placed where the camera can see it: it is at (1314, 2055) and the camera, from anywhere the hero can stand, reaches x 1050 at the bottom of town at
-  390 wide. It is scenery (`LOOKED_AT_ONLY`, `town2.ts`) until then; take it out of that set when
-  it moves and `reach.test.ts` will say whether it can be tapped. (2) The walk cycle in
-  `character2.ts` (B9, under way): this lane wires it in as soon as it is on `main` (Notes).
-  (3) Optional now (the worker keeps them off the page): the layout's facts without drawing
-  every piece, and a way to let go of `town2Ground`'s kept cell grids, would shorten the worker's
-  two seconds and its memory while it works. (4) With lane B, retire the style guide's first-town
-  sizes ("What the swap supersedes") and the first town's art (`src/art/town.ts`, `ground.ts`
-  and the like): nothing in the town reads them now; `walkerArt.ts` still reads
-  `townPiece('hero').base` for the dungeons' hero until the dungeons move.
+- **Lane B, for the town** (none blocking): (1) `'up'` in `Facing2` when the back view is drawn:
+  one line here then (top of this file). (2) The cold first open is lane B's `town2Ground`
+  composing the ground, 1.8 s of a worker's 2.3; anything that shortens it shortens every first
+  visit after a deploy. (3) `rasterize2` makes a typed-array view for every pixel
+  (`art.subarray(from, from + 4)`); a loop over the four channels would spare the collector
+  millions of objects on the ground's 3 million pixels (this lane now uses `colourCells` and one
+  copy at scale 1, which gives the same pixels). (4) With lane B, retire the style guide's
+  first-town sizes and the first town's art (`src/art/town.ts`, `ground.ts` and the like):
+  `walkerArt.ts` still reads `townPiece('hero').base` for the dungeons' hero until the dungeons
+  move.
 - **Lane A**: nothing needed. A later wish, as before: the notice board could open
   `openBounties`.
 - Nothing blocking. For lane B: the store asks `dungeonProp('grotto', 'crate')` and the bridge
@@ -547,15 +648,17 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
 
 ## Notes for this lane's next session
 
-- **Wiring the walk cycle** (lane B is drawing it into `character2.ts`; the place it plugs in is
-  the comment marked "THE WALK CYCLE PLUGS IN HERE" in `src/scene/figures2.ts`):
-  1. `Figure2.paint` and `pixels` take a frame (0 standing, 1..n the stride); `figureOf` keeps one
-     `Picture2` per frame and facing, made on first ask, from lane B's door.
-  2. `Hero2.at` (`town2Art.ts`) picks the frame from `play.walked` (a half-step is `STRIDE2`, 8 art
-     pixels) and keys its kept pictures (plain and lit) by frame too; the stage's one-pixel `bob`
-     is then dropped for him (a `StageArt` flag, or a stride that makes `bob` 0).
-  3. Townsfolk keep frame 0; the worker changes nothing. Test: the frame advances with distance,
-     not time, and a standing hero is frame 0.
+- **The walk** (wave 10): `gait.ts` decides the pose (`Pose2`: walking or standing, heading,
+  frame, a key; every pose exists once, so a frame makes nothing); `figures2.ts` gets each pose's
+  picture from lane B (or from a `PoseBook` a worker drew); `Hero2` keeps plain and lit pictures by
+  pose key; the stage asks `StageArt.walkerPose` and adds no bob for it. A townsperson who walks
+  one day needs a `Gait` with `TOWNSFOLK2_STRIDE`, a walk on the stage like the hero's and their
+  pictures from `townsfolkFigure2` (which already answers walk poses); they are painted in the town
+  worker today, so a walker among them would be drawn like the hero, on the page from a pose book.
+- Measuring: `perf.mjs`-style scripts drive a production build (`vite preview`) and read rAF
+  intervals in the page; a CDP trace (`devtools.timeline`, `v8.gc`) and a sampling heap profile
+  (`HeapProfiler.startSampling`) found this wave's spikes. Playwright's `page.clock` routes frames
+  through its own timers: do not use it while timing frames.
 - **The dungeons at the C scale (a plan, not done).** Today a 270-wide world on 16-pixel tiles,
   played sideways, `dungeonScale` the short side over 270, the first-scale hero (`walkerArt.ts`)
   and foes. At the C scale:

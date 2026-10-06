@@ -104,6 +104,38 @@ function finalTally(before: GameState, after: GameState): Fight {
   };
 }
 
+/** Room kept between something brought into view and the screen's edge, in CSS pixels. */
+const VIEW_MARGIN = 8;
+
+/**
+ * How far to scroll `screen` down so `el` can be seen: its foot inside the
+ * screen if it fits, else its top at the screen's top; never up, and never
+ * further than that, so what the thumb tapped moves no more than it must.
+ */
+export function scrollToShow(screen: DOMRect, el: DOMRect): number {
+  const below = el.bottom + VIEW_MARGIN - screen.bottom;
+  if (below <= 0) return 0;
+  return Math.max(0, Math.min(below, el.top - VIEW_MARGIN - screen.top));
+}
+
+/** Scrolls the screen to show `el`, gliding unless the player asked for less motion. */
+function bringIntoView(screen: HTMLElement, el: HTMLElement): void {
+  const by = scrollToShow(screen.getBoundingClientRect(), el.getBoundingClientRect());
+  if (by <= 0) return;
+  const top = screen.scrollTop + by;
+  const still =
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (typeof screen.scrollTo === 'function') {
+    try {
+      screen.scrollTo({ top, behavior: still ? 'auto' : 'smooth' });
+      return;
+    } catch {
+      // An engine without scroll options: set it outright, below.
+    }
+  }
+  screen.scrollTop = top;
+}
+
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
 export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): App {
   let state: GameState | null = saves.load();
@@ -226,6 +258,11 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   const act = (next: GameState): void => {
     state = next;
     save();
+    redrawInPlace();
+  };
+
+  /** Redraws the screen, kept scrolled where it was. */
+  const redrawInPlace = (): void => {
     const top = root.querySelector('#screen')?.scrollTop ?? 0;
     render();
     const screen = root.querySelector('#screen');
@@ -545,7 +582,14 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         },
         open: (panel) => {
           sheetPanel = panel;
-          render();
+          // Opened where it was tapped: the sheet stays put, then glides just far
+          // enough for what opened to be seen.
+          redrawInPlace();
+          const opened = root.querySelector<HTMLElement>(
+            panel === 'look' ? '[data-look-picker]' : '[data-picker]',
+          );
+          const screen = root.querySelector<HTMLElement>('#screen');
+          if (opened && screen) bringIntoView(screen, opened);
         },
         equip: (itemId) => {
           sheetPanel = null;

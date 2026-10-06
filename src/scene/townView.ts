@@ -12,6 +12,8 @@ import { GROTTO } from './grotto';
 import { Hero, dressOf } from './hero';
 import { closePanel, startPlay, type Play } from './play';
 import { stage } from './stage';
+import { townSign, type TownSign } from './townSign';
+import { STEPS } from './town2Facts';
 import type { Cell } from './tileMap';
 import { BOAT_LANDING2 } from './town2';
 import type { Town2Art } from './town2Art';
@@ -78,25 +80,39 @@ if (typeof Worker === 'function' && typeof window !== 'undefined')
   setTimeout(() => prepareTown(now()), 0);
 
 /**
- * What shows while the town is still coming: its name, a line, and a bar of
- * the work's real steps, in the scene's own frame. Never a dark empty scene.
+ * What shows while the town is still coming: the player's own character
+ * waiting by the signpost, in the town's scale and light, the town's name, a
+ * line, and a bar of the work's real steps, a block a step. Never a dark
+ * empty scene. The picture is the card's only drawing, and a cheap one
+ * (`townSign.ts`): the town's own heavy work stays in its worker.
  */
-function loadingCard(): { el: HTMLElement; update(): void } {
-  const fill = h('span', { class: 'scene-loading-fill' });
+function loadingCard(state: GameState): { el: HTMLElement; update(): void } {
+  const dress = dressOf(state);
+  let sign: TownSign | null = null;
+  try {
+    sign = townSign(dress.look, dress.worn, now());
+  } catch {
+    // No picture is better than no card: the words and the bar still say what is happening.
+  }
+  const blocks = Array.from({ length: STEPS + 1 }, () =>
+    h('span', { class: 'scene-loading-step' }),
+  );
   const el = h('div', { class: 'scene-loading', attrs: { role: 'status' } }, [
     h('div', { class: 'scene-loading-card' }, [
+      sign?.el ?? null,
       h('h2', { text: 'Gullwick' }),
       h('p', { text: 'The tide is bringing the town in.' }),
-      h('span', { class: 'scene-loading-bar', attrs: { 'aria-hidden': 'true' } }, [fill]),
+      h('span', { class: 'scene-loading-bar', attrs: { 'aria-hidden': 'true' } }, blocks),
     ]),
   ]);
   let shown = -1;
   const update = (): void => {
-    // In whole quarters, as steps of a pixel bar rather than a smooth slide.
-    const k = Math.round(townProgress() * 4) / 4;
+    sign?.breathe(performance.now());
+    // A block for each real step of the work, never a smooth slide that only looks busy.
+    const k = Math.round(townProgress() * blocks.length);
     if (k === shown) return;
     shown = k;
-    fill.style.transform = `scaleX(${k})`;
+    blocks.forEach((b, i) => b.classList.toggle('done', i < k));
   };
   update();
   return { el, update };
@@ -138,7 +154,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 
   /** The loading card on its own, while the town's facts are not yet in. */
   const showComing = (): void => {
-    loading ??= loadingCard();
+    loading ??= loadingCard(latest);
     current = { el: h('div', { class: 'scene' }) };
     host.replaceChildren(current.el, loading.el);
   };
@@ -172,7 +188,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       fallback: 'The town needs a browser that can draw on a canvas.',
     });
     if (townLoading()) {
-      loading ??= loadingCard();
+      loading ??= loadingCard(latest);
       host.replaceChildren(current.el, loading.el);
     } else {
       loading = null;

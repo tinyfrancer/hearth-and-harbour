@@ -4,8 +4,17 @@
  * taps and time and shows the result, so all of it can be tested without a
  * canvas.
  */
-import { approach, footprintCentreX, panelFor, thingAt, usable, type Scene } from './things';
-import { cellAt, centreOf, tileOf, type Cell, type Point } from './tileMap';
+import { clearLine } from './path';
+import {
+  approach,
+  footprintCentreX,
+  panelFor,
+  standOn,
+  thingAt,
+  usable,
+  type Scene,
+} from './things';
+import { cellAt, centreOf, tileOf, type Cell, type Point, type TileMap } from './tileMap';
 import { step, walkTo, type Walker } from './walker';
 
 export type Facing = 'left' | 'right';
@@ -111,16 +120,35 @@ export function tapAt(scene: Scene, play: Play, point: Point, min = 0): Play {
       };
     return {
       ...play,
-      walker: walkTo(
-        scene.map,
-        { at: play.walker.at, path: [] },
-        centreOf(spot, tileOf(scene.map)),
-      ),
+      walker: walkToStand(scene.map, play.walker.at, spot, standOn(scene.map, thing, spot)),
       heading: thing.id,
       open: null,
     };
   }
   return { ...play, walker: walkTo(scene.map, play.walker, point), heading: null, open: null };
+}
+
+/**
+ * A walk from `from` to `spot`, stopping at `stand` on it: the tile's middle
+ * unless the thing says otherwise. The last leg runs straight to the stand
+ * rather than through the middle, and from somewhere on the spot already it
+ * is the only leg, so stepping up to someone again never walks off and back.
+ */
+function walkToStand(map: TileMap, from: Point, spot: Cell, stand: Point): Walker {
+  const tile = tileOf(map);
+  const centre = centreOf(spot, tile);
+  const walk = walkTo(map, { at: from, path: [] }, centre);
+  if (stand.x === centre.x && stand.y === centre.y) return walk;
+  const here = cellAt(from, tile);
+  if (here.col === spot.col && here.row === spot.row) {
+    if (from.x === stand.x && from.y === stand.y) return { at: from, path: [] };
+    return clearLine(map, from, stand) ? { at: from, path: [stand] } : walk;
+  }
+  const path = walk.path;
+  if (path.length === 0) return walk;
+  const before = path.length > 1 ? path[path.length - 2]! : from;
+  if (clearLine(map, before, stand)) return { at: from, path: [...path.slice(0, -1), stand] };
+  return clearLine(map, centre, stand) ? { at: from, path: [...path, stand] } : walk;
 }
 
 /** Time passing: the walker walks, turns the way they go, and opens what they were heading for. */

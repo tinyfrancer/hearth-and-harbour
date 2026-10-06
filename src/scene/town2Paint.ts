@@ -8,7 +8,7 @@ import { shines, type Glow } from '../art/raster';
 import { cell, isMat, stepOf, tgrid, type Picture2, type TGrid } from '../art/town2/cells';
 import { town2Piece } from '../art/town2/pieces';
 import { DAY2, DUSK2, type Palette2 } from '../art/town2/ramps';
-import { rasterize2 } from '../art/town2/raster';
+import { colourCells } from '../art/town2/raster';
 import { shoreAt, town2Layout, TOWN2_H, TOWN2_W } from '../art/town2/town';
 import type { TimeOfDay } from './daylight';
 import type { Box } from './things';
@@ -44,14 +44,31 @@ export function townLights(): readonly Glow[] {
 }
 
 /**
+ * A picture's pixels at one pixel per art pixel, lit by its glows: exactly
+ * what the art lane's `rasterize2` gives at scale 1, into `out` if given (of
+ * the picture's size), without the view it makes for every pixel on the way
+ * (which, over the whole ground, is millions of objects for the collector).
+ */
+export function pixels1(
+  pic: Picture2,
+  palette: Palette2,
+  out?: Uint8ClampedArray,
+): Uint8ClampedArray {
+  const colours = colourCells(pic, palette);
+  const data = out ?? new Uint8ClampedArray(colours.length);
+  data.set(colours);
+  return data;
+}
+
+/**
  * A picture's pixels, lit by its glows, with empty cells left empty: light
  * past a piece's edge is a halo, and the ground beneath it is lit already.
  */
 export function cellPixels(pic: Picture2, palette: Palette2): Uint8ClampedArray {
-  const image = rasterize2(pic, palette, 1);
+  const data = pixels1(pic, palette);
   const d = pic.grid.d;
-  for (let i = 0; i < d.length; i++) if (!d[i]) image.data[i * 4 + 3] = 0;
-  return image.data;
+  for (let i = 0; i < d.length; i++) if (!d[i]) data[i * 4 + 3] = 0;
+  return data;
 }
 
 /* ----- The shore's foam ----- */

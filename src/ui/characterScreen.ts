@@ -1,5 +1,4 @@
 import type { Look as DrawnLook } from '../art/character';
-import { characterCanvas2 } from '../art/character2';
 import { itemIcon } from '../art/icons';
 import { type Content, type Slot } from '../core/content';
 import { equipmentTotals, unmetRequirement, wearablesFor, wornItemIds } from '../core/equipment';
@@ -9,6 +8,7 @@ import { formatNumber } from './format';
 import { SLOT_NAMES, gearText, statName } from './gear';
 import { recordsEntry } from './logScreen';
 import { fullLook, lookPicker } from './look';
+import { portrait, type Portrait } from './portrait';
 import type { View } from './view';
 
 /** What is open under the sheet: one slot's choices, the look, or nothing. */
@@ -24,9 +24,25 @@ export interface SheetActions {
   records(page: 'log' | 'achievements'): void;
 }
 
-/** The character drawn large (the C-scale figure, at twice the game's scale), wearing what is worn. */
-function drawn(state: GameState, look = fullLook(state.look)): HTMLCanvasElement {
-  return characterCanvas2(look, wornItemIds(state), 'sheet');
+/**
+ * CSS pixels to an art pixel for the figure on the sheet: three where the
+ * doll has room for him between its columns (every phone from 350 wide), so
+ * he fills his frame from the floor to just under its top; two on anything
+ * narrower.
+ */
+export function sheetScale(width = typeof innerWidth === 'number' ? innerWidth : 390): number {
+  return Math.min(width, 480) >= 350 ? 3 : 2;
+}
+
+/** The character drawn large (the C-scale figure, breathing), wearing what is worn. */
+function drawn(state: GameState, look = fullLook(state.look)): Portrait {
+  return portrait(look, wornItemIds(state), sheetScale());
+}
+
+/** Says what the figure shows, for tests and anything reading the page. */
+function label(figure: HTMLElement, look: DrawnLook, worn: readonly string[]): void {
+  figure.dataset.look = `${look.skin} ${look.hair} ${look.hairColour}`;
+  figure.dataset.worn = [...worn].sort().join(' ');
 }
 
 /** The three totals combat will read, named for the style the weapon fights in. */
@@ -114,6 +130,32 @@ const DOLL: readonly (readonly Slot[])[] = [
 const slotWord = (slot: Slot): string => (slot === 'ammo' ? 'Ammo' : SLOT_NAMES[slot]);
 
 /**
+ * What is worn, by name, at a glance: two columns under the doll in the
+ * doll's own order (body on the left, hands and the rest on the right), a
+ * line each. A worn thing's name says where it goes; an empty slot says
+ * which it is, dimmed. Screen readers have it already from the squares.
+ */
+function wornList(state: GameState, content: Content): HTMLElement {
+  const column = (slots: readonly Slot[]) =>
+    h(
+      'ul',
+      { class: 'worn-list' },
+      slots.map((slot) => {
+        const worn = state.equipment[slot];
+        const name = worn
+          ? (content.items[worn.item]?.name ?? worn.item)
+          : `${slotWord(slot)}: empty`;
+        return h('li', {
+          class: worn ? '' : 'empty',
+          text: name,
+          attrs: { 'data-worn-slot': slot },
+        });
+      }),
+    );
+  return h('div', { class: 'worn-lists', attrs: { 'aria-hidden': 'true' } }, DOLL.map(column));
+}
+
+/**
  * The Character tab: the character drawn large in what they wear, with the
  * eight slots around them like a paper doll (tap one to choose from the bank
  * or take it off), the three totals, and a way to change the look.
@@ -125,7 +167,13 @@ export function characterView(
   actions: SheetActions,
 ): View {
   const updates: ((state: GameState) => void)[] = [];
-  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [drawn(state)]);
+  let figure = drawn(state);
+  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [
+    ...figure.canvases,
+  ]);
+  label(stage, fullLook(state.look), wornItemIds(state));
+  // He breathes while the sheet is open; only the canvas shown changes.
+  updates.push(() => figure.breathe(performance.now()));
 
   const square = (slot: Slot): HTMLElement => {
     const worn = state.equipment[slot];
@@ -163,6 +211,9 @@ export function characterView(
   };
 
   const lookOpen = panel === 'look';
+  // An open slot's choices come straight under the doll, where the thumb that opened it is.
+  const picker =
+    panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
   const head = h('section', { class: 'panel stack sheet' }, [
     h('h2', { class: 'sheet-name', text: state.name }),
     h('div', { class: 'doll' }, [
@@ -170,20 +221,20 @@ export function characterView(
       stage,
       h('div', { class: 'doll-side' }, DOLL[1]!.map(square)),
     ]),
+    picker ?? wornList(state, content),
     totals(state, content),
     lookOpen
-      ? h('div', { class: 'stack tight' }, [
+      ? h('div', { class: 'stack tight', attrs: { 'data-look-picker': '' } }, [
           lookPicker(fullLook(state.look), (look) => {
             actions.setLook(look);
-            stage.replaceChildren(drawn(state, look));
+            figure = drawn(state, look);
+            stage.replaceChildren(...figure.canvases);
+            label(stage, look, wornItemIds(state));
           }),
           button('Done', () => actions.open(null), 'primary'),
         ])
       : button('Change look', () => actions.open('look')),
   ]);
-
-  const picker =
-    panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
 
   const records = recordsEntry(state, content, actions.records);
   updates.push(records.update!);
@@ -192,7 +243,6 @@ export function characterView(
   return {
     el: h('div', { class: 'stack' }, [
       head,
-      picker,
       h('h2', { class: 'group-heading', text: 'Records' }),
       records.el,
     ]),

@@ -47,40 +47,66 @@ interface Reach {
 }
 
 /**
+ * Which tiles of a map are solid, one byte a tile, worked out once a map:
+ * searching and testing lines read this rather than asking each tile's kind,
+ * which made a search over the town allocate a cell for every step it tried
+ * (enough, on a tap, to hold up a frame on a slow phone). Maps are never
+ * changed in place, so a map's grid is good for as long as the map is.
+ */
+const solidGrids = new WeakMap<TileMap, Uint8Array>();
+
+function solidOf(map: TileMap): Uint8Array {
+  let grid = solidGrids.get(map);
+  if (!grid) {
+    grid = new Uint8Array(map.cols * map.rows);
+    for (let row = 0; row < map.rows; row++)
+      for (let col = 0; col < map.cols; col++)
+        grid[row * map.cols + col] = isSolid(map, { col, row }) ? 1 : 0;
+    solidGrids.set(map, grid);
+  }
+  return grid;
+}
+
+/** Whether a tile is solid, by column and row; off the map counts as solid. */
+const solidAt = (map: TileMap, grid: Uint8Array, col: number, row: number): boolean =>
+  col < 0 || row < 0 || col >= map.cols || row >= map.rows || grid[row * map.cols + col] === 1;
+
+/**
  * Everywhere a walker can get to from `start`, and how. One search answers
  * both "how do I get there" and "where is the nearest place I can get to", and
  * a town is small enough that searching all of it is cheaper than being
- * clever.
+ * clever. It allocates its two answers and the heap's arrays, nothing per tile.
  */
 function reachFrom(map: TileMap, start: Cell): Reach {
   const size = map.cols * map.rows;
   const cost = new Float64Array(size).fill(Infinity);
   const from = new Int32Array(size).fill(-1);
   if (isSolid(map, start)) return { cost, from };
-  const index = (c: Cell): number => c.row * map.cols + c.col;
+  const solid = solidOf(map);
+  const cols = map.cols;
   const open = new MinHeap();
-  cost[index(start)] = 0;
-  open.push(index(start), 0);
-  for (let next = open.pop(); next; next = open.pop()) {
-    const [at, atCost] = next;
+  const first = start.row * cols + start.col;
+  cost[first] = 0;
+  open.push(first, 0);
+  while (open.size > 0) {
+    const at = open.top;
+    const atCost = open.topCost;
+    open.pop();
     if (atCost > cost[at]!) continue;
-    const col = at % map.cols;
-    const row = (at - col) / map.cols;
+    const col = at % cols;
+    const row = (at - col) / cols;
     for (const { dc, dr, cost: step } of STEPS) {
-      const to = { col: col + dc, row: row + dr };
-      if (isSolid(map, to)) continue;
+      const tc = col + dc;
+      const tr = row + dr;
+      if (solidAt(map, solid, tc, tr)) continue;
       // A diagonal step may not cut the corner of a solid tile.
-      if (
-        dc &&
-        dr &&
-        (isSolid(map, { col: col + dc, row }) || isSolid(map, { col, row: row + dr }))
-      )
-        continue;
+      if (dc && dr && (solidAt(map, solid, tc, row) || solidAt(map, solid, col, tr))) continue;
+      const to = tr * cols + tc;
       const toCost = atCost + step;
-      if (toCost < cost[index(to)]!) {
-        cost[index(to)] = toCost;
-        from[index(to)] = at;
-        open.push(index(to), toCost);
+      if (toCost < cost[to]!) {
+        cost[to] = toCost;
+        from[to] = at;
+        open.push(to, toCost);
       }
     }
   }
@@ -157,6 +183,7 @@ const LINE_STEP = 2;
 /** Whether a walker's feet can go from `a` to `b` in a straight line without touching a solid tile. */
 export function clearLine(map: TileMap, a: Point, b: Point, half = footHalf(map)): boolean {
   const tile = tileOf(map);
+  const solid = solidOf(map);
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / LINE_STEP));
   for (let i = 0; i <= steps; i++) {
     const x = a.x + ((b.x - a.x) * i) / steps;
@@ -168,7 +195,7 @@ export function clearLine(map: TileMap, a: Point, b: Point, half = footHalf(map)
     const bottom = Math.ceil((y + half) / tile) - 1;
     for (let row = top; row <= bottom; row++) {
       for (let col = left; col <= right; col++) {
-        if (isSolid(map, { col, row })) return false;
+        if (solidAt(map, solid, col, row)) return false;
       }
     }
   }
@@ -209,37 +236,70 @@ export function route(map: TileMap, from: Point, to: Point): Point[] {
   return legs;
 }
 
-/** A small binary heap of tile indexes by cost: enough for a search, and no dependency. */
+/**
+ * A small binary heap of tile indexes by cost: enough for a search, and no
+ * dependency. Two plain arrays rather than a pair per entry, so a search
+ * makes no garbage; the order it gives ties in is the same as it always was,
+ * so every route comes out exactly as before.
+ */
 class MinHeap {
-  private readonly items: [number, number][] = [];
+  private readonly items: number[] = [];
+  private readonly costs: number[] = [];
+
+  get size(): number {
+    return this.items.length;
+  }
+
+  /** The cheapest tile, and its cost: read before `pop`. */
+  get top(): number {
+    return this.items[0]!;
+  }
+
+  get topCost(): number {
+    return this.costs[0]!;
+  }
 
   push(item: number, cost: number): void {
     const items = this.items;
-    items.push([item, cost]);
+    const costs = this.costs;
+    items.push(item);
+    costs.push(cost);
     for (let i = items.length - 1; i > 0;) {
       const parent = (i - 1) >> 1;
-      if (items[parent]![1] <= cost) break;
-      [items[i], items[parent]] = [items[parent]!, items[i]!];
+      if (costs[parent]! <= cost) break;
+      this.swap(i, parent);
       i = parent;
     }
   }
 
-  pop(): [number, number] | undefined {
+  pop(): void {
     const items = this.items;
-    const top = items[0];
-    const last = items.pop();
-    if (!top || !last || items.length === 0) return top;
+    const costs = this.costs;
+    const last = items.pop()!;
+    const lastCost = costs.pop()!;
+    if (items.length === 0) return;
     items[0] = last;
+    costs[0] = lastCost;
     for (let i = 0; ;) {
       const l = i * 2 + 1;
       const r = l + 1;
       let least = i;
-      if (l < items.length && items[l]![1] < items[least]![1]) least = l;
-      if (r < items.length && items[r]![1] < items[least]![1]) least = r;
+      if (l < items.length && costs[l]! < costs[least]!) least = l;
+      if (r < items.length && costs[r]! < costs[least]!) least = r;
       if (least === i) break;
-      [items[i], items[least]] = [items[least]!, items[i]!];
+      this.swap(i, least);
       i = least;
     }
-    return top;
+  }
+
+  private swap(i: number, j: number): void {
+    const items = this.items;
+    const costs = this.costs;
+    const item = items[i]!;
+    items[i] = items[j]!;
+    items[j] = item;
+    const cost = costs[i]!;
+    costs[i] = costs[j]!;
+    costs[j] = cost;
   }
 }

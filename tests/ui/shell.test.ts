@@ -185,6 +185,24 @@ describe('the shell a scene is given', () => {
     expect(root.querySelector('[data-award="grotto_cleared"]')).not.toBeNull();
   });
 
+  // Decided in wave 10: grotto kills count towards the achievements that count every kill.
+  // The only one is "Win your first fight", and a fight won in the grotto is a fight won;
+  // achievements that name a monster count that monster alone, wherever it falls.
+  it('counts a grotto kill as a first fight won, and only rats as rats', () => {
+    const app = inTown();
+    app.save();
+    expect(saved()!.achievements).not.toContain('first_kill');
+    shell!.settleRun({ kills: { deckhand: 100, giant_crab: 3 } });
+    app.save();
+    expect(saved()!.achievements).toContain('first_kill');
+    expect(root.querySelector('[data-award="first_kill"]')).not.toBeNull();
+    // A hundred deckhands are not a hundred dock rats.
+    expect(saved()!.achievements).not.toContain('rats_100');
+    shell!.settleRun({ kills: { dock_rat: 100 } });
+    app.save();
+    expect(saved()!.achievements).toContain('rats_100');
+  });
+
   it('opens the notice board from town', () => {
     inTown();
     expect(shell!.openBounties).toBeDefined();

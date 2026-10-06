@@ -17,8 +17,7 @@
  */
 import type { Glow } from '../art/raster';
 import { tgrid } from '../art/town2/cells';
-import { town2Piece } from '../art/town2/pieces';
-import { rasterize2 } from '../art/town2/raster';
+import { town2Facts as pieceFacts, town2Piece } from '../art/town2/pieces';
 import { town2Ground, town2Layout, TOWN2_H, TOWN2_W, type Placement2 } from '../art/town2/town';
 import type { TimeOfDay } from './daylight';
 import {
@@ -29,6 +28,7 @@ import {
   townsfolkFigure2,
 } from './figures2';
 import type { Raw } from './figures2';
+import { standing as standingPose } from './gait';
 import type { Facing } from './play';
 import { layShadow } from './shadow2';
 import type { Box, Scene } from './things';
@@ -38,6 +38,7 @@ import {
   foamBand,
   glowsIn,
   palette2,
+  pixels1,
   reaches,
   shiftedFoam,
   SMOKE_FRAMES,
@@ -60,7 +61,7 @@ export interface GullLoop {
 
 /** Each gull the art lane placed circles where it was placed. */
 export function gullLoop(p: Placement2, i: number): GullLoop {
-  const piece = town2Piece(p.id);
+  const piece = pieceFacts(p.id);
   return {
     x: p.x + Math.round(piece.w / 2),
     y: p.y + Math.round(piece.h / 2),
@@ -89,7 +90,7 @@ const isSmoke = (p: Placement2): boolean => p.layer === 'above' && !isGull(p);
 
 /** The town's facts, from the art lane's layout. */
 export function town2Facts(): TownFacts {
-  const gull = town2Piece('gull');
+  const gull = pieceFacts('gull');
   return {
     scene: town2Scene(),
     lights: townLights(),
@@ -115,6 +116,11 @@ export interface Facings<I> {
   readonly left: I | null;
 }
 
+/** A townsperson each way, breathing out (as drawn) and, if painted, in. */
+export interface Folk<I> extends Facings<I> {
+  readonly inhale?: Facings<I>;
+}
+
 /**
  * The town painted for one time of day. `I` is how a picture travels: `Raw`
  * pixels as worked out, or a bitmap once a worker has put them on one.
@@ -136,7 +142,7 @@ export interface TownPaint<I> {
   readonly smoke: readonly (readonly I[])[];
   readonly gull: Facings<I>;
   /** Each of the townsfolk, in the order of `TOWNSFOLK2_AT`, lit where they stand. */
-  readonly folk: readonly Facings<I>[];
+  readonly folk: readonly Folk<I>[];
   /** The ground's cells, shadows and all: what the hero's shadow darkens as he walks. */
   readonly cells: Int16Array;
 }
@@ -151,11 +157,20 @@ export interface TownRequest {
 export type TownStep = 1 | 2 | 3;
 export const STEPS = 3;
 
-/** What comes back, in this order: the facts (if asked), steps, then the town. */
+/**
+ * What comes back, in this order: the facts (if asked), steps, then the town
+ * (`kept` if it was kept from an earlier visit rather than worked out); or
+ * that the worker failed, and the page must work the town out itself.
+ */
 export type TownAnswer =
   | { readonly kind: 'facts'; readonly facts: TownFacts }
   | { readonly kind: 'step'; readonly step: TownStep }
-  | { readonly kind: 'town'; readonly paint: TownPaint<ImageBitmap | Raw> };
+  | {
+      readonly kind: 'town';
+      readonly paint: TownPaint<ImageBitmap | Raw>;
+      readonly kept?: boolean;
+    }
+  | { readonly kind: 'failed' };
 
 /** How many rows of the ground are turned into colours at a time: a strip's colours are 1.5 MB. */
 const STRIP = 128;
@@ -203,7 +218,7 @@ export function paintTown(time: TimeOfDay, progress?: (step: TownStep) => void):
   for (let y0 = 0; y0 < TOWN2_H; y0 += STRIP) {
     const h = Math.min(STRIP, TOWN2_H - y0);
     const strip = rowsOf(cells, pic.glows, y0, h);
-    ground.set(rasterize2(strip, palette, 1).data, y0 * TOWN2_W * 4);
+    ground.set(pixels1(strip, palette), y0 * TOWN2_W * 4);
   }
   progress?.(3);
 
@@ -251,12 +266,16 @@ export function paintTown(time: TimeOfDay, progress?: (step: TownStep) => void):
 
   const folk = TOWNSFOLK2_AT.map((p, i) => {
     const figure = townsfolkFigure2(p.figure);
-    const stand = (facing: Facing): Raw | null => {
+    const stand = (facing: Facing, breath: number): Raw | null => {
       if (!figure) return null;
       const box = folkBox(i, facing);
-      return figure.pixels(facing, time, glowsIn(lights, box, palette));
+      return figure.pixels(standingPose(facing, breath), time, glowsIn(lights, box, palette));
     };
-    return { right: stand('right'), left: stand('left') };
+    return {
+      right: stand('right', 0),
+      left: stand('left', 0),
+      inhale: { right: stand('right', 1), left: stand('left', 1) },
+    };
   });
 
   return {
@@ -284,7 +303,9 @@ export function buffersOf(paint: TownPaint<Raw>): ArrayBuffer[] {
     paint.foam.image,
     ...paint.smoke.flat(),
     ...[paint.gull.right, paint.gull.left].filter((r): r is Raw => r !== null),
-    ...paint.folk.flatMap((f) => [f.right, f.left]).filter((r): r is Raw => r !== null),
+    ...paint.folk
+      .flatMap((f) => [f.right, f.left, f.inhale?.right ?? null, f.inhale?.left ?? null])
+      .filter((r): r is Raw => r !== null),
   ];
   return [...all.map((r) => r.data.buffer as ArrayBuffer), paint.cells.buffer as ArrayBuffer];
 }

@@ -10,6 +10,9 @@ import { STEPS, town2Facts, type TownAnswer, type TownRequest } from '../../src/
 import { FOCUS_RISE2, hero2Now } from '../../src/scene/town2Place';
 import { heroAt, heroNow, resetTown, town2ArtNow, townView } from '../../src/scene/townView';
 import type { Shell, View } from '../../src/ui/view';
+import type { Look } from '../../src/art/character';
+import { heroFigure2, posesFor } from '../../src/scene/figures2';
+import { standing, walking } from '../../src/scene/gait';
 
 // The Town tab in jsdom, driven the way a thumb would. jsdom has no canvas to
 // draw on and lays nothing out, so these tell the scene its size by hand and
@@ -313,15 +316,18 @@ describe('the Town tab', () => {
 });
 
 describe('the town coming into view', () => {
-  /** A stand-in for the town's worker: answers only when the test says. */
+  /** A stand-in for the town's worker (and the hero's poses' one): answers only when the test says. */
   class FakeWorker {
     static made: FakeWorker[] = [];
+    /** Workers asked for the hero's poses, kept apart from the town's. */
+    static posers: FakeWorker[] = [];
     onmessage: ((event: MessageEvent<TownAnswer>) => void) | null = null;
     onerror: (() => void) | null = null;
     asked: TownRequest | null = null;
     ended = false;
-    constructor() {
-      FakeWorker.made.push(this);
+    constructor(url: URL | string) {
+      if (String(url).includes('figures2Worker')) FakeWorker.posers.push(this);
+      else FakeWorker.made.push(this);
     }
     postMessage(request: TownRequest): void {
       this.asked = request;
@@ -356,6 +362,7 @@ describe('the town coming into view', () => {
 
   beforeEach(() => {
     FakeWorker.made = [];
+    FakeWorker.posers = [];
     vi.stubGlobal('Worker', FakeWorker);
     // Pixels can be made (so there is something to wait for), but jsdom has no 2D context.
     vi.stubGlobal('ImageData', class {});
@@ -363,26 +370,37 @@ describe('the town coming into view', () => {
   });
 
   const card = (view: View) => view.el.querySelector<HTMLElement>('.scene-loading');
-  const fill = (view: View) =>
-    view.el.querySelector<HTMLElement>('.scene-loading-fill')!.style.transform;
+  /** How many of the bar's blocks are lit, of how many. */
+  const fill = (view: View) => {
+    const blocks = [...view.el.querySelectorAll('.scene-loading-step')];
+    return `${blocks.filter((b) => b.classList.contains('done')).length}/${blocks.length}`;
+  };
+  /** The scene's own canvas, not the card's picture. */
+  const sceneCanvas = (view: View) => view.el.querySelector('canvas.scene-canvas');
 
-  it('shows the town’s name and a bar of the work done at once, never an empty scene', () => {
+  it('shows the town’s name, its picture and a bar of the work done at once, never an empty scene', () => {
     const view = shown();
     expect(card(view)).not.toBeNull();
     expect(card(view)!.getAttribute('role')).toBe('status');
     expect(card(view)!.textContent).toMatch(/Gullwick/);
-    expect(view.el.querySelector('canvas')).toBeNull();
+    // The hero by the signpost, two breaths, one shown; hidden from screen readers.
+    const sign = [...card(view)!.querySelectorAll<HTMLCanvasElement>('.scene-loading-sign canvas')];
+    expect(sign).toHaveLength(2);
+    expect(sign.filter((c) => !c.hidden)).toHaveLength(1);
+    expect(sign.every((c) => c.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(sceneCanvas(view)).toBeNull();
     const worker = FakeWorker.made[0]!;
     expect(worker.asked).toEqual({ time: expect.any(String), facts: true });
-    expect(fill(view)).toBe('scaleX(0)');
+    expect(fill(view)).toBe(`0/${STEPS + 1}`);
 
     // The facts: the town can be walked, under the card until its picture comes.
     worker.answer({ kind: 'facts', facts: town2Facts() });
     worker.answer({ kind: 'step', step: 2 });
     wait(view, 50);
-    expect(view.el.querySelector('canvas')).not.toBeNull();
+    expect(sceneCanvas(view)).not.toBeNull();
     expect(card(view)).not.toBeNull();
-    expect(fill(view)).toBe(`scaleX(${Math.round(((2 + 1) / (STEPS + 1)) * 4) / 4})`);
+    // A block for the facts and one a step: three of four.
+    expect(fill(view)).toBe(`${2 + 1}/${STEPS + 1}`);
 
     // The picture: the card goes, and the worker is let go.
     worker.town();
@@ -390,6 +408,49 @@ describe('the town coming into view', () => {
     wait(view, 50);
     expect(card(view)).toBeNull();
     expect(town2ArtNow()!.held()).toBe(worker.asked!.time);
+  });
+
+  it('lets the worker keep the town for next time once it has answered, and works it out here if the worker fails', () => {
+    const view = shown();
+    const worker = FakeWorker.made[0]!;
+    worker.answer({ kind: 'facts', facts: town2Facts() });
+    worker.town();
+    // Not ended on answering: it closes itself once the town is kept.
+    expect(worker.ended).toBe(false);
+    wait(view, 50);
+    expect(card(view)).toBeNull();
+  });
+
+  it('works the town out on the page when the worker says it failed', () => {
+    const view = shown();
+    const worker = FakeWorker.made[0]!;
+    worker.answer({ kind: 'failed' });
+    expect(worker.ended).toBe(true);
+    wait(view, 50);
+    // The facts were worked out on the spot: the town can be walked.
+    expect(sceneCanvas(view)).not.toBeNull();
+  }, 60_000);
+
+  it('has the hero’s walk drawn in a worker, standing as drawn until it is in', async () => {
+    shown();
+    const poser = FakeWorker.posers[0]!;
+    // Asked for his look and what he wears.
+    expect(poser.asked).toMatchObject({ look: expect.any(Object), worn: expect.any(Array) });
+    const hero = hero2Now()!;
+    const before = hero.dressedAs!.pixels(walking('right', 3), 'day', []).data.join();
+    const asDrawn = hero.dressedAs!.pixels(standing('right', 0), 'day', []).data.join();
+    expect(before).toBe(asDrawn);
+    // The poses come in: lane B's frames, as the worker drew them.
+    const { look, worn } = poser.asked as unknown as { look: Look; worn: string[] };
+    const book = posesFor(look, worn);
+    poser.onmessage?.({
+      data: [...book].map(([key, pic]) => ({ key, ...pic.grid })),
+    } as unknown as MessageEvent<TownAnswer>);
+    await Promise.resolve();
+    expect(poser.ended).toBe(true);
+    const after = hero.dressedAs!.pixels(walking('right', 3), 'day', []).data.join();
+    expect(after).not.toBe(asDrawn);
+    expect(after).toBe(heroFigure2(look, worn).pixels(walking('right', 3), 'day', []).data.join());
   });
 
   it('asks for the town once a page, however often the tab is opened', () => {

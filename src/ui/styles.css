@@ -295,6 +295,10 @@ h2 {
   margin-bottom: 8px;
 }
 
+.title p {
+  text-wrap: balance;
+}
+
 .version {
   text-align: center;
   font-size: 14px;
@@ -645,18 +649,20 @@ button.card:active {
 /*
  * The character, drawn: standing on a lit floor in a dark room, framed like a
  * portrait. The canvas keeps the size the art gave it (whole device pixels);
- * the room grows around it. The soles are 2 CSS pixels above the canvas's
- * foot, so the canvas sits into the floor and they stand on it, not on its edge.
+ * the room grows around it, and is never so much taller than him that he
+ * stands lost in it. His soles are two art pixels above the canvas's foot,
+ * so the canvas sits into the floor and he stands on it, not on its edge.
+ * A canvas wider than the room is cut at its sides, which are empty.
  */
 .figure {
-  --floor: 44px;
+  --floor: 36px;
   position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   flex: none;
   min-width: 0;
-  padding: 16px 0 calc(var(--floor) - 14px);
+  padding: 0 0 calc(var(--floor) - 16px);
   background: linear-gradient(
     to bottom,
     var(--backdrop) calc(100% - var(--floor)),
@@ -671,9 +677,9 @@ button.card:active {
 .figure::before {
   content: '';
   position: absolute;
-  left: calc(50% - 34px);
-  bottom: calc(var(--floor) - 17px);
-  width: 68px;
+  left: calc(50% - 44px);
+  bottom: calc(var(--floor) - 16px);
+  width: 88px;
   height: 12px;
   border-radius: 50%;
   background: var(--backdrop);
@@ -681,10 +687,34 @@ button.card:active {
 
 .figure > canvas {
   position: relative;
+  flex: none;
 }
 
+.figure > canvas[hidden] {
+  display: none;
+}
+
+/*
+ * The creator: the character is the screen's middle, in a portrait frame
+ * sized to him rather than the screen's width, the choices right under him.
+ */
 .create .figure {
-  padding-top: 20px;
+  align-self: center;
+  width: min(100%, 248px);
+  padding-top: 12px;
+}
+
+.create .look-picker {
+  width: min(100%, 320px);
+  align-self: center;
+}
+
+.create-form {
+  align-items: stretch;
+}
+
+.create-form > h2 {
+  text-align: center;
 }
 
 /* The sheet: the name, then the character with the eight slots down either side. */
@@ -695,7 +725,35 @@ button.card:active {
 .doll {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr) 56px;
-  gap: 10px;
+  gap: 8px;
+}
+
+/*
+ * What is worn, by name, under the doll: two columns in the doll's own
+ * order, a line each; an empty slot's line dim.
+ */
+.worn-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: var(--px) solid var(--line);
+}
+
+.worn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.worn-list > .empty {
+  color: var(--text-muted);
 }
 
 .doll-side {
@@ -795,6 +853,8 @@ button.card:active {
 
 .slot-picker {
   border-color: var(--gold-bright);
+  /* Clear of the screen's top edge when it is scrolled into view. */
+  scroll-margin-top: 8px;
 }
 
 .slot-picker .worn {

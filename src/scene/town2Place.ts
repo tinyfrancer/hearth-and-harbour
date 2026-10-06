@@ -13,11 +13,20 @@ import { TOWN2_TILE } from '../art/town2/town';
 import type { GameState } from '../core/state';
 import type { TimeOfDay } from './daylight';
 import { scaleFor, type SceneSize } from './scale';
-import type { StageArt } from './stage';
+import { Gait, standing } from './gait';
+import type { StageArt, WalkerFrame } from './stage';
 import type { Scene } from './things';
 import { centreOf, type Point } from './tileMap';
 import { BOAT_LANDING2, TOWN2_START_CELL } from './town2';
-import { FIGURE2_FEET, Hero2, painter, town2Art, type Painter, type Town2Art } from './town2Art';
+import {
+  FIGURE2_FEET,
+  Hero2,
+  painter,
+  poser,
+  town2Art,
+  type Painter,
+  type Town2Art,
+} from './town2Art';
 import { STEPS, type TownFacts } from './town2Facts';
 import type { Size } from './camera';
 
@@ -89,7 +98,7 @@ export function townLoading(): boolean {
 
 /** The hero at the C scale, dressed as the state says. */
 export function wear2(state: GameState): void {
-  hero ??= new Hero2();
+  hero ??= new Hero2(poser());
   if (facts) hero.lightBy(facts.lights);
   hero.wear(state);
 }
@@ -110,10 +119,13 @@ export function town2Stage(): {
   pixelated: true;
 } {
   if (!facts || !art) throw new Error('The town is not ready to show.');
-  hero ??= new Hero2();
+  hero ??= new Hero2(poser());
   hero.lightBy(facts.lights);
   const look = art;
   const me = hero;
+  const gait = new Gait();
+  /** This frame's answer, one object reused: a frame makes nothing. */
+  const shown = { image: null as HTMLCanvasElement | null, feetX: FIGURE2_FEET.x };
   return {
     scene: facts.scene,
     art: {
@@ -122,9 +134,16 @@ export function town2Stage(): {
       shadowAt: look.shadowAt,
       life: look.life,
       heroFeet: FIGURE2_FEET,
-      // Drawn in the held still's time of day, so he matches the town around him during a flip.
+      // Standing still as drawn: only for a stage that does not ask for his pose.
       walkerAt: (feet, facing, palette) =>
-        me.at(feet, facing, look.held() ?? palette.name) ?? nobody(),
+        me.at(feet, standing(facing, 0), look.held() ?? palette.name) ?? nobody(),
+      // Drawn in the held still's time of day, so he matches the town around him during a flip.
+      walkerPose: (feet, play, palette, now) => {
+        const pose = gait.pose(play, now);
+        shown.image = me.at(feet, pose, look.held() ?? palette.name) ?? nobody();
+        shown.feetX = me.anchorX(pose);
+        return shown as WalkerFrame;
+      },
     },
     scaleOf: scaleFor(TOWN2_SCENE),
     focusRise: FOCUS_RISE2,
