@@ -148,3 +148,112 @@ export function strollAt(round: Round, clock: number): Strolling {
 export function strollOn(clock: number, ms: number, talking: boolean): number {
   return talking ? clock : clock + Math.max(0, ms);
 }
+
+/* ----- Giving way ----- */
+
+/**
+ * The room a person keeps round their feet as they pass someone, in art
+ * pixels: wide across (two figures side by side) and shallow up and down,
+ * where one walking in front of or behind another is drawn in front or
+ * behind by their feet and does not stand in them. Under the talking gap
+ * (`talkGap`, 30 and more), so someone talked to is never in it.
+ */
+export const PERSONAL = { rx: 24, ry: 10 } as const;
+
+/** How far into someone's room a point is: under 1 is inside it. */
+export function crowding(at: Point, other: Point): number {
+  const a = (at.x - other.x) / PERSONAL.rx;
+  const b = (at.y - other.y) / PERSONAL.ry;
+  return a * a + b * b;
+}
+
+/** How long a stroller waits for someone in their way before turning back the way they came. */
+export const TURN_MS = 1200;
+
+/**
+ * The clock at the same place on the route going the other way: someone
+ * walking out turns about and walks home from where they are, and someone
+ * walking home turns and walks out. Resting, it is the same clock.
+ */
+export function turnedAbout(round: Round, clock: number): number {
+  const { stroll, length } = round;
+  const rest = stroll.restMs;
+  const walk = (length * 1000) / stroll.speed;
+  const t = (((clock + stroll.startMs) % round.ms) + round.ms) % round.ms;
+  let to: number;
+  if (t >= rest && t < rest + walk) {
+    const d = ((t - rest) * stroll.speed) / 1000;
+    to = 2 * rest + walk + ((length - d) * 1000) / stroll.speed;
+  } else if (t >= 2 * rest + walk) {
+    const d = ((t - 2 * rest - walk) * stroll.speed) / 1000;
+    to = rest + ((length - d) * 1000) / stroll.speed;
+  } else return clock;
+  return clock + (to - t);
+}
+
+/** How often, in ms, a long step is looked along for someone in the way: under a pixel of walking. */
+const LOOK_MS = 20;
+
+/** How far into `ms` someone can go, before `at(t)` comes into `other`'s room getting nearer. */
+function untilCrowding(
+  at: (t: number) => Point,
+  ms: number,
+  other: Point,
+): number {
+  const start = crowding(at(0), other);
+  const blocked = (t: number): boolean => {
+    const e = crowding(at(t), other);
+    return e < 1 && e < start;
+  };
+  // The first moment it would be: looked for along the way, so a long step cannot pass through.
+  let lo = 0;
+  let hi = -1;
+  for (let t = Math.min(ms, LOOK_MS); ; t = Math.min(ms, t + LOOK_MS)) {
+    if (blocked(t)) {
+      hi = t;
+      break;
+    }
+    lo = t;
+    if (t >= ms) return ms;
+  }
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (blocked(mid)) hi = mid;
+    else lo = mid;
+  }
+  return lo;
+}
+
+/**
+ * A stroller's clock after `ms` with someone standing at `other` (null for
+ * nobody): they walk their round, but stop at the edge of anyone's room in
+ * their way, wait there, and after `TURN_MS` of waiting turn about and walk
+ * back. `waited` is how long they have waited so far. However the time is
+ * cut, they end in the same place (for someone who stays put).
+ */
+export function strollPast(
+  round: Round,
+  clock: number,
+  ms: number,
+  waited: number,
+  other: Point | null,
+): { clock: number; waited: number } {
+  if (!other) return { clock: clock + Math.max(0, ms), waited: 0 };
+  let left = Math.max(0, ms);
+  let c = clock;
+  let w = waited;
+  for (let turns = 0; turns < 4 && left > 0; turns++) {
+    const from = c;
+    const go = untilCrowding((t) => strollAt(round, from + t).at, left, other);
+    c = from + go;
+    left -= go;
+    if (left <= 0) return { clock: c, waited: go > 0 ? 0 : w };
+    // In the way: wait, and once waited long enough, turn about and go on with what is left.
+    const need = TURN_MS - w;
+    if (left < need) return { clock: c, waited: w + left };
+    left -= need;
+    w = 0;
+    c = turnedAbout(round, c);
+  }
+  return { clock: c + left, waited: 0 };
+}

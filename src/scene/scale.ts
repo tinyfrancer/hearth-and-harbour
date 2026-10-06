@@ -186,3 +186,25 @@ export function overlayFit(
   const perArt = (scale * width) / Math.max(1, device.width);
   return { width, height, perArt, k: width / Math.max(1, css.width) / perArt };
 }
+
+/**
+ * Where on the overlay a box of the scene (art pixels) falls, in its device
+ * pixels, snapped out to whole CSS-and-device steps so the overlay canvas
+ * placed there sits exactly on device pixels, and clamped to the scene's
+ * canvas; null where none of it is on screen.
+ */
+export function overlayRect(
+  box: { x: number; y: number; w: number; h: number },
+  camera: Point,
+  perArt: number,
+  full: { width: number; height: number },
+  dpr: number,
+): { x: number; y: number; w: number; h: number } | null {
+  const step = Math.max(1, Math.round(cssStep(dpr) * dpr));
+  const x0 = Math.max(0, Math.floor(((box.x - camera.x) * perArt) / step) * step);
+  const y0 = Math.max(0, Math.floor(((box.y - camera.y) * perArt) / step) * step);
+  const x1 = Math.min(full.width, Math.ceil(((box.x + box.w - camera.x) * perArt) / step) * step);
+  const y1 = Math.min(full.height, Math.ceil(((box.y + box.h - camera.y) * perArt) / step) * step);
+  if (x1 <= x0 || y1 <= y0) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}

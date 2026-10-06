@@ -1130,9 +1130,51 @@ export function fightExtra(
   for (const c of ripples) boxes.push({ x: c.col * T, y: c.row * T, w: T, h: T });
   const viewWidth = room.map.cols * T;
 
+  // Where the overlay draws: every health bar and what is over it, every number and word, the
+  // captain's words. Generous; the overlay canvas covers this and nothing more.
+  const over: Box[] = [];
+  for (const foe of here) {
+    if (!alive(foe) || held(battle, place, foe)) continue;
+    const top = foe.at.y - liftOf(room, foe) - standsOf(foe.monster);
+    over.push({ x: foe.at.x - 44, y: top - 44, w: 92, h: 52 });
+  }
+  for (const e of battle.effects) {
+    if (e.kind === 'hit' || e.kind === 'miss' || e.kind === 'heal' || e.kind === 'empty') {
+      const onHero = !('on' in e) || e.on === 'hero';
+      const x = onHero ? hero.x : e.at.x;
+      const y = onHero ? hero.y - HERO_TALL - 6 : e.at.y - 12;
+      over.push({ x: x - 70, y: y - 48, w: 140, h: 58 });
+    } else if (e.kind === 'splash') {
+      over.push({ x: e.at.x - 50, y: e.at.y - HERO_TALL - 60, w: 100, h: 56 });
+    } else if (e.kind === 'landed' && e.doused) {
+      over.push({ x: e.at.x - 40, y: e.at.y - 70, w: 80, h: 56 });
+    } else if (e.kind === 'say' && clock - e.from < SAY_MS) {
+      const who = battle.foes.find((f) => f.key === e.who);
+      if (who && who.room === run.room) {
+        const top = who.at.y - standsOf(who.monster) - 14;
+        over.push({ x: 0, y: top - 50, w: viewWidth, h: 54 });
+      }
+    }
+  }
+  let overlayBox: Box | null = null;
+  for (const b of over) {
+    if (!overlayBox) overlayBox = b;
+    else {
+      const x = Math.min(overlayBox.x, b.x);
+      const y = Math.min(overlayBox.y, b.y);
+      overlayBox = {
+        x,
+        y,
+        w: Math.max(overlayBox.x + overlayBox.w, b.x + b.w) - x,
+        h: Math.max(overlayBox.y + overlayBox.h, b.y + b.h) - y,
+      };
+    }
+  }
+
   return {
     actors,
     boxes,
+    overlayBox,
     walker: (image) => {
       if (flashing(battle.struckAt, clock)) return flashOf(image, C.white);
       // Down: he blinks red until the tide takes him.

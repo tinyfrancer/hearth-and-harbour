@@ -10,7 +10,17 @@ import { TOWN2_TILE } from '../art/town2/town';
 import { breathFrame, strideFrame, walkFacing, type Pose2 } from './figures2';
 import { cheapest } from './path';
 import { facingToward, walkUp, type Facing, type Play } from './play';
-import { roundOf, strollAt, strollOn, type Round, type Strolling } from './stroll';
+import {
+  PERSONAL,
+  crowding,
+  roundOf,
+  strollAt,
+  strollPast,
+  type Round,
+  type Strolling,
+} from './stroll';
+import { route } from './path';
+import type { TileMap } from './tileMap';
 import { grown, type Box, type Scene } from './things';
 import { cellAt, type Point } from './tileMap';
 import { personTap, standBeside, STROLLERS2, talkGap } from './town2';
@@ -21,8 +31,12 @@ const T = TOWN2_TILE;
 /** Each stroller's round, in the order of `STROLLERS2`. */
 export const ROUNDS: readonly Round[] = STROLLERS2.map((p) => roundOf(p.stroll, T));
 
-/** Each stroller's own clock: how far into their time they are, in milliseconds. */
-export type FolkClocks = readonly number[];
+/**
+ * Each stroller's own clock: how far into their time they are, in
+ * milliseconds; and, where any has been waiting for the hero to get out of
+ * the way, how long (`waited`, absent for none).
+ */
+export type FolkClocks = readonly number[] & { readonly waited?: readonly number[] };
 
 /** The clocks as the page opens. */
 export const startFolk = (): FolkClocks => STROLLERS2.map(() => 0);
@@ -31,10 +45,88 @@ export const startFolk = (): FolkClocks => STROLLERS2.map(() => 0);
 export const talkingTo = (play: Play, id: string): boolean =>
   play.heading === id || play.open === id;
 
-/** The clocks after `ms`: each runs on unless its stroller is being talked to. */
+/**
+ * The clocks after `ms`: each runs on unless its stroller is being talked
+ * to, and gives way to the hero (`strollPast`): a stroller he stands in the
+ * way of stops at the edge of his room, waits, and turns back.
+ */
 export function folkOn(clocks: FolkClocks, ms: number, play: Play): FolkClocks {
   if (ms <= 0) return clocks;
-  return clocks.map((c, i) => strollOn(c, ms, talkingTo(play, STROLLERS2[i]!.id)));
+  const waited: number[] = [];
+  const next = clocks.map((c, i) => {
+    if (talkingTo(play, STROLLERS2[i]!.id)) {
+      waited.push(0);
+      return c;
+    }
+    const went = strollPast(ROUNDS[i]!, c, ms, clocks.waited?.[i] ?? 0, play.walker.at);
+    waited.push(went.waited);
+    return went.clock;
+  });
+  return waited.some((w) => w > 0) ? Object.assign(next, { waited }) : next;
+}
+
+/** A copy of a map with `cells` solid as well: for planning a walk round someone standing. */
+function withSolid(map: TileMap, cells: readonly { col: number; row: number }[]): TileMap {
+  const solid = (Object.keys(map.kinds) as string[]).find((k) => map.kinds[k]!.solid);
+  if (!solid) return map;
+  const tiles = map.tiles.map((line) => [...line]);
+  for (const c of cells) if (tiles[c.row]?.[c.col] !== undefined) tiles[c.row]![c.col] = solid;
+  return { ...map, tiles };
+}
+
+/**
+ * The hero walking for `ms` among people who stroll (`others`, their feet):
+ * he never walks into anyone's room (`PERSONAL`). Where his walk would, he
+ * stops at its edge and his way is planned again round them, if there is
+ * one; otherwise he waits there, and they, giving way to him too, turn back.
+ * Walking away from someone, or past them, is never stopped.
+ */
+export function walkAmong(
+  walk: (play: Play, ms: number) => Play,
+  map: TileMap,
+  play: Play,
+  ms: number,
+  others: readonly Point[],
+): Play {
+  const next = walk(play, ms);
+  const from = play.walker.at;
+  const inWay = (at: Point) =>
+    others.find((o) => {
+      const e = crowding(at, o);
+      return e < 1 && e < crowding(from, o);
+    });
+  const who = inWay(next.walker.at);
+  if (!who) return next;
+  let lo = 0;
+  let hi = ms;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (inWay(walk(play, mid).walker.at)) hi = mid;
+    else lo = mid;
+  }
+  const stopped = walk(play, lo);
+  const goal = play.walker.path.at(-1);
+  if (!goal) return stopped;
+  // Round them: their tile, and the tiles either side their room reaches, are not to be walked through.
+  const c = cellAt(who, T);
+  const reach = Math.ceil(PERSONAL.rx / T);
+  const blocked = [];
+  for (let dc = -reach; dc <= reach; dc++) blocked.push({ col: c.col + dc, row: c.row });
+  const here = cellAt(stopped.walker.at, T);
+  const there = cellAt(goal, T);
+  const round = withSolid(
+    map,
+    blocked.filter(
+      (b) => !(b.col === here.col && b.row === here.row) && !(b.col === there.col && b.row === there.row),
+    ),
+  );
+  const path = route(round, stopped.walker.at, goal);
+  const end = path.at(-1);
+  if (!end || cellAt(end, T).col !== there.col || cellAt(end, T).row !== there.row)
+    return { ...stopped, walker: { ...stopped.walker, path: stopped.walker.path } };
+  // The last point as it was (a talking spot is not a tile's middle).
+  const last = path.length > 0 ? [...path.slice(0, -1), goal] : [goal];
+  return { ...stopped, walker: { at: stopped.walker.at, path: last } };
 }
 
 /** Where each stroller is now, by their clocks. */

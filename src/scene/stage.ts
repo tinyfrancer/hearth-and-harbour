@@ -33,6 +33,7 @@ import {
   canvasFit,
   cssToArt,
   overlayFit,
+  overlayRect,
   pixelFit,
   sceneScale,
   tapToWorld,
@@ -280,6 +281,12 @@ export interface StageExtra {
    * so a size in CSS pixels times `k` is that size on screen.
    */
   overlay?(ctx: CanvasRenderingContext2D, k: number): void;
+  /**
+   * Where the overlay draws this frame, in art pixels, generously; null for
+   * nothing. The overlay canvas covers only this (a canvas the whole screen's
+   * size, changed every frame, cost the browser as much as the scene).
+   */
+  readonly overlayBox?: Box | null;
   /** The walker's picture as it should show this frame (a flash when struck). */
   walker?(image: HTMLCanvasElement): HTMLCanvasElement;
 }
@@ -525,10 +532,6 @@ export function stage(options: StageOptions): View {
     if (next.css.width !== css.width || next.css.height !== css.height) {
       canvas.style.width = `${next.css.width}px`;
       canvas.style.height = `${next.css.height}px`;
-      if (top) {
-        top.style.width = `${next.css.width}px`;
-        top.style.height = `${next.css.height}px`;
-      }
     }
     css = next.css;
     if (next.device.width === device.width && next.device.height === device.height) return;
@@ -764,23 +767,37 @@ export function stage(options: StageOptions): View {
     cam: Point,
     scale: number,
   ): void => {
-    const fitted = overlayFit(css, window.devicePixelRatio || 1, device, scale);
-    if (over.width !== fitted.width || over.height !== fitted.height) {
-      over.width = fitted.width;
-      over.height = fitted.height;
-      overlaid = true;
+    const dpr = window.devicePixelRatio || 1;
+    const fitted = overlayFit(css, dpr, device, scale);
+    const per = fitted.perArt;
+    const box = extra?.overlay ? (extra.overlayBox ?? null) : null;
+    const at = box && overlayRect(box, cam, per, fitted, dpr);
+    if (!at) {
+      if (overlaid) {
+        over.style.visibility = 'hidden';
+        overlaid = false;
+      }
+      return;
     }
-    if (!extra?.overlay && !overlaid) return;
+    // Grown to fit, never shrunk by a little: a canvas's size changed every frame is new memory every frame.
+    const w = Math.max(at.w, over.width < at.w * 2 ? over.width : 0);
+    const hgt = Math.max(at.h, over.height < at.h * 2 ? over.height : 0);
+    if (over.width !== w || over.height !== hgt) {
+      over.width = w;
+      over.height = hgt;
+      over.style.width = `${w / dpr}px`;
+      over.style.height = `${hgt / dpr}px`;
+    }
+    const place = `translate(${at.x / dpr}px, ${at.y / dpr}px)`;
+    if (over.style.transform !== place) over.style.transform = place;
+    if (over.style.visibility !== '') over.style.visibility = '';
     topCtx ??= over.getContext('2d');
     if (!topCtx) return;
     topCtx.setTransform(1, 0, 0, 1, 0, 0);
     topCtx.clearRect(0, 0, over.width, over.height);
-    overlaid = false;
-    if (!extra?.overlay) return;
-    const per = fitted.perArt;
-    topCtx.setTransform(per, 0, 0, per, -cam.x * per, -cam.y * per);
+    topCtx.setTransform(per, 0, 0, per, -cam.x * per - at.x, -cam.y * per - at.y);
     topCtx.imageSmoothingEnabled = false;
-    extra.overlay(topCtx, fitted.k);
+    extra!.overlay!(topCtx, fitted.k);
     overlaid = true;
   };
 
