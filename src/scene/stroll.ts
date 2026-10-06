@@ -195,11 +195,7 @@ export function turnedAbout(round: Round, clock: number): number {
 const LOOK_MS = 20;
 
 /** How far into `ms` someone can go, before `at(t)` comes into `other`'s room getting nearer. */
-function untilCrowding(
-  at: (t: number) => Point,
-  ms: number,
-  other: Point,
-): number {
+function untilCrowding(at: (t: number) => Point, ms: number, other: Point): number {
   const start = crowding(at(0), other);
   const blocked = (t: number): boolean => {
     const e = crowding(at(t), other);

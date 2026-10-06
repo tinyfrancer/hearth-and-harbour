@@ -118,7 +118,15 @@ describe('who stands how', () => {
     expect(pose(struck, at + FLASH_MS).pose).toBe('hurt');
     expect(pose(struck, at + HURT_MS).pose).toBe('idle');
     // Winding up while a heavy blow is marked; the blow as it lands.
-    const mark = { at: crab.at, radius: 1, shape: 'circle', from: at, lands: at + 1700, origin: null, damage: 1 } as const;
+    const mark = {
+      at: crab.at,
+      radius: 1,
+      shape: 'circle',
+      from: at,
+      lands: at + 1700,
+      origin: null,
+      damage: 1,
+    } as const;
     expect(pose({ ...crab, heavy: mark }, at).pose).toBe('windup');
     const slammed = { ...crab, aware: true, heavyMs: foeKind('giant_crab').heavy!.everyMs };
     expect(pose(slammed, at).pose).toBe('strike');
@@ -136,8 +144,7 @@ describe('who stands how', () => {
   });
 
   it('walks a frame for each stride of ground: the hero’s stride for people, its own for creatures', () => {
-    const walking = (f: Foe, walked: number) =>
-      pose({ ...f, path: [{ x: 0, y: 0 }], walked }, 0);
+    const walking = (f: Foe, walked: number) => pose({ ...f, path: [{ x: 0, y: 0 }], walked }, 0);
     const people = foeFrames2('deckhand')!.walk;
     for (let i = 0; i < 2 * people; i++)
       expect(walking(deckhand, i * WALK2_STRIDE + 0.5)).toMatchObject({
@@ -157,7 +164,8 @@ describe('who stands how', () => {
       a = decide(a);
       b = decide(b);
       a = advanceRun(GROTTO_DUNGEON, a, a.play, 100);
-      for (let s = 0; s < 100; s += 16) b = advanceRun(GROTTO_DUNGEON, b, b.play, Math.min(16, 100 - s));
+      for (let s = 0; s < 100; s += 16)
+        b = advanceRun(GROTTO_DUNGEON, b, b.play, Math.min(16, 100 - s));
     }
     const walked = (r: Run) => r.battle!.foes.map((f) => f.walked);
     expect(walked(a).some((w) => w > 0)).toBe(true);

@@ -989,12 +989,7 @@ export const HERO_TALL = 66;
  * their shadows, what lies on the ground, what is over them in art pixels,
  * and the words and lines at the screen's resolution.
  */
-export function fightExtra(
-  dungeon: Dungeon,
-  run: Run,
-  look: RoomLook,
-  art: FightArt,
-): StageExtra {
+export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: FightArt): StageExtra {
   const battle = run.battle;
   if (!battle) return { actors: [], boxes: [] };
   const clock = battle.clock;
@@ -1284,7 +1279,12 @@ export function fightExtra(
         ctx.fillStyle = C.white;
         for (let a = -60; a <= 60; a += 8) {
           const r = (a * Math.PI) / 180;
-          ctx.fillRect(cx + Math.round(Math.cos(r) * 14) * dir, cy + Math.round(Math.sin(r) * 16), 2, 2);
+          ctx.fillRect(
+            cx + Math.round(Math.cos(r) * 14) * dir,
+            cy + Math.round(Math.sin(r) * 16),
+            2,
+            2,
+          );
         }
         ctx.globalAlpha = 1;
       }

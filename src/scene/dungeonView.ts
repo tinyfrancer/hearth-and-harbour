@@ -59,7 +59,13 @@ import {
 import { anchorOf, FIGURE2_SOLE_Y, heroPose } from './figures2';
 import { abilityPicture, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
-import { CaveShadow, groundOnTheSpot, roomLook, type GroundPainter, type RoomLook } from './grottoArt';
+import {
+  CaveShadow,
+  groundOnTheSpot,
+  roomLook,
+  type GroundPainter,
+  type RoomLook,
+} from './grottoArt';
 import type { Play } from './play';
 import type { Size } from './camera';
 import type { Point } from './tileMap';
@@ -488,8 +494,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     const s = tideStateOf(dungeon, run);
     return look.ready(s.level, s.warn) || lastStill !== null;
   };
-  const playing = (): boolean =>
-    sideways(size) && !options.run().finished && roomIn(options.run());
+  const playing = (): boolean => sideways(size) && !options.run().finished && roomIn(options.run());
 
   /** The room as the tide has it now, darkening where it is about to come in. */
   const stillFor = (run: Run): StillPicture | null => {
@@ -511,7 +516,8 @@ export function dungeonView(options: DungeonViewOptions): View {
     // Rooms behind are let go; this one and the next are kept and painted ahead.
     const at = order.indexOf(run.room);
     const next = order[at + 1];
-    for (const id of order) if (id !== run.room && id !== next) roomLook(dungeon.rooms[id]!).forget();
+    for (const id of order)
+      if (id !== run.room && id !== next) roomLook(dungeon.rooms[id]!).forget();
     look = lookOf(run.room);
     // Painted ahead only where a worker paints them: on the spot, each is worked out when shown.
     if (painter !== groundOnTheSpot) {
@@ -556,7 +562,12 @@ export function dungeonView(options: DungeonViewOptions): View {
             feet,
             HERO_SHADOW,
           );
-          return placed && { picture: placed.image as HTMLCanvasElement, middle: { x: feet.x - placed.x, y: feet.y - placed.y } };
+          return (
+            placed && {
+              picture: placed.image as HTMLCanvasElement,
+              middle: { x: feet.x - placed.x, y: feet.y - placed.y },
+            }
+          );
         },
         life: look.flicker,
       },

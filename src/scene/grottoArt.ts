@@ -182,7 +182,8 @@ export function propsOf(room: Room): PropAt[] {
 export function perchLift(room: Room, perch: Point): number {
   const c = cellAt(perch, T);
   const post = propsOf(room).find(
-    (p) => p.id === 'perch' && Math.floor(p.feet.x / T) === c.col && Math.floor(p.feet.y / T) === c.row,
+    (p) =>
+      p.id === 'perch' && Math.floor(p.feet.x / T) === c.col && Math.floor(p.feet.y / T) === c.row,
   );
   const seat = post?.art.seat;
   if (!post || !seat) return 0;
@@ -292,8 +293,7 @@ export function groundCells(room: Room, level: number, warn: boolean): TGrid {
 /* ----- Painting ----- */
 
 /** Whether this browser can paint pixels (not jsdom). */
-const canPaint = (): boolean =>
-  typeof ImageData !== 'undefined' && typeof document !== 'undefined';
+const canPaint = (): boolean => typeof ImageData !== 'undefined' && typeof document !== 'undefined';
 
 /** Cells in the cave's dusk onto a canvas of their size, empty cells empty. */
 export function paintCells(pic: Picture2, into?: HTMLCanvasElement): HTMLCanvasElement | null {

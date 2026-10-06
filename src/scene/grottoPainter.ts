@@ -51,8 +51,7 @@ export function groundInAWorker(): WorkerPainter {
       const a = event.data;
       const job = busy;
       busy = null;
-      if (job && job.request.id === a.id)
-        job.done({ w: a.w, h: a.h, d: a.cells }, a.data);
+      if (job && job.request.id === a.id) job.done({ w: a.w, h: a.h, d: a.cells }, a.data);
       send();
     };
     worker.onerror = failed;

@@ -15,13 +15,7 @@ import {
 import { groundMap } from '../../src/scene/ground';
 import { GROTTO } from '../../src/scene/grotto';
 import { DUNGEON } from '../../src/scene/dungeonMetrics';
-import {
-  CaveShadow,
-  groundCells,
-  propsOf,
-  roomLook,
-  tileKindsAt,
-} from '../../src/scene/grottoArt';
+import { CaveShadow, groundCells, propsOf, roomLook, tileKindsAt } from '../../src/scene/grottoArt';
 import { cheapest } from '../../src/scene/path';
 import type { Play } from '../../src/scene/play';
 import { dungeonScale, sceneScale } from '../../src/scene/scale';

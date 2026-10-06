@@ -117,7 +117,9 @@ export function walkAmong(
   const round = withSolid(
     map,
     blocked.filter(
-      (b) => !(b.col === here.col && b.row === here.row) && !(b.col === there.col && b.row === there.row),
+      (b) =>
+        !(b.col === here.col && b.row === here.row) &&
+        !(b.col === there.col && b.row === there.row),
     ),
   );
   const path = route(round, stopped.walker.at, goal);
