@@ -10,7 +10,8 @@ import {
   townLights,
 } from '../../src/scene/town2Paint';
 import { paintTown, town2Facts } from '../../src/scene/town2Facts';
-import { feetOf, TOWNSFOLK2_AT } from '../../src/scene/town2';
+import { feetOf, STANDING2 } from '../../src/scene/town2';
+import { IDLE2_FRAMES } from '../../src/art/character2';
 import { shadowBox } from '../../src/scene/shadow2';
 import { DAY2 } from '../../src/art/town2/ramps';
 import { rasterize2 } from '../../src/art/town2/raster';
@@ -44,7 +45,7 @@ describe('the C-scale town’s pixels', () => {
     for (const s of px.standing) expect(px.pieces[s.piece]).toBeDefined();
   }, 30000);
 
-  it('lays a contact shadow under each of the townsfolk: their ground a step or two darker, nothing else', () => {
+  it('lays a contact shadow under each of the townsfolk who stand: their ground darker, nothing else', () => {
     for (const time of ['day', 'dusk'] as const) {
       const px = paintTown(time);
       const theirs = town2Ground(time).grid.d;
@@ -52,7 +53,7 @@ describe('the C-scale town’s pixels', () => {
       const near = (i: number): boolean => {
         const x = i % TOWN2_W;
         const y = Math.floor(i / TOWN2_W);
-        return TOWNSFOLK2_AT.some((p) => {
+        return STANDING2.some((p) => {
           const f = feetOf(p);
           return (
             x >= f.x + box.x &&
@@ -71,13 +72,19 @@ describe('the C-scale town’s pixels', () => {
         expect(near(i)).toBe(true);
         expect(matOf(now)).toBe(matOf(was));
         expect(stepOf(now) - stepOf(was)).toBeGreaterThanOrEqual(1);
-        expect(stepOf(now) - stepOf(was)).toBeLessThanOrEqual(2);
+        // More only on the busy cobbles and flagstones, down to their floor (`shadow2.ts`).
+        expect(stepOf(now) - stepOf(was)).toBeLessThanOrEqual(
+          matOf(was) === 'cobble' || matOf(was) === 'stone' ? 5 : 2,
+        );
         expect(stepOf(now)).toBeLessThanOrEqual(5);
       }
-      expect(darkened).toBeGreaterThan(TOWNSFOLK2_AT.length * 40);
-      // Every townsperson painted both ways, and the smoke frame by frame.
-      expect(px.folk).toHaveLength(TOWNSFOLK2_AT.length);
-      for (const f of px.folk) expect(f.right && f.left).toBeTruthy();
+      expect(darkened).toBeGreaterThan(STANDING2.length * 40);
+      // Every townsperson who stands painted both ways at each breath, and the smoke frame by frame.
+      expect(px.folk).toHaveLength(STANDING2.length);
+      for (const breaths of px.folk) {
+        expect(breaths).toHaveLength(IDLE2_FRAMES);
+        for (const f of breaths) expect(f.right && f.left).toBeTruthy();
+      }
       for (const frames of px.smoke) expect(frames).toHaveLength(SMOKE_FRAMES);
       expect(px.gull.right && px.gull.left).toBeTruthy();
     }

@@ -5,6 +5,7 @@ import {
   FIGURE2_H,
   FIGURE2_SOLE_Y,
   FIGURE2_W,
+  STANDING2,
   TOWNSFOLK2,
   heroFigure2,
   townsfolkFigure2,
@@ -52,6 +53,8 @@ describe('the C-scale figure adapter', () => {
   });
 
   it('paints nothing where there is no canvas, rather than failing', () => {
-    expect(heroFigure2(DEFAULT_LOOK, []).paint('left', 'dusk', [])).toBeNull();
+    expect(
+      heroFigure2(DEFAULT_LOOK, []).paint({ ...STANDING2, facing: 'left' }, 'dusk', []),
+    ).toBeNull();
   });
 });

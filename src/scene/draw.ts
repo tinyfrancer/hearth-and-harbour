@@ -79,6 +79,22 @@ export function boxOf(p: Placed): Box {
 }
 
 /**
+ * The box of something standing still in a composed map, worked out once:
+ * every patch drawn asks it of every standing thing, and a picture's size is
+ * a call into the browser each time (about a fiftieth of a walking frame's
+ * script, measured, before it was kept).
+ */
+const stillBoxes = new WeakMap<Standing, Box>();
+function stillBox(s: Standing): Box {
+  let box = stillBoxes.get(s);
+  if (!box) {
+    box = boxOf(s);
+    stillBoxes.set(s, box);
+  }
+  return box;
+}
+
+/**
  * The whole map as it stands with nobody walking: the ground, then every
  * standing thing in depth order. Made once per palette and kept.
  */
@@ -147,7 +163,7 @@ export function redrawn(frame: Frame, patch: Box): { boxes: Box[]; list: Standin
   ].filter((b) => overlaps(b, patch));
   if (boxes.length === 0) return { boxes, list: [] };
   const list: Standing[] = frame.standing.filter((s) => {
-    const box = boxOf(s);
+    const box = stillBox(s);
     return overlaps(box, patch) && boxes.some((m) => overlaps(m, box));
   });
   for (const actor of frame.actors) {

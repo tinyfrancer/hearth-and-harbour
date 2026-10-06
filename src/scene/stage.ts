@@ -98,7 +98,7 @@ export interface StageArt {
    * the walker by their feet: drawn again only when one of them changes (turns
    * to look at the walker at `walker`).
    */
-  standers?(palette: Palette, walker: Point): readonly Standing[];
+  standers?(palette: Palette, walker: Point, now: number): readonly Standing[];
   /**
    * The ground as it is this frame, for a scene whose ground changes (a
    * dungeon's tide). Each different picture is composed once and kept.
@@ -108,6 +108,13 @@ export interface StageArt {
   readonly heroFeet: Point;
   /** The walker standing at `feet`, facing either way, in this palette's light. */
   walkerAt(feet: Point, facing: Facing, palette: Palette): Look;
+  /**
+   * The walker as they show this frame, placed, for a scene whose pictures
+   * carry their own step (the C-scale town's walk cycle): used in place of
+   * `walkerAt`, `heroFeet` and the stage's one-pixel bob. `now` is the
+   * scene's clock, for anything that moves by time (breathing).
+   */
+  walkerPlaced?(play: Play, feet: Point, palette: Palette, now: number): Standing | null;
   /** The walker's shadow on the ground at `feet`, and the point of it that goes under the feet. */
   shadowAt(
     feet: Point,
@@ -327,6 +334,12 @@ export interface StageOptions {
   readonly tap?: (point: Point, min: number, play: Play) => Play | null;
   /** More to draw this frame. */
   readonly extra?: (now: number, palette: Palette) => StageExtra;
+  /**
+   * Told after each frame is drawn where the camera was and how many CSS
+   * pixels an art pixel took: for laying something over the scene clear of
+   * what is in it (a room's name, clear of the fight).
+   */
+  readonly seen?: (camera: Point, cssPerArt: number) => void;
   /** A panel's button was pressed. */
   readonly press: (opens: Opens) => void;
   /** What a screen reader hears for the canvas. */
@@ -611,16 +624,20 @@ export function stage(options: StageOptions): View {
     const feet = round(play.walker.at);
     const left = play.facing === 'left';
     const extra = options.extra?.(now, palette) ?? null;
-    const walkerPicture = art.walkerAt(feet, play.facing, palette);
-    const plainWalker = imageOf(walkerPicture, palette);
-    const walkerImage = plainWalker && extra?.walker ? extra.walker(plainWalker) : plainWalker;
-    const walker: Standing | null = walkerImage && {
-      image: walkerImage,
-      // Mirrored, the column under the feet moves to the other side of the picture.
-      x: feet.x - (left ? widthOf(walkerPicture) - 1 - art.heroFeet.x : art.heroFeet.x),
-      y: feet.y - art.heroFeet.y - bob(play, scene.stride),
-      base: feet.y,
-    };
+    let walker: Standing | null;
+    if (art.walkerPlaced) walker = art.walkerPlaced(play, feet, palette, now);
+    else {
+      const walkerPicture = art.walkerAt(feet, play.facing, palette);
+      const plainWalker = imageOf(walkerPicture, palette);
+      const walkerImage = plainWalker && extra?.walker ? extra.walker(plainWalker) : plainWalker;
+      walker = walkerImage && {
+        image: walkerImage,
+        // Mirrored, the column under the feet moves to the other side of the picture.
+        x: feet.x - (left ? widthOf(walkerPicture) - 1 - art.heroFeet.x : art.heroFeet.x),
+        y: feet.y - art.heroFeet.y - bob(play, scene.stride),
+        base: feet.y,
+      };
+    }
     const shadow = art.shadowAt(feet, palette);
     const shadowImage = shadow && imageOf(shadow.picture, palette);
     const underfoot: Placed[] = [];
@@ -643,7 +660,7 @@ export function stage(options: StageOptions): View {
     }
     if (walker) moving.set('walker', { image: walker.image, box: boxOf(walker) });
     const actors: Standing[] = walker ? [walker] : [];
-    const standers = art.standers?.(palette, play.walker.at) ?? [];
+    const standers = art.standers?.(palette, play.walker.at, now) ?? [];
     standers.forEach((s, i) => {
       actors.push(s);
       moving.set(`stander ${i}`, { image: s.image, box: boxOf(s) });
@@ -695,6 +712,7 @@ export function stage(options: StageOptions): View {
     shownLast = shown;
     drawnLast = moving;
     extraLast = extra?.boxes ?? [];
+    options.seen?.(cam, (scale * css.width) / device.width);
   };
 
   /** A number for a still the scene made itself: a new one means the whole view is drawn again. */

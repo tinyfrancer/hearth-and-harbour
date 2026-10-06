@@ -17,9 +17,17 @@
  */
 import type { Glow } from '../art/raster';
 import { tgrid } from '../art/town2/cells';
-import { town2Piece } from '../art/town2/pieces';
+import { IDLE2_FRAMES } from '../art/character2';
+import { town2Facts as pieceFacts, town2Piece } from '../art/town2/pieces';
 import { rasterize2 } from '../art/town2/raster';
-import { town2Ground, town2Layout, TOWN2_H, TOWN2_W, type Placement2 } from '../art/town2/town';
+import {
+  forgetTown2Grids,
+  town2Ground,
+  town2Layout,
+  TOWN2_H,
+  TOWN2_W,
+  type Placement2,
+} from '../art/town2/town';
 import type { TimeOfDay } from './daylight';
 import {
   FIGURE2_ANCHOR_X,
@@ -32,7 +40,7 @@ import type { Raw } from './figures2';
 import type { Facing } from './play';
 import { layShadow } from './shadow2';
 import type { Box, Scene } from './things';
-import { feetOf, TOWNSFOLK2_AT, town2Scene } from './town2';
+import { feetOf, STANDING2, town2Scene } from './town2';
 import {
   cellPixels,
   foamBand,
@@ -60,7 +68,8 @@ export interface GullLoop {
 
 /** Each gull the art lane placed circles where it was placed. */
 export function gullLoop(p: Placement2, i: number): GullLoop {
-  const piece = town2Piece(p.id);
+  // Its size from lane B's facts: nothing is drawn to know it.
+  const piece = pieceFacts(p.id);
   return {
     x: p.x + Math.round(piece.w / 2),
     y: p.y + Math.round(piece.h / 2),
@@ -89,7 +98,7 @@ const isSmoke = (p: Placement2): boolean => p.layer === 'above' && !isGull(p);
 
 /** The town's facts, from the art lane's layout. */
 export function town2Facts(): TownFacts {
-  const gull = town2Piece('gull');
+  const gull = pieceFacts('gull');
   return {
     scene: town2Scene(),
     lights: townLights(),
@@ -135,8 +144,11 @@ export interface TownPaint<I> {
   /** Each chimney's smoke, frame by frame, in the order of the facts' `smoke`. */
   readonly smoke: readonly (readonly I[])[];
   readonly gull: Facings<I>;
-  /** Each of the townsfolk, in the order of `TOWNSFOLK2_AT`, lit where they stand. */
-  readonly folk: readonly Facings<I>[];
+  /**
+   * Each of the townsfolk who stand still, in the order of `STANDING2`, lit
+   * where they stand: a picture each way for each frame of their breath.
+   */
+  readonly folk: readonly (readonly Facings<I>[])[];
   /** The ground's cells, shadows and all: what the hero's shadow darkens as he walks. */
   readonly cells: Int16Array;
 }
@@ -151,11 +163,30 @@ export interface TownRequest {
 export type TownStep = 1 | 2 | 3;
 export const STEPS = 3;
 
-/** What comes back, in this order: the facts (if asked), steps, then the town. */
+/**
+ * What comes back, in this order: the facts (if asked), steps, the town, and
+ * last what became of keeping it for the next visit (`town2Cache.ts`): kept
+ * (with how many bytes the town now takes in storage), found kept already,
+ * or not kept (no storage here, or none to spare). The page lets the worker
+ * go on that last word, not before, so it can finish storing.
+ */
 export type TownAnswer =
   | { readonly kind: 'facts'; readonly facts: TownFacts }
   | { readonly kind: 'step'; readonly step: TownStep }
-  | { readonly kind: 'town'; readonly paint: TownPaint<ImageBitmap | Raw> };
+  | { readonly kind: 'town'; readonly paint: TownPaint<ImageBitmap | Raw> }
+  | { readonly kind: 'kept'; readonly report: KeptReport };
+
+/** What became of keeping the town between visits, for the page to report. */
+export interface KeptReport {
+  /** `hit`: it came from storage; `stored`: worked out and kept; `none`: worked out, not kept. */
+  readonly how: 'hit' | 'stored' | 'none';
+  /** The version it is kept under (the worker's own fingerprinted file), or null where there is none. */
+  readonly version: string | null;
+  /** Bytes the kept town takes for this version, both times of day so far; null if unknown. */
+  readonly bytes: number | null;
+  /** Why it was not kept, if it was not. */
+  readonly why?: string;
+}
 
 /** How many rows of the ground are turned into colours at a time: a strip's colours are 1.5 MB. */
 const STRIP = 128;
@@ -180,7 +211,7 @@ function figureBox(feet: { x: number; y: number }, facing: Facing): Box {
 
 /** Where a townsperson's canvas stands, facing either way. */
 export function folkBox(i: number, facing: Facing): Box {
-  return figureBox(feetOf(TOWNSFOLK2_AT[i]!), facing);
+  return figureBox(feetOf(STANDING2[i]!), facing);
 }
 
 /**
@@ -198,7 +229,8 @@ export function paintTown(time: TimeOfDay, progress?: (step: TownStep) => void):
   // Lane B keeps its ground: the shadows are laid into a copy, which goes to the page for the hero's.
   const cells = pic.grid.d.slice();
   const grid = { w: TOWN2_W, h: TOWN2_H, d: cells };
-  for (const p of TOWNSFOLK2_AT) layShadow(grid, feetOf(p), time);
+  // The strollers' shadows go with them (`town2Art.ts`); only those who stand have one laid in.
+  for (const p of STANDING2) layShadow(grid, feetOf(p), time);
   const ground = new Uint8ClampedArray(TOWN2_W * TOWN2_H * 4);
   for (let y0 = 0; y0 < TOWN2_H; y0 += STRIP) {
     const h = Math.min(STRIP, TOWN2_H - y0);
@@ -249,16 +281,25 @@ export function paintTown(time: TimeOfDay, progress?: (step: TownStep) => void):
     left: raw(g.w, g.h, cellPixels({ grid: flipped, glows: [] }, palette)),
   };
 
-  const folk = TOWNSFOLK2_AT.map((p, i) => {
+  // Those who stand still, each breath each way; those who stroll are painted on the page.
+  const folk = STANDING2.map((p, i) => {
     const figure = townsfolkFigure2(p.figure);
-    const stand = (facing: Facing): Raw | null => {
-      if (!figure) return null;
-      const box = folkBox(i, facing);
-      return figure.pixels(facing, time, glowsIn(lights, box, palette));
-    };
-    return { right: stand('right'), left: stand('left') };
+    return Array.from({ length: IDLE2_FRAMES }, (_, frame) => {
+      const stand = (facing: Facing): Raw | null => {
+        if (!figure) return null;
+        const box = folkBox(i, facing);
+        return figure.pixels(
+          { walking: false, facing, frame },
+          time,
+          glowsIn(lights, box, palette),
+        );
+      };
+      return { right: stand('right'), left: stand('left') };
+    });
   });
 
+  // Lane B's composed ground (6.2 MB of cells a time of day) is on our pixels now: let it go.
+  forgetTown2Grids();
   return {
     time,
     composed: false,
@@ -284,7 +325,10 @@ export function buffersOf(paint: TownPaint<Raw>): ArrayBuffer[] {
     paint.foam.image,
     ...paint.smoke.flat(),
     ...[paint.gull.right, paint.gull.left].filter((r): r is Raw => r !== null),
-    ...paint.folk.flatMap((f) => [f.right, f.left]).filter((r): r is Raw => r !== null),
+    ...paint.folk
+      .flat()
+      .flatMap((f) => [f.right, f.left])
+      .filter((r): r is Raw => r !== null),
   ];
   return [...all.map((r) => r.data.buffer as ArrayBuffer), paint.cells.buffer as ArrayBuffer];
 }

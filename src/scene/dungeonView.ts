@@ -10,7 +10,7 @@
 import { DAY } from '../art/palette';
 import { pixelCanvas } from '../art/canvas';
 import { itemIcon, skillIcon } from '../art/icons';
-import { portrait } from '../art/portraits';
+import { PORTRAIT_SIZE, portraitPicture } from '../art/portraits';
 import { PLAYER_ATTACK_MS } from '../core/combat';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
@@ -52,7 +52,10 @@ import { canvasOf } from './draw';
 import { roomLook } from './grottoArt';
 import type { Hero } from './hero';
 import type { Play } from './play';
+import type { Size } from './camera';
+import type { Point } from './tileMap';
 import { dungeonScale } from './scale';
+import { DUNGEON } from './dungeonMetrics';
 import { stage, type Insets } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { HERO_FEET } from './walkerArt';
@@ -100,6 +103,95 @@ function setText(el: HTMLElement, text: string): void {
 function fill(el: HTMLElement, axis: 'X' | 'Y', k: number): void {
   const value = `scale${axis}(${k})`;
   if (el.style.transform !== value) el.style.transform = value;
+}
+
+/** A box in CSS pixels from the room's top-left. */
+export interface CssBox {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/**
+ * Where a room's name may show, in CSS pixels from the top or bottom of the
+ * room: under the health bars at the top (`.dungeon-title` in `scene.css`),
+ * or above the ability bar at the bottom.
+ */
+export const TITLE_SLOTS = { top: 72, bottom: 88 } as const;
+export type TitleSlot = keyof typeof TITLE_SLOTS;
+
+const crosses = (a: CssBox, b: CssBox): boolean =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** The box a room's name covers in a slot, centred across a room `view` wide and tall. */
+export function titleBox(slot: TitleSlot, view: Size, banner: Size): CssBox {
+  const x = (view.width - banner.width) / 2;
+  const y = slot === 'top' ? TITLE_SLOTS.top : view.height - TITLE_SLOTS.bottom - banner.height;
+  return { x, y, w: banner.width, h: banner.height };
+}
+
+/**
+ * Where a room's name goes so it covers nobody in the fight (`combatants`,
+ * each figure's box with its health bar): the slot it is in if that is
+ * clear, else the other, else nowhere (it waits, unseen, rather than cover a
+ * boss as the room opens).
+ */
+export function titleSlot(
+  combatants: readonly CssBox[],
+  view: Size,
+  banner: Size,
+  now: TitleSlot = 'top',
+): TitleSlot | null {
+  const clear = (slot: TitleSlot) =>
+    !combatants.some((c) => crosses(c, titleBox(slot, view, banner)));
+  if (clear(now)) return now;
+  const other: TitleSlot = now === 'top' ? 'bottom' : 'top';
+  return clear(other) ? other : null;
+}
+
+/** How far above a figure's tap box its health bar and a flier's rise reach, in art pixels. */
+const OVERHEAD = 18;
+
+/**
+ * Everyone fighting in the room as boxes on screen, in CSS pixels: the hero
+ * and every foe still standing, each figure's box and what is drawn over it.
+ */
+export function combatantBoxes(run: Run, camera: Point, cssPerArt: number): CssBox[] {
+  const toCss = (feet: Point, w: number, h: number): CssBox => ({
+    x: (feet.x - w / 2 - camera.x) * cssPerArt,
+    y: (feet.y - h - OVERHEAD - camera.y) * cssPerArt,
+    w: w * cssPerArt,
+    h: (h + OVERHEAD + 4) * cssPerArt,
+  });
+  const boxes = [toCss(run.play.walker.at, 40, 50)];
+  for (const foe of run.battle?.foes ?? []) {
+    if (foe.room !== run.room || !alive(foe)) continue;
+    const box = foeKind(foe.monster).box;
+    boxes.push(toCss(foe.at, box.w + 8, box.h));
+  }
+  return boxes;
+}
+
+/** The frame a face is shown in at the top of a fight, in CSS pixels (`.fight-face` in `scene.css`). */
+export const FACE_FRAME = 48;
+
+/**
+ * A foe's whole face for the target panel, or null if art has none. Lane B's
+ * `portrait` element carries the face at 2 and 3 CSS pixels an art pixel, for
+ * frames of 96 and 144; the panel's frame is 48, so either was cut down to
+ * its middle and hats and chins were lost. This shows the same picture at
+ * the most whole device pixels an art pixel that fit the frame (3 on a 3x
+ * phone, one CSS pixel each): the whole 48 x 48 face, never resized.
+ */
+export function framedFace(id: string): HTMLCanvasElement | null {
+  const pic = portraitPicture(id);
+  if (!pic) return null;
+  const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+  const scale = Math.max(1, Math.floor((FACE_FRAME * dpr) / PORTRAIT_SIZE + 1e-9));
+  const canvas = pixelCanvas(pic, { palette: DAY, scale, dpr });
+  canvas.setAttribute('aria-hidden', 'true');
+  return canvas;
 }
 
 /** A picture for a button, two CSS pixels to the art pixel. */
@@ -365,7 +457,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       play: run.play,
       keep: () => {},
       press: () => {},
-      scaleOf: dungeonScale,
+      scaleOf: (device) => dungeonScale(device, DUNGEON.scene.width),
       insets: DUNGEON_INSETS,
       frozen: () => !playing(),
       drive: (play, ms) => {
@@ -392,17 +484,47 @@ export function dungeonView(options: DungeonViewOptions): View {
         return aimed.play;
       },
       extra: (_now, palette) => fightExtra(dungeon, options.run(), palette),
+      seen: (camera, cssPerArt) => {
+        lookedAt = { camera, cssPerArt };
+      },
       label: 'A sea cave. Tap the ground to walk there, or something to fight it.',
       fallback: 'The grotto needs a browser that can draw on a canvas.',
     });
     room.replaceChildren(roomView.el);
+    lookedAt = null;
     if (here.title) {
       title.textContent = here.title;
+      // Unseen until the first frame says where everyone is.
+      title.style.visibility = 'hidden';
+      title.dataset.slot = 'top';
       // Played again from the start for each room.
       title.classList.remove('shown');
       void title.offsetWidth;
       title.classList.add('shown');
     }
+  };
+
+  /** Where the camera was for the last frame drawn, and the size of an art pixel on screen. */
+  let lookedAt: { camera: Point; cssPerArt: number } | null = null;
+
+  /** Keeps the room's name, while it shows, in a slot where it covers nobody in the fight. */
+  const placeTitle = (run: Run): void => {
+    if (!title.classList.contains('shown')) return;
+    if (!lookedAt) {
+      title.style.visibility = 'hidden';
+      return;
+    }
+    const banner = { width: title.offsetWidth || 260, height: title.offsetHeight || 36 };
+    const now = (title.dataset.slot as TitleSlot | undefined) ?? 'top';
+    const slot = titleSlot(
+      combatantBoxes(run, lookedAt.camera, lookedAt.cssPerArt),
+      size,
+      banner,
+      now,
+    );
+    const visibility = slot ? '' : 'hidden';
+    if (title.style.visibility !== visibility) title.style.visibility = visibility;
+    if (slot && title.dataset.slot !== slot) title.dataset.slot = slot;
   };
 
   let results: HTMLElement | null = null;
@@ -477,7 +599,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       if (bossShown !== boss.monster) {
         bossShown = boss.monster;
         setText(bossName, def.name);
-        const face = portrait(boss.monster);
+        const face = framedFace(boss.monster);
         bossFace.replaceChildren(...(face ? [face] : []));
         bossFace.hidden = !face;
       }
@@ -502,7 +624,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       if (targetShown !== target.monster) {
         targetShown = target.monster;
         setText(targetName, `${def.name} · ${def.level}`);
-        const face = portrait(target.monster);
+        const face = framedFace(target.monster);
         targetFace.replaceChildren(...(face ? [face] : []));
         targetFace.hidden = !face;
       }
@@ -580,6 +702,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         options.finished();
       }
       showFight(after);
+      placeTitle(after);
       fade.style.opacity = String(doorwayDark(after.doorway));
     },
   };

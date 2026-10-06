@@ -16,6 +16,7 @@ import {
   type Fighter,
   type Place,
 } from './battle';
+import { DUNGEON } from './dungeonMetrics';
 import { foeKind } from './foes';
 import {
   groundMap,
@@ -27,6 +28,9 @@ import {
 } from './ground';
 import { advancePlay, startPlay, type Facing, type Play } from './play';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
+
+/** A tile's side in the dungeons, in art pixels (`dungeonMetrics.ts`). */
+const T = DUNGEON.tile;
 
 /** A dungeon as written: each room's rows of characters (see `ground.ts` for the key). */
 export interface DungeonPlan {
@@ -147,11 +151,11 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
     const starts = cellsOf(rows, 's');
     const ends = cellsOf(rows, 'x');
     if (starts.length > 1 || ends.length > 1) throw new Error(`Room ${id} has two starts or ends.`);
-    const perches = (plan.perches?.[id] ?? []).map((c) => centreOf(c));
+    const perches = (plan.perches?.[id] ?? []).map((c) => centreOf(c, T));
     const foes = plan.foes?.[id] ?? [];
     for (const foe of foes) {
       if (foeKind(foe.monster).flies) {
-        const on = centreOf(foe.at);
+        const on = centreOf(foe.at, T);
         if (!perches.some((p) => p.x === on.x && p.y === on.y))
           throw new Error(`A ${foe.monster} in ${id} is not on a perch.`);
         continue;
@@ -170,7 +174,7 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
       end: ends[0] ?? null,
       foes,
       perches,
-      spawns: (plan.spawns?.[id] ?? []).map((c) => centreOf(c)),
+      spawns: (plan.spawns?.[id] ?? []).map((c) => centreOf(c, T)),
       title: plan.titles?.[id] ?? null,
     };
   }
@@ -185,14 +189,14 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
 
 /** The door whose tile `point` is on, if any. */
 export function doorAt(room: Room, point: Point): Door | null {
-  const cell = cellAt(point);
+  const cell = cellAt(point, T);
   return room.doors.find((d) => d.cell.col === cell.col && d.cell.row === cell.row) ?? null;
 }
 
 /** Whether `point` is on the room's marked spot. */
 export function atEnd(room: Room, point: Point): boolean {
   if (!room.end) return false;
-  const cell = cellAt(point);
+  const cell = cellAt(point, T);
   return cell.col === room.end.col && cell.row === room.end.row;
 }
 
@@ -247,7 +251,7 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
           r.foes.map((f) => ({
             room: r.id,
             monster: f.monster,
-            at: centreOf(f.at),
+            at: centreOf(f.at, T),
             ...(f.wave !== undefined ? { wave: f.wave } : {}),
           })),
         ),
@@ -258,7 +262,7 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
   return {
     dungeon: dungeon.id,
     room: room.id,
-    play: startPlay(centreOf(room.start!)),
+    play: startPlay(centreOf(room.start!, T)),
     ms: 0,
     doorway: null,
     finished: false,
@@ -321,7 +325,7 @@ export function advanceRun(dungeon: Dungeon, run: Run, play: Play, ms: number): 
       return {
         ...run,
         room: next.id,
-        play: { ...startPlay(centreOf(door.inside)), facing: facingIn(door, play.facing) },
+        play: { ...startPlay(centreOf(door.inside, T)), facing: facingIn(door, play.facing) },
         ms: elapsed,
         doorway: { ...run.doorway, ms: along },
       };

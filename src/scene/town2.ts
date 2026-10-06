@@ -16,7 +16,18 @@ import {
   town2Walk,
   type Placement2,
 } from '../art/town2/town';
-import { blockFootprints, spotsBeside, type Scene, type Thing, type Use } from './things';
+import { clearLine } from './path';
+import { STAND_HALF } from './play';
+import type { Stroll } from './stroll';
+import {
+  blockFootprints,
+  spotsBeside,
+  usable,
+  type Box,
+  type Scene,
+  type Thing,
+  type Use,
+} from './things';
 import {
   cellAt,
   centreOf,
@@ -27,7 +38,7 @@ import {
   type TileMap,
 } from './tileMap';
 import { ALEWIFE, CAPTAIN, DOCKER, ELDER, MARKET, SMITH, TRADER } from './townsfolk';
-import type { Townsfolk2 } from './figures2';
+import { FIGURE2_ANCHOR_X, FIGURE2_W, townsfolkFigure2, type Townsfolk2 } from './figures2';
 
 const T = TOWN2_TILE;
 
@@ -238,20 +249,22 @@ const LOOKOUTS: Readonly<Record<string, readonly Cell[]>> = {
 };
 
 /**
- * Placements that are only looked at for now: the far buoy lies south-east of
- * anything the camera can show from where the hero can stand (lane B is asked
- * to move it). Its picture stays; it takes no taps until it can be seen.
+ * Placements that are only looked at: none now. Lane B moved the far buoy
+ * (B9) to where the pier's end shows it, and it can be tapped like the rest;
  * `tests/scene/reach.test.ts` holds every tappable thing to being tappable.
  */
-const LOOKED_AT_ONLY: ReadonlySet<string> = new Set(['buoy-far']);
+const LOOKED_AT_ONLY: ReadonlySet<string> = new Set<string>();
 
 /** The townsfolk: where each stands, which sides the hero talks to them from, and their figure. */
 export interface Townsperson2 {
   readonly id: string;
   readonly figure: Townsfolk2;
+  /** Where they stand, or for a stroller, where they rest at home. */
   readonly at: Cell;
   readonly sides: readonly (-1 | 1)[];
   readonly use: Use;
+  /** A turn they take about the square, if they do not stand still. */
+  readonly stroll?: Stroll;
 }
 
 export const TOWNSFOLK2_AT: readonly Townsperson2[] = [
@@ -263,20 +276,107 @@ export const TOWNSFOLK2_AT: readonly Townsperson2[] = [
   { id: 'captain', figure: 'pirate', at: { col: 28, row: 64 }, sides: [1], use: CAPTAIN },
   // The villagers. The alewife on the tavern's front, a few steps along from its door.
   { id: 'alewife', figure: 'alewife', at: { col: 17, row: 46 }, sides: [-1, 1], use: ALEWIFE },
-  // The market woman by the stall's west end, where the people are.
-  { id: 'market', figure: 'market', at: { col: 6, row: 53 }, sides: [-1], use: MARKET },
+  // The market woman by the stall's west end, where the people are; she walks up the
+  // west side of the square to the corner by the tavern's lamp and back.
+  {
+    id: 'market',
+    figure: 'market',
+    at: { col: 6, row: 53 },
+    sides: [-1, 1],
+    use: MARKET,
+    stroll: {
+      route: [
+        { col: 6, row: 53 },
+        { col: 6, row: 51 },
+        { col: 2, row: 51 },
+      ],
+      restMs: 4000,
+      speed: 40,
+      startMs: 0,
+    },
+  },
   // The docker on the quay beside the east cargo.
   { id: 'docker', figure: 'docker', at: { col: 38, row: 58 }, sides: [1], use: DOCKER },
-  // The old man by the bench east of the well.
-  { id: 'elder', figure: 'elder', at: { col: 34, row: 54 }, sides: [-1], use: ELDER },
+  // The old man by the bench east of the well, who takes a slow turn above it toward the smithy.
+  {
+    id: 'elder',
+    figure: 'elder',
+    at: { col: 34, row: 54 },
+    sides: [-1, 1],
+    use: ELDER,
+    stroll: {
+      route: [
+        { col: 34, row: 54 },
+        { col: 34, row: 52 },
+        { col: 41, row: 52 },
+      ],
+      restMs: 5000,
+      speed: 30,
+      startMs: 9000,
+    },
+  },
 ];
+
+/** The townsfolk who stand still: painted with the town, off the main thread. */
+export const STANDING2: readonly Townsperson2[] = TOWNSFOLK2_AT.filter((p) => !p.stroll);
+/** The townsfolk who take a turn about the square: painted on the page as they walk. */
+export const STROLLERS2: readonly (Townsperson2 & { readonly stroll: Stroll })[] =
+  TOWNSFOLK2_AT.filter((p): p is Townsperson2 & { stroll: Stroll } => !!p.stroll);
 
 /** A person's tap box: about their figure, standing on their tile. */
 const PERSON_TAP = { w: 36, h: 66 };
 
+/** A person's tap box with their feet at `feet`. */
+export function personTap(feet: Point): Box {
+  return {
+    x: feet.x - PERSON_TAP.w / 2,
+    y: feet.y + 2 - PERSON_TAP.h,
+    w: PERSON_TAP.w,
+    h: PERSON_TAP.h,
+  };
+}
+
 /** Where a townsperson's feet are: the middle of their tile, as the hero's are on his. */
 export function feetOf(p: Townsperson2): Point {
   return centreOf(p.at, T);
+}
+
+/**
+ * How far in front of where he stands the hero reaches, standing, in any
+ * gear: the widest any wearable makes him on the side he faces (a shield's
+ * rim; weapons are carried behind). `tests/scene/talk2.test.ts` holds every
+ * wearable to it.
+ */
+export const HERO_FRONT = 17;
+/** A little air between two people talking, in art pixels. */
+const TALK_AIR = 2;
+
+/**
+ * How far from someone's feet the hero stands to talk to them: their reach
+ * toward him (they turn to face him) and his toward them, and a little air,
+ * so the two never overlap. From lane B's picture of them, never guessed.
+ */
+export function talkGap(figure: Townsfolk2): number {
+  const drawn = townsfolkFigure2(figure)?.drawn;
+  const front = drawn ? drawn.right - FIGURE2_ANCHOR_X : FIGURE2_W / 2 - 4;
+  return front + HERO_FRONT + TALK_AIR;
+}
+
+/**
+ * Where the hero stands to talk to someone with their feet at `feet`, on
+ * their side `side`: `gap` off, level with them, or as near that as the
+ * ground allows (somewhere he can stand, reached in a straight line from the
+ * middle of the tile beside them). Null if even that tile is not open.
+ */
+export function standBeside(map: TileMap, feet: Point, side: -1 | 1, gap: number): Point | null {
+  const spot = { col: cellAt(feet, T).col + side, row: cellAt(feet, T).row };
+  if (isSolid(map, spot)) return null;
+  const middle = centreOf(spot, T);
+  for (let g = Math.round(gap); g > T; g--) {
+    const p = { x: feet.x + side * g, y: feet.y };
+    if (!isSolid(map, cellAt(p, T)) && clearLine(map, middle, p, STAND_HALF)) return p;
+  }
+  return middle;
 }
 
 function cellsOf(f: NonNullable<Placement2['footprint']>): Cell[] {
@@ -326,20 +426,47 @@ function thingOf(p: Placement2): Thing {
 
 function personOf(p: Townsperson2): Thing {
   const feet = feetOf(p);
+  // Someone who strolls is never in the way and is tapped where they are now
+  // (`town2Folk.ts`): here they are only their words, under their id.
+  if (p.stroll) return { id: p.id, footprint: [], base: feet.y, use: p.use };
   return {
     id: p.id,
     footprint: [p.at],
     base: feet.y,
-    tap: {
-      x: feet.x - PERSON_TAP.w / 2,
-      y: feet.y + 2 - PERSON_TAP.h,
-      w: PERSON_TAP.w,
-      h: PERSON_TAP.h,
-    },
+    tap: personTap(feet),
     spots: p.sides.map((d) => ({ col: p.at.col + d, row: p.at.row })),
     use: p.use,
   };
 }
+
+/** Each standing person's talking points, one per side, once the ground is known. */
+function withStands(map: TileMap, thing: Thing, p: Townsperson2): Thing {
+  if (p.stroll) return thing;
+  const gap = talkGap(p.figure);
+  const stand = p.sides.map((d) => standBeside(map, feetOf(p), d, gap) ?? centreOf(p.at, T));
+  return { ...thing, stand };
+}
+
+/** Every tile a stroller walks on, by key: nobody else is sent to stand there. */
+const STROLLED: ReadonlySet<string> = new Set(
+  STROLLERS2.flatMap((p) => {
+    const cells: string[] = [];
+    const r = p.stroll.route;
+    for (let i = 1; i < r.length; i++) {
+      const a = r[i - 1]!;
+      const b = r[i]!;
+      const n = Math.max(Math.abs(b.col - a.col), Math.abs(b.row - a.row));
+      for (let k = 0; k <= n; k++)
+        cells.push(
+          `${a.col + Math.sign(b.col - a.col) * k},${a.row + Math.sign(b.row - a.row) * k}`,
+        );
+    }
+    return cells;
+  }),
+);
+
+/** Every tile a stroller walks through. */
+export const strolledTiles = (): ReadonlySet<string> => STROLLED;
 
 type Ground2 = keyof typeof TOWN2_SOLID;
 
@@ -377,8 +504,20 @@ export function buildTown2Scene(): Scene {
       .filter((c) => !isSolid(map, c));
     return front.length ? { ...thing, spots: front } : thing;
   });
-  for (let i = 0; i < things.length; i++)
-    if (LOOKED_AT_ONLY.has(things[i]!.id)) things[i] = scenery(things[i]!);
+  for (let i = 0; i < things.length; i++) {
+    let thing = things[i]!;
+    if (LOOKED_AT_ONLY.has(thing.id)) thing = scenery(thing);
+    const person = i >= placed.length ? TOWNSFOLK2_AT[i - placed.length] : undefined;
+    if (person) thing = withStands(map, thing, person);
+    // Nobody is sent to stand where a stroller walks: the old man's bench is
+    // used from its other sides, not from where he rests.
+    else if (usable(thing)) {
+      const spots = spotsBeside(map, thing);
+      const clear = spots.filter((c) => !STROLLED.has(`${c.col},${c.row}`));
+      if (clear.length && clear.length < spots.length) thing = { ...thing, spots: clear };
+    }
+    things[i] = thing;
+  }
   return {
     map,
     things,

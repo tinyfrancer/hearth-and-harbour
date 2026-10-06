@@ -12,13 +12,32 @@ import { WORLD2_WIDTH } from '../art/town2/scale';
 import { TOWN2_TILE } from '../art/town2/town';
 import type { GameState } from '../core/state';
 import type { TimeOfDay } from './daylight';
+import { anchorOf, FIGURE2_SOLE_Y, heroPose } from './figures2';
+import { advancePlay, startPlay, type Play } from './play';
 import { scaleFor, type SceneSize } from './scale';
 import type { StageArt } from './stage';
 import type { Scene } from './things';
 import { centreOf, type Point } from './tileMap';
-import { BOAT_LANDING2, TOWN2_START_CELL } from './town2';
-import { FIGURE2_FEET, Hero2, painter, town2Art, type Painter, type Town2Art } from './town2Art';
-import { STEPS, type TownFacts } from './town2Facts';
+import { BOAT_LANDING2, STROLLERS2, TOWN2_START_CELL } from './town2';
+import {
+  FIGURE2_FEET,
+  Hero2,
+  painter,
+  town2Art,
+  type Painter,
+  type Town2Art,
+  type Walking,
+} from './town2Art';
+import {
+  faceStroller,
+  folkOn,
+  startFolk,
+  strollerAt,
+  strollersNow,
+  talkToStroller,
+  type FolkClocks,
+} from './town2Folk';
+import { STEPS, type KeptReport, type TownFacts } from './town2Facts';
 import type { Size } from './camera';
 
 /**
@@ -58,7 +77,12 @@ export function prepareTown(time: TimeOfDay, paint: Painter = painter()): void {
   paint(time, true, {
     facts(f) {
       facts = f;
-      art = town2Art(f, { paint, awaiting: time });
+      art = town2Art(f, {
+        paint,
+        awaiting: time,
+        walking: walkingNow,
+        walkers: STROLLERS2.length,
+      });
       hero?.lightBy(f.lights);
     },
     step(n) {
@@ -68,7 +92,18 @@ export function prepareTown(time: TimeOfDay, paint: Painter = painter()): void {
       step = STEPS;
       art?.take(p);
     },
+    kept(report) {
+      keptReport = report;
+    },
   });
+}
+
+/** What became of keeping the town for the next visit, once the worker has said. */
+let keptReport: KeptReport | null = null;
+
+/** Whether this visit's town came from storage or was kept for the next, and how big it is kept. For scripts. */
+export function townKept(): KeptReport | null {
+  return keptReport;
 }
 
 /** Whether the scene can be walked yet: its facts are in. */
@@ -108,28 +143,79 @@ export function town2Stage(): {
   scaleOf: (device: Size) => number;
   focusRise: number;
   pixelated: true;
+  drive: (play: Play, ms: number) => Play;
+  tap: (point: Point, min: number, play: Play) => Play | null;
 } {
   if (!facts || !art) throw new Error('The town is not ready to show.');
   hero ??= new Hero2();
   hero.lightBy(facts.lights);
   const look = art;
   const me = hero;
+  const scene = facts.scene;
   return {
-    scene: facts.scene,
+    scene,
     art: {
       still: look.still,
       standers: look.standers,
       shadowAt: look.shadowAt,
       life: look.life,
       heroFeet: FIGURE2_FEET,
+      walkerAt: () => nobody(),
       // Drawn in the held still's time of day, so he matches the town around him during a flip.
-      walkerAt: (feet, facing, palette) =>
-        me.at(feet, facing, look.held() ?? palette.name) ?? nobody(),
+      walkerPlaced: (play, feet, palette, now) => {
+        lastPlay = play;
+        lastNow = now;
+        const pose = heroPose(play, now);
+        const time = look.held() ?? palette.name;
+        const image = me.at(feet, pose, time);
+        me.warm(time);
+        return (
+          image && {
+            image,
+            x: feet.x - anchorOf(pose),
+            y: feet.y - FIGURE2_SOLE_Y,
+            base: feet.y,
+          }
+        );
+      },
     },
     scaleOf: scaleFor(TOWN2_SCENE),
     focusRise: FOCUS_RISE2,
     pixelated: true,
+    // The strollers stroll with the hero's time, and stop for him.
+    drive: (play, ms) => {
+      folk = folkOn(folk, ms, play);
+      return faceStroller(play, advancePlay(scene, play, ms), folk);
+    },
+    tap: (point, min, play) => {
+      const i = strollerAt(folk, scene, point, min);
+      return i === null ? null : talkToStroller(scene, play, folk, i);
+    },
   };
+}
+
+/** The strollers' clocks: where each is in their round. They last as long as the page. */
+let folk: FolkClocks = startFolk();
+/** The hero's walk and the scene's clock as of the last frame drawn: what the strollers turn to. */
+let lastPlay: Play | null = null;
+let lastNow = 0;
+
+/** The strollers as the town draws them this frame: worked out once a frame, asked for several times. */
+const walked = { folk: null as FolkClocks | null, play: null as Play | null, now: NaN };
+let walkedNow: readonly Walking[] = [];
+function walkingNow(): readonly Walking[] {
+  if (walked.folk === folk && walked.play === lastPlay && walked.now === lastNow) return walkedNow;
+  walked.folk = folk;
+  walked.play = lastPlay;
+  walked.now = lastNow;
+  walkedNow = strollersNow(folk, lastPlay ?? NOBODY, lastNow);
+  return walkedNow;
+}
+const NOBODY: Play = startPlay({ x: -1e6, y: -1e6 });
+
+/** Where each stroller is, for tests and screenshot scripts. */
+export function strollersAt(): readonly Point[] {
+  return walkingNow().map((w) => w.feet);
 }
 
 /** The town's look, once its facts are in. */
@@ -150,4 +236,7 @@ export function forget2(): void {
   hero = null;
   step = 0;
   asked = false;
+  folk = startFolk();
+  lastPlay = null;
+  lastNow = 0;
 }

@@ -179,6 +179,16 @@
   border: var(--px) solid var(--gold);
 }
 
+/* The harbour, at whole device pixels: never smoothed, never stretched by the card. */
+.scene-loading-picture {
+  display: block;
+  flex: none;
+  align-self: center;
+  max-width: none;
+  image-rendering: pixelated;
+  border: var(--px) solid var(--line);
+}
+
 .scene-loading-card h2 {
   font-size: 20px;
   color: var(--gold-bright);
@@ -518,16 +528,18 @@
   will-change: transform;
 }
 
+/* The whole face at whole device pixels (`framedFace`), centred: never stretched or cut. */
 .fight-face {
+  display: flex;
   flex: none;
+  align-items: center;
+  justify-content: center;
   width: 48px;
   height: 48px;
-  overflow: hidden;
 }
 
 .fight-face > * {
-  width: 48px;
-  height: 48px;
+  flex: none;
   image-rendering: pixelated;
 }
 
@@ -877,6 +889,12 @@
   border-top: var(--px) solid var(--gold);
   border-bottom: var(--px) solid var(--gold);
   opacity: 0;
+}
+
+/* Moved down above the ability bar when someone in the fight is under the top slot (`titleSlot`). */
+.dungeon-title[data-slot='bottom'] {
+  top: auto;
+  bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .dungeon-title.shown {

@@ -52,35 +52,60 @@ interface Reach {
  * a town is small enough that searching all of it is cheaper than being
  * clever.
  */
+/**
+ * Each tile of a map, solid (1) or not (0), row by row: worked out once a
+ * map (maps are never changed, only replaced) so a search reads a byte
+ * rather than looking a tile's kind up.
+ */
+const solids = new WeakMap<TileMap, Uint8Array>();
+function solidOf(map: TileMap): Uint8Array {
+  let s = solids.get(map);
+  if (!s) {
+    s = new Uint8Array(map.cols * map.rows);
+    for (let row = 0; row < map.rows; row++)
+      for (let col = 0; col < map.cols; col++)
+        s[row * map.cols + col] = isSolid(map, { col, row }) ? 1 : 0;
+    solids.set(map, s);
+  }
+  return s;
+}
+
+/**
+ * The search works on plain numbers, with nothing made per tile: on the
+ * town's 60 x 89 map it was a few milliseconds a tap (a dropped frame or
+ * two on a slow phone), most of it making little objects for each tile
+ * looked at. It visits tiles in exactly the same order as before.
+ */
 function reachFrom(map: TileMap, start: Cell): Reach {
-  const size = map.cols * map.rows;
+  const { cols, rows } = map;
+  const size = cols * rows;
   const cost = new Float64Array(size).fill(Infinity);
   const from = new Int32Array(size).fill(-1);
   if (isSolid(map, start)) return { cost, from };
-  const index = (c: Cell): number => c.row * map.cols + c.col;
+  const solid = solidOf(map);
   const open = new MinHeap();
-  cost[index(start)] = 0;
-  open.push(index(start), 0);
-  for (let next = open.pop(); next; next = open.pop()) {
-    const [at, atCost] = next;
+  const first = start.row * cols + start.col;
+  cost[first] = 0;
+  open.push(first, 0);
+  while (open.size > 0) {
+    const atCost = open.topCost();
+    const at = open.pop();
     if (atCost > cost[at]!) continue;
-    const col = at % map.cols;
-    const row = (at - col) / map.cols;
-    for (const { dc, dr, cost: step } of STEPS) {
-      const to = { col: col + dc, row: row + dr };
-      if (isSolid(map, to)) continue;
+    const col = at % cols;
+    const row = (at - col) / cols;
+    for (let k = 0; k < STEPS.length; k++) {
+      const { dc, dr, cost: step } = STEPS[k]!;
+      const c = col + dc;
+      const r = row + dr;
+      if (c < 0 || r < 0 || c >= cols || r >= rows || solid[r * cols + c]) continue;
       // A diagonal step may not cut the corner of a solid tile.
-      if (
-        dc &&
-        dr &&
-        (isSolid(map, { col: col + dc, row }) || isSolid(map, { col, row: row + dr }))
-      )
-        continue;
+      if (dc && dr && (solid[row * cols + c] || solid[r * cols + col])) continue;
+      const to = r * cols + c;
       const toCost = atCost + step;
-      if (toCost < cost[index(to)]!) {
-        cost[index(to)] = toCost;
-        from[index(to)] = at;
-        open.push(index(to), toCost);
+      if (toCost < cost[to]!) {
+        cost[to] = toCost;
+        from[to] = at;
+        open.push(to, toCost);
       }
     }
   }
@@ -157,6 +182,8 @@ const LINE_STEP = 2;
 /** Whether a walker's feet can go from `a` to `b` in a straight line without touching a solid tile. */
 export function clearLine(map: TileMap, a: Point, b: Point, half = footHalf(map)): boolean {
   const tile = tileOf(map);
+  const { cols, rows } = map;
+  const solid = solidOf(map);
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / LINE_STEP));
   for (let i = 0; i <= steps; i++) {
     const x = a.x + ((b.x - a.x) * i) / steps;
@@ -168,7 +195,9 @@ export function clearLine(map: TileMap, a: Point, b: Point, half = footHalf(map)
     const bottom = Math.ceil((y + half) / tile) - 1;
     for (let row = top; row <= bottom; row++) {
       for (let col = left; col <= right; col++) {
-        if (isSolid(map, { col, row })) return false;
+        // Off the map counts as solid, as `isSolid` has it.
+        if (col < 0 || row < 0 || col >= cols || row >= rows || solid[row * cols + col])
+          return false;
       }
     }
   }
@@ -209,35 +238,66 @@ export function route(map: TileMap, from: Point, to: Point): Point[] {
   return legs;
 }
 
-/** A small binary heap of tile indexes by cost: enough for a search, and no dependency. */
+/**
+ * A small binary heap of tile indexes by cost, in two growing typed arrays:
+ * enough for a search, no dependency, and nothing made per push. It sifts
+ * exactly as the one it replaced, so ties come out in the same order.
+ */
 class MinHeap {
-  private readonly items: [number, number][] = [];
+  private items = new Int32Array(256);
+  private costs = new Float64Array(256);
+  size = 0;
 
   push(item: number, cost: number): void {
-    const items = this.items;
-    items.push([item, cost]);
-    for (let i = items.length - 1; i > 0;) {
+    if (this.size === this.items.length) {
+      const items = new Int32Array(this.size * 2);
+      const costs = new Float64Array(this.size * 2);
+      items.set(this.items);
+      costs.set(this.costs);
+      this.items = items;
+      this.costs = costs;
+    }
+    const { items, costs } = this;
+    let i = this.size++;
+    items[i] = item;
+    costs[i] = cost;
+    while (i > 0) {
       const parent = (i - 1) >> 1;
-      if (items[parent]![1] <= cost) break;
-      [items[i], items[parent]] = [items[parent]!, items[i]!];
+      if (costs[parent]! <= cost) break;
+      items[i] = items[parent]!;
+      costs[i] = costs[parent]!;
+      items[parent] = item;
+      costs[parent] = cost;
       i = parent;
     }
   }
 
-  pop(): [number, number] | undefined {
-    const items = this.items;
-    const top = items[0];
-    const last = items.pop();
-    if (!top || !last || items.length === 0) return top;
-    items[0] = last;
+  /** The cost of the item `pop` will give. */
+  topCost(): number {
+    return this.costs[0]!;
+  }
+
+  /** Takes the cheapest item off. Only while `size` is more than none. */
+  pop(): number {
+    const { items, costs } = this;
+    const top = items[0]!;
+    const n = --this.size;
+    if (n === 0) return top;
+    items[0] = items[n]!;
+    costs[0] = costs[n]!;
     for (let i = 0; ;) {
       const l = i * 2 + 1;
       const r = l + 1;
       let least = i;
-      if (l < items.length && items[l]![1] < items[least]![1]) least = l;
-      if (r < items.length && items[r]![1] < items[least]![1]) least = r;
+      if (l < n && costs[l]! < costs[least]!) least = l;
+      if (r < n && costs[r]! < costs[least]!) least = r;
       if (least === i) break;
-      [items[i], items[least]] = [items[least]!, items[i]!];
+      const item = items[i]!;
+      const cost = costs[i]!;
+      items[i] = items[least]!;
+      costs[i] = costs[least]!;
+      items[least] = item;
+      costs[least] = cost;
       i = least;
     }
     return top;

@@ -9,6 +9,7 @@
 import { foePicture } from '../art/dungeonArt';
 import { ellipse, grid, line, outline, rect, type Grid } from '../art/grid';
 import { picture, type Picture } from '../art/raster';
+import { DUNGEON } from './dungeonMetrics';
 import type { Facing } from './play';
 import type { Point } from './tileMap';
 import { mirrored } from './walkerArt';
@@ -114,11 +115,8 @@ export interface FoeKind {
   readonly boss?: BossRules;
 }
 
-/**
- * The monsters a dungeon uses, by id. One not here still fights, as a rat
- * does: the tables can gain a monster before a room knows how it moves.
- */
-export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
+/** The monsters a dungeon uses, at the first scale: what the rows below were written at. */
+const FIRST_KINDS: Readonly<Record<string, FoeKind>> = {
   dock_rat: {
     look: 'rat',
     speed: 52,
@@ -266,6 +264,54 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = {
     },
   },
 };
+
+/**
+ * A monster's row at `k` times the first scale's distances: paces, how far
+ * it notices and reaches, how near it keeps, its tap box, its heavy blow's
+ * mark and range, a flier's speed, a rally's reach, a boss's volley lines.
+ * Times stay as they are. At 1, the row itself.
+ */
+export function kindAtScale(kind: FoeKind, k: number): FoeKind {
+  if (k === 1) return kind;
+  const heavy = kind.heavy && {
+    ...kind.heavy,
+    radius: kind.heavy.radius * k,
+    range: kind.heavy.range * k,
+  };
+  return {
+    ...kind,
+    speed: kind.speed * k,
+    notice: kind.notice * k,
+    reach: kind.reach * k,
+    keep: kind.keep * k,
+    heavy,
+    box: { w: kind.box.w * k, h: kind.box.h * k },
+    ...(kind.shy !== undefined ? { shy: kind.shy * k } : {}),
+    ...(kind.flies ? { flies: { ...kind.flies, speed: kind.flies.speed * k } } : {}),
+    ...(kind.rally ? { rally: { ...kind.rally, radius: kind.rally.radius * k } } : {}),
+    ...(kind.boss
+      ? {
+          boss: {
+            ...kind.boss,
+            volleys: {
+              ...kind.boss.volleys,
+              half: kind.boss.volleys.half * k,
+              gap: kind.boss.volleys.gap * k,
+            },
+          },
+        }
+      : {}),
+  };
+}
+
+/**
+ * The monsters a dungeon uses, by id, at the dungeons' scale
+ * (`dungeonMetrics.ts`). One not here still fights, as a rat does: the
+ * tables can gain a monster before a room knows how it moves.
+ */
+export const FOE_KINDS: Readonly<Record<string, FoeKind>> = Object.fromEntries(
+  Object.entries(FIRST_KINDS).map(([id, kind]) => [id, kindAtScale(kind, DUNGEON.distance)]),
+);
 
 export function foeKind(monster: string): FoeKind {
   return FOE_KINDS[monster] ?? FOE_KINDS.dock_rat!;
