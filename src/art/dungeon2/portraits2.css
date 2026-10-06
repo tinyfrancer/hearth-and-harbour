@@ -1,0 +1,58 @@
+/*
+ * Portraits at the C scale (B10a, `portrait2` in src/art/portraits2.ts):
+ * three canvases, the 72-pixel face at 2, 4/3 and 2/3 CSS pixels per art
+ * pixel (144, 96 and 48). The frame shows the largest that fits it whole,
+ * so the dungeon's 48-pixel panel shows the whole face, hat and all, and no
+ * canvas is ever resized. Owned by the art lane, imported by portraits2.ts.
+ */
+.portrait2-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  container-type: size;
+}
+
+.portrait2-art > .portrait2-large,
+.portrait2-art > .portrait2-small {
+  display: none;
+}
+
+@container (min-width: 90px) and (min-height: 90px) {
+  .portrait2-art > .portrait2-small {
+    display: block;
+  }
+
+  .portrait2-art > .portrait2-mini {
+    display: none;
+  }
+}
+
+@container (min-width: 140px) and (min-height: 140px) {
+  .portrait2-art > .portrait2-large {
+    display: block;
+  }
+
+  .portrait2-art > .portrait2-small {
+    display: none;
+  }
+}
+
+/* The gallery's copies of the lists' frame and the dungeon panel's, as the game frames them. */
+.gallery-portrait2-small,
+.gallery-portrait2-mini {
+  overflow: hidden;
+  background: var(--backdrop);
+  border: var(--px) solid var(--gold);
+}
+
+.gallery-portrait2-small {
+  width: 100px;
+  height: 100px;
+}
+
+.gallery-portrait2-mini {
+  width: 48px;
+  height: 48px;
+}

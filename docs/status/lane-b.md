@@ -5,6 +5,155 @@ grotto cast and its boss, the foes and their portraits (what it needs is under "
 lane's next session"). Cody's review of B9 (the fixes and the walk cycle, below) first if he asks
 for one. Still open from B6: faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
 
+## The dungeon at the C scale, for lanes C and A (`src/art/dungeonArt2.ts`, `src/art/portraits2.ts`, B10a)
+
+Built **beside** the first scale's doors: `dungeonTile`, `dungeonProp`, `foePicture`, `portrait` and
+their tests are unchanged. Everything new is in `src/art/dungeon2/` behind two door files. Pictures
+are `Picture2`s (town2 cells, material and step), so a room can be stamped into one grid, darkened
+for contact shadows and lit by steps as the town is.
+
+**Palette.** Dungeon pictures hold the cave's own materials (cave rock, cave sand, shoal, the deep,
+weed, fur, crab shell, feather, troll and goblin hide, ember), numbered from `CAVE_FIRST` (400),
+clear of the town's. Rasterize them with `CAVE_DUSK` (a run) or `CAVE_DAY` (menus), never `DUSK2`/
+`DAY2`: the cave palettes are the town's with the cave's ramps added, every town colour identical,
+so the hero drawn with `characterSprite2(look, worn, 'dusk')` matches. `cavePalette2(time)`.
+
+**Tiles** (`DUNGEON2_TILE` = 24):
+
+```ts
+dungeonTile2(kind: string, variant = 0, around?: Around, at?: TileAt): Picture2 | null
+roomKinds2(rows: readonly string[]): Tile2Kind[][]          // the face rule, in one place
+aroundOf(kinds, col, row): Around                            // a cell's eight neighbours' kinds
+GROUND2_SHADOW: Partial<Record<Tile2Kind, number>>           // contact shadow steps per ground
+forgetTiles2(): void
+```
+
+- Kinds (`TILE2_KINDS`): the first scale's ten (`sand`, `wet_sand`, `rock_floor`, `wall_top`,
+  `wall_face`, `shallows`, `deep_water`, `planks`, `door_barred`, `door_open`) and
+  `wall_face_high`. Wears (`TILE2_WEARS`) as before (20, 16, 20, 4, ...); any number is a variant.
+- **Walls stand two tiles tall**: rock with open ground below is `wall_face`, rock above a face (or
+  above a door) is `wall_face_high`, all other rock `wall_top` (`roomKinds2` does it for the
+  sample key; the same rule on lane C's own rows).
+- Pass `at` (the cell's column and row) for every cell: textures are worked out from the place in
+  the room, so a floor shows no grid and no seam. Pass `around` (from `aroundOf`) and a tile joins
+  its neighbours in curves: land spills over water with foam where they meet, sand over wet sand,
+  shallows over the deep, shade under a wall and beside a deck. Without `around` a tile is drawn as
+  if surrounded by its own kind. Each distinct ask is kept (about 1.2 KB of cells); a 32 × 12 room
+  is about 450 KB of cells per state of the tide; `forgetTiles2()` lets them go once the room's
+  ground is on a canvas.
+- The tide's warning: draw sand about to be covered as `wet_sand`, as now; shallows about to deepen
+  keep lane C's own checker overlay.
+
+**Light** (a cave is dark, and is lit, not drawn dark):
+
+```ts
+lightGround2(ground: TGrid, lights: readonly Light2[]): TGrid   // pure; returns a lit copy
+lightAt(light: Light2, dx: number, dy: number): Light2          // a prop's light into the room
+flicker2(light: Light2, ms: number, k = 0): Glow                // its glow at a moment, wavering
+DUNGEON2_LIGHT, LANTERN_LIGHT2, FUSE_LIGHT2                     // the numbers
+interface Light2 extends Glow { drop: number; pool: number; flicker: number }
+```
+
+Compose the room's ground (tiles, then contact shadows), then `lightGround2(ground, lights)` with
+every lantern's `dungeonProp2('lantern').light` moved to where it hangs (`lightAt(light, at.x,
+at.y)`): ground in a pool below each flame (`drop` 46 below it, `pool` 70 wide, lying flat) is lifted
+a step at its heart and drawn as-is in its ring; everything beyond every pool is a step darker,
+past 2.2 pools two; edges break in clumps. Then rasterize with `CAVE_DUSK` and add the glows as
+today (`litBy`). `flicker2` is optional: a lantern's glow strength at a time, smooth and
+deterministic (no `Math.random`), for redrawing the glow layer, never the ground.
+
+**Props**:
+
+```ts
+dungeonProp2(id: string): PropPicture2 | null
+// { picture: Picture2; base: number; foot: number; seat?: {x, y}; light?: Light2 }
+dungeonPropSprite2(id: string, palette = CAVE_DUSK): HTMLCanvasElement | null
+```
+
+`PROP2_IDS`: `powder_keg`, `crate`, `treasure_chest`, `brig_bars`, `lantern`, `anchor`,
+`rope_coil`, `cannon`, `perch`. Stand a prop at (x - foot, y - base); `seat` is where the parrot's
+feet go on the perch; the lantern carries its glow in its picture and its `light`. Drawn to metres
+(the keg 0.6 m, the bars a tile wide and 2 m tall).
+
+**Foes**:
+
+```ts
+foePicture2(id: string, pose: Foe2Pose = 'idle', facing: Foe2Facing = 'right', frame = 0, phase = 1): FoePicture2 | null
+// { picture: Picture2; feet: { x, y } }
+foeSprite2(id, pose = 'idle', facing = 'right', frame = 0, phase = 1, palette = CAVE_DUSK): HTMLCanvasElement | null
+foeFrames2(id: string): Record<Foe2Pose, number> | null
+foeSize2(id: string): Foe2Size | null      // FOE2_SIZES[id]
+forgetFoes2(): void
+type Foe2Pose = 'idle' | 'walk' | 'windup' | 'strike' | 'hurt' | 'flash' | 'fall'
+type Foe2Facing = 'left' | 'right'
+```
+
+- Ids (`FOE2_IDS`): the grotto's eight (`GROTTO2_IDS`: `dock_rat`, `sand_crab`, `smuggler`,
+  `deckhand`, `powder_monkey`, `giant_crab`, `ships_parrot`, `brinebeard`) and every monster in the
+  tables (`MONSTER2_IDS`), `thieving_gull`, `bramble_boar`, `footpad`, `grey_wolf`, `marsh_troll`,
+  `goblin_poacher` and `bramble_wyrm` included: fifteen.
+- Frames: idle 2 (the breath), walk 8 for people and 4 for creatures, windup 1 (the telegraph:
+  weapon cocked back, claws or fists up), strike 1 (the blow, the weapon out along the line of it),
+  hurt 1 (the recoil), flash 1 (the recoil in the flash of a blow: every step lifted three, outline
+  kept; it replaces the scene's `flashOf` white tint), fall 2 (buckling, then down). The captain
+  has the same in each of his three `phase`s. Frame numbers wrap.
+- Draw at (x - feet.x, y - feet.y). People stand on the hero's canvas, 56 × 72, feet (28, 70); a
+  fallen person lies on a 72 × 56 canvas with its own feet: **a frame's size can differ from the
+  standing canvas, its feet are always right.** Left is the exact mirror (feet and glows mirrored).
+- Sizes as data, `FOE2_SIZES[id]`: `w`, `h`, `anchor` (standing canvas), `tall` (rows from the
+  ground to the top of the drawing), `front`/`back` (columns drawn ahead of and behind the anchor,
+  facing right), `strike` (columns ahead in the blow: the weapon's or jaws' reach as drawn), `box`
+  (a tap box: as wide as the body, not a weapon held clear of it, as tall as the drawing), `shadow` (contact shadow half-width), `hover` (air
+  under a flier's picture). Tests hold the table to the drawings.
+
+| Id              | Canvas    | Feet      | Tall | Box      | Notes                                          |
+| --------------- | --------- | --------- | ---- | -------- | ---------------------------------------------- |
+| `dock_rat`      | 48 × 24   | (24, 23)  | 20   | 40 × 20  |                                                |
+| `sand_crab`     | 40 × 26   | (20, 24)  | 24   | 40 × 24  | on its back when down                          |
+| `smuggler`      | 56 × 72   | (28, 70)  | 64   | 28 × 64  | cutlass; a bottle in the other hand            |
+| `deckhand`      | 56 × 72   | (28, 70)  | 70   | 24 × 70  | the boathook reaches row 0                     |
+| `powder_monkey` | 56 × 72   | (28, 70)  | 70   | 26 × 70  | a head shorter; the keg over him reaches row 0 |
+| `giant_crab`    | 84 × 52   | (42, 50)  | 50   | 69 × 50  |                                                |
+| `ships_parrot`  | 46 × 40   | (22, 39)  | 33   | 17 × 33  | perched, feet on the perch's `seat`            |
+| `brinebeard`    | 104 × 112 | (48, 110) | 104  | 56 × 104 | three phases                                   |
+
+(the idle game's monsters: see `FOE2_SIZES`; the boar 68 × 44, the wolf 70 × 46, the troll 82 ×
+92, the wyrm 96 × 60, the gull 40 × 32, the footpad and goblin on the person's canvas.)
+
+- Glows: the powder monkey's lit fuse (`FUSE_LIGHT2`, `always`) in every frame he holds the keg (and
+  the keg dropped as he falls); none once it is thrown.
+- Memory: a person's frame is 56 × 72 × 4 = 16 KB a facing; all sixteen frames both ways 512 KB,
+  but only frames asked for are made (a deckhand who idles, walks and strikes facing both ways is
+  about 380 KB). The captain's frames are 104 × 112 × 4 = 47 KB; everything of his, all three
+  phases, both ways, 4.5 MB if every frame is shown. Kept through `spriteCanvas`, so
+  `forgetSprites()` frees them with the town's; `forgetFoes2()` the cell grids (a few KB each).
+
+**Portraits** (`src/art/portraits2.ts`): 72 × 72 (`PORTRAIT2_SIZE`), the head about three times the
+H2 head, drawn at that size.
+
+```ts
+portrait2(id: string): Element | null                  // div.portrait2-art, three canvases
+heroPortrait2(look: Partial<Look>, wornItemIds: readonly string[]): Element
+portraitPicture2(id): Picture2 | null; heroPortraitPicture2(look, worn): Picture2
+portraitScales2(dpr): { large, small, mini }          // 6, 4, 2 device px on a 3x phone
+PORTRAIT2_IDS, PORTRAIT2_SAFE: Record<id, Box2>, HERO_PORTRAIT2_SAFE: Box2
+```
+
+- Ids: every id `portrait` serves, `goblin_poacher` and `bramble_wyrm` (new), and the villagers
+  `alewife`, `market`, `docker`, `elder`: 22. The hero's in the look (skin, hair and its colour,
+  brows by the look rule) and the head gear and body garment worn.
+- The element carries the face at 2, 4/3 and 2/3 CSS pixels per art pixel (144, 96 and 48 CSS
+  pixels), and `src/art/dungeon2/portraits2.css` (imported by the door) shows the largest that fits
+  the frame **whole**: the fight screen's 148 frame the 144, the lists' 100 the 96, and the
+  dungeon's 48-pixel panel the 48. **No face is ever cropped**; the first scale's showed its
+  96-pixel canvas in the 48 panel and lost hats and chins.
+- `PORTRAIT2_SAFE[id]`: the box (art pixels from the top-left) holding everything that names the
+  face (head, hat, ears, horns, whiskers, the gesture beside it); below row 56 only shoulders and
+  beard ends. A frame that must crop (round, or short) can crop to it. The hero's is
+  `HERO_PORTRAIT2_SAFE`, the union over every hairstyle and head gear.
+- Memory: at 3x, a portrait's three canvases are 432² + 288² + 144² device pixels, about 1.2 MB, as
+  the first scale's two were about 1.1 MB.
+
 ## Walking and breathing at the C scale, for lane C (`src/art/character2.ts`, B9)
 
 Added beside the standing doors; nothing that was there changed its name or signature.
@@ -381,6 +530,43 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B10a: the dungeon at the C scale** (doors above). Review sheets outside the repo in
+  `/home/claude/lane-shots/w10-b-dungeon/`: `room-landscape.png` and `room-landscape-pools.png`
+  (2532 × 1170, a 3x phone held sideways, the store and the pools re-cut with the hero and the
+  cast), `room-old-vs-new.png`, `tiles.png` (every wear, laid floors, every join, the light, the
+  tide), `props.png`, `foes.png` (every foe, every pose and frame, both facings, true size and
+  enlarged, the hero beside each), `boss.png`, `portraits.png` (first scale against the C scale in
+  the 96 and 48 frames, with each safe box), `hero-portraits.png`. (An earlier, unmerged B10b
+  attempt at the same work, PR #40, had its sheets there; they are moved to `b10b-pr40/`.)
+  - Built on that unmerged attempt's drawings (PR #40), moved into lane B's own files: its cave
+    ramps, which it had added to `town2/ramps.ts`, now live in `src/art/dungeon2/cave.ts` with
+    their own palettes (`CAVE_DUSK`, `CAVE_DAY`), so nothing under `town2/`, `figure2/`,
+    `character2.ts` or `icons.ts` changed; its tab icons and town touch-ups are not in this PR.
+  - **Doors** shaped as the brief asked: `dungeonTile2(kind, variant, around, at)`,
+    `dungeonProp2(id)`, `foePicture2(id, pose, facing, frame, phase)` and sprite versions, sizes as
+    data (`FOE2_SIZES`, held to the drawings by a test), light as data, and `portraits2.ts`.
+  - **Light**: a scheme, not a darkening: pools of light below each lantern laid on the ground in
+    its own steps, the dark beyond them a step down, glows as the town's (`lightGround2`).
+  - **Every foe**: the fifteen ids (the grotto's eight and every monster in the tables, the
+    bounty-only goblin and wyrm included), each in idle, walk, wind-up, strike, hurt, flash and
+    fall, facing both ways. Redrawn here: the powder monkey whole by hand (a small, wiry, bald,
+    stubbled grown man, open indigo vest, red kerchief, bare feet, the keg over his head with a
+    painted skull and a lit fuse; winds back, throws, takes the keg on the head when struck, drops
+    it as he falls); the boar, wolf and troll as silhouettes shaded as solids with their own
+    features (the boar's wedge, crest, snout and tusks; the wolf's ears, muzzle, ruff and brush;
+    the troll's hunch, fists, brow and underbite); the gull in a cool white. People's wind-up and
+    blow redrawn: the near arm and weapon cocked back over the shoulder, then driven out along the
+    blow (boathook, cutlass, cudgel), the goblin drawing and loosing his longbow. Creatures that
+    fall lie on their backs (crabs, birds), on their bellies (rat, boar, wolf, wyrm) or on their
+    side (the troll).
+  - **Portraits**: 22 faces at 72 × 72 and the hero's; redrawn here the wolf, boar, gull, parrot,
+    troll and rat, and the powder monkey to match his new figure; brows on the hero's by the look
+    rule; each with a safe box as data.
+  - **Sample rooms**: the pools and the store re-cut on 24-pixel tiles (32 × 12) in the grotto's
+    own key, at any state of the tide, dressed and lit (`src/art/dungeon2/sample.ts`).
+  - **Gallery**: "See the new dungeon at the finer scale" (Menu, Art gallery), drawn on a tap: the
+    rooms, every tile, every prop, every foe in every pose facing both ways, the captain's phases,
+    every face in the three frames.
 - **B9: The fixes Cody asked for after reviewing B7 and B8, and the walk cycle.** Review sheets
   outside the repo in `/home/claude/lane-shots/w9-b/`: `fixes-figures.png` and `fixes-town.png`
   (before and after, each fix), `gear-ladder.png`, `walk-frames.png` (every frame of every facing:
@@ -799,6 +985,27 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **Not done in B10a**, and why:
+  - **No side-wall door tile.** Doors are drawn for a wall's face; set in a side wall (as every
+    grotto door is) the frame reads as a small dark box. A side door is another tile kind.
+  - **No edge tiles for corners of the deep against rock**: the deep meets a wall's foot in a
+    straight 24-pixel step where it runs into the bottom wall.
+  - **The idle game's monsters have no combat-screen door at this scale** (the menus show
+    portraits; `foePicture2` serves every monster for a scene that wants one).
+  - **The walk of creatures** is four frames of moved parts, not a gait.
+- **B10a, weaker than it should be** (for Cody's review), weakest first:
+  - Brinebeard's portrait: his face is small under the hat and beard; the first scale's filled the
+    frame. His strike is stiff (inherited).
+  - People's faces in the portraits share one built head; the deckhand, smuggler and footpad differ
+    by what they wear more than by their features.
+  - The troll lying down is a quarter turn of his buckle, and reads as a heap; the wolf at dusk is
+    dark and thin-legged at true size.
+  - The people's strikes are drawn over the rig's standing body: the arm crosses the chest for the
+    blow and the body does not turn into it.
+  - Creatures are silhouettes shaded as solids with hand-placed features, not drawn pixel by
+    pixel: the giant crab's stalk eyes are a pixel wide; the parrot's bare face is a pale smudge.
+  - The light's pools are ellipses with ragged edges; a lantern's pool on planks reads strongly
+    orange.
 - **Not done in B9**, and why:
   - **No walk up (away from the camera).** A back view needs the back of every hairstyle (five)
     and every head gear (seven), the back of every shirt, jerkin, mail, coat and plate, the cloak in
@@ -924,6 +1131,40 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
+- **Lane C, to switch the dungeon to the C scale (B10a)** — the doors and signatures are under
+  "The dungeon at the C scale" above. In order:
+  1. Tiles: `TileMap` at 24 (`DUNGEON2_TILE`); re-cut the rooms as your plan says (the sample
+     rooms in `src/art/dungeon2/sample.ts`, `POOLS2` and `STORE2`, are one way of doing two of
+     them, in your key). Ground per state of the tide: for every cell
+     `dungeonTile2(kind, cellIndex, aroundOf(kinds, col, row), { col, row })`, with rock resolved
+     by the two-tall face rule (`roomKinds2` does it for the sample key). Draw `wet_sand` for sand
+     about to flood, as now; your own foam line can go, as the tiles draw foam where land meets
+     water.
+  2. Contact shadows in cells (`shadow2.ts`): darken the ground's own steps by
+     `GROUND2_SHADOW[kind]` in an ellipse under each foot (`FOE2_SIZES[id].shadow` wide for foes,
+     22 × 4 for the hero), none on the deep.
+  3. Light: `lightGround2(ground, lights)` with each lantern's `dungeonProp2('lantern').light`
+     moved to where it hangs (`lightAt`), the powder monkey's fuse optional (`FUSE_LIGHT2`); then
+     rasterize the ground with `CAVE_DUSK` (once per state of the tide, as now), and keep adding
+     the glows (lanterns' and the fuse's) to walkers with `litBy`.
+  4. Props: `dungeonPropSprite2(id)` (or the picture), stood at (x - foot, y - base); the parrot on
+     the perch's `seat` (replaces `PERCH_RISE`).
+  5. Foes: `foeSprite2(id, pose, facing, frame, phase)`, drawn at (x - feet.x, y - feet.y) with
+     `foePicture2`'s feet for the same ask; poses from the foe's state: `walk` while it moves (frame
+     from distance walked), `idle` standing (breath every 900 ms), `windup` while a heavy is marked
+     (replaces the fire-tinted blink, or keep both), `strike` for the moment a blow lands, `flash`
+     for `FLASH_MS` after it is struck (replaces `flashOf` white), `fall` frame 0 then 1 through
+     `FALL_MS`, and the captain's `phase`. Sizes for taps, health bars and spacing from
+     `FOE2_SIZES` (`box`, `tall`, `shadow`); distances × 1.5 as your plan says.
+  6. Palette: everything in a run rasterized with `CAVE_DUSK`; the hero from `characterSprite2(look,
+worn, 'dusk')` is identical under it.
+  7. Faces: `portrait(id)` becomes `portrait2(id)` in `dungeonView.ts` and `panel.ts`; the 48-pixel
+     `.fight-face` needs nothing else (the element shows its 48-pixel canvas whole).
+- **Lane A, to switch the menus' faces (B10a)**: in `src/ui/face.ts`, `portrait(monster.id)`
+  becomes `portrait2(monster.id)` from `src/art/portraits2.ts`; the 148 and 100 frames take the 144
+  and 96 canvases as they are. `goblin_poacher` and `bramble_wyrm` now have faces, so
+  `tests/ui/combat.test.ts`'s blank "G" expectation for the goblin becomes `.portrait2-art`. The
+  character sheet can show `heroPortrait2(look, worn)`.
 - **Lane C, to wire the walk (B9)**, at the plug in `src/scene/figures2.ts` ("THE WALK CYCLE
   PLUGS IN HERE"): `figureOf` paints pictures itself with the scene's lights, so take the
   pictures: `characterWalkPicture2(look, worn, facing, frame)` (and `townsfolkWalkPicture2`) for a
