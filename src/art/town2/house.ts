@@ -59,57 +59,74 @@ function rose(g: TGrid, x: number, bottom: number, top: number, k: number): void
   }
 }
 
-/** An eyebrow in the thatch: the window's little wall, and the thatch arching over it. */
+/**
+ * An eyebrow in the thatch (redrawn in B9; B7's showed a half-moon of bare
+ * wall under an arch, which read as a sign painted on the roof). The thatch
+ * itself lifts over the window in a low wave: its cut edge, a fringe of straw
+ * ends, runs just over the window's head and sweeps down either side to the
+ * roof; the courses above it bend with it, lit along the swell's crown; under
+ * the edge a band of deep shadow falls on the window's head; the window's
+ * little wall shows only as narrow cheeks beside its frame.
+ */
 function eyebrow(g: TGrid, cx: number, sill: number, k: number): Glow | null {
   const ww = m(1.0);
   const wh = m(0.8);
   const wx = cx - Math.round(ww / 2);
   const wy = sill - wh;
-  const face = { x: wx - m(0.3), y: wy - m(0.15), w: ww + m(0.6), h: wh + m(0.3) };
+  const face = { x: wx - m(0.16), y: wy - 3, w: ww + m(0.32), h: wh + 3 };
   render(g, face, face.y + face.h, k + 7, 'limewash');
+  for (let y = face.y; y < face.y + face.h; y++)
+    for (let x = face.x; x < face.x + face.w; x++) dim(g, x, y, 1);
   const glow = windowAt(g, wx, wy, ww, wh, { nx: 2, ny: 2, lit: true, k });
-  // The arch of thatch over it: a band lit along its crown, and under it, above the window's
-  // little wall, the eyebrow's shadowed underside.
-  const rx = face.w / 2 + m(0.35);
-  const ry = face.h * 0.75 + m(0.2);
-  const ccx = cx;
-  const ccy = face.y + m(0.15);
-  const thick = m(0.38);
-  for (let y = Math.floor(ccy - ry - thick); y <= ccy + m(0.1); y++)
-    for (let x = Math.floor(ccx - rx - thick); x <= ccx + rx + thick; x++) {
-      const a = (x - ccx) / (rx + thick);
-      const b = (y - ccy) / (ry + thick);
-      if (a * a + b * b > 1) continue;
-      const ai = (x - ccx) / rx;
-      const bi = (y - ccy) / ry;
-      const r = Math.sqrt(ai * ai + bi * bi);
-      const c = at(g, x, y);
-      if (r < 1 && (isMat(c, 'glass') || isMat(c, 'wood'))) continue;
-      const s = hash(Math.floor(x / 2), Math.floor(y / 6), k + 1);
-      let t: number;
-      if (r < 1) {
-        // Inside the arch: the window's wall, shaded under the thatch, its top in deep shadow.
-        const depth = y - (ccy - Math.sqrt(Math.max(0, 1 - ai * ai)) * ry);
-        if (depth > 7) {
-          put(g, x, y, C('limewash', depth < 12 ? 4 : 3));
-          continue;
+  // The edge's line: just over the window's head in the middle, sweeping down
+  // either side of the cheeks to meet the roof below the sill.
+  const inner = face.w / 2 + 1;
+  const rx = inner + m(0.8);
+  const lip = (x: number) => {
+    const d = Math.abs(x + 0.5 - cx);
+    if (d <= inner) return wy - 4 - Math.round((1 - (d / inner) ** 2) * 2);
+    const f = Math.min(1, (d - inner) / (rx - inner));
+    return Math.round(wy - 4 + f * f * (3 - 2 * f) * (wh + 7));
+  };
+  const thick = m(0.42);
+  for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+    const ly = lip(x);
+    const d = Math.abs(x + 0.5 - cx) / rx;
+    const top = ly - thick - Math.round((1 - d * d) * m(0.18));
+    for (let y = top - 6; y <= ly; y++) {
+      if (y < top) {
+        // The roof swelling up into the wave: a step lighter on its crown.
+        if (isMat(at(g, x, y), 'thatch') && y >= top - 6 + Math.round(d * 4)) {
+          const c = at(g, x, y) & 7;
+          put(g, x, y, C('thatch', Math.max(1, c - 1)));
         }
-        t = depth < 3 ? 5 : 4;
-      } else {
-        const across = (r - 1) / (thick / rx);
-        t = across > 0.55 ? 1 : across > 0.25 ? 2 : 3;
-        if (s < 0.2) t -= 1;
-        if (r < 1.06 && hash(x, 7, k) < 0.6) t = 5;
+        continue;
       }
-      t += Math.round(((x - ccx) / rx) * 0.8);
+      const v = (y - top) / Math.max(1, ly - top);
+      // Courses bending with the wave, a stroke of straw now and then.
+      const course = (y - top + Math.round(d * 3)) % 5 === 4;
+      const straw = hash(Math.floor(x / 2), y, k + 3) < 0.18;
+      let t = v < 0.35 ? 1 : v < 0.75 ? 2 : 3;
+      if (course) t += 1;
+      if (straw) t -= 1;
+      if (x > cx) t += Math.round(d * 1.2);
+      // The cut edge: straw ends, dark and ragged.
+      if (y >= ly - 1) t = hash(x, k, 5) < 0.4 ? 5 : 4;
       put(g, x, y, C('thatch', clamp(t, 1, 5)));
     }
-  // Its shadow on the window's wall.
-  for (let y = face.y; y < face.y + m(0.3); y++)
-    for (let x = face.x; x < face.x + face.w; x++) {
+    // Ragged straw ends hanging a pixel below the edge here and there.
+    if (hash(x, k, 6) < 0.3) put(g, x, ly + 1, C('thatch', 5));
+    // The shadow the edge throws: deep under it, a step for a few rows more.
+    for (let j = 1; j <= 4; j++) {
+      const y = ly + j + (hash(x, k, 6) < 0.3 ? 1 : 0);
       const c = at(g, x, y);
-      if (isMat(c, 'limewash') || isMat(c, 'wood')) dim(g, x, y, y < face.y + m(0.15) ? 2 : 1);
+      if (!c || isMat(c, 'glass')) {
+        if (isMat(c, 'glass') && j <= 2) dim(g, x, y, 1);
+        continue;
+      }
+      dim(g, x, y, j <= 2 ? 2 : 1);
     }
+  }
   return glow;
 }
 

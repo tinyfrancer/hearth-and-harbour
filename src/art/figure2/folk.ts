@@ -19,14 +19,17 @@ import { FIG_H, FIG_W, HEAD_AT } from './body';
 import {
   cloth,
   outlineIn,
+  pixels,
   recolour,
   runs,
   stack,
   swapMats,
+  type Bone,
   type Extent,
   type Part2,
   type Pins,
 } from './engine';
+import { HERO_RIG, type Boned, type Rig2 } from './walk';
 
 const rows = (a: number, b: number, x0: number, x1: number): Extent[] =>
   Array.from({ length: b - a + 1 }, (_, i): Extent => [a + i, x0, x1]);
@@ -48,9 +51,33 @@ const at = (
   pins,
   cast,
 });
-/** A head's rows at the head's place, moved by (dx, dy). Digits are hair. */
+/**
+ * A face row turned a column toward the way the figure faces: its outline
+ * stays, everything inside it moves a column right, the near cheek's first
+ * pixel doubled and the far cheek's last one dropped (the hero's head was
+ * redrawn this way by hand; the townsfolk's faces were drawn front-on and are
+ * turned by this, row by row, so eyes, brows, nose, mouth and beard all move
+ * together and stay mirrored about the face's centre line).
+ */
+export function turnRow(row: string): string {
+  const a = row.search(/[^.]/);
+  const b = row.length - 1 - [...row].reverse().join('').search(/[^.]/);
+  if (a < 0 || b - a < 4) return row;
+  return row.slice(0, a + 2) + row.slice(a + 1, b - 1) + row.slice(b);
+}
+const FACE = /[KWIbBstuvw]/;
+
+/** A head's rows at the head's place, moved by (dx, dy), its face turned. Digits are hair. */
 const head = (rws: readonly string[], dx = 0, dy = 0, pins?: Pins): Part2 =>
-  at(HEAD_AT[0] + dx, HEAD_AT[1] + dy, 60, rws, 'hair', pins, false);
+  at(
+    HEAD_AT[0] + dx,
+    HEAD_AT[1] + dy,
+    60,
+    rws.map((r) => (FACE.test(r) ? turnRow(r) : r)),
+    'hair',
+    pins,
+    false,
+  );
 
 export interface Folk {
   readonly id: string;
@@ -174,32 +201,24 @@ const SMITH: Folk = {
         ...rows(47, 55, 20, 36),
       ],
       {
+        // Stiff leather does not fold: it creases across where the knee
+        // bends it, buckles once over the far thigh, and is scorched pale.
         turn: 0.7,
         folds: [
           [
-            [38, 25],
-            [40, 25],
-            [42, 24],
-            [44, 24],
-            [46, 24],
-            [48, 23],
-            [50, 23],
-            [52, 23],
-            [54, 23],
-          ],
-          [
-            [38, 31],
-            [40, 31],
-            [42, 32],
-            [44, 32],
-            [46, 32],
-            [48, 33],
-            [50, 33],
-            [52, 33],
-            [54, 33],
+            [44, 31],
+            [49, 32],
           ],
         ],
         hems: [55],
+        fix: [
+          ...[22, 23, 24, 25, 26, 27, 28, 29].map((x): [number, number, number] => [x, 50, 3]),
+          ...[22, 23, 24, 25, 26, 27, 28, 29].map((x): [number, number, number] => [x, 49, 1]),
+          [25, 42, 1],
+          [26, 42, 1],
+          [25, 43, 1],
+          [26, 41, 1],
+        ],
       },
     ),
     runs(
@@ -303,25 +322,23 @@ const ALEWIFE: Folk = {
       'madder',
       [...rows(38, 44, 18, 38), ...rows(45, 52, 17, 39), ...rows(53, 64, 16, 40), [65, 16, 40]],
       {
+        // A stout woman's full skirt, gathered: the near side falls straight
+        // from the hip in one long fold, the far side swings out in a fold
+        // that starts at the knee, and a short one breaks the hem.
         turn: 0.68,
         folds: [
           [
-            [45, 20],
-            [48, 19],
-            [51, 19],
-            [54, 18],
-            [57, 18],
-            [60, 18],
-            [63, 18],
+            [41, 20],
+            [52, 19],
+            [64, 18],
           ],
           [
-            [45, 36],
-            [48, 37],
-            [51, 37],
-            [54, 38],
-            [57, 38],
-            [60, 38],
-            [63, 38],
+            [52, 37],
+            [64, 39],
+          ],
+          [
+            [59, 21],
+            [64, 22],
           ],
         ],
         hems: [65],
@@ -373,25 +390,27 @@ const ALEWIFE: Folk = {
         steps: [2, 2, 3, 4],
         turn: 0.7,
         hems: [35, 58],
+        // The apron, tied tight at the waist: gathered into one deep fold under
+        // the tie, a shorter one where her near knee pushes it, and a wet
+        // patch from the bar, darker, low on the far side.
         folds: [
           [
-            [38, 25],
-            [41, 25],
-            [44, 24],
-            [47, 24],
-            [50, 24],
-            [53, 23],
-            [56, 23],
+            [37, 28],
+            [46, 28],
+            [57, 27],
           ],
           [
-            [38, 31],
-            [41, 31],
-            [44, 32],
-            [47, 32],
-            [50, 32],
-            [53, 33],
-            [56, 33],
+            [48, 24],
+            [55, 23],
           ],
+        ],
+        fix: [
+          [32, 52, 3],
+          [33, 52, 3],
+          [31, 53, 3],
+          [32, 53, 3],
+          [33, 53, 4],
+          [32, 54, 3],
         ],
       },
     ),
@@ -548,41 +567,60 @@ const TRADER: Folk = {
         ...rows(61, 66, 16, 40),
       ],
       {
+        // Full, and pushed out by the basket on her far hip: folds fan from
+        // under the basket down that side; the near side, with her weight on
+        // it, falls in one long straight fold; a short fold breaks the hem in
+        // front where the skirt brushes her shins.
         turn: 0.68,
         folds: [
           [
-            [39, 23],
-            [66, 20],
+            [40, 22],
+            [53, 21],
+            [66, 19],
           ],
           [
-            [39, 28],
-            [66, 28],
+            [44, 33],
+            [55, 35],
+            [66, 37],
           ],
           [
-            [39, 33],
-            [66, 36],
+            [46, 31],
+            [58, 32],
+          ],
+          [
+            [59, 27],
+            [66, 27],
           ],
         ],
         hems: [66],
       },
     ),
-    // The near arm: sleeve pushed to the elbow, the forearm up to the apple at her chest.
+    // The near arm: sleeve pushed to the elbow, the forearm held out from her
+    // side, an apple on her open palm for whoever is passing, out against the
+    // street rather than on her dress, so it reads at the size it is seen.
     cloth(3, 'violet', [[24, 17, 20], ...rows(25, 29, 16, 20), [30, 16, 20]], {
       turn: 0.5,
       hems: [30],
     }),
-    runs(4, [
-      [31, [16, 'sstu']],
-      [32, [16, 'stuuv']],
-      [31, [20, 'tu']],
-      [30, [19, 'stuv']],
-      [29, [20, 'stuv']],
-      [28, [21, 'sstu']],
-      [27, [21, 'sstuv']],
-      [26, [21, 'ostuv']],
-    ]),
-    at(21, 23, 5, ['..g.', '.aaA', 'aaAA', '.AA.'], undefined, GOODS),
-    at(21, 25, 6, ['s..t', 'su.v'], undefined, undefined, false),
+    at(
+      6,
+      25,
+      4,
+      [
+        '.............',
+        '....kG.......',
+        '..oaaA.......',
+        '..aaaAA......',
+        '..aaAAC......',
+        '..aAACC......',
+        '.s.CCCt...sst',
+        'ssttuuuussstu',
+        '.tuuvvvuuuuuv',
+        '.......vvvvv.',
+      ],
+      undefined,
+      { ...GOODS, o: ['crimson', 0], C: ['crimson', 4], G: ['mossdye', 4], k: ['wood', 4] },
+    ),
     // The far arm crooked round the basket on her hip.
     cloth(3, 'violet', [[24, 36, 39], ...rows(25, 29, 36, 40), [30, 37, 41]], {
       turn: 0.45,
@@ -718,15 +756,23 @@ const PIRATE: Folk = {
         ...rows(47, 54, 18, 38),
       ],
       {
+        // A heavy coat's skirts under the belt: the near skirt parts over the
+        // peg in a short fold, the far one is pulled back by the sword arm into
+        // a long fold that swings out, with a vent's crease beside it.
         turn: 0.66,
         folds: [
           [
-            [42, 22],
-            [54, 20],
+            [46, 22],
+            [54, 21],
           ],
           [
-            [42, 34],
-            [54, 36],
+            [40, 34],
+            [47, 35],
+            [54, 37],
+          ],
+          [
+            [48, 31],
+            [54, 31],
           ],
         ],
         hems: [54],
@@ -797,28 +843,33 @@ const PIRATE: Folk = {
       }),
       { mat: 'iron' },
     ),
-    // Trousers; the near leg ends at the knee on a wooden peg, the far one in a boot.
-    cloth(0, 'indigo', [...rows(48, 57, 21, 27), ...rows(48, 58, 29, 35)], { turn: 0.6 }),
+    // Trousers; the near leg is tied off at the knee over a wooden peg, the far one in a boot.
+    cloth(0, 'indigo', [...rows(48, 56, 21, 27), ...rows(48, 58, 29, 35)], { turn: 0.6 }),
+    at(21, 56, 0.5, ['kkKKkkK'], undefined, { k: ['leather', 3], K: ['leather', 5] }),
+    // The peg: a dark turned cup strapped over the stump, a neck, a bead, a
+    // shaft two pixels wide tapering to an iron ferrule. Narrow, dark and
+    // bootless, so it never reads as a leg.
     at(
-      22,
-      58,
+      21,
+      57,
       1,
       [
-        '2223344',
-        '.12233.',
-        '..123..',
-        '..123..',
-        '..123..',
-        '..123..',
-        '..123..',
-        '..123..',
-        '..123..',
-        '..234..',
-        '..iiI..',
-        '..IIX..',
+        '.233445',
+        '.234455',
+        '..3445.',
+        '...45..',
+        '..2345.',
+        '..3455.',
+        '...34..',
+        '...34..',
+        '...34..',
+        '...45..',
+        '...iI..',
+        '...IX..',
+        '...IX..',
       ],
       'wood',
-      { i: ['iron', 2], I: ['iron', 4], X: ['iron', 5] },
+      { i: ['iron', 1], I: ['iron', 3], X: ['iron', 5] },
     ),
     runs(
       1,
@@ -908,19 +959,19 @@ const MARKET: Folk = {
         ...rows(55, 66, 19, 37),
       ],
       {
+        // A slim dress on a slim woman, her arm raised: it hangs nearly
+        // straight, one long fold from the far hip where her weight sits and a
+        // second that only starts at the knee.
         turn: 0.66,
         folds: [
           [
-            [38, 24],
-            [66, 22],
-          ],
-          [
-            [38, 28],
-            [66, 28],
-          ],
-          [
             [38, 32],
-            [66, 34],
+            [52, 33],
+            [66, 35],
+          ],
+          [
+            [51, 24],
+            [66, 23],
           ],
         ],
         hems: [66],
@@ -966,41 +1017,71 @@ const MARKET: Folk = {
       undefined,
       { Q: ['ochre', 1], z: ['ochre', 2], x: ['ochre', 3], X: ['ochre', 4] },
     ),
-    // The near arm: elbow out below the shawl, the hand back up at the knot.
-    cloth(
-      5,
-      'cream',
-      [
-        [31, 18, 21],
-        [32, 18, 21],
-        [33, 19, 21],
-      ],
-      { steps: [1, 2, 3, 4], hems: [33] },
-    ),
-    runs(5, [
-      [28, [24, 'osst']],
-      [29, [23, 'sstuv']],
-      [30, [22, 'sstu']],
-      [31, [22, 'stu']],
-      [32, [22, 'tu']],
-    ]),
-    // The basket hanging from the far fist.
+    // A flat basket of loaves and apples carried on her head, and the near arm
+    // raised to steady it, the elbow out: her shape at any distance. (B8 had her
+    // hand at the shawl's knot, a few pixels lost on the shawl at true size.)
     at(
-      32,
-      37,
-      5,
+      16,
+      1,
+      62,
       [
-        '..*....*..',
-        '.*.aA.cC*.',
-        '%&&&&&&&&*',
-        '%&*&&*&&*+',
-        '&*&&*&&*++',
-        '%&*&&*&&*+',
-        '.&*&&*&*+.',
-        '..******..',
+        '......lLLm..aA..lLm....',
+        '....llLLLmmaaAAlLLLmm..',
+        '..%%%%%%%%%%%%%%%%%%%#.',
+        '.%&&*&&*&&*&&*&&*&&*&+.',
+        '.%&*&&*&&*&&*&&*&&*&&+.',
+        '..&&*&&*&&*&&*&&*&&*++.',
+        '...*&&*&&*&&*&&*&&*++..',
+        '....***************+...',
       ],
       undefined,
-      { ...GOODS, '%': ['wood', 1], '&': ['wood', 2], '*': ['wood', 3], '+': ['wood', 4] },
+      {
+        ...GOODS,
+        l: ['wood', 0],
+        L: ['wood', 1],
+        m: ['wood', 3],
+        '%': ['thatch', 0],
+        '#': ['thatch', 2],
+        '&': ['thatch', 1],
+        '*': ['thatch', 3],
+        '+': ['thatch', 4],
+      },
+    ),
+    // The raised arm: the hand over the basket's rim, the forearm bare, the
+    // blouse's sleeve on the upper arm going in under the shawl.
+    runs(63, [
+      [3, [16, 'ost']],
+      [4, [15, 'osstu']],
+      [5, [15, 'stuv']],
+      [6, [15, 'stuv']],
+    ]),
+    runs(5, [
+      [7, [15, 'stuv']],
+      [8, [15, 'stu']],
+      [9, [14, 'sstu']],
+      [10, [14, 'stuv']],
+      [11, [14, 'stu']],
+      [12, [13, 'sstu']],
+      [13, [13, 'stuv']],
+      [14, [12, 'sstu']],
+      [15, [12, 'stuv']],
+      [16, [12, 'sttu']],
+    ]),
+    cloth(
+      4,
+      'cream',
+      [
+        [16, 12, 15],
+        [17, 12, 15],
+        [18, 12, 16],
+        [19, 13, 16],
+        [20, 13, 17],
+        [21, 14, 17],
+        [22, 15, 18],
+        [23, 16, 19],
+        [24, 17, 19],
+      ],
+      { steps: [1, 2, 3, 4], hems: [16] },
     ),
     runs(
       0,
@@ -1103,30 +1184,90 @@ const DOCKER: Folk = {
       ],
       { mat: 'leather' },
     ),
-    // Upper arms in rolled sleeves.
+    // A sack of grain slung on the far shoulder, its bulk beside his head and
+    // its neck bunched in his raised hand; the near arm hangs, fist loose. (B8
+    // folded his arms, which at true size was a bundle across his chest.)
+    at(
+      28,
+      8,
+      1.5,
+      [
+        '...........12..',
+        '..........1223.',
+        '.........11234.',
+        '...01111112234.',
+        '..0111112222334',
+        '.01111122222334',
+        '.11111222223344',
+        '011112222233344',
+        '111122222333444',
+        '111222222333444',
+        '111222223334445',
+        '.12222233334445',
+        '.12222333344455',
+        '..2223333444455',
+        '...33334444555.',
+        '.....4444555...',
+      ],
+      'dirt',
+    ),
+    // The sack's seam and a sewn patch.
+    runs(
+      1.6,
+      [
+        [12, [35, '3']],
+        [13, [35, '3']],
+        [14, [36, '3']],
+        [15, [36, '4'], [31, '22']],
+        [16, [37, '4'], [31, '23']],
+        [17, [37, '4']],
+        [18, [38, '4']],
+      ],
+      { mat: 'dirt' },
+    ),
+    // The near sleeve rolled above the elbow, the far one up the raised arm,
+    // the elbow out past the sack so the arm reads against the street.
     cloth(3, 'linen', [[24, 17, 20], ...rows(25, 29, 15, 20), [30, 15, 20], [31, 15, 20]], {
       turn: 0.5,
       hems: [31],
     }),
-    cloth(3, 'linen', [[24, 36, 39], ...rows(25, 29, 36, 41), [30, 36, 41], [31, 36, 41]], {
-      turn: 0.45,
-      hems: [31],
-    }),
-    // The lower forearm: from the near elbow up across to the far arm, its fingers under it.
+    cloth(
+      3,
+      'linen',
+      [
+        [19, 43, 46],
+        [20, 42, 46],
+        [21, 41, 45],
+        [22, 40, 44],
+        [23, 38, 44],
+        [24, 37, 43],
+        [25, 36, 41],
+      ],
+      { turn: 0.5, hems: [19] },
+    ),
+    // The near forearm down to a loose fist.
     runs(4, [
-      [32, [15, 'ssst'], [31, 'sstt'], [35, 'stu']],
-      [33, [15, 'ssssstt'], [26, 'sssttt'], [32, 'tttuuu']],
-      [34, [16, 'tsssssssttttttttuuuv']],
-      [35, [17, 'uuuuuuuuuvvvvvvvvvw']],
+      ...[32, 33, 34, 35].map((y): [number, [number, string]] => [y, [15, 'ssttu']]),
+      ...[36, 37, 38].map((y): [number, [number, string]] => [y, [15, 'sttu']]),
+      [39, [14, '.sst.']],
+      [40, [14, 'osstv']],
+      [41, [14, 'tuuuw']],
+      [42, [14, 'sstuv']],
+      [43, [15, 'uvw']],
     ]),
-    // The top forearm: from the far elbow up across to the near arm, the hand round it.
-    runs(5, [
-      [29, [17, 'osst']],
-      [30, [16, 'ssstt'], [21, 'ssst']],
-      [31, [16, 'tsstuussssttt'], [29, 'ttt']],
-      [32, [17, 'uvvuu'], [22, 'tttttuuuuuuuuu'], [36, 'tuu']],
-      [33, [23, 'vvvv'], [33, 'uuuvv'], [38, 'uuv']],
-      [34, [36, 'vvvw']],
+    // The far forearm up from the elbow to the hand round the sack's neck.
+    runs(4, [
+      [8, [40, 'sst']],
+      [9, [39, 'osstu']],
+      [10, [39, 'sttuv']],
+      [11, [40, 'tuuv']],
+      [12, [42, 'stu']],
+      [13, [42, 'sttu']],
+      [14, [43, 'stu']],
+      [15, [43, 'sttu']],
+      [16, [44, 'stu']],
+      [17, [44, 'sttu']],
+      [18, [44, 'stuv']],
     ]),
     // Trousers and boots.
     cloth(
@@ -1229,15 +1370,23 @@ const ELDER: Folk = {
         ...rows(49, 56, 18, 38),
       ],
       {
+        // An old coat worn soft: bagged at the elbow and dragged down on the
+        // far side by the hand in its pocket, so folds pull toward the pocket;
+        // the near skirt hangs slack in a short fold above the hem.
         turn: 0.66,
         folds: [
           [
-            [44, 22],
-            [56, 20],
+            [29, 33],
+            [35, 34],
           ],
           [
-            [44, 34],
-            [56, 36],
+            [41, 32],
+            [48, 33],
+            [56, 35],
+          ],
+          [
+            [50, 22],
+            [56, 21],
           ],
         ],
         hems: [56],
@@ -1310,4 +1459,70 @@ export function folkGrid(id: string): TGrid | null {
   }
   return g;
 }
+
+/**
+ * How each townsperson walks: where their joints are, and how much each arm
+ * swings. An arm busy with something (a basket on the hip, a full tankard,
+ * folded arms) does not swing; a hand carrying something at the side does.
+ */
+const FOLK_RIGS: Readonly<Record<string, Partial<Rig2>>> = {
+  smith: { swing: [0.8, 0.3], skirt: [44, 55] },
+  trader: { swing: [0, 0], skirt: [38, 66] },
+  pirate: { swing: [0.6, 0.3], skirt: [42, 54], stiff: 'near' },
+  alewife: { swing: [0, 0], skirt: [38, 65] },
+  market: { swing: [0, 0.6], skirt: [38, 66] },
+  docker: { swing: [0, 0], hip: 42 },
+  elder: { swing: [0.5, 0], skirt: [44, 56], hip: 47, knee: 55, ankle: 62, shoulder: 28 },
+};
+
+/** A townsperson's joints. */
+export const folkRig = (id: string): Rig2 => ({
+  ...HERO_RIG,
+  half: FOLK_HALF_STEP,
+  ...FOLK_RIGS[id],
+});
+
+/** Townsfolk stroll: half the hero's step, so a long skirt still covers the stride. */
+export const FOLK_HALF_STEP = 8;
+
+/**
+ * What a townsperson's part moves with, if it does not say: anything in the
+ * head's rows is the head's; trousers and boots are the legs'; a long garment
+ * over the hips sways as a skirt; a part to either side is that arm's (what a
+ * hand holds below its wrist goes with the wrist); the rest is the body's.
+ */
+function folkBone(part: Part2, rig: Rig2): Bone {
+  if (part.bone) return part.bone;
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  for (const [x, y] of pixels(part)) {
+    x0 = Math.min(x0, x);
+    x1 = Math.max(x1, x);
+    y0 = Math.min(y0, y);
+    y1 = Math.max(y1, y);
+  }
+  const mid = (x0 + x1) / 2;
+  if (y0 < 20) return 'head';
+  if (y0 >= rig.hip - 4 && y1 >= 56) return 'legs';
+  if (y1 > rig.skirt[0] + 6 && x1 - x0 >= 14) return 'skirt';
+  if (mid < 23) return 'near';
+  if (mid > 33) return 'far';
+  return 'body';
+}
+
+/** A townsperson's parts with what each moves with, and their joints; null for an unknown id. */
+export function folkBoned(id: string): { boned: Boned[]; rig: Rig2 } | null {
+  const folk = FOLK2.find((f) => f.id === id);
+  if (!folk) return null;
+  const rig = folkRig(id);
+  return { boned: folk.parts.map((part) => ({ part, bone: folkBone(part, rig) })), rig };
+}
+
+/** The swap that gives a townsperson their own skin and hair. */
+export const folkSwap = (id: string) => {
+  const folk = FOLK2.find((f) => f.id === id);
+  return swapMats(folk ? { skin: folk.skin, hair: folk.hair, brow: folk.hair } : {});
+};
 void DEPTH;

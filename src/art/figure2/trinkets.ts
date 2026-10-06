@@ -10,8 +10,8 @@
  */
 import { DEPTH } from '../depth';
 import type { Mat } from '../town2/ramps';
-import { ON_BELT } from './body';
-import { ease, hold } from './clothes';
+
+import { hold } from './clothes';
 import { runs, type Gear2, type Part2, type Pins } from './engine';
 
 const { JEWELLERY, WRIST, QUIVER, ARMOUR, BELT } = DEPTH;
@@ -79,10 +79,7 @@ const HUNTERS_CHARM: Gear2 = {
 const SHELL_BRACELET: Gear2 = {
   id: 'shell_bracelet',
   slot: 'wrist',
-  parts: [
-    hold(at(16, 38, WRIST, ['kkKKab', '....cb', '.....d'], SHELL)),
-    ease(at(20, 36, ON_BELT + 0.1, ['ka', 'kb', 'Kc', '.d'], SHELL)),
-  ],
+  parts: [hold(at(16, 38, WRIST, ['kkKKab', '....cb', '.....d'], SHELL))],
 };
 
 /**

@@ -16,25 +16,46 @@
  * declared, never measured from a picture.
  */
 import type { Glow } from '../raster';
-import { at, cell, dim, isMat, put, stamp, tgrid, type Picture2, type TGrid } from './cells';
+import { at, cell, dim, hash, isMat, put, stamp, tgrid, type Picture2, type TGrid } from './cells';
 import {
+  channel,
   cobbles,
   dirt,
+  drainGrate,
+  edgeMoss,
+  edgeStones,
   flagstones,
+  flowerDrift,
+  gardenBed,
   grass,
   gutter,
   kerb,
+  leafDrift,
+  longGrass,
+  pebble,
+  puddle,
   quayWall,
   roundPaving,
   sand,
   sea,
+  settPatch,
   shadowOval,
+  stump,
+  wheelRuts,
+  wornWay,
 } from './ground';
 import { PIER_DECK } from './harbour';
-import { PIER_LENGTH, town2Piece, type Town2Id, type Town2Layer } from './pieces';
+import {
+  PIER_LENGTH,
+  forgetTown2Pieces,
+  town2Facts,
+  town2Piece,
+  type Town2Id,
+  type Town2Layer,
+} from './pieces';
 import type { TimeOfDay } from './ramps';
 import { m } from './scale';
-import { bayer, fbm } from './texture';
+import { clumps, fbm, noise } from './texture';
 import { ashlar } from './walls';
 
 /** The town's size in art pixels: four screens across, a little over three tall. */
@@ -197,7 +218,8 @@ const SPECS: readonly Spec[] = [
   ['ship', 'ship', 1080, 2040],
   ['wreck', 'wreck_rock', 110, 1800],
   ['buoy', 'buoy', 560, 1740],
-  ['buoy-far', 'buoy', 1330, 2100],
+  // Far out past the pier's end, but where its end's view still reaches (lane C's need, B9).
+  ['buoy-far', 'buoy', 840, 2084],
   ['gull-1', 'gull', 900, 1620],
   ['gull-2', 'gull', 330, 1680],
   ['gull-3', 'gull', 1200, 1880],
@@ -213,7 +235,7 @@ function tapFor(id: Town2Id, x: number, y: number, w: number, h: number, base: n
 }
 
 function place([name, id, fx, by0]: Spec): Placement2 {
-  const p = town2Piece(id);
+  const p = town2Facts(id);
   // Anything with a walk-up spot stands on a tile edge, so its spot is on the tile in front of its footprint.
   const by = Object.keys(p.spots).length ? Math.round(by0 / T) * T : by0;
   const x = fx - p.foot;
@@ -259,8 +281,8 @@ export function town2Layout(): readonly Placement2[] {
   if (layout) return layout;
   const placed = SPECS.map(place);
   const smoke = placed.flatMap((p) =>
-    town2Piece(p.id).attached.map((a) => {
-      const s = town2Piece(a.id);
+    town2Facts(p.id).attached.map((a) => {
+      const s = town2Facts(a.id);
       return {
         name: `${p.name}-smoke`,
         id: a.id,
@@ -357,17 +379,19 @@ function paintGround(): TGrid {
   for (let y = 0; y < G.forest.h + 40; y++)
     for (let x = 0; x < TOWN2_W; x++) {
       const f = (G.forest.h + 40 - y) / 60;
-      if (bayer(x, y) < f && isMat(at(g, x, y), 'grass'))
-        dim(g, x, y, 1 + (bayer(x, y) < f - 1 ? 1 : 0));
+      if (clumps(x, y, 2) < f && isMat(at(g, x, y), 'grass'))
+        dim(g, x, y, 1 + (clumps(x, y, 3) < f - 1 ? 1 : 0));
     }
   dirt(g, { x: 560, y: 0, w: 480, h: G.road.until + 4 }, 7, onRoad, (y) => {
     const cx = G.road.x + Math.round(Math.sin(y / 140) * 14);
     return y < G.lane.y + G.lane.half && y > G.lane.y - G.lane.half ? [] : [cx - 16, cx + 14];
   });
+  streetDressing(g);
   const kx0 = G.road.x - G.road.half - 6;
   const kx1 = G.road.x + G.road.half + 6;
   const sq = G.square;
   cobbles(g, sq, 9, (x, y) => y < G.quay.y + 4 && !(x < G.beach.w && y >= G.beach.y));
+  squareDressing(g);
   // Flagstones along the buildings' fronts, a gutter from the road's mouth to the quay, the well's round paving.
   flagstones(
     g,
@@ -398,8 +422,184 @@ function paintGround(): TGrid {
       const t = i === 0 ? 1 : i === 9 ? 5 : (y - G.quay.y) % 14 === 13 ? 5 : 3;
       put(g, G.quay.x - 6 + i, y, cell('stone', t));
     }
+  squareFinish(g);
   sea(g, whole, 12, shoreAt);
   return g;
+}
+
+/** The middle column of the road north at row `y`. */
+const roadX = (y: number) => TOWN2_GROUND.road.x + Math.round(Math.sin(y / 140) * 14);
+
+/**
+ * The upper street's dressing (B9): stones along the road's and the lane's
+ * edges, a trodden path to the woodcutting grove, stumps there, drifts of
+ * wild flowers, long grass against the fence and the rocks, stones lying in
+ * the turf, and a garden bed beside your door.
+ */
+function streetDressing(g: TGrid): void {
+  const G = TOWN2_GROUND;
+  const R = G.road;
+  const L = G.lane;
+  // The path to the grove, trodden through the grass from the road's west edge.
+  const pathY = (x: number) => 556 + Math.sin(x / 45) * 6 + (650 - x) * 0.05;
+  dirt(
+    g,
+    { x: 300, y: 500, w: 360, h: 120 },
+    17,
+    (x, y) =>
+      x > 330 + Math.sin(y) * 2 &&
+      x < roadX(y) - R.half + 2 &&
+      Math.abs(y - pathY(x)) < 5 + noise(x, y, 9, 4) * 4,
+  );
+  for (const side of [-1, 1])
+    edgeStones(
+      g,
+      (t) => {
+        const y = 236 + t * (R.until - 260);
+        return [roadX(y) + side * (R.half + 3), y];
+      },
+      34,
+      40 + side,
+    );
+  for (const side of [-1, 1])
+    edgeStones(
+      g,
+      (t) => {
+        const x = L.x0 + 40 + t * (L.x1 - L.x0 - 60);
+        return [x, L.y + side * (L.half + 3) + Math.sin(x / 50) * 3];
+      },
+      9,
+      50 + side,
+    );
+  // Stumps in the grove, where trees have come down for the fire.
+  for (const [x, y, w, k] of [
+    [262, 532, 22, 1],
+    [384, 604, 24, 2],
+    [96, 478, 18, 3],
+    [566, 536, 20, 4],
+    [180, 700, 19, 5],
+  ] as const)
+    stump(g, x, y, w, k);
+  // Drifts of wild flowers: white and buttercup yellow, pink, cornflower.
+  for (const [x, y, rx, ry, n, cols, k] of [
+    [900, 796, 26, 6, 30, [0, 1], 1],
+    [1112, 796, 24, 6, 26, [3, 2, 0], 2],
+    [632, 410, 16, 8, 22, [1], 3],
+    [770, 960, 20, 8, 26, [0, 4], 4],
+    [1236, 902, 24, 7, 28, [1, 0], 5],
+    [1100, 470, 28, 12, 40, [3, 4, 0], 6],
+    [300, 880, 30, 10, 38, [1, 0], 7],
+    [480, 300, 20, 9, 26, [4, 2], 8],
+    [96, 590, 18, 7, 20, [0], 9],
+    [1330, 620, 22, 9, 26, [2, 1], 10],
+    [560, 1000, 18, 6, 20, [3, 0], 11],
+  ] as const)
+    flowerDrift(g, x, y, rx, ry, n, cols, k);
+  // Long grass against the fence's foot and round the rocks.
+  longGrass(g, 836, 774, 120, 1);
+  longGrass(g, 1040, 774, 136, 2);
+  for (const [x, y, w, k] of [
+    [536, 306, 12, 3],
+    [580, 304, 10, 4],
+    [1136, 386, 12, 5],
+    [1180, 384, 10, 6],
+    [1356, 766, 10, 7],
+    [1396, 764, 12, 8],
+    [130, 424, 10, 9],
+    [452, 664, 12, 10],
+  ] as const)
+    longGrass(g, x, y, w, k);
+  // Stones lying in the turf, in twos and threes.
+  for (const [x, y, k] of [
+    [880, 560, 1],
+    [1222, 604, 2],
+    [420, 842, 3],
+    [206, 982, 4],
+    [1004, 1004, 5],
+    [622, 706, 6],
+    [1300, 1000, 7],
+    [60, 860, 8],
+  ] as const) {
+    pebble(g, x, y, 7, 5, k);
+    pebble(g, x + 8, y + 3, 5, 4, k + 20);
+    if (k % 2) pebble(g, x - 6, y + 4, 4, 3, k + 40);
+  }
+  gardenBed(g, { x: 1040, y: 694, w: 112, h: 48 }, 3);
+}
+
+/**
+ * The square's dressing (B9), before its pavement, gutter and well paving
+ * are laid over it: the ruts carts have worn from the road's mouth down to
+ * the cargo on the quay, and patches mended in granite setts.
+ */
+function squareDressing(g: TGrid): void {
+  const W = TOWN2_GROUND.well;
+  // Ways worn by feet: each door to the well, and the well down to the pier.
+  wornWay(
+    g,
+    [
+      [330, 1150],
+      [520, 1230],
+      [W.x - 60, W.y],
+    ],
+    m(0.7),
+  );
+  wornWay(
+    g,
+    [
+      [1140, 1150],
+      [980, 1220],
+      [W.x + 60, W.y],
+    ],
+    m(0.7),
+  );
+  wornWay(
+    g,
+    [
+      [W.x - 20, W.y + 40],
+      [700, 1380],
+      [696, 1416],
+    ],
+    m(0.8),
+  );
+  wheelRuts(g, [696, 1108, 612, 1250, 560, 1404]);
+  for (const [x, y, w, h, k] of [
+    [52, 1176, 60, 36, 1],
+    [1012, 1366, 70, 34, 2],
+    [1236, 1164, 50, 30, 3],
+  ] as const)
+    settPatch(g, { x, y, w, h }, k);
+  // A drain across the square, below the well, into the gutter.
+  channel(g, 1328, 0, TOWN2_W, 3);
+}
+
+/** What lies on the square once it is laid: moss at its edges, puddles, leaves, the drain. */
+function squareFinish(g: TGrid): void {
+  const G = TOWN2_GROUND;
+  edgeMoss(
+    g,
+    { x: 0, y: G.square.y - 4, w: TOWN2_W, h: G.quay.y - G.square.y + 8 },
+    (x, y) =>
+      Math.min(
+        Math.abs(y - (G.pavement.y + G.pavement.h)),
+        Math.abs(G.quay.y - y),
+        Math.abs(Math.hypot((x - G.well.x) / 1, (y - G.well.y) / 0.55) - G.well.r - 4),
+      ),
+    12,
+  );
+  for (const [x, y, rx, ry, k] of [
+    [722, 1392, 15, 5, 1],
+    [594, 1190, 12, 4, 2],
+    [1110, 1262, 16, 5, 3],
+    [404, 1300, 12, 4, 4],
+    [950, 1394, 11, 4, 5],
+  ] as const)
+    puddle(g, x, y, rx, ry, k);
+  drainGrate(g, roadX(G.quay.y), G.quay.y - 12);
+  leafDrift(g, 1110, 1150, 180, 14, 1);
+  leafDrift(g, 900, 1412, 160, 10, 2);
+  leafDrift(g, 742, 1106, 60, 6, 3);
+  leafDrift(g, 690, 1340, 14, 4, 4);
 }
 
 /**
@@ -447,14 +647,15 @@ function wallShadow(
   const reach = time === 'dusk' ? m(3.2) : m(1.1);
   for (let j = 0; j < band; j++)
     for (let x = x0 - 2; x < x1 + Math.round((j / band) * reach * 0.5); x++) {
-      const n = j < 3 ? 2 : bayer(x, j) < 1 - j / band ? 1 : 0;
+      const n = j < 3 ? 2 : clumps(x, base + j, 4) < 1 - j / band ? 1 : 0;
       if (n) dim(g, x, base + j, n);
     }
   // The wedge thrown to the right: from the wall's right edge, as tall as the wall's shadow reaches.
   const h = Math.min(height, Math.round(reach * 1.6));
   for (let yy = base - h; yy < base + band; yy++) {
     const e = Math.round(((yy - (base - h)) / (h + band)) * reach);
-    for (let x = x1; x < x1 + e; x++) dim(g, x, yy, x - x1 > e - 3 && bayer(x, yy) > 0.5 ? 0 : 1);
+    for (let x = x1; x < x1 + e; x++)
+      dim(g, x, yy, x - x1 > e - 3 && clumps(x, yy, 6) > 0.5 ? 0 : 1);
   }
 }
 
@@ -468,19 +669,36 @@ function waterShadow(g: TGrid, x0: number, x1: number, base: number, time: TimeO
       if (!isMat(at(g, x, base + j), 'sea')) continue;
       // Soft at its ends and its far edge.
       const end = Math.min(x - x0, x1 + j * lean - x) / 12;
-      const n = f < 0.35 && end > 1 ? 2 : bayer(x, base + j) < (1 - f) * Math.min(1, end) ? 1 : 0;
+      const n =
+        f < 0.35 && end > 1 ? 2 : clumps(x / 3, base + j, 8) < (1 - f) * Math.min(1, end) ? 1 : 0;
       dim(g, x, base + j, n);
     }
   }
 }
 
-/** The pier's shadow on the water down its right side, under its boards. */
+/**
+ * The pier's shadow on the water down its right side. The water moves it:
+ * its edge swells out and in with the waves, breaks into clumps where it
+ * thins, and goes darkest under each pair of piles, where the deck is
+ * thickest; a lit wavelet now and then runs across it. (B7's was an even
+ * strip with a straight edge, which read as paint on the water.)
+ */
 function pierShadow(g: TGrid, x1: number, y0: number, y1: number, time: TimeOfDay): void {
-  const w = time === 'dusk' ? m(0.45) : m(0.25);
-  for (let y = y0; y < y1; y++)
-    for (let i = 0; i < w; i++)
-      if (isMat(at(g, x1 + i, y), 'sea'))
-        dim(g, x1 + i, y, i < w / 2 ? 2 : bayer(x1 + i, y) < 1 - i / w ? 1 : 0);
+  const w = time === 'dusk' ? m(0.55) : m(0.3);
+  for (let y = y0; y < y1; y++) {
+    const reach = w + Math.sin(y / 7) * 2 + Math.sin(y / 19 + 1.3) * 3;
+    const pile = (y - y0 - m(0.6) + 400) % m(2.0) < 10;
+    const crest = hash(Math.floor(y / 3), 5, 77) < 0.08;
+    for (let i = 0; i < reach + 5; i++) {
+      const x = x1 + i;
+      if (!isMat(at(g, x, y), 'sea')) continue;
+      const f = i / reach;
+      let n = f < 0.4 ? 2 : f < 1.15 && clumps(x / 2, y, 9) < 1.2 - f ? 1 : 0;
+      if (pile && f < 0.8) n += 1;
+      if (crest && f > 0.3 && i % 4 !== 3) n = Math.max(0, n - 1);
+      dim(g, x, y, n);
+    }
+  }
 }
 
 /** The ground with every shadow and every flat thing on it, for one time of day. */
@@ -546,6 +764,19 @@ export function town2Picture(time: TimeOfDay): Picture2 {
     towns.set(time, pic);
   }
   return pic;
+}
+
+/**
+ * Lets go of the composed grounds and towns kept by `town2Ground` and
+ * `town2Picture` (a 1440 x 2136 cell grid each, 6.2 MB a time of day): a
+ * scene that has rasterized the ground onto its own canvas no longer needs
+ * them (lane C's need, B9). Asked for again, they are composed again. Pass
+ * `pieces: true` to let the drawn pieces go as well (`forgetTown2Pieces`).
+ */
+export function forgetTown2Grids(o: { pieces?: boolean } = {}): void {
+  grounds.clear();
+  towns.clear();
+  if (o.pieces) forgetTown2Pieces();
 }
 
 export type { Town2Id } from './pieces';

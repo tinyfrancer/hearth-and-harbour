@@ -37,6 +37,23 @@ export function noise(x: number, y: number, size: number, k = 0): number {
   return top + (c + (d - c) * sx - top) * sy;
 }
 
+/**
+ * A 0..1 threshold that comes in clumps a few pixels across rather than a
+ * pixel at a time. Where an ordered dither (`bayer`) blends two steps, it
+ * shows at game scale as a fine even texture, like cloth; thresholding on
+ * this instead breaks an edge into deliberate little blobs and tongues, as a
+ * pixel artist would place them by hand (B9, after Cody's review of B7's
+ * grass and water).
+ */
+export const clumps = (x: number, y: number, k = 0): number =>
+  noise(x, y, 3, k + 101) * 0.6 + noise(x, y, 7, k + 103) * 0.4;
+
+/** Rounds `t`, breaking the halfway line into clumps (see `clumps`) instead of a checker. */
+export function clumpRound(t: number, x: number, y: number, k = 0, spread = 0.7): number {
+  const f = t - Math.floor(t);
+  return f > 0.5 + (clumps(x, y, k) - 0.5) * spread ? Math.ceil(t) : Math.floor(t);
+}
+
 /** Two octaves of noise. */
 export const fbm = (x: number, y: number, size: number, k = 0): number =>
   noise(x, y, size, k) * 0.65 + noise(x, y, size / 2.3, k + 7) * 0.35;

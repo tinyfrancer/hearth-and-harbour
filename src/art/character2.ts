@@ -12,17 +12,29 @@
  * at the scene's scale and never rasterized in a frame.
  */
 import { DEFAULT_LOOK, LOOK_CHOICES, type Look } from './character';
-import type { Picture2, TGrid } from './town2/cells';
+import type { Cell, Picture2, TGrid } from './town2/cells';
 import { mirror } from './town2/cells';
 import { pixelCanvas2, spriteCanvas } from './town2/raster';
 import { DAY2, paletteFor, type TimeOfDay } from './town2/ramps';
 import { town2Scale } from './town2/scale';
 import { FIG_H, FIG_W, AXIS, SOLE } from './figure2/body';
-import { figure2, WARDROBE2 } from './figure2/dress';
+import { bonedParts, figure2, WARDROBE2 } from './figure2/dress';
 import { recolour } from './figure2/engine';
-import { FOLK2, folkGrid } from './figure2/folk';
+import { FOLK2, FOLK_HALF_STEP, folkBoned, folkGrid, folkRig, folkSwap } from './figure2/folk';
 import { HAIRSTYLES2 } from './figure2/hair';
 import { lookSwap } from './figure2/look';
+import {
+  HERO_RIG,
+  IDLE2,
+  IDLE2_FRAMES,
+  WALK2_FRAMES,
+  posedFigure,
+  walkKey,
+  type Boned,
+  type Facing2,
+  type Key2,
+  type Rig2,
+} from './figure2/walk';
 
 /** The figure canvas: 56 x 72 art pixels, outline included. */
 export const FIGURE2_W = FIG_W;
@@ -220,6 +232,190 @@ export const townsfolkName2 = (id: string): string | null =>
 export function townsfolkSprite2(id: string, time: TimeOfDay = 'day'): HTMLCanvasElement | null {
   const pic = townsfolkPicture2(id);
   return pic ? spriteCanvas(`folk ${id}`, pic, paletteFor(time)) : null;
+}
+
+// ------------------------------------------------------- walking and breathing
+
+export type { Facing2 } from './figure2/walk';
+export { WALK2_FRAMES, WALK2_STRIDE, IDLE2_FRAMES } from './figure2/walk';
+
+/**
+ * How long each walk frame is shown, in milliseconds: the planted foot moves
+ * back `WALK2_STRIDE` art pixels a frame, so a walker crossing the ground at
+ * `WALK2_STRIDE / WALK2_FRAME_MS` (87.5 art pixels a second) never slides.
+ * At another speed, show each frame for `WALK2_STRIDE / speed` seconds.
+ */
+export const WALK2_FRAME_MS = 80;
+/** How long each of the two breathing frames is held, standing. */
+export const IDLE2_FRAME_MS = 900;
+/**
+ * Townsfolk stroll with a shorter step: the ground passes `TOWNSFOLK2_STRIDE`
+ * art pixels under them a frame, shown for `TOWNSFOLK2_FRAME_MS`, so they
+ * walk at 40 art pixels a second without sliding.
+ */
+export const TOWNSFOLK2_STRIDE = FOLK_HALF_STEP / 2;
+export const TOWNSFOLK2_FRAME_MS = 100;
+
+const posedPics = new Map<string, Picture2>();
+
+/**
+ * Lets go of every walk and breath picture kept (8 KB of cells each; the
+ * canvases made from them are freed by `forgetSprites()`). An outfit the
+ * hero no longer wears keeps its frames until this is called.
+ */
+export function forgetWalks2(): void {
+  posedPics.clear();
+}
+
+function posedPicture(
+  key: string,
+  make: () => { boned: readonly Boned[]; rig: Rig2; swap: (c: Cell) => Cell } | null,
+  pose: Key2,
+  flip: boolean,
+): Picture2 | null {
+  let pic = posedPics.get(key);
+  if (pic) return pic;
+  const m = make();
+  if (!m) return null;
+  let grid = recolour(posedFigure(m.boned, m.rig, pose), m.swap);
+  if (flip) grid = mirror(grid);
+  pic = { grid, glows: [] };
+  posedPics.set(key, pic);
+  return pic;
+}
+
+function heroParts(look: Partial<Look>, worn: readonly string[], extra: readonly string[]) {
+  const safe: Look = { ...DEFAULT_LOOK, ...look };
+  let boned: Boned[];
+  try {
+    const gear = characterGear2(safe, worn, extra);
+    boned = bonedParts(characterBody2(gear), gear);
+  } catch {
+    boned = bonedParts('standard_at_ease', ['short_hair', ...EVERYDAY]);
+  }
+  return { boned, rig: HERO_RIG, swap: lookSwap(safe) };
+}
+
+/**
+ * The character walking: frame `frame` (any whole number; it wraps at
+ * `WALK2_FRAMES`) of the cycle toward the camera (`down`) or across
+ * (`right`, and `left`, its exact mirror). The same 56 x 72 picture and
+ * anchor as standing; the planted foot is always on the sole row. Kept once
+ * drawn.
+ */
+export function characterWalkPicture2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  facing: Facing2,
+  frame: number,
+  extra: readonly string[] = [],
+): Picture2 {
+  const f = (((Math.floor(frame) % WALK2_FRAMES) + WALK2_FRAMES) % WALK2_FRAMES) | 0;
+  const key = `walk ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`;
+  return posedPicture(
+    key,
+    () => heroParts(look, wornItemIds, extra),
+    walkKey(facing, f),
+    facing === 'left',
+  )!;
+}
+
+/** The character standing and breathing: frame 0 is `characterPicture2`, frame 1 the breath in. */
+export function characterIdlePicture2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  frame: number,
+  extra: readonly string[] = [],
+): Picture2 {
+  const f = Math.abs(Math.floor(frame)) % IDLE2_FRAMES;
+  if (f === 0) return characterPicture2(look, wornItemIds, extra);
+  const key = `idle ${f} ${keyOf(look, wornItemIds, extra)}`;
+  return posedPicture(key, () => heroParts(look, wornItemIds, extra), IDLE2[f]!, false)!;
+}
+
+/**
+ * A walk frame on an offscreen canvas at one pixel per art pixel, made the
+ * first time it is asked for (per look, outfit, time of day, facing and
+ * frame) and kept, like `characterSprite2`; `forgetSprites()` frees them.
+ */
+export function characterWalk2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  time: TimeOfDay,
+  facing: Facing2,
+  frame: number,
+  extra: readonly string[] = [],
+): HTMLCanvasElement {
+  const pic = characterWalkPicture2(look, wornItemIds, facing, frame, extra);
+  const f = (((Math.floor(frame) % WALK2_FRAMES) + WALK2_FRAMES) % WALK2_FRAMES) | 0;
+  return spriteCanvas(
+    `hero walk ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`,
+    pic,
+    paletteFor(time),
+  );
+}
+
+/** The breathing frames on offscreen canvases (frame 0 is `characterSprite2`'s picture). */
+export function characterIdle2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  time: TimeOfDay,
+  frame: number,
+): HTMLCanvasElement {
+  const f = Math.abs(Math.floor(frame)) % IDLE2_FRAMES;
+  if (f === 0) return characterSprite2(look, wornItemIds, time);
+  return spriteCanvas(
+    `hero idle ${f} ${keyOf(look, wornItemIds, [])}`,
+    characterIdlePicture2(look, wornItemIds, f),
+    paletteFor(time),
+  );
+}
+
+const folkParts = (id: string) => {
+  const b = folkBoned(id);
+  return b && { ...b, swap: folkSwap(id) };
+};
+
+/** A townsperson walking, as `characterWalkPicture2`; null for an unknown id. */
+export function townsfolkWalkPicture2(id: string, facing: Facing2, frame: number): Picture2 | null {
+  const f = (((Math.floor(frame) % WALK2_FRAMES) + WALK2_FRAMES) % WALK2_FRAMES) | 0;
+  return posedPicture(
+    `folk walk ${facing} ${f} ${id}`,
+    () => folkParts(id),
+    walkKey(facing, f, folkRig(id).half),
+    facing === 'left',
+  );
+}
+
+/** A townsperson breathing, as `characterIdlePicture2`; null for an unknown id. */
+export function townsfolkIdlePicture2(id: string, frame: number): Picture2 | null {
+  const f = Math.abs(Math.floor(frame)) % IDLE2_FRAMES;
+  if (f === 0) return townsfolkPicture2(id);
+  return posedPicture(`folk idle ${f} ${id}`, () => folkParts(id), IDLE2[f]!, false);
+}
+
+/** A townsperson's walk frame on a kept offscreen canvas; null for an unknown id. */
+export function townsfolkWalk2(
+  id: string,
+  time: TimeOfDay,
+  facing: Facing2,
+  frame: number,
+): HTMLCanvasElement | null {
+  const pic = townsfolkWalkPicture2(id, facing, frame);
+  const f = (((Math.floor(frame) % WALK2_FRAMES) + WALK2_FRAMES) % WALK2_FRAMES) | 0;
+  return pic ? spriteCanvas(`folk walk ${facing} ${f} ${id}`, pic, paletteFor(time)) : null;
+}
+
+/** A townsperson's breathing frame on a kept offscreen canvas; null for an unknown id. */
+export function townsfolkIdle2(
+  id: string,
+  time: TimeOfDay,
+  frame: number,
+): HTMLCanvasElement | null {
+  const f = Math.abs(Math.floor(frame)) % IDLE2_FRAMES;
+  if (f === 0) return townsfolkSprite2(id, time);
+  const pic = townsfolkIdlePicture2(id, f);
+  return pic ? spriteCanvas(`folk idle ${f} ${id}`, pic, paletteFor(time)) : null;
 }
 
 /** A townsperson as an element at game scale, for a menu or a dialogue. */

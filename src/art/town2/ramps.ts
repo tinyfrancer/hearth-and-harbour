@@ -82,10 +82,13 @@ const BASE = {
   plate: ['#ffffff', '#eef1ee', '#c3cdda', '#97a3bb', '#6b7696', '#474d6e', '#242640'],
   leather: ['#c89466', '#a06e48', '#7c5036', '#5e3a2c', '#462a28', '#301c22', '#180c14'],
   cloth: ['#a2a4b8', '#7e8098', '#62647e', '#4c4c66', '#3a3a54', '#2a2a40', '#141426'],
-  // Bronze leans yellow-olive, away from every skin tone, duller and greener
-  // than gold; its glint is pale and cool. Set by hand at dusk, or it goes the
-  // plum-brown of skin. Hide is the cool leather it sits on.
-  bronze: ['#fbfae6', '#efe6b4', '#d2c27a', '#bba04e', '#957e3c', '#6a5830', '#2e2614'],
+  // Bronze (B9): an old metal's colour, a warm cream glint over a dull
+  // brass-brown, its shadows going olive-brown; darker and greener than gold,
+  // darker than blonde hair at every step, kept off every hair colour, skin
+  // and the hunter's tan (tests/art/figure2.test.ts measures it). B8's was a
+  // pale yellow that read as gold and sat on blonde hair. Set by hand at dusk,
+  // or it goes the plum-brown of skin. Hide is the cool leather it sits on.
+  bronze: ['#f6e8b0', '#c8aa50', '#948038', '#6a6430', '#4a4628', '#32301e', '#18160e'],
   hide: ['#b8a494', '#958070', '#7c685c', '#64524a', '#52423c', '#40342e', '#201816'],
   // Leather, the hunter's tan: yellow-leaning, kept off skin; set by hand at dusk.
   tan: ['#e4c48a', '#c8a066', '#ae844c', '#94683a', '#76502c', '#584020', '#2a1e10'],
@@ -136,7 +139,7 @@ const DUSK_SET: Partial<Record<Mat, readonly (string | null)[]>> = {
   // the current palette, or they go the plum-brown of skin.
   eye: ['#f4ecf4', '#ddd0de', null, null, null, null, null],
   plate: ['#f2ecf8', '#d4d0e2', null, null, null, null, null],
-  bronze: ['#f2ecd8', '#e2d6a2', '#bcad6c', '#94804a', '#76663a', '#544a2e', '#26200f'],
+  bronze: ['#e6d6a0', '#b0964a', '#7c6c36', '#524c28', '#3a3824', '#28261a', '#12100a'],
   tan: ['#c8b07c', '#a88c5a', '#8e7046', '#745832', '#5c4426', '#463a24', '#201a0e'],
   shell: ['#f6eef2', '#ece4e6', '#d4c4cc', '#a07a8c', '#84607a', '#604458', '#30202a'],
 };

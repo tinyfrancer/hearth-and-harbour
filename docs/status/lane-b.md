@@ -1,8 +1,47 @@
 # Lane B: art
 
-**Next session:** Cody's review of the C-scale town (B7) and the C-scale figures (B8, below); then
-whatever that review asks for, then the C-scale walk cycle, foes and portraits ("Deferred"). Still
-open from B6: faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
+**Next session:** B10, the dungeon at the C scale: Brinebeard's Grotto's 24-pixel tiles, props, the
+grotto cast and its boss, the foes and their portraits (what it needs is under "Notes for this
+lane's next session"). Cody's review of B9 (the fixes and the walk cycle, below) first if he asks
+for one. Still open from B6: faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
+
+## Walking and breathing at the C scale, for lane C (`src/art/character2.ts`, B9)
+
+Added beside the standing doors; nothing that was there changed its name or signature.
+
+- `characterWalk2(look, wornItemIds, time, facing, frame, extra = [])` → an offscreen canvas, one
+  pixel per art pixel, 56 × 72, the same anchor (28, 70) as `characterSprite2`. `facing` is
+  `'down'` (toward the camera), `'right'` or `'left'` (`Facing2`); `frame` any whole number (it
+  wraps at `WALK2_FRAMES`). Made the first time it is asked for (per look, outfit, time of day,
+  facing and frame) and kept, through `spriteCanvas`, so `forgetSprites()` frees them with the
+  town's. Draw it exactly as the standing sprite.
+- `characterIdle2(look, wornItemIds, time, frame)`: the breath, two frames; frame 0 is
+  `characterSprite2`'s own canvas.
+- `townsfolkWalk2(id, time, facing, frame)`, `townsfolkIdle2(id, time, frame)`: the same for the
+  seven townsfolk; null for an unknown id.
+- The pictures behind them, for a scene that keeps its own canvases or stamps into a grid:
+  `characterWalkPicture2`, `characterIdlePicture2`, `townsfolkWalkPicture2`,
+  `townsfolkIdlePicture2` (`Picture2`s). `forgetWalks2()` lets the kept pictures go.
+- Constants: `WALK2_FRAMES` 8, `WALK2_FRAME_MS` 80, `WALK2_STRIDE` 7 (art pixels the planted foot
+  moves back each frame: the hero crosses the ground at 7 / 80 ms = 87.5 art px/s, today's 88
+  within half a pixel a second, so he does not slide; at another speed show each frame for
+  `WALK2_STRIDE / speed` seconds). Townsfolk stroll: `TOWNSFOLK2_STRIDE` 4, `TOWNSFOLK2_FRAME_MS`
+  100 (40 art px/s). `IDLE2_FRAMES` 2, `IDLE2_FRAME_MS` 900.
+- Which frames when: walking left or right, the side frames; walking down, the down frames;
+  **walking up (away), use the side frames of the last left or right heading** (there is no back
+  view; see "Deferred"). Standing, alternate the two breathing frames. A diagonal: the side frames.
+  Restart the cycle at frame 0 (contact) when a walk starts, and reset to standing when it stops.
+- Handedness: left is the exact mirror of right (tests hold it pixel for pixel), so walking left
+  the hero holds his weapon in the hand nearer the viewer. Deliberate: the ladder reads by the
+  weapon, and a right-handed hero facing left would hide it behind his body. Standing still, mirror
+  the standing sprite as today.
+- The contact shadow is still the scene's: an ellipse about 22 × 4 under the anchor, fixed (it does
+  not move with the feet).
+- Memory: a frame is 56 × 72 × 4 = 16 KB. One outfit, every facing and the breath, by day: 25
+  frames, 400 KB (800 KB with dusk too). Each townsperson the same; all seven by day 2.8 MB if every
+  frame of every facing is shown. Only frames asked for are made, so a hero who only walks across
+  by day costs 256 KB. The pictures behind them are 8 KB of cells each, kept in a map until
+  `forgetWalks2()`.
 
 ## The figures at the C scale, for lanes C and A (`src/art/character2.ts`)
 
@@ -84,6 +123,22 @@ Import each name from its file (there is no index file).
   cell grids behind them (Int16, 6.2 MB per composed town) are only needed while rasterizing.
 - Lights at dusk: `town2Ground('dusk').glows` is every lamp, window and the forge in town
   coordinates, for lighting walkers as `litBy` does today.
+- **Added in B9** (lane C's needs; nothing existing renamed or re-signed, every piece id the same):
+  - `town2Facts(id)` and `TOWN2_FACTS` (`pieces.ts`): every piece's facts (`w`, `h`, `base`,
+    `layer`, `foot`, `spots`, `shadow`, `ground`, `attached`) without drawing it. `town2Layout()`
+    and `town2Walk()` now read these, so neither draws anything: the scene's data can be had before
+    the first picture. The table lives in `facts.ts`, generated from the drawn pieces;
+    `tests/art/town2.test.ts` draws every piece and fails if the two ever disagree.
+  - `forgetTown2Grids()` (`town.ts`): lets go of the composed grounds and towns
+    (`town2Ground`/`town2Picture`, 6.2 MB of cells a time of day); asked again, they are composed
+    again, the same. `forgetTown2Grids({ pieces: true })` also lets the drawn pieces go
+    (`forgetTown2Pieces()` in `pieces.ts`).
+  - `buoy-far` moved from (1330, 2100) to foot (840, base 2084): past the pier's end and inside its
+    view (top-left 824, 2039; 32 × 48), so a camera on the pier's end tile shows it whole; your
+    lookout for it, (col 30, row 77), still works. A test holds that some walkable tile's view (360 ×
+    600, risen 30) contains it.
+  - Ground dressing on the square and the upper street, the redrawn ship, rock, oak, pines and
+    eyebrow window: same ids, same sizes and bases, so nothing in the layout moved but the buoy.
 
 ## Dungeon art, for lane C (`src/art/dungeonArt.ts`)
 
@@ -325,6 +380,53 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   foam along the shore row.
 
 ## Done
+
+- **B9: The fixes Cody asked for after reviewing B7 and B8, and the walk cycle.** Review sheets
+  outside the repo in `/home/claude/lane-shots/w9-b/`: `fixes-figures.png` and `fixes-town.png`
+  (before and after, each fix), `gear-ladder.png`, `walk-frames.png` (every frame of every facing:
+  the hero in linen, the knight, the smith, the trader, enlarged and at true size),
+  `walk-hero.gif`, `walk-knight.gif`, `walk-townsfolk.gif`, `town-full-day.png`, and three phone
+  screens (`phone-square.png`, `phone-harbour.png` at dusk, `phone-street.png`, 1170 × 2532).
+  - **Figures.** The empty hand hangs open where the fist would close (`OPEN_HAND2`), so the
+    at-ease hero has one hand on the hip and one at his side; the `ease` variants of the near
+    sleeve, bracers, cuff, vambrace and bracelet are gone (both bodies share the arm). Bronze
+    redrawn as an old metal (cream glint, brass-brown, olive-brown shadows; day and dusk), measured
+    apart from every hair colour, gold and tan. The captain's peg is a turned dark wooden peg with
+    a ferrule and no boot. New gestures: the docker shoulders a sack, the trader offers an apple
+    out on her palm, the market woman carries a basket of loaves on her head. Folds redrawn per
+    garment (fitted tunic, bloused linen, the smith's stiff apron creased at the knee, the
+    alewife's skirt and apron, the trader's skirt pushed by her basket, the market woman's slim
+    dress, both coats). Mail lit by the chest and skirt under it, with crooked rings. A slight
+    three-quarter turn: the hero's face a column toward the facing inside the skull (far ear
+    hidden; the helm's nasal and the hood's opening moved with it), his near shoulder a pixel
+    broader in the body and every near sleeve; townsfolk faces turned row by row (`turnRow`).
+  - **Town.** Grass and water lose their ordered dither for clumps (`clumps`, `clumpRound`), the
+    shadows on them too. The square gets worn ways, cart ruts, a drain across, mended patches,
+    moss at its edges, puddles, leaves and a grate; the upper street stones along the road and the
+    lane, a trodden path and stumps in the grove, flower drifts, long grass, stones in the turf and
+    a garden bed by your door. The ship gets a stern castle (three gilded windows, gallery,
+    taffrail, lantern), shrouds with deadeyes and ratlines, a gathered furled sail and a jib, worn
+    planking and rust. The rock is planes and cracks with its face unchanged, a weeded, barnacled
+    tide line; the wreck's ribs are as tall as the rock, with planking. The oak is masses on wide
+    limbs with sky through it; the pines' tiers each their own spacing, reach and droop. The pier's
+    water shadow ripples and breaks; the house's eyebrow window is a wave in the thatch. `buoy-far`
+    moved where the pier's end can see it. Lane C's two other needs: `town2Facts`/`TOWN2_FACTS`
+    and `forgetTown2Grids` (above).
+  - **Walking** (`src/art/figure2/walk.ts`, doors above): a rig of bones over the existing parts,
+    so every look, all 38 wearables, the knight and the seven townsfolk walk without a second
+    drawing; 8 frames down and across (left mirrored), a 2-frame breath; style guide, "Walking".
+  - **Gallery**: the figures' section opens with every ladder rung and every townsperson walking
+    down, right and left and breathing, animated from the kept sprites (dusk button included); the
+    town's section opens with the redrawn pieces and two more phone screens (the square's west
+    side, the grove).
+  - **Tests**: `tests/art/walk2.test.ts` (the door's numbers and caching; every frame of every
+    facing, in every wearable alone, inside the canvas with a sole on the anchor's row; each frame
+    its own; left the exact mirror of right; the hand rule in every frame of every held thing with
+    and without each shield; the breath; the townsfolk likewise), and in `figure2.test.ts` bronze's
+    distance from every hair ramp and gold by day and dusk and the open hand; in `town2.test.ts`
+    the facts table against the drawn pieces, the far buoy inside a walkable tile's view, and
+    forgetting the grids. Changed on purpose: the two eye tests in `figure2.test.ts` now mirror
+    about the face's centre line (column 29, irises 26 and 32) instead of the canvas's (28).
 
 - **B8: The figures at the C scale.** New art, not yet reviewed by Cody. Review sheets outside the
   repo in `/home/claude/lane-shots/w8-b/`: `in-town.png` (a 1170 × 2532 phone view: the hero in iron
@@ -697,17 +799,45 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **Not done in B9**, and why:
+  - **No walk up (away from the camera).** A back view needs the back of every hairstyle (five)
+    and every head gear (seven), the back of every shirt, jerkin, mail, coat and plate, the cloak in
+    front, the quiver turned: a second wardrobe, not something the rig can bend out of the front
+    one at quality. Lane C uses the side frames of the last left or right heading when walking up.
+    The rig takes a back view as another set of parts on the same bones when one is drawn.
+  - **No true left-handed set.** Left mirrors right; see the walk doors for why.
+  - **The body does not turn for the side walk.** The torso stays three-quarter front while the
+    legs walk across (hips drawn together, feet lengthened, head leading): turning the torso to a
+    profile would mean redrawing every body garment.
+  - **The far hand stays on the hip** when the hero walks (and the shield on that arm only sways):
+    letting it swing needs a hanging far arm and every far sleeve, vambrace and shield redrawn on
+    it.
+- **B9, weaker than it should be** (for Cody's review), weakest first:
+  - The side walk's legs are sheared, not redrawn: at contact they are long straight diagonals,
+    and with the hero's 14-pixel half step (needed to keep up with 88 art px/s at 80 ms a frame) the
+    stride is wide for a 64-pixel person; a slower walker or more frames would allow a shorter
+    step. The feet are lengthened front-view boots rather than boots drawn in profile.
+  - The walk toward the camera is subtle at true size: a lifted foot rises three to five rows, the
+    body bobs a row; it reads as stepping, not striding.
+  - Long dresses (trader, market woman, alewife) walk on their feet and a swaying hem only; the
+    hem does not kick out with the stride.
+  - The three-quarter turn is one column: enough to stop the faces looking dead-front, not a true
+    three-quarter head; the body under it is square.
+  - The docker's raised hand on the sack is brown on tan and only reads by its sleeve; the market
+    woman's loaves barely show above the basket's rim; the trader's apple is large for an apple.
+  - The square's mended patches are grey rectangles of setts at a distance; the wheel ruts are
+    faint at true size; the flower drifts are small.
+  - The oak's leaf domes are scalloped like rosettes enlarged; the rock's facets are crisp, a
+    little gem-like.
 - **Not in B8, by its brief**, and what each will need:
-  - Walk cycle: the legs (`LEGS_SHAPE`, boots), the near forearm and the far arm are separate
-    parts already; a cycle needs four to six leg poses and an arm swing per pose, with every
-    clothes, armour and coat part that covers a leg or the far arm given a version per pose (as
-    `hold` and `ease` do for the near forearm). Townsfolk do not walk today.
+  - Walk cycle: done in B9.
   - Foes and the dungeon cast at the C scale: drawn as people the hero's size on this canvas (the
     deckhand, smuggler, powder monkey and Brinebeard can reuse the head and the hand rule), the
     creatures on canvases of their own; `foePicture` keeps its shape, so a `foePicture2` beside it.
   - Portraits from the C-scale faces: the H2 head is 15 × 18; a 48 × 48 bust needs it drawn at
     about three times that, by hand, rather than scaled.
-- **B8, weaker than it should be** (for Cody's review), weakest first:
+- **B8, weaker than it should be** (for Cody's review; every one addressed in B9, see Done),
+  weakest first:
   - The near hand at rest on the belt reads as a hand on the hip too, so the at-ease hero has both
     hands at his waist; a hand hanging easy or a thumb in the belt might read as more relaxed.
   - The bronze cap is a bowl a pixel proud of the skull with a riveted rim: it reads as a helmet,
@@ -723,7 +853,8 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   - The stance is still nearly front-on: the life is in the hip and shoulder tilt, the eased leg
     and the arms, not in any turn of the body.
 
-- **B7, weaker than it should be** (for Cody's review), weakest first:
+- **B7, weaker than it should be** (for Cody's review; addressed in B9 but for smoke, gulls and
+  foam, which are lane C's to animate), weakest first:
   - The ship: a solid cutter with a furled sail, gun ports and a lit stern window, but its stern
     cabin is a plain box and its rigging is a handful of straight lines.
   - The rock with its wreck: the face reads, but the rock is a lumpy grey solid without the
@@ -793,6 +924,21 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
+- **Lane C, to wire the walk (B9)**, at the plug in `src/scene/figures2.ts` ("THE WALK CYCLE
+  PLUGS IN HERE"): `figureOf` paints pictures itself with the scene's lights, so take the
+  pictures: `characterWalkPicture2(look, worn, facing, frame)` (and `townsfolkWalkPicture2`) for a
+  walker, `characterIdlePicture2(look, worn, frame)` standing (frame 0 is today's picture). Pick
+  the frame from the distance walked, which can never slide whatever the speed:
+  `frame = Math.floor(walked / WALK2_STRIDE) % WALK2_FRAMES` (7 art pixels a frame for the hero,
+  `TOWNSFOLK2_STRIDE` 4 for townsfolk; a half step is 14, not the 8 your note assumed). `'left'` is
+  already mirrored: use it rather than `facingLeft2` of a walk frame. Moving down, `'down'`; up,
+  the last across heading. Drop the stage's one-pixel bob for walkers (the frames bob). The breath
+  alternates every `IDLE2_FRAME_MS`. Anchor, size and contact shadow are unchanged. Optionally lay
+  the layout out from `town2Facts` and call `forgetTown2Grids()` once the ground is on your canvas.
+  `buoy-far` moved to (840, 2084), inside the pier's end view: it can leave `LOOKED_AT_ONLY` in
+  `town2.ts`, and your lookout for it, (col 30, row 77), still stands.
+- Lane A: nothing for B9. The at-ease figure the character screen shows is the same size and
+  anchor, its hand now hanging at its side.
 - Lane A, `src/data/items.ts`, `captains_coat`'s description begins "Long, red and heavy with
   braid": Brinebeard and his coat are drawn purple with brass braid, so that he is never taken
   for the town's red-coated captain. One word: "Long, purple and heavy with braid". (Or, if Cody
@@ -847,6 +993,37 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   - `tests/ui` that look for the character canvas by its size will need the new size.
 
 ## Notes for this lane's next session
+
+- **B10, the dungeon at the C scale: what it needs.** Lane C's plan (its status, "The dungeons at
+  the C scale") re-cuts the rooms on 24-pixel tiles in the same metres (a person 2.7 tiles tall;
+  corridors a person and a half wide). So:
+  - **Tiles**, `dungeonTile('grotto', kind, variant)` keeps its shape; a C-scale door beside it
+    (e.g. `dungeonTile2`) returning 24 × 24 cells in `town2/ramps.ts` materials, the same ten kinds
+    and wear counts, drawn with the town's light (bevelled rock, the sea's clumps not a dither,
+    sand as the beach's). The wall's face should be about two tiles tall at this scale (a wall a
+    third of a person was B6's weak spot), so plan `wall_face` as an upper and lower tile, and edge
+    tiles for the shore's curve if lane C will place them.
+  - **Props** (`powder_keg`, `treasure_chest`, `brig_bars`, `lantern`, `anchor`, `rope_coil`,
+    `cannon`, and lane C's `crate` and `perch`) drawn to metres (`m()`): a keg about 0.6 m, the
+    chest 0.9 m wide, the bars a tile wide and 2 m tall.
+  - **The cast** as figures on the 56 × 72 canvas where they are people (`deckhand`, `smuggler`,
+    `powder_monkey` a head shorter, `brinebeard` on a taller canvas of his own), built on
+    `figure2`'s engine and the H2 head (each a `Folk`-like part list, so they walk and breathe on
+    the same rig through `folkBoned`-style bones); the creatures (`dock_rat`, `sand_crab`,
+    `giant_crab`, `ships_parrot`) on canvases of their own with feet points as data. Their walk
+    can be the rig's side cycle; give each a hit pose (a lunge: the near arm's swing pushed
+    forward, the weapon's rigid shift) and a fall, which the rig can do as keys.
+  - **Portraits**: a 48 × 48 bust per foe and townsperson, drawn by hand at about three times the
+    H2 head, never scaled; the three-quarter turn and the gestures of B9 carried over.
+  - Iterate on an assembled room at game scale with lane C's overlays redrawn on it, as B6 did.
+- **The walk rig** (`src/art/figure2/walk.ts`): a part's bone is set with `on(bone, part)` or
+  worked out from its slot and side (`boneOf` in `dress.ts`, `folkBone` in `folk.ts`); a new
+  wearable needs nothing more unless it covers a leg and the body at once (then split it, or give
+  it `trunk` or `skirt`). A new pose is a `Key2`; a figure whose joints differ gets a `Rig2`
+  (`FOLK_RIGS`). Iterate on strips of eight frames from a `.shots/` vitest (no browser), then
+  check the animation in the gallery's walking section.
+- `.shots/` held this session's scratch renders: `before/` is `main`'s `src/art` extracted with
+  `git archive` for before-and-after sheets, composed with Pillow from a scratch Python script.
 
 - C-scale work (B7) is judged at game scale on a phone-sized crop, not piece by piece: a scratch
   page under `.shots/` served by `npm run dev` can `cut()` a crop of `town2Picture(time)`

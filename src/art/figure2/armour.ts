@@ -6,11 +6,12 @@
  * edges a step darker than the cloth beside them so it reads as worn over it.
  */
 import { DEPTH } from '../depth';
+import { hash } from '../town2/cells';
 import type { Mat } from '../town2/ramps';
-import { ease, hold } from './clothes';
+import { hold } from './clothes';
 import { runs, type Gear2, type Line, type Part2, type Pins } from './engine';
 
-const { ARMOUR, BELT, WRIST } = DEPTH;
+const { ARMOUR, WRIST } = DEPTH;
 
 /** Rows starting at column `x`, row `y`. */
 const block = (
@@ -79,21 +80,31 @@ function mailRow(y: number, x0: number, x1: number, turn: number): Line {
     // Rings in offset rows: a ring's lit top, its shadowed underside, the next row's ring between.
     const ring = (x + (Math.floor(y / 2) % 2)) % 2 === 0;
     const top = y % 2 === 0;
-    s += String(
-      Math.max(
-        1,
-        Math.min(
-          4,
-          1 +
-            side +
-            (ring ? (top ? 0 : 1) : top ? 1 : 0) +
-            (y % 4 === 3 ? 1 : 0) -
-            (ring && top && side === 0 ? 0 : 0),
-        ),
-      ),
-    );
+    const weave = (ring ? (top ? 0 : 1) : top ? 1 : 0) + (y % 4 === 3 ? 1 : 0);
+    s += String(Math.max(0, Math.min(4, 1 + side + weave + mailForm(x, y))));
   }
   return [y, [x0, s]];
+}
+
+/**
+ * Light on mail follows the body under it, not the weave: the chest catches
+ * the sun high on its near side (a bright patch, a few rings at a glint), the
+ * rings go dark under the chest and under the arm, the skirt below the belt
+ * hangs in two folds (a lit column, then a dark one), and here and there a
+ * ring sits crooked and drops a step, so no row is a perfect repeat.
+ */
+function mailForm(x: number, y: number): number {
+  const chest = ((x - 25) / 3.2) ** 2 + ((y - 28) / 2.6) ** 2;
+  let f = chest < 1 ? -1 : 0;
+  if (chest < 0.3 && (x + y) % 2 === 0) f = -2;
+  if (y >= 32 && y <= 34 && x >= 27) f += 1;
+  if (x >= 31 && y >= 26 && y <= 31) f += y === 26 || x >= 33 ? 1 : 0;
+  if (y >= 39) {
+    if (x === 23 || x === 30) f -= 1;
+    if (x === 24 || x === 31 || x === 32) f += 1;
+  }
+  if (hash(x, y, 7) < 0.12) f += 1;
+  return f;
 }
 const mail = (shape: readonly (readonly [number, number, number, number?])[]): Line[] =>
   shape.map(([y, x0, x1, turn]) => mailRow(y, x0, x1, turn ?? Math.round(x0 + (x1 - x0) * 0.62)));
@@ -148,14 +159,14 @@ const IRON_MAIL: Gear2 = {
       ARMOUR + 0.5,
       [
         ...mail([
-          [25, 20, 22],
-          [26, 19, 22],
-          [27, 18, 22],
-          [28, 17, 22],
-          [29, 17, 21],
-          [30, 17, 21],
-          [31, 17, 21],
-          [32, 17, 21],
+          [25, 19, 22],
+          [26, 18, 22],
+          [27, 17, 22],
+          [28, 16, 22],
+          [29, 16, 21],
+          [30, 16, 21],
+          [31, 16, 21],
+          [32, 16, 21],
           [33, 16, 21],
         ]),
         [34, [16, '344445']],
@@ -235,7 +246,6 @@ const LEATHER_BRACERS: Gear2 = {
   slot: 'wrist',
   parts: [
     hold(block(16, 35, WRIST, 'tan', ['.1234', '1c234', '12c34', '1c235'], BRACER_PINS)),
-    ease(block(17, 35, BELT + 0.4, 'tan', ['1c234', '..12c34', '....1c34'], BRACER_PINS)),
     block(36, 34, WRIST, 'tan', ['..12334', '.1c2334', '12c234', '1c234'], BRACER_PINS),
   ],
 };
@@ -325,21 +335,20 @@ const CAPTAINS_COAT: Gear2 = {
       ARMOUR + 0.5,
       'midnight',
       [
-        '....112',
-        '...1122',
-        '..11223',
-        '.112223',
-        '.11223',
-        '.11223',
-        '.11223',
-        '.11223',
+        '...1112',
+        '..11122',
+        '.111223',
+        '1112223',
+        '111223',
+        '111223',
+        '111223',
+        '111223',
         '112233',
         '112233',
       ],
       BRASS,
     ),
     hold(block(16, 35, ARMOUR + 0.5, 'midnight', ['.1223', '.1223', 'bbbB'], BRASS)),
-    ease(block(17, 35, BELT + 0.3, 'midnight', ['112334', '..1223', '....bB'], BRASS)),
   ],
 };
 
