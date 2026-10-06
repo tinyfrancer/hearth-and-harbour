@@ -11,13 +11,15 @@ import {
   monstersIn,
   playerCombat,
 } from '../core/combat';
-import type { Content, MonsterDef } from '../core/content';
+import type { Content, DungeonFoe, MonsterDef } from '../core/content';
 import type { FightEnd } from '../core/fight';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
 import { button, h, titled } from './dom';
-import { face } from './face';
+import { face, heroFace } from './face';
+import { fullLook } from './look';
+import { wornItemIds } from '../core/equipment';
 import { formatNumber } from './format';
 import type { View } from './view';
 
@@ -62,6 +64,34 @@ export function dropsText(monster: MonsterDef, state: GameState, content: Conten
     ),
   ];
   return names.join(', ');
+}
+
+/**
+ * What one of a dungeon's cast drops. A run does not say who dropped what,
+ * so a thing is named once it is in the collection log (it has been held,
+ * from anywhere) and is "?" until then; what is one thing or another
+ * (`pick`) shows each.
+ */
+export function castDropsText(foe: DungeonFoe, state: GameState, content: Content): string {
+  const found = new Set(state.collection);
+  const ids = [
+    ...foe.always.map((drop) => drop.item),
+    ...foe.rare.map((drop) => drop.item),
+    ...(foe.pick?.items ?? []),
+  ];
+  const names = [
+    ...(foe.coins[1] > 0 ? ['Coins'] : []),
+    ...ids.map((id) => (found.has(id) ? itemName(content, id) : '?')),
+  ];
+  return names.join(', ');
+}
+
+/** "14 to 22": the levels of a dungeon's cast, weakest to strongest. */
+function levelRange(cast: readonly DungeonFoe[]): string {
+  const levels = cast.map((foe) => foe.level);
+  const least = Math.min(...levels);
+  const most = Math.max(...levels);
+  return least === most ? `${least}` : `${least} to ${most}`;
 }
 
 /** "12 kills · 30 coins", what dropped, and what was eaten and shot. */
@@ -255,29 +285,41 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
           h('h2', { class: 'group-heading', text: dungeon.name }),
           h('p', {
             class: 'small muted',
-            text: 'Fought in the dungeon itself, not from here. Everyone beaten there is counted.',
+            text: `Fought in the dungeon itself, not from here: levels ${levelRange(dungeon.cast!)}. Everyone beaten there is counted.`,
           }),
         ]),
         ...dungeon.cast!.map((foe) => {
           const kills = state.bestiary[foe.id]?.kills ?? 0;
-          return h(
-            'div',
-            { class: `panel card monster${kills ? '' : ' unmet'}`, attrs: { 'data-cast': foe.id } },
-            [
-              kills
-                ? face(foe, 'small')
-                : h('div', { class: 'portrait small blank', attrs: { 'aria-hidden': 'true' } }, [
-                    h('span', { text: '?' }),
-                  ]),
-              h('div', { class: 'stack tight monster-text' }, [
-                h('h2', { text: kills ? foe.name : '?' }),
-                h('p', {
-                  class: 'small muted',
-                  text: kills ? `Killed ${formatNumber(kills)}` : 'Not beaten yet',
-                }),
+          if (!kills) {
+            return h('div', { class: 'panel card monster unmet', attrs: { 'data-cast': foe.id } }, [
+              h('div', { class: 'portrait small blank', attrs: { 'aria-hidden': 'true' } }, [
+                h('span', { text: '?' }),
               ]),
-            ],
-          );
+              h('div', { class: 'stack tight monster-text' }, [
+                h('h2', { text: '?' }),
+                h('p', { class: 'small muted', text: 'Not beaten yet' }),
+              ]),
+            ]);
+          }
+          // Once beaten, as a table monster is shown: level, numbers, drops.
+          return h('div', { class: 'panel card monster', attrs: { 'data-cast': foe.id } }, [
+            face(foe, 'small'),
+            h('div', { class: 'stack tight monster-text' }, [
+              h('div', { class: 'card-head' }, [
+                h('h2', { text: foe.name }),
+                h('span', { class: 'level', text: `Level ${foe.level}` }),
+              ]),
+              h('p', {
+                class: 'small muted',
+                text: `${foe.hp} hit points · hits up to ${foe.maxHit}`,
+              }),
+              h('p', {
+                class: 'small drops',
+                text: `Drops: ${castDropsText(foe, state, content)}`,
+              }),
+              h('p', { class: 'small muted', text: `Killed ${formatNumber(kills)}` }),
+            ]),
+          ]);
         }),
       ]),
     );
@@ -448,9 +490,16 @@ export function fightView(
       wanted,
     ]),
     h('section', { class: 'panel stack tight you', attrs: { 'data-you': '' } }, [
-      h('div', { class: 'card-head' }, [
-        h('h2', { text: state.name }),
-        h('span', { class: 'muted small', text: me.style === 'ranged' ? 'Ranged' : 'Melee' }),
+      // Face to face: the foe's on the left of its panel, the hero's on the right of theirs.
+      h('div', { class: 'foe-head you-head' }, [
+        h('div', { class: 'stack tight' }, [
+          h('h2', { text: state.name }),
+          h('p', {
+            class: 'small muted',
+            text: `${me.style === 'ranged' ? 'Ranged' : 'Melee'} · max hit ${me.maxHit}`,
+          }),
+        ]),
+        heroFace(fullLook(state.look), wornItemIds(state), 'small'),
       ]),
       h('div', { class: 'card-head small' }, [h('span', { text: 'Health' }), hp]),
       h('div', { class: 'health-wrap' }, [health.el, line]),

@@ -4,9 +4,19 @@ import { masteryLevel, masteryXp, skillLevel, type GameState } from '../core/sta
 import { levelProgress } from '../core/xp';
 import { bar } from './bar';
 import { h } from './dom';
+import { faceIfDrawn } from './face';
 import { formatNumber, formatSeconds } from './format';
 
 const percent = (chance: number): string => `${Math.round(chance * 100)}%`;
+
+/** A face beside what is written, or what is written alone. */
+const withFace = (portrait: HTMLElement | null, text: HTMLElement[]): HTMLElement =>
+  portrait
+    ? h('div', { class: 'foe-head' }, [
+        portrait,
+        h('div', { class: 'stack tight monster-text' }, text),
+      ])
+    : h('div', { class: 'stack tight' }, text);
 
 /**
  * What a mark may give up besides coins: by name once it has, "?" until
@@ -80,14 +90,17 @@ export function markCard(
       on: { click: () => (active ? actions.stop() : actions.start(mark.id)) },
     },
     [
-      h('div', { class: 'card-head' }, [
-        h('h2', { text: mark.name }),
-        h('span', {
-          class: 'muted rate',
-          text: `${formatSeconds(mark.durationMs)} · ${mark.xp} XP`,
-        }),
+      // The mark's face beside who they are, once art draws one; the card stands without.
+      withFace(faceIfDrawn(mark, 'small'), [
+        h('div', { class: 'card-head' }, [
+          h('h2', { text: mark.name }),
+          h('span', {
+            class: 'muted rate',
+            text: `${formatSeconds(mark.durationMs)} · ${mark.xp} XP`,
+          }),
+        ]),
+        h('p', { class: 'small muted', text: steal.description }),
       ]),
-      h('p', { class: 'small muted', text: steal.description }),
       chance,
       progress.el,
       loot,
