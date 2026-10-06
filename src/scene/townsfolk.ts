@@ -65,6 +65,7 @@ export const ALEWIFE: Use = {
     'Odo comes in black to the elbows. I keep a stool by the door just for him, and a cloth on it.',
   ],
   duskSays: ['Can’t stop, love. Half the harbour’s in there and the other half’s on its way.'],
+  portrait: 'alewife',
 };
 
 export const MARKET: Use = {
@@ -76,6 +77,7 @@ export const MARKET: Use = {
     'A gull had a whole loaf off me on Tuesday. Came back for the butter, bold as brass.',
   ],
   duskSays: ['Last of the herbs going cheap. They’ll keep, they say. They won’t.'],
+  portrait: 'market',
 };
 
 export const DOCKER: Use = {
@@ -88,6 +90,7 @@ export const DOCKER: Use = {
     'That ship’s not loaded or unloaded a thing in a month. Pays to notice what isn’t happening.',
   ],
   duskSays: ['Shift’s done. My arms have gone to the tavern without me.'],
+  portrait: 'docker',
 };
 
 export const ELDER: Use = {
@@ -100,4 +103,5 @@ export const ELDER: Use = {
     'Mind the captain. Not because he’s wicked. Because he owes me a shilling.',
   ],
   duskSays: ['Stars are out. I’ve counted them. There’s one missing, but I shan’t say which.'],
+  portrait: 'elder',
 };

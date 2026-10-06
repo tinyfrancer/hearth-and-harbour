@@ -10,7 +10,7 @@
 import { DAY } from '../art/palette';
 import { pixelCanvas } from '../art/canvas';
 import { itemIcon, skillIcon } from '../art/icons';
-import { PORTRAIT_SIZE, portraitPicture } from '../art/portraits';
+import { PORTRAIT2_SAFE, portrait2 } from '../art/portraits2';
 import { PLAYER_ATTACK_MS } from '../core/combat';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
@@ -46,20 +46,28 @@ import {
   type Dungeon,
   type Run,
 } from './dungeon';
-import { fightExtra } from './fightArt';
+import {
+  HERO_TALL,
+  fightArtFor,
+  fightExtra,
+  heroLunge,
+  liftOf,
+  tapLift,
+  tideStateOf,
+  type FightArt,
+} from './fightArt';
+import { anchorOf, FIGURE2_SOLE_Y, heroPose } from './figures2';
 import { abilityPicture, foeKind } from './foes';
-import { canvasOf } from './draw';
-import { roomLook } from './grottoArt';
-import type { Hero } from './hero';
+import { foeSize2 } from '../art/dungeonArt2';
+import { CaveShadow, groundOnTheSpot, roomLook, type GroundPainter, type RoomLook } from './grottoArt';
 import type { Play } from './play';
 import type { Size } from './camera';
 import type { Point } from './tileMap';
 import { dungeonScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
-import { stage, type Insets } from './stage';
+import { stage, type Insets, type StillPicture } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
-import { HERO_FEET } from './walkerArt';
-import { DUSK } from '../art/palette';
+import { FIGURE2_FEET, type Hero2 } from './town2Art';
 
 /**
  * Room kept at the screen's edges, in CSS pixels: the health bars and the
@@ -69,13 +77,29 @@ import { DUSK } from '../art/palette';
  */
 export const DUNGEON_INSETS: Insets = { top: 64, right: 56, bottom: 80, left: 56 };
 
+/** How far above the hero's feet the camera looks: the middle of a 64-pixel figure, as in town. */
+export const FOCUS_RISE_DUNGEON = 30;
+
+/** Half the width of the hero's contact shadow, as the art lane's figures are shaded (22 across). */
+export const HERO_SHADOW = 11;
+
+/** An empty figure: the stage's plain walker, never shown (the hero comes placed). */
+let empty: HTMLCanvasElement | null = null;
+function nobody(): HTMLCanvasElement {
+  empty ??= document.createElement('canvas');
+  return empty;
+}
+
 export interface DungeonViewOptions {
   readonly dungeon: Dungeon;
   readonly content: Content;
   /** The run as it stands, and a way to keep it when it changes. */
   readonly run: () => Run;
   readonly keep: (run: Run) => void;
-  readonly hero: Hero;
+  /** The hero at the C scale, dressed as the character is; lit here by each room's lanterns. */
+  readonly hero: Hero2;
+  /** Paints the rooms' grounds: the run's worker, or on the spot. */
+  readonly painter?: GroundPainter;
   /** The player chose to go back to town: from Leave (once confirmed) or the results. */
   readonly leave: () => void;
   /** The run has just ended by itself: the last room cleared, or the hero down. */
@@ -116,10 +140,15 @@ export interface CssBox {
 /**
  * Where a room's name may show, in CSS pixels from the top or bottom of the
  * room: under the health bars at the top (`.dungeon-title` in `scene.css`),
- * or above the ability bar at the bottom.
+ * above the ability bar at the bottom, or in the HUD's own strip at the top
+ * in the target panel's place (`strip`), which the panel gives up while the
+ * name shows.
  */
-export const TITLE_SLOTS = { top: 72, bottom: 88 } as const;
+export const TITLE_SLOTS = { top: 72, bottom: 88, strip: 8 } as const;
 export type TitleSlot = keyof typeof TITLE_SLOTS;
+
+/** The HUD's strip at the top, the target panel's place: as tall as that panel, in CSS pixels. */
+export const STRIP_HEIGHT = 60;
 
 const crosses = (a: CssBox, b: CssBox): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -127,6 +156,8 @@ const crosses = (a: CssBox, b: CssBox): boolean =>
 /** The box a room's name covers in a slot, centred across a room `view` wide and tall. */
 export function titleBox(slot: TitleSlot, view: Size, banner: Size): CssBox {
   const x = (view.width - banner.width) / 2;
+  if (slot === 'strip')
+    return { x, y: TITLE_SLOTS.strip, w: banner.width, h: Math.min(banner.height, STRIP_HEIGHT) };
   const y = slot === 'top' ? TITLE_SLOTS.top : view.height - TITLE_SLOTS.bottom - banner.height;
   return { x, y, w: banner.width, h: banner.height };
 }
@@ -134,41 +165,63 @@ export function titleBox(slot: TitleSlot, view: Size, banner: Size): CssBox {
 /**
  * Where a room's name goes so it covers nobody in the fight (`combatants`,
  * each figure's box with its health bar): the slot it is in if that is
- * clear, else the other, else nowhere (it waits, unseen, rather than cover a
- * boss as the room opens).
+ * clear, else the other over the room, else the HUD's strip at the top. The
+ * strip is the target panel's own place, laid over the room whatever is
+ * under it; the name takes it only for its moment, and the panel waits, so
+ * the name is always read and covers no more of the fight than the panel
+ * does.
  */
 export function titleSlot(
   combatants: readonly CssBox[],
   view: Size,
   banner: Size,
   now: TitleSlot = 'top',
-): TitleSlot | null {
+): TitleSlot {
   const clear = (slot: TitleSlot) =>
     !combatants.some((c) => crosses(c, titleBox(slot, view, banner)));
+  if (now === 'strip') return 'strip';
   if (clear(now)) return now;
   const other: TitleSlot = now === 'top' ? 'bottom' : 'top';
-  return clear(other) ? other : null;
+  return clear(other) ? other : 'strip';
 }
 
-/** How far above a figure's tap box its health bar and a flier's rise reach, in art pixels. */
-const OVERHEAD = 18;
+/** How far above a figure's drawing its health bar and the marks over it reach, in art pixels. */
+const OVERHEAD = 22;
+
+/** The hero's figure as boxes are drawn round him: as wide as his body and gear, as tall as he stands. */
+export const HERO_BOX = { w: 28, h: HERO_TALL } as const;
 
 /**
  * Everyone fighting in the room as boxes on screen, in CSS pixels: the hero
- * and every foe still standing, each figure's box and what is drawn over it.
+ * and every foe still standing, each figure's box (the art lane's declared
+ * sizes, a bird up on its perch where it sits) and what is drawn over it.
  */
-export function combatantBoxes(run: Run, camera: Point, cssPerArt: number): CssBox[] {
+export function combatantBoxes(
+  dungeon: Dungeon,
+  run: Run,
+  camera: Point,
+  cssPerArt: number,
+): CssBox[] {
   const toCss = (feet: Point, w: number, h: number): CssBox => ({
     x: (feet.x - w / 2 - camera.x) * cssPerArt,
     y: (feet.y - h - OVERHEAD - camera.y) * cssPerArt,
     w: w * cssPerArt,
     h: (h + OVERHEAD + 4) * cssPerArt,
   });
-  const boxes = [toCss(run.play.walker.at, 40, 50)];
+  const boxes = [toCss(run.play.walker.at, HERO_BOX.w, HERO_BOX.h)];
+  const room = dungeon.rooms[run.room];
   for (const foe of run.battle?.foes ?? []) {
     if (foe.room !== run.room || !alive(foe)) continue;
+    const size = foeSize2(foe.monster);
     const box = foeKind(foe.monster).box;
-    boxes.push(toCss(foe.at, box.w + 8, box.h));
+    const lift = room ? liftOf(room, foe) : 0;
+    boxes.push(
+      toCss(
+        { x: foe.at.x, y: foe.at.y - lift },
+        Math.max(box.w, size?.box.w ?? 0) + 8,
+        Math.max(box.h, size?.tall ?? 0),
+      ),
+    );
   }
   return boxes;
 }
@@ -177,22 +230,20 @@ export function combatantBoxes(run: Run, camera: Point, cssPerArt: number): CssB
 export const FACE_FRAME = 48;
 
 /**
- * A foe's whole face for the target panel, or null if art has none. Lane B's
- * `portrait` element carries the face at 2 and 3 CSS pixels an art pixel, for
- * frames of 96 and 144; the panel's frame is 48, so either was cut down to
- * its middle and hats and chins were lost. This shows the same picture at
- * the most whole device pixels an art pixel that fit the frame (3 on a 3x
- * phone, one CSS pixel each): the whole 48 x 48 face, never resized.
+ * A foe's whole face for the target panel, or null if the art lane has
+ * none: its C-scale portrait, which shows the whole of its 72-pixel face in
+ * whatever square frame it is put in (in the 48-pixel frame, two device
+ * pixels an art pixel on a 3x phone), so everything in its safe box
+ * (`PORTRAIT2_SAFE`) shows, hat to chin.
  */
-export function framedFace(id: string): HTMLCanvasElement | null {
-  const pic = portraitPicture(id);
-  if (!pic) return null;
-  const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
-  const scale = Math.max(1, Math.floor((FACE_FRAME * dpr) / PORTRAIT_SIZE + 1e-9));
-  const canvas = pixelCanvas(pic, { palette: DAY, scale, dpr });
-  canvas.setAttribute('aria-hidden', 'true');
-  return canvas;
+export function framedFace(id: string): Element | null {
+  const face = portrait2(id);
+  face?.setAttribute('aria-hidden', 'true');
+  return face;
 }
+
+/** Whether a face has a safe box: the art lane says what of it must show. */
+export const hasSafeFace = (id: string): boolean => Object.hasOwn(PORTRAIT2_SAFE, id);
 
 /** A picture for a button, two CSS pixels to the art pixel. */
 function buttonPicture(id: string): HTMLCanvasElement | null {
@@ -422,35 +473,92 @@ export function dungeonView(options: DungeonViewOptions): View {
   /** The walker as last handed to the stage: a different one back means a tap moved him. */
   let given: Play = options.run().play;
   let roomView: View | null = null;
-  let look = roomLook(dungeon.rooms[options.run().room]!);
-  /** Grounds of the room still to paint ahead of the tide: one a frame, so none is painted mid-fight. */
-  let unpainted: ReturnType<typeof look.grounds> = [];
-  const playing = (): boolean => sideways(size) && !options.run().finished;
-
-  /** The room's ground as the tide has it now, darkening where it is about to come in. */
-  const groundFor = (run: Run) => {
-    if (!run.battle) return look.groundAt(0, false);
-    const tide = tideOf(run.battle, placeOf(dungeon, run));
-    return look.groundAt(tide.level, rising(tide, run.battle.clock));
+  const painter = options.painter ?? groundOnTheSpot;
+  const lookOf = (id: string): RoomLook => {
+    const l = roomLook(dungeon.rooms[id]!, painter);
+    l.paintWith(painter);
+    return l;
   };
+  let look = lookOf(options.run().room);
+  let art: FightArt = fightArtFor(look);
+  /** The room's ground as last shown: kept on screen while the tide's next one is still being painted. */
+  let lastStill: StillPicture | null = null;
+  /** Whether the room's ground is in: until it is, the room stays dark and the run waits. */
+  const roomIn = (run: Run): boolean => {
+    const s = tideStateOf(dungeon, run);
+    return look.ready(s.level, s.warn) || lastStill !== null;
+  };
+  const playing = (): boolean =>
+    sideways(size) && !options.run().finished && roomIn(options.run());
+
+  /** The room as the tide has it now, darkening where it is about to come in. */
+  const stillFor = (run: Run): StillPicture | null => {
+    const s = tideStateOf(dungeon, run);
+    const still = look.stillAt(s.level, s.warn);
+    if (still) lastStill = still;
+    return still ?? lastStill;
+  };
+
+  /** The hero's contact shadow, cut from the room's ground under his feet. */
+  const heroShadow = new CaveShadow();
+
+  /** The rooms in the order a run meets them: the one after this is painted ahead. */
+  const order = Object.keys(dungeon.rooms);
 
   const showRoom = (): void => {
     const run = options.run();
     const here = dungeon.rooms[run.room]!;
-    look = roomLook(here);
+    // Rooms behind are let go; this one and the next are kept and painted ahead.
+    const at = order.indexOf(run.room);
+    const next = order[at + 1];
+    for (const id of order) if (id !== run.room && id !== next) roomLook(dungeon.rooms[id]!).forget();
+    look = lookOf(run.room);
+    // Painted ahead only where a worker paints them: on the spot, each is worked out when shown.
+    if (painter !== groundOnTheSpot) {
+      look.warm();
+      if (next) lookOf(next).warm();
+    }
+    art = fightArtFor(look);
+    lastStill = null;
     look.lock.map = groundNow(dungeon, run);
-    unpainted = look.grounds();
     given = run.play;
     roomShown = run.room;
-    const walkerAt = hero.atIn(look.lights);
+    hero.lightBy(look.glows);
     roomView = stage({
       scene: look.scene,
       art: {
-        ground: look.groundAt(0, false),
-        groundNow: () => groundFor(options.run()),
-        heroFeet: HERO_FEET,
-        walkerAt: (feet, facing, palette) => walkerAt(feet, facing, palette.lightsOn),
-        shadowAt: look.shadowAt,
+        still: () => stillFor(options.run()),
+        heroFeet: FIGURE2_FEET,
+        walkerAt: () => nobody(),
+        walkerPlaced: (play, feet, _palette, now) => {
+          const run = options.run();
+          const pose = heroPose(play, now);
+          const image = hero.at(feet, pose, 'dusk');
+          hero.warm('dusk');
+          const lean = run.battle ? heroLunge(run.battle, play.facing) : 0;
+          return (
+            image && {
+              image,
+              x: feet.x + lean - anchorOf(pose),
+              y: feet.y - FIGURE2_SOLE_Y,
+              base: feet.y,
+            }
+          );
+        },
+        shadowAt: (feet) => {
+          const s = tideStateOf(dungeon, options.run());
+          const cells = look.cellsAt(s.level, s.warn);
+          if (!cells) return null;
+          const placed = heroShadow.at(
+            cells,
+            look.kindsAt(s.level, s.warn),
+            look.glows,
+            feet,
+            HERO_SHADOW,
+          );
+          return placed && { picture: placed.image as HTMLCanvasElement, middle: { x: feet.x - placed.x, y: feet.y - placed.y } };
+        },
+        life: look.flicker,
       },
       // A sea cave at dusk, lit by its lanterns.
       time: 'dusk',
@@ -458,6 +566,9 @@ export function dungeonView(options: DungeonViewOptions): View {
       keep: () => {},
       press: () => {},
       scaleOf: (device) => dungeonScale(device, DUNGEON.scene.width),
+      focusRise: FOCUS_RISE_DUNGEON,
+      pixelated: true,
+      overlay: true,
       insets: DUNGEON_INSETS,
       frozen: () => !playing(),
       drive: (play, ms) => {
@@ -473,7 +584,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         const from = play === given ? run.play : play;
         // Being carried by the sea, a tap does nothing until he is on his feet.
         if (run.battle.wash) return from;
-        const foe = foeAt(run.battle, run.room, point, min);
+        const foe = foeAt(run.battle, run.room, point, min, tapLift(dungeon.rooms[run.room]!));
         if (!foe || held(run.battle, placeOf(dungeon, run), foe)) {
           options.keep({ ...run, battle: stopChasing(run.battle), play: from });
           return null;
@@ -483,7 +594,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         given = aimed.play;
         return aimed.play;
       },
-      extra: (_now, palette) => fightExtra(dungeon, options.run(), palette),
+      extra: () => fightExtra(dungeon, options.run(), look, art),
       seen: (camera, cssPerArt) => {
         lookedAt = { camera, cssPerArt };
       },
@@ -503,13 +614,18 @@ export function dungeonView(options: DungeonViewOptions): View {
       title.classList.add('shown');
     }
   };
+  // The name's moment is over: it goes, and the strip is the target panel's again.
+  title.addEventListener('animationend', () => title.classList.remove('shown'));
 
   /** Where the camera was for the last frame drawn, and the size of an art pixel on screen. */
   let lookedAt: { camera: Point; cssPerArt: number } | null = null;
 
   /** Keeps the room's name, while it shows, in a slot where it covers nobody in the fight. */
   const placeTitle = (run: Run): void => {
-    if (!title.classList.contains('shown')) return;
+    if (!title.classList.contains('shown')) {
+      if (title.dataset.slot === 'strip') title.dataset.slot = 'top';
+      return;
+    }
     if (!lookedAt) {
       title.style.visibility = 'hidden';
       return;
@@ -517,15 +633,18 @@ export function dungeonView(options: DungeonViewOptions): View {
     const banner = { width: title.offsetWidth || 260, height: title.offsetHeight || 36 };
     const now = (title.dataset.slot as TitleSlot | undefined) ?? 'top';
     const slot = titleSlot(
-      combatantBoxes(run, lookedAt.camera, lookedAt.cssPerArt),
+      combatantBoxes(dungeon, run, lookedAt.camera, lookedAt.cssPerArt),
       size,
       banner,
       now,
     );
-    const visibility = slot ? '' : 'hidden';
-    if (title.style.visibility !== visibility) title.style.visibility = visibility;
-    if (slot && title.dataset.slot !== slot) title.dataset.slot = slot;
+    if (title.style.visibility !== '') title.style.visibility = '';
+    if (title.dataset.slot !== slot) title.dataset.slot = slot;
   };
+
+  /** Whether the room's name holds the HUD's strip just now: the target panel waits. */
+  const nameInStrip = (): boolean =>
+    title.classList.contains('shown') && title.dataset.slot === 'strip';
 
   let results: HTMLElement | null = null;
   const showResults = (): void => {
@@ -593,7 +712,8 @@ export function dungeonView(options: DungeonViewOptions): View {
     // A boss in the room: his health holds the middle while he stands, whoever is the target.
     const boss = bossOf(battle, run.room);
     const bossUp = !!boss && alive(boss) && boss.aware;
-    bossPanel.hidden = !bossUp;
+    const strip = nameInStrip();
+    bossPanel.hidden = !bossUp || strip;
     if (boss && bossUp) {
       const def = battle.monsters[boss.monster]!;
       if (bossShown !== boss.monster) {
@@ -618,7 +738,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     }
 
     const target = battle.foes.find((f) => f.key === battle.target && alive(f)) ?? null;
-    targetPanel.hidden = !target || bossUp;
+    targetPanel.hidden = !target || bossUp || strip;
     if (target && !bossUp) {
       const def = battle.monsters[target.monster]!;
       if (targetShown !== target.monster) {
@@ -689,10 +809,8 @@ export function dungeonView(options: DungeonViewOptions): View {
           ? 'The grotto will wait. Nothing in it is going anywhere.'
           : 'The grotto is wide and low. So, to be fair, is the boat.';
       look.lock.map = groundNow(dungeon, before);
+      hero.wear(state);
       roomView?.update?.(state);
-      // Paint one of the room's tides ahead of time each frame, so the sea never stops a frame to be drawn.
-      const next = unpainted.pop();
-      if (next) canvasOf(next, DUSK);
       const after = options.run();
       if (after.room !== roomShown) showRoom();
       // And again after the frame, so a tap before the next one walks on the ground as it is now.
@@ -703,7 +821,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       }
       showFight(after);
       placeTitle(after);
-      fade.style.opacity = String(doorwayDark(after.doorway));
+      // Dark through a door, and until the room's ground is in.
+      fade.style.opacity = String(roomIn(after) ? doorwayDark(after.doorway) : 1);
     },
   };
 }

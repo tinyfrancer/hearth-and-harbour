@@ -39,7 +39,7 @@ import { groundMap, standable, wading, type Ground, type RoomTile } from './grou
 import { clearLine, route } from './path';
 import { advancePlay, facingToward, type Facing, type Play } from './play';
 import { cycleTide, surgeTide, type TideNow } from './tide';
-import { step, WALK_SPEED } from './walker';
+import { stepBy, WALK_SPEED } from './walker';
 import { DUNGEON, far } from './dungeonMetrics';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
 
@@ -215,6 +215,11 @@ export interface Foe {
   readonly phase: number;
   /** A boss's time until its next volley. */
   readonly volleyMs: number;
+  /**
+   * How far it has walked (or flown), in art pixels: what its stride is
+   * timed by when it is drawn. Nothing in the rules reads it.
+   */
+  readonly walked: number;
 }
 
 /** Loot on the floor where something fell. */
@@ -416,6 +421,7 @@ function newFoe(
     flight: kind.flies ? { mode: 'perch', perch: 0, until: 0 } : null,
     phase: kind.boss ? 1 : 0,
     volleyMs: kind.boss ? kind.boss.volleys.firstMs : 0,
+    walked: 0,
   };
 }
 
@@ -504,8 +510,18 @@ export function foodLeft(battle: Battle): number {
   return Math.max(0, (battle.fighter.food?.qty ?? 0) - battle.tally.eaten);
 }
 
-/** The foe a tap at `point` is on, if any: its tap box from the data, grown to `min` art pixels. */
-export function foeAt(battle: Battle, room: string, point: Point, min = 0): Foe | null {
+/**
+ * The foe a tap at `point` is on, if any: its tap box from the data, grown
+ * to `min` art pixels, standing on its feet, or as far above them as `lift`
+ * says it is drawn (a bird up on its perch).
+ */
+export function foeAt(
+  battle: Battle,
+  room: string,
+  point: Point,
+  min = 0,
+  lift: (foe: Foe) => number = () => 0,
+): Foe | null {
   let best: Foe | null = null;
   let bestDistance = Infinity;
   for (const foe of battle.foes) {
@@ -513,10 +529,11 @@ export function foeAt(battle: Battle, room: string, point: Point, min = 0): Foe 
     const { w, h } = foeKind(foe.monster).box;
     const width = Math.max(w, min);
     const height = Math.max(h, min);
-    const top = foe.at.y - h + (h - height) / 2;
+    const feet = foe.at.y - lift(foe);
+    const top = feet - h + (h - height) / 2;
     if (Math.abs(point.x - foe.at.x) > width / 2 || point.y < top || point.y > top + height)
       continue;
-    const d = distance(point, { x: foe.at.x, y: foe.at.y - h / 2 });
+    const d = distance(point, { x: foe.at.x, y: feet - h / 2 });
     if (d < bestDistance) {
       best = foe;
       bestDistance = d;
@@ -1321,13 +1338,14 @@ function moveFoes(w: Work, place: Place, ms: number): void {
       : flying
         ? kind.flies!.speed
         : kind.speed * (foe.wading ? WADE_PACE : 1);
-    const moved = step({ at: foe.at, path: foe.path }, ms, speed);
+    const { walker: moved, distance: went } = stepBy({ at: foe.at, path: foe.path }, ms, speed);
     if (!foe.wash) {
       if (moved.at.x < foe.at.x - 0.01) foe.facing = 'left';
       else if (moved.at.x > foe.at.x + 0.01) foe.facing = 'right';
     }
     foe.at = moved.at;
     foe.path = moved.path;
+    foe.walked += went;
   }
 }
 

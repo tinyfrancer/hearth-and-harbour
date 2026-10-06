@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { characterPicture, DEFAULT_LOOK } from '../../src/art/character';
-import { get } from '../../src/art/grid';
-import { townPiece } from '../../src/art/town';
 import { newGame, type GameState } from '../../src/core/state';
-import { Hero, dressKey, dressOf } from '../../src/scene/hero';
-import { HERO_FEET } from '../../src/scene/walkerArt';
+import { dressKey, dressOf } from '../../src/scene/hero';
+import { Hero2 } from '../../src/scene/town2Art';
 
-// The dungeons' hero, at the first scale (40 x 50): the town draws its own (`town2Art.ts`).
-
-/** A lantern, as a dungeon room's lights give them. */
-const lantern = { x: 200, y: 200, radius: 40, strength: 0.6 };
+// The hero, as the town and the dungeons both draw him: the C-scale figure (`Hero2`).
 
 const fresh = (): GameState => newGame('Cody', 0);
 const armed = (state: GameState): GameState => ({
@@ -21,40 +15,20 @@ const armed = (state: GameState): GameState => ({
 });
 
 describe('the hero is the player’s own character', () => {
-  it('is drawn in the character’s look and gear, the same size as the approved hero', () => {
-    const state = { ...armed(fresh()), look: { skin: 'deep', hair: 'long' } };
-    const hero = new Hero(dressOf(state));
-    const drawn = hero.at({ x: 100, y: 100 }, 'right', false);
-    const expected = characterPicture({ ...DEFAULT_LOOK, skin: 'deep', hair: 'long' }, [
-      'bronze_sword',
-      'bronze_shield',
-    ]);
-    expect(drawn.grid).toEqual(expected.grid);
-    // Feet in the same place whatever is worn, so the hero's shadow and base still fit.
-    const approved = townPiece('hero').picture.grid;
-    expect([drawn.grid.w, drawn.grid.h]).toEqual([approved.w, approved.h]);
-    expect(HERO_FEET.y).toBe(townPiece('hero').base);
-  });
-
-  it('arrives as a villager in everyday clothes, not in the approved hero’s plate', () => {
-    const drawn = new Hero(dressOf(fresh())).at({ x: 0, y: 0 }, 'right', false);
-    expect(drawn.grid).toEqual(characterPicture(DEFAULT_LOOK, []).grid);
-    expect(drawn.grid).not.toEqual(townPiece('hero').picture.grid);
-  });
-
-  it('is drawn again only when the look or the gear really changes', () => {
+  it('is dressed again only when the look or the gear really changes', () => {
     const state = fresh();
-    const hero = new Hero(dressOf(state));
+    const hero = new Hero2();
+    expect(hero.wear(state)).toBe(true);
     expect(hero.drawn).toBe(1);
     // Every frame brings a state; most are the same look and gear, or a new object saying the same.
     expect(hero.wear(state)).toBe(false);
     expect(hero.wear({ ...state, coins: 5 })).toBe(false);
     expect(hero.wear({ ...state, look: { ...state.look }, equipment: {} })).toBe(false);
     expect(hero.drawn).toBe(1);
-    const before = hero.at({ x: 0, y: 0 }, 'right', false);
+    const before = hero.dressedAs;
     expect(hero.wear(armed(state))).toBe(true);
     expect(hero.drawn).toBe(2);
-    expect(hero.at({ x: 0, y: 0 }, 'right', false)).not.toBe(before);
+    expect(hero.dressedAs).not.toBe(before);
     expect(hero.wear({ ...armed(state), look: { hairColour: 'grey' } })).toBe(true);
     expect(hero.drawn).toBe(3);
   });
@@ -64,22 +38,5 @@ describe('the hero is the player’s own character', () => {
     expect(dressKey(a)).toBe(dressKey(dressOf(fresh())));
     expect(dressKey(a)).not.toBe(dressKey(dressOf(armed(fresh()))));
     expect(dressKey(a)).not.toBe(dressKey({ ...a, look: { ...a.look, hair: 'bald' } }));
-  });
-
-  it('is lit at dusk by the lamps near him, from a few kept pictures', () => {
-    const hero = new Hero(dressOf(armed(fresh())), [lantern]);
-    const plain = hero.at({ x: 0, y: 0 }, 'right', false);
-    const beside = { x: lantern.x + 16, y: lantern.y + 20 };
-    const lit = hero.at(beside, 'right', true);
-    expect(lit.glows.length).toBeGreaterThan(0);
-    // The same place to within a few pixels is the same picture, so it is painted once.
-    expect(hero.at({ x: beside.x + 1, y: beside.y }, 'right', true)).toBe(lit);
-    // By day, or far from any light, he is the plain picture.
-    expect(hero.at(beside, 'right', false)).toBe(plain);
-    expect(hero.at({ x: 600, y: 600 }, 'right', true)).toBe(plain);
-    // Facing left, the mirrored picture: his sword hand on the other side.
-    const left = hero.at(beside, 'left', false);
-    expect(left).not.toBe(plain);
-    expect(get(left.grid, plain.grid.w - 1 - 5, 20)).toBe(get(plain.grid, 5, 20));
   });
 });

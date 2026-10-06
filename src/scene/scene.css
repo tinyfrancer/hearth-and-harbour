@@ -153,6 +153,18 @@
   gap: 10px;
 }
 
+/* The face's frame: the art lane's portrait shows the whole face inside whatever square it is in. */
+.scene-panel-face {
+  display: block;
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.scene-panel-head h2 {
+  min-width: 0;
+}
+
 /*
  * The town coming into view, the first time it is opened before it is ready:
  * its name, a line and a bar of the work's real steps, filled a quarter at a

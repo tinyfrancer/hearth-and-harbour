@@ -5,9 +5,9 @@ import { alive } from '../../src/scene/battle';
 import { CONTENT } from '../../src/data';
 import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
 import { cameraFor } from '../../src/scene/camera';
-import { DUNGEON_INSETS } from '../../src/scene/dungeonView';
+import { DUNGEON_INSETS, FOCUS_RISE_DUNGEON } from '../../src/scene/dungeonView';
+import { DUNGEON } from '../../src/scene/dungeonMetrics';
 import { GROTTO } from '../../src/scene/grotto';
-import { FOCUS_RISE } from '../../src/scene/stage';
 import { centreOf, type Point } from '../../src/scene/tileMap';
 import { TOWN2_H, TOWN2_TILE, TOWN2_W } from '../../src/art/town2/town';
 import { town2Scene } from '../../src/scene/town2';
@@ -108,15 +108,19 @@ function wait(view: View, ms: number): void {
   }
 }
 
+/** A tile's side in the dungeons. */
+const T = DUNGEON.tile;
+
 /** Taps a point in the town or in the room the run is in, worked out as the stage does. */
 function tap(root: ParentNode, at: Point): void {
-  const k = 4 / 3;
+  // The rooms, like the town, are 3 device pixels an art pixel at 3x: one CSS pixel each.
+  const k = 1;
   const run = runNow();
   let camera: Point;
   if (run) {
     const rows = GROTTO.rooms[run.room]!;
-    const world = { width: rows[0]!.length * 16, height: rows.length * 16 };
-    const view = { width: (screen.width * 3) / 4, height: (screen.height * 3) / 4 };
+    const world = { width: rows[0]!.length * T, height: rows.length * T };
+    const view = { width: screen.width / k, height: screen.height / k };
     const room = {
       top: Math.round(DUNGEON_INSETS.top / k),
       right: Math.round(DUNGEON_INSETS.right / k),
@@ -125,7 +129,7 @@ function tap(root: ParentNode, at: Point): void {
     };
     const hero = run.play.walker.at;
     const c = cameraFor(
-      { x: hero.x, y: hero.y - FOCUS_RISE },
+      { x: hero.x, y: hero.y - FOCUS_RISE_DUNGEON },
       {
         width: view.width - room.left - room.right,
         height: view.height - room.top - room.bottom,
@@ -198,7 +202,7 @@ describe('the way into the grotto', () => {
     const view = shown(shell);
     rowOut(view);
     resize(844, 390);
-    tap(view.el, centreOf({ col: 20, row: 4 }));
+    tap(view.el, centreOf({ col: 20, row: 4 }, T));
     wait(view, 500);
     const there = { ...runNow()!.play.walker.at };
     const ms = runNow()!.ms;
@@ -278,7 +282,7 @@ describe('the way into the grotto', () => {
   function through(view: View, col: number, row: number): void {
     const from = runNow()!.room;
     resize(844, 390);
-    tap(view.el, centreOf({ col, row }));
+    tap(view.el, centreOf({ col, row }, T));
     for (let t = 0; t < 40_000 && (runNow()!.room === from || runNow()!.doorway); t += 500)
       wait(view, 500);
     // A browser tells a new room's canvas its size as it goes on the page; jsdom is told here.
@@ -296,9 +300,9 @@ describe('the way into the grotto', () => {
     expect(view.el.querySelectorAll('.fight-button')).toHaveLength(3);
     const rooms: string[] = [runNow()!.room];
     const exits: Record<string, [number, number]> = {
-      pools: [37, 6],
-      store: [35, 5],
-      bridge: [41, 6],
+      pools: [33, 6],
+      store: [33, 5],
+      bridge: [33, 5],
       brig: [33, 6],
     };
     for (const room of ['pools', 'store', 'bridge', 'brig']) {
@@ -344,7 +348,7 @@ describe('the way into the grotto', () => {
     expect(view.el.querySelectorAll('.fight-button')).toHaveLength(2);
     fightRoom(view);
     if (!runNow()!.battle!.over) {
-      through(view, 37, 6);
+      through(view, 33, 6);
       fightRoom(view);
     }
     wait(view, 2000);

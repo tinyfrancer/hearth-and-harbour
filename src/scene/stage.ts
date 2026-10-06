@@ -263,8 +263,15 @@ export interface StageExtra {
   readonly boxes: readonly Box[];
   /** On the ground, under everyone: marks, loot. Drawn in art pixels. */
   ground?(ctx: CanvasRenderingContext2D, palette: Palette): void;
-  /** Over everyone: health, numbers, things in flight. Drawn in art pixels. */
+  /** Over everyone: things in flight, glints. Drawn in art pixels. */
   over?(ctx: CanvasRenderingContext2D, palette: Palette): void;
+  /**
+   * Over everything at the screen's own resolution (with the stage's
+   * `overlay`): words and thin lines, which an enlarged art pixel would make
+   * blocky. Drawn in art-pixel coordinates; `k` is art pixels per CSS pixel,
+   * so a size in CSS pixels times `k` is that size on screen.
+   */
+  overlay?(ctx: CanvasRenderingContext2D, k: number): void;
   /** The walker's picture as it should show this frame (a flash when struck). */
   walker?(image: HTMLCanvasElement): HTMLCanvasElement;
 }
@@ -312,6 +319,12 @@ export interface StageOptions {
    * default.
    */
   readonly pixelated?: boolean;
+  /**
+   * A second canvas over the scene at the screen's own resolution, for what
+   * the scene's `extra` draws in its `overlay`: a pixelated scene's words and
+   * thin lines, kept sharp. It takes no taps.
+   */
+  readonly overlay?: boolean;
   /**
    * Room the camera keeps clear at the edges for buttons over the scene: the
    * walker is centred in what is left, and a map smaller than that is centred
@@ -392,7 +405,10 @@ export function stage(options: StageOptions): View {
   lightButton.style.top = `${place.top}px`;
   lightButton.style.width = `${place.width}px`;
   lightButton.style.height = `${place.height}px`;
-  const el = h('div', { class: 'scene' }, [canvas, options.light ? lightButton : null]);
+  const top = options.overlay
+    ? h('canvas', { class: 'scene-overlay', attrs: { 'aria-hidden': 'true' } })
+    : null;
+  const el = h('div', { class: 'scene' }, [canvas, top, options.light ? lightButton : null]);
 
   let play = options.play;
   let time = light.current();
@@ -501,6 +517,10 @@ export function stage(options: StageOptions): View {
     if (next.css.width !== css.width || next.css.height !== css.height) {
       canvas.style.width = `${next.css.width}px`;
       canvas.style.height = `${next.css.height}px`;
+      if (top) {
+        top.style.width = `${next.css.width}px`;
+        top.style.height = `${next.css.height}px`;
+      }
     }
     css = next.css;
     if (next.device.width === device.width && next.device.height === device.height) return;
@@ -625,8 +645,13 @@ export function stage(options: StageOptions): View {
     const left = play.facing === 'left';
     const extra = options.extra?.(now, palette) ?? null;
     let walker: Standing | null;
-    if (art.walkerPlaced) walker = art.walkerPlaced(play, feet, palette, now);
-    else {
+    if (art.walkerPlaced) {
+      walker = art.walkerPlaced(play, feet, palette, now);
+      if (walker && extra?.walker && walker.image instanceof HTMLCanvasElement) {
+        const image = extra.walker(walker.image);
+        if (image !== walker.image) walker = { ...walker, image };
+      }
+    } else {
       const walkerPicture = art.walkerAt(feet, play.facing, palette);
       const plainWalker = imageOf(walkerPicture, palette);
       const walkerImage = plainWalker && extra?.walker ? extra.walker(plainWalker) : plainWalker;
@@ -712,7 +737,46 @@ export function stage(options: StageOptions): View {
     shownLast = shown;
     drawnLast = moving;
     extraLast = extra?.boxes ?? [];
+    if (top) drawOverlay(top, extra, cam, scale);
     options.seen?.(cam, (scale * css.width) / device.width);
+  };
+
+  /** Whether anything was drawn on the overlay last frame, so it is cleared once when there is nothing. */
+  let overlaid = false;
+  let topCtx: CanvasRenderingContext2D | null = null;
+
+  /**
+   * The overlay at the screen's resolution: the same size on the page as the
+   * scene's canvas, a device pixel each; cleared and drawn again each frame
+   * there is anything on it.
+   */
+  const drawOverlay = (
+    over: HTMLCanvasElement,
+    extra: StageExtra | null,
+    cam: Point,
+    scale: number,
+  ): void => {
+    const w = Math.round(css.width * (window.devicePixelRatio || 1));
+    const hgt = Math.round(css.height * (window.devicePixelRatio || 1));
+    if (over.width !== w || over.height !== hgt) {
+      over.width = w;
+      over.height = hgt;
+      overlaid = true;
+    }
+    if (!extra?.overlay && !overlaid) return;
+    topCtx ??= over.getContext('2d');
+    if (!topCtx) return;
+    topCtx.setTransform(1, 0, 0, 1, 0, 0);
+    topCtx.clearRect(0, 0, over.width, over.height);
+    overlaid = false;
+    if (!extra?.overlay) return;
+    // Device pixels per art pixel on this canvas, whatever the scene's own canvas holds.
+    const k = w / Math.max(1, css.width);
+    const per = (scale * w) / Math.max(1, device.width);
+    topCtx.setTransform(per, 0, 0, per, -cam.x * per, -cam.y * per);
+    topCtx.imageSmoothingEnabled = false;
+    extra.overlay(topCtx, k / per);
+    overlaid = true;
   };
 
   /** A number for a still the scene made itself: a new one means the whole view is drawn again. */

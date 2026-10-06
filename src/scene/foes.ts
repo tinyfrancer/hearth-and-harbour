@@ -8,7 +8,7 @@
  * declared size (`FOE2_SIZES`), not the sprite's pixels.
  */
 import { foeSize2 } from '../art/dungeonArt2';
-import { ellipse, grid, line, outline, rect, type Grid } from '../art/grid';
+import { grid, line, outline, rect, type Grid } from '../art/grid';
 import { picture, type Picture } from '../art/raster';
 import { DUNGEON } from './dungeonMetrics';
 
