@@ -28,7 +28,15 @@ import {
 } from './plates';
 import { DAY, DUSK, GUIDE_RAMPS, RAMPS, type Palette, type RampName } from './palette';
 import type { Picture } from './raster';
-import { ICON_FAMILIES, itemIcon, skillIcon } from './icons';
+import {
+  ICON_FAMILIES,
+  TAB_ICON_IDS,
+  iconScale,
+  itemIcon,
+  skillIcon,
+  tabIconPicture,
+} from './icons';
+import { TAB_MUTED } from './tabArt';
 import { PORTRAIT_IDS, portrait } from './portraits';
 import { townPicture } from './town';
 import { FOE_IDS } from './grottoCast';
@@ -257,6 +265,25 @@ export function artGallery(): HTMLElement {
     }
     return [el('h3', 'gallery-subhead', family.name), grid];
   });
+  // B10b: the tab bar's icons, each lit (its tab open) and muted (the others).
+  const tabs = el('div', 'icon-grid');
+  for (const id of TAB_ICON_IDS)
+    for (const [palette, state] of [
+      [DAY, 'open'],
+      [TAB_MUTED, 'not open'],
+    ] as const) {
+      const cell = el('figure', 'tab-cell');
+      const ratio = window.devicePixelRatio || 1;
+      const canvas = pixelCanvas(tabIconPicture(id)!, {
+        palette,
+        scale: iconScale(ratio),
+        dpr: ratio,
+      });
+      canvas.classList.add('icon');
+      cell.append(canvas, el('figcaption', 'muted', `${id}, ${state}`));
+      tabs.append(cell);
+    }
+  families.push(el('h3', 'gallery-subhead', 'Tab icons'), tabs);
   part(
     'Icons',
     'New art, not yet approved. Every item and skill, at the size the menus show them, in their families: bark and wood tell the logs apart, raw fish are silver and cooked ones brown, bronze is plain and leathery and iron solid and grey.',

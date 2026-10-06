@@ -15,6 +15,7 @@ import { LOOT_ICON_DEFS } from './lootIcons';
 import { DAY } from './palette';
 import { picture, type Picture } from './raster';
 import { SKILL_ICON_DEFS } from './skillIcons';
+import { TAB_ICON_DEFS, TAB_MUTED } from './tabArt';
 
 /** Every item art has an icon for, by the game's item id. */
 const ITEMS: Readonly<Record<string, IconDef>> = {
@@ -110,6 +111,7 @@ export const ICON_FAMILIES: readonly {
       'ships_figurehead',
     ],
   },
+  { name: 'The general store', kind: 'item', ids: ['velvet_cap'] },
   { name: 'Skills', kind: 'skill', ids: SKILL_ICON_IDS },
 ];
 
@@ -122,7 +124,7 @@ export const ICON_CSS = 32;
 const pictures = new Map<string, Picture>();
 
 function iconPicture(
-  kind: 'item' | 'skill',
+  kind: 'item' | 'skill' | 'tab',
   table: Readonly<Record<string, IconDef>>,
   id: string,
 ): Picture | null {
@@ -173,11 +175,35 @@ export function skillIcon(skillId: string): Element | null {
   return iconElement(skillIconPicture(skillId));
 }
 
+export const TAB_ICON_IDS: readonly string[] = Object.keys(TAB_ICON_DEFS);
+
+/** A tab's icon as a picture (24 x 24, outlined), or null for a tab art has not drawn. */
+export function tabIconPicture(tabId: string): Picture | null {
+  return iconPicture('tab', TAB_ICON_DEFS, tabId);
+}
+
 /**
  * A picture for one of the app's bottom tabs (`skills`, `bank`, `character`,
- * `town`, `menu`), or null until art has drawn it. The tab bar keeps its old
- * one-colour glyph for a tab that answers null.
+ * `town`, `menu`), or null for any other id (the bar keeps its glyph then).
+ * B10b: a `<span class="tab-icon">` holding the icon twice, lit and muted;
+ * art.css shows the lit one in the open tab (`.tab[aria-current='page']`)
+ * and the muted one in the rest, so the bar needs no change to show which is
+ * open. Each is 24 x 24 art pixels at the item icons' whole-pixel scale.
  */
-export function tabIcon(_tabId: string): Element | null {
-  return null;
+export function tabIcon(tabId: string): Element | null {
+  const pic = tabIconPicture(tabId);
+  if (!pic) return null;
+  const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+  const span = document.createElement('span');
+  span.className = 'tab-icon';
+  span.setAttribute('aria-hidden', 'true');
+  for (const [palette, state] of [
+    [DAY, 'on'],
+    [TAB_MUTED, 'off'],
+  ] as const) {
+    const canvas = pixelCanvas(pic, { palette, scale: iconScale(dpr), dpr });
+    canvas.classList.add(`tab-icon-${state}`);
+    span.append(canvas);
+  }
+  return span;
 }

@@ -1,9 +1,41 @@
 # Lane B: art
 
-**Next session:** B10, the dungeon at the C scale: Brinebeard's Grotto's 24-pixel tiles, props, the
-grotto cast and its boss, the foes and their portraits (what it needs is under "Notes for this
-lane's next session"). Cody's review of B9 (the fixes and the walk cycle, below) first if he asks
-for one. Still open from B6: faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
+**Next session:** Cody's review of wave 10's two halves, B10a (the dungeon at the C scale) and
+B10b (the walk in four facings, the weak spots, the tab icons), and whatever it asks for. The
+faces for `goblin_poacher` and `bramble_wyrm` landed in B10a; the five tab icons in B10b.
+
+## Walking in four facings, for lane C; tab icons, for lane A (B10b)
+
+The same doors as B9 (below), nothing renamed or re-signed, every constant the same value
+(`WALK2_FRAMES` 8, `WALK2_FRAME_MS` 80, `WALK2_STRIDE` 7, `TOWNSFOLK2_STRIDE` 4,
+`TOWNSFOLK2_FRAME_MS` 100); better art behind them, and one addition:
+
+- **`Facing2` is now `'down' | 'right' | 'left' | 'up'`.** `'up'` is walking away, from behind,
+  for the hero (`characterWalk2`, `characterWalkPicture2`) and all seven townsfolk
+  (`townsfolkWalk2`, `townsfolkWalkPicture2`). The first three values mean what they did.
+- **Across is a true profile** for every look and every wearable, the knight included (none falls
+  back to B9's sheared walk; a test holds it), and the seven townsfolk.
+- **`'left'` is no longer the mirror of `'right'` for the hero**: the sword stays in his right hand
+  (walking left it is in the far hand, behind him, and a shield's face is on the near arm). Use the
+  `'left'` frames as they come; never mirror a `'right'` frame for left. Townsfolk carry no weapon,
+  so their left is still their right mirrored. Standing still facing left, mirror the standing
+  sprite as before (it is the three-quarter front, not a profile).
+- Frame from distance, as before: `Math.floor(walked / WALK2_STRIDE) % WALK2_FRAMES` (townsfolk
+  `TOWNSFOLK2_STRIDE`); frame 0 is the near foot's heel strike in every facing. Across, a planted
+  foot moves back exactly the stride each frame (tested), so there is no sliding at the shipped
+  speed. Toward and away, the feet step with the body as B9's did (see the weak list).
+- Anchor (28, 70), canvas 56 x 72 and the contact shadow (about 22 x 4, fixed) are unchanged.
+- Memory, as before a frame is 56 x 72 x 4 = 16 KB: one outfit in every facing and the breath is
+  33 canvases, 532 KB by day (1.06 MB with dusk too), plus 8 KB of cells a picture (266 KB) kept
+  until `forgetWalks2()`; each townsperson the same, all seven in every facing by day 3.7 MB.
+  Only frames asked for are made. `forgetWalks2()` still lets every walk picture go (tested).
+- **Tab icons**: `tabIcon(id)` (`src/art/icons.ts`) answers for `skills`, `bank`, `character`,
+  `town`, `menu` with a `<span class="tab-icon" aria-hidden="true">` holding the icon twice (24 x 24
+  art pixels at the item icons' scale, 32 CSS px on a 3x phone): `canvas.tab-icon-on` lit and
+  `canvas.tab-icon-off` muted. `art.css` shows the lit one inside `.tab[aria-current='page']` and
+  the muted one elsewhere, so the bar needs no change. Null for any other id. Also exported:
+  `tabIconPicture(id)`, `TAB_ICON_IDS`; `TAB_MUTED` in `tabArt.ts`.
+- **`velvet_cap`** has its item icon (`itemIcon('velvet_cap')`).
 
 ## The dungeon at the C scale, for lanes C and A (`src/art/dungeonArt2.ts`, `src/art/portraits2.ts`, B10a)
 
@@ -155,6 +187,8 @@ PORTRAIT2_IDS, PORTRAIT2_SAFE: Record<id, Box2>, HERO_PORTRAIT2_SAFE: Box2
   the first scale's two were about 1.1 MB.
 
 ## Walking and breathing at the C scale, for lane C (`src/art/character2.ts`, B9)
+
+(Superseded in part by B10b, above: the left walk, the missing back view, the facing type.)
 
 Added beside the standing doors; nothing that was there changed its name or signature.
 
@@ -567,6 +601,67 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   - **Gallery**: "See the new dungeon at the finer scale" (Menu, Art gallery), drawn on a tap: the
     rooms, every tile, every prop, every foe in every pose facing both ways, the captain's phases,
     every face in the three frames.
+
+- **B10b: the walk redone, the weak spots, the tab icons** (alongside B10a's dungeon). Review sheets
+  outside the repo in `/home/claude/lane-shots/w10-b-walk/`: `walk-frames.png` (every frame of every
+  facing, linen hero, iron, knight, smith, trader, old man; x4 and true size), `walk-hero-4way.gif`,
+  `walk-knight-4way.gif`, `walk-ladder-4way.gif`, `walk-townsfolk.gif`, `side-walk-before-after.gif`
+  (B9 above B10b, right and left), `in-town-walk.gif` and `in-town-still.png` (the iron hero and the
+  trader walking on the real town2 square at 3 device px per art px), `fixes.png` (Part 2 before and
+  after), `tab-icons.png` (a mock tab bar at true size, each tab open in turn, old glyphs and new)
+  and `tab-icons-big.png`.
+  - **The walk across** (`figure2/rig2.ts`, `side.ts`, `sideHeads.ts`, `sideDress.ts`,
+    `sideFolk.ts`): a skeleton posed per frame (two-bone legs with the knee found from the foot,
+    two-bone arms), limbs drawn along their bones and lit across their round, garments as stretches
+    of a limb, profile heads for every hairstyle, hat and helm, a profile torso for every body
+    garment, five boot poses, skirts and aprons laid between the legs each frame, the cloak trailing;
+    heel strike, roll and toe-off with no sliding; arms swinging against the legs, busy arms still.
+    All 38 wearables and the knight have true side art (the gear ladder in order: linen, leather,
+    bronze, iron, knight, then the grotto's and the bounty things and the velvet cap); nothing falls
+    back. The seven townsfolk each in profile with their business kept (the smith's hammer, the
+    trader's apple held out and her basket in the crook of her arm, the captain's hook and peg leg
+    swung stiff from the hip, the alewife's tankard, the market woman's basket steadied on her head,
+    the docker's sack on his shoulder, the old man's stick planted with his far foot).
+  - **Handedness**: the sword in the right hand in every facing; walking left is drawn as the right
+    walk with the arms' jobs swapped, then mirrored (style guide, "Walking in four facings").
+  - **Walking away** (`views.ts`, `folkBack.ts`): the back of the head (darker, featureless), the
+    back of every hairstyle and head gear and the hair below a hat's rim, shirts re-lit, belts
+    without buckles, a jerkin without its disc and laces, the coat closed, the quiver across the
+    back, a shield's planks and straps, the cloak over all; both arms hanging with no shield; the
+    townsfolk likewise (the scarf's knot at the nape, the captain's queue, the bun, the braid, the
+    docker's sack on the far shoulder from behind).
+  - **Toward the camera**: the free foot lifted seven rows with the knee toward the viewer, the foot
+    behind two rows up at contact, the body over the foot that bears the weight, hems pushed up over
+    the forward knee, the far arm hanging and swinging with no shield (the near arm's own drawing
+    moved across, light kept on the left).
+  - **Part 2, figures** (`folk.ts`): the docker's fist now over the top of the sack against the
+    street, the sack's neck gathered dark and tied with cord below it; the market woman's two loaves
+    stand three rows proud of the basket in a darker crust, an apple between; the trader's apple 4 x
+    4 instead of 5 x 5. **Town** (`town2/ground.ts`, `trees.ts`, `harbour.ts`; no layout, id,
+    footprint, size or door changed): mended patches of mixed granite and reused cobble a step
+    either side of the cobbles' tone, joints in the cobbles' joint tone, ragged and frayed; cart
+    ruts as grooves a wheel wide with smooth floors and dark walls; flower heads two pixels square on
+    wider clumps; the oak's domes lumpy heaps lit as slopes with scattered sprigs instead of
+    scalloped discs and rings; the rock's planes with wandering borders, worn edges, closer tones,
+    lichen and pocks, its face untouched.
+  - **Part 3**: the five tab icons, lit and muted, through `tabIcon`; the `velvet_cap` item icon
+    (new icon ramp `velvet`).
+  - **Gallery**: the walking section shows every ladder rung and every townsperson walking down,
+    right, left and up, and breathing.
+  - **Tests**: `tests/art/walk2.test.ts` rewritten: every frame of every facing (now four) for every
+    wearable alone, the knight and the iron rung inside the canvas with a sole on the anchor's row;
+    every look across and away; every wearable has a profile (no fallback); each frame its own;
+    walking away shows no eye, across fewer than the front; left never the mirror of right when
+    something is held; the weapon in the same anatomical hand in every facing (down: its fist left
+    of the anchor; up: right of it; right: the near arm, its fist whole, in front of the torso;
+    left: the far arm, behind the torso, and a shield's face showing) with the hand rule in every
+    frame (grip hidden, weapon directly above and below the fist), read from frames whose pixels
+    are tagged by what drew them; no sliding (a ground pixel of the planted foot moves back exactly
+    the stride, hero and townsfolk); `forgetWalks2`; townsfolk in four facings. `tests/art/icons.test.ts`:
+    the tab icons (five, distinct, mostly drawn, both states, null otherwise) and `velvet_cap` in
+    the item list. Changed on purpose: B9's "walks left as the exact mirror of right" became its
+    opposite for anything held, and the townsfolk's mirror check moved into the new townsfolk test.
+
 - **B9: The fixes Cody asked for after reviewing B7 and B8, and the walk cycle.** Review sheets
   outside the repo in `/home/claude/lane-shots/w9-b/`: `fixes-figures.png` and `fixes-town.png`
   (before and after, each fix), `gear-ladder.png`, `walk-frames.png` (every frame of every facing:
@@ -1006,7 +1101,39 @@ from world position, so painting in pieces still lines up; only flecks and wear 
     pixel: the giant crab's stalk eyes are a pixel wide; the parrot's bare face is a pale smudge.
   - The light's pools are ellipses with ragged edges; a lantern's pool on planks reads strongly
     orange.
-- **Not done in B9**, and why:
+
+- **Not done in B10b**, and why:
+  - **The three-quarter idle turn** is still B9's one column. The profile head did not give a
+    construction that carries into a three-quarter view without a new drawing of every face, hair
+    and hat at that angle; the eye tests' intent (mirrored eyes about the face's line) was kept
+    rather than spent on a half measure.
+  - **Feet toward the camera and away still step in place relative to the screen**: the body moves
+    down or up the screen at the scene's speed while the planted foot rises only two rows over a
+    step. Matching it would need the feet 28 rows apart on the screen. Across there is no sliding.
+- **B10b, weaker than it should be** (for Cody's review), weakest first:
+  - The step across is long for these legs (28 art px against a 22-pixel leg, set by stride 7 and
+    8 frames): the hips drop two rows at contact and the contact frames are wide. A shorter step
+    would need a slower walker or more frames (a constant change, not made).
+  - The far-arm shield walking right is a narrow edge ahead of the chest (the face squeezed to its
+    rim, field and device): it reads as "a shield" on the kite and heater, less on the buckler.
+  - Light comes from the upper right walking left (the whole frame is mirrored after the arms swap),
+    as with the mirrored standing sprite; a re-lit left would need every profile drawn twice.
+  - Held things in profile are the front drawings turned: a blade carried upright ahead of the
+    face, which for the long knight's sword and the boarding axe passes in front of the brow in the
+    forward-swing frames.
+  - The boots: the toe-up strike and the hanging swing poses are a little blobby enlarged; at true
+    size they read as boots.
+  - Long black hair from behind and in profile is a dark mass with faint strands.
+  - The back of a bald head is necessarily skin; it is a step darker and featureless, but a bald
+    hero walking away still shows an orange dome.
+  - Townsfolk from behind are their front drawings turned with the front things removed, not new
+    backs: the market woman's shawl still shows its knot, the smith's apron strings are the front's.
+  - The tab icons' muted state relies on lightness only; the pick and axe (Skills) are the busiest at
+    true size.
+  - Mended patches still read as a blob of squarer stones if you look for them; ruts are now
+    clearer but straight-edged.
+- **Not done in B9**, and why (B10b did the back view, the left-handed set, the turned body
+  across and the free far hand):
   - **No walk up (away from the camera).** A back view needs the back of every hairstyle (five)
     and every head gear (seven), the back of every shirt, jerkin, mail, coat and plate, the cloak in
     front, the quiver turned: a second wardrobe, not something the rig can bend out of the front
@@ -1165,6 +1292,21 @@ worn, 'dusk')` is identical under it.
   and 96 canvases as they are. `goblin_poacher` and `bramble_wyrm` now have faces, so
   `tests/ui/combat.test.ts`'s blank "G" expectation for the goblin becomes `.portrait2-art`. The
   character sheet can show `heroPortrait2(look, worn)`.
+
+- **Lane C, for B10b's walk** (`src/scene/figures2.ts` and the hero's heading):
+  1. When the walker goes up the screen, ask for `'up'` (it exists now for the hero and every
+     townsperson) instead of the last left or right heading.
+  2. Walking left, take the `'left'` frames as they are: they are no longer the mirror of
+     `'right'`, and mirroring a right frame would put the sword in the left hand. Do not flip
+     walk frames at all (standing, mirror the standing sprite as before).
+  3. Nothing else changes: anchor, size, frame from distance (`walked / WALK2_STRIDE`, townsfolk
+     `TOWNSFOLK2_STRIDE`), contact shadow, breath. For a diagonal, the across frames still read
+     best; a mostly vertical walk can use `'down'`/`'up'`.
+- **Lane A, for the tab icons**: nothing required; the bar already shows `tabIcon(id)`. Optional:
+  once Cody has seen them, `TAB_ICONS` in `src/art/tabIcons.ts` (lane B's) and the `pixelSvg`
+  fallback in `app.ts` can go; and the `.tab` gap (4px) leaves the 32px icon and 13px label inside
+  the 60px bar.
+
 - **Lane C, to wire the walk (B9)**, at the plug in `src/scene/figures2.ts` ("THE WALK CYCLE
   PLUGS IN HERE"): `figureOf` paints pictures itself with the scene's lights, so take the
   pictures: `characterWalkPicture2(look, worn, facing, frame)` (and `townsfolkWalkPicture2`) for a
@@ -1257,6 +1399,15 @@ worn, 'dusk')` is identical under it.
   - **Portraits**: a 48 × 48 bust per foe and townsperson, drawn by hand at about three times the
     H2 head, never scaled; the three-quarter turn and the gestures of B9 carried over.
   - Iterate on an assembled room at game scale with lane C's overlays redrawn on it, as B6 did.
+- **The side walk** (B10b, `src/art/figure2/side.ts` on `rig2.ts`): a new wearable needs a row in
+  `SIDE_GEAR` (`sideDress.ts`; a test fails if one is missing): a profile torso part, arm and leg
+  covers (pixels along the limb from its root), a skirt spec, caps for the joints. A new held thing
+  needs nothing (its front drawing is turned about the fist). A townsperson is a `SideDress` in
+  `sideFolk.ts` with arm jobs for busy hands, and a back in `folkBack.ts` (their front drawing turned
+  with the front-only parts dropped, by index, and a back head). The dungeon cast can walk on it the
+  same way. Iterate on `.shots/` dumps of every frame (a vitest writing 1x PNGs) composed with
+  Pillow into grids and GIFs; the tagged frames (`sideWalkGrid`'s `tags`) say which pixel is fist,
+  grip, held, shield, prop.
 - **The walk rig** (`src/art/figure2/walk.ts`): a part's bone is set with `on(bone, part)` or
   worked out from its slot and side (`boneOf` in `dress.ts`, `folkBone` in `folk.ts`); a new
   wearable needs nothing more unless it covers a leg and the body at once (then split it, or give

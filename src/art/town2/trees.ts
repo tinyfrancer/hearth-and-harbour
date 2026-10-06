@@ -262,21 +262,33 @@ export function oakTree(k = 5): Tree {
   const hole = (x: number, y: number) =>
     holes.some(([hx, hy, r]) => (x - hx) ** 2 + ((y - hy) * 1.3) ** 2 < r * r);
   const owner = new Int16Array(W * H).fill(-1);
+  // B10b: B9's domes each had a seven-fold scalloped rim, a lit disc and a
+  // highlight dot, and enlarged they read as rosettes. Now a dome is a lumpy
+  // heap (its rim broken by two or three slow lobes and leaf-sized nicks, no
+  // two alike), lit as a slope from its upper left in ragged bands rather
+  // than a disc, so the masses read as foliage.
   domes.forEach((c, id) => {
-    for (let y = Math.floor(c.y - c.r - 1); y <= c.y + c.r + 1; y++)
-      for (let x = Math.floor(c.x - c.r - 1); x <= c.x + c.r + 1; x++) {
+    const p1 = hash(id, 1, k + 11) * 6.3;
+    const p2 = hash(id, 2, k + 11) * 6.3;
+    const lobes = 2 + Math.floor(hash(id, 3, k + 11) * 2);
+    for (let y = Math.floor(c.y - c.r - 2); y <= c.y + c.r + 2; y++)
+      for (let x = Math.floor(c.x - c.r - 2); x <= c.x + c.r + 2; x++) {
         if (x < 0 || y < 0 || x >= W || y >= H) continue;
         const dx = (x + 0.5 - c.x) / c.r;
-        const dy = (y + 0.5 - c.y) / c.r;
-        const sc = 1 + 0.12 * Math.sin(Math.atan2(dy, dx) * 7 + id);
+        const dy = (y + 0.5 - c.y) / (c.r * 0.9);
+        const ang = Math.atan2(dy, dx);
+        const sc =
+          1 +
+          0.14 * Math.sin(ang * lobes + p1) +
+          0.06 * Math.sin(ang * 5 + p2) +
+          (clumps(x, y, k + 12) - 0.5) * 0.34;
         const dd = (dx * dx + dy * dy) / (sc * sc);
         if (dd > 1 || hole(x, y)) continue;
-        const lx = dx / sc + 0.3;
-        const ly = dy / sc + 0.34;
-        let t = lx * lx + ly * ly <= 0.55 ? c.tone : c.tone + 1;
-        if ((dx / sc + 0.45) ** 2 + (dy / sc + 0.5) ** 2 <= 0.1) t -= 1;
-        if (dy > 0.55 && dd > 0.6) t += 1;
-        put(g, x, y, C('leaf', clamp(t, 1, 5)));
+        // Lit as a slope: how far toward the upper left this pixel is, with a ragged edge.
+        const slope = -(dx * 0.72 + dy * 0.7) + (clumps(x, y, k + 13) - 0.5) * 0.7;
+        let t = slope > 0.45 ? c.tone - 1 : slope > -0.25 ? c.tone : c.tone + 1;
+        if (dy > 0.5 && dd > 0.55) t += 1;
+        put(g, x, y, C('leaf', clamp(Math.round(t), 1, 5)));
         owner[y * W + x] = id;
       }
   });
@@ -290,26 +302,30 @@ export function oakTree(k = 5): Tree {
       const d2 = owner[(y + 2) * W + x] as number;
       if (r > me || d > me || d2 > me) dim(g, x, y, 1);
     }
-  // Small leaf clusters on the lit sides, so the masses read as leaves, not felt.
-  // Each a little dome: a lit arc on its upper left and a dark one below right.
-  for (let y = 0; y < H; y += 5)
-    for (let x = (y / 5) % 2 ? 3 : 0; x < W; x += 6) {
-      const sx = x + Math.floor(hash(x, y, k + 6) * 3);
-      const sy = y + Math.floor(hash(y, x, k + 7) * 3);
-      const id = owner[sy * W + sx] as number;
-      if (id < 0) continue;
-      for (let j = -3; j <= 3; j++)
-        for (let i = -3; i <= 3; i++) {
-          const d = Math.hypot(i, j);
-          if (d < 1.8 || d > 3.2) continue;
-          const px = sx + i;
-          const py = sy + j;
-          if (owner[py * W + px] !== id) continue;
-          const tt = at(g, px, py) & 7;
-          if (i + j < -1) put(g, px, py, C('leaf', Math.max(1, tt - 1)));
-          else if (i + j > 2 && j > 0) put(g, px, py, C('leaf', Math.min(5, tt + 1)));
-        }
+  // Leaves, so the masses read as leaves, not felt: here and there a sprig
+  // of two or three leaves, each a short lit stroke with a dark pixel under
+  // its tip, scattered rather than on a grid and never a ring (B9's ring of a
+  // lit arc and a dark arc on a grid was what made the rosettes).
+  for (let i = 0; i < (W * H) / 18; i++) {
+    const sx = Math.floor(hash(i, 1, k + 6) * W);
+    const sy = Math.floor(hash(i, 2, k + 6) * H);
+    const id = owner[sy * W + sx] as number;
+    if (id < 0) continue;
+    const dir = hash(i, 3, k + 6) < 0.5 ? 1 : -1;
+    for (let l = 0; l < 2 + Math.floor(hash(i, 4, k + 6) * 2); l++) {
+      const lx = sx + l * dir * 2 + (l % 2);
+      const ly = sy + (l % 2) - Math.floor(l / 2);
+      for (const [px, py, d] of [
+        [lx, ly, -1],
+        [lx + dir, ly, -1],
+        [lx + dir, ly + 1, 1],
+      ] as const) {
+        if (px < 0 || py < 0 || px >= W || py >= H || owner[py * W + px] !== id) continue;
+        const tt = at(g, px, py) & 7;
+        put(g, px, py, C('leaf', clamp(tt + d, 1, 5)));
+      }
     }
+  }
   // The crown's shadow across the trunk and the limbs under it.
   for (let y = fork - 6; y < fork + m(0.7); y++)
     for (let x = Math.round(cx - tw); x < cx + tw; x++)

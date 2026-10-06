@@ -121,6 +121,10 @@ export const RAMPS = {
   // over sand, plainly lighter than the deep sea.
   cavesand: ['#eee2c4', '#d4c4a0', '#ae9c7e', '#857664'],
   shoal: ['#a6eadc', '#62c4bc', '#3a98a2'],
+
+  // The general store's velvet cap (B10b): the C-scale figure's plum, a
+  // sheen, the field and two shadows, for its icon.
+  velvet: ['#e8a8c8', '#b86a9c', '#844276', '#55284c'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;

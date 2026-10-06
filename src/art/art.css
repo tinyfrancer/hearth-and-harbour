@@ -5,6 +5,21 @@
   image-rendering: pixelated;
 }
 
+/* A tab's icon (B10b): lit in the open tab, muted in the others. */
+.tab-icon {
+  display: block;
+  flex: none;
+}
+
+.tab-icon .tab-icon-on,
+.tab[aria-current='page'] .tab-icon .tab-icon-off {
+  display: none;
+}
+
+.tab[aria-current='page'] .tab-icon .tab-icon-on {
+  display: block;
+}
+
 /* Canvases are sized to land on whole device pixels; never let layout stretch them. */
 .pixel-art {
   display: block;
@@ -67,7 +82,8 @@
   gap: 12px 8px;
 }
 
-.icon-cell {
+.icon-cell,
+.tab-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -76,7 +92,8 @@
   text-align: center;
 }
 
-.icon-cell figcaption {
+.icon-cell figcaption,
+.tab-cell figcaption {
   font-size: 16px;
   line-height: 1.1;
 }

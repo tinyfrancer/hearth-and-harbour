@@ -126,6 +126,29 @@ export function boneOf(part: Part2, slot: string): Bone {
   }
 }
 
+/** A dressed body's parts with what each moves with, the slot and gear id each came from (views.ts). */
+export function slottedParts(
+  bodyId: string,
+  gearIds: readonly string[],
+  w: Wardrobe2 = WARDROBE2,
+): { part: Part2; bone: Bone; slot: string | null; gear: string | null }[] {
+  const out: { part: Part2; bone: Bone; slot: string | null; gear: string | null }[] = [];
+  const body = w.bodies.find((b) => b.id === bodyId);
+  if (!body) throw new Error(`No body "${bodyId}".`);
+  for (const part of body.parts)
+    out.push({ part, bone: part.bone ?? 'body', slot: null, gear: null });
+  const slots = new Set<string>();
+  for (const id of gearIds) {
+    const gear = findGear(id, w);
+    if (!gear) throw new Error(`No gear "${id}".`);
+    if (slots.has(gear.slot)) throw new Error(`Two things in the ${gear.slot} slot.`);
+    slots.add(gear.slot);
+    for (const part of gear.parts)
+      out.push({ part, bone: boneOf(part, gear.slot), slot: gear.slot, gear: id });
+  }
+  return out;
+}
+
 /** A dressed body's parts with what each moves with, for walk.ts. */
 export function bonedParts(
   bodyId: string,

@@ -1,6 +1,6 @@
 /**
- * Walking figures for the art gallery (B9): a figure walking toward the
- * camera, to the right, to the left, and standing breathing, side by side on
+ * Walking figures for the art gallery (B9, B10b): a figure walking toward the
+ * camera, to the right, to the left, away, and standing breathing, side by side on
  * one canvas, animated. Each frame is the door's kept sprite (one pixel per
  * art pixel) drawn up to game scale with `drawImage`; nothing is rasterized
  * while it plays. A preview stops itself once it is taken off the page.
@@ -25,11 +25,11 @@ export interface Walker2 {
   readonly frameMs?: number;
 }
 
-const FACINGS: readonly Facing2[] = ['down', 'right', 'left'];
+const FACINGS: readonly Facing2[] = ['down', 'right', 'left', 'up'];
 const GAP = 8;
 
 /**
- * A canvas showing `who` walking down, right and left, and breathing, at
+ * A canvas showing `who` walking down, right, left and up, and breathing, at
  * `scale` device pixels per art pixel. `time` is read every frame, so the
  * gallery's dusk button turns it at once.
  */
@@ -45,7 +45,7 @@ export function walkPreview(
   canvas.setAttribute('role', 'img');
   canvas.setAttribute('aria-label', label);
   const cell = FIGURE2_W + GAP;
-  const artW = cell * 4 - GAP;
+  const artW = cell * (FACINGS.length + 1) - GAP;
   canvas.width = deviceSize(artW, scale, dpr);
   canvas.height = deviceSize(FIGURE2_H, scale, dpr);
   canvas.style.width = `${canvas.width / dpr}px`;

@@ -608,12 +608,12 @@ const TRADER: Folk = {
       4,
       [
         '.............',
+        '.............',
         '....kG.......',
-        '..oaaA.......',
-        '..aaaAA......',
-        '..aaAAC......',
-        '..aAACC......',
-        '.s.CCCt...sst',
+        '...oaAA......',
+        '...aaAC......',
+        '...aACC......',
+        '.s..CCt...sst',
         'ssttuuuussstu',
         '.tuuvvvuuuuuv',
         '.......vvvvv.',
@@ -1025,11 +1025,13 @@ const MARKET: Folk = {
       1,
       62,
       [
-        '......lLLm..aA..lLm....',
-        '....llLLLmmaaAAlLLLmm..',
+        // Two loaves standing proud of the rim, scored and dark-crusted so
+        // they part from the straw at true size (B10b), an apple between.
+        '.....lLLm.......lLm....',
+        '....lLnLmm..aA.lLnLm...',
+        '...lLLLnmmmaaAAlLLnmm..',
         '..%%%%%%%%%%%%%%%%%%%#.',
         '.%&&*&&*&&*&&*&&*&&*&+.',
-        '.%&*&&*&&*&&*&&*&&*&&+.',
         '..&&*&&*&&*&&*&&*&&*++.',
         '...*&&*&&*&&*&&*&&*++..',
         '....***************+...',
@@ -1037,9 +1039,10 @@ const MARKET: Folk = {
       undefined,
       {
         ...GOODS,
-        l: ['wood', 0],
-        L: ['wood', 1],
-        m: ['wood', 3],
+        l: ['wood', 1],
+        L: ['wood', 2],
+        n: ['wood', 3],
+        m: ['wood', 4],
         '%': ['thatch', 0],
         '#': ['thatch', 2],
         '&': ['thatch', 1],
@@ -1192,9 +1195,11 @@ const DOCKER: Folk = {
       8,
       1.5,
       [
-        '...........12..',
-        '..........1223.',
-        '.........11234.',
+        // The neck gathered and in shadow under his fist (B10b: his brown
+        // hand had sat on the sack's tan), tied below it with cord.
+        '...........45..',
+        '..........4555.',
+        '.........23455.',
         '...01111112234.',
         '..0111112222334',
         '.01111122222334',
@@ -1211,7 +1216,17 @@ const DOCKER: Folk = {
       ],
       'dirt',
     ),
-    // The sack's seam and a sewn patch.
+    // The sack's seam and a sewn patch, and the cord round its neck.
+    runs(
+      1.7,
+      [
+        [11, [36, 'kkK']],
+        [12, [37, 'K']],
+      ],
+      {
+        pins: { k: ['leather', 3], K: ['leather', 5] },
+      },
+    ),
     runs(
       1.6,
       [
@@ -1255,12 +1270,16 @@ const DOCKER: Folk = {
       [42, [14, 'sstuv']],
       [43, [15, 'uvw']],
     ]),
-    // The far forearm up from the elbow to the hand round the sack's neck.
+    // The far forearm up from the elbow to the fist round the sack's neck,
+    // the knuckles above its top so the hand stands against the street (B10b).
     runs(4, [
-      [8, [40, 'sst']],
-      [9, [39, 'osstu']],
-      [10, [39, 'sttuv']],
-      [11, [40, 'tuuv']],
+      [5, [40, 'ost']],
+      [6, [39, 'osstu']],
+      [7, [39, 'sttuv']],
+      [8, [40, 'tuuv']],
+      [9, [41, 'stu']],
+      [10, [41, 'stu']],
+      [11, [42, 'stu']],
       [12, [42, 'stu']],
       [13, [42, 'sttu']],
       [14, [43, 'stu']],
@@ -1491,7 +1510,7 @@ export const FOLK_HALF_STEP = 8;
  * over the hips sways as a skirt; a part to either side is that arm's (what a
  * hand holds below its wrist goes with the wrist); the rest is the body's.
  */
-function folkBone(part: Part2, rig: Rig2): Bone {
+export function folkBoneOf(part: Part2, rig: Rig2): Bone {
   if (part.bone) return part.bone;
   let x0 = Infinity;
   let x1 = -Infinity;
@@ -1517,7 +1536,7 @@ export function folkBoned(id: string): { boned: Boned[]; rig: Rig2 } | null {
   const folk = FOLK2.find((f) => f.id === id);
   if (!folk) return null;
   const rig = folkRig(id);
-  return { boned: folk.parts.map((part) => ({ part, bone: folkBone(part, rig) })), rig };
+  return { boned: folk.parts.map((part) => ({ part, bone: folkBoneOf(part, rig) })), rig };
 }
 
 /** The swap that gives a townsperson their own skin and hair. */

@@ -366,6 +366,37 @@ const SHIPS_FIGUREHEAD: readonly string[] = [
   '......oooooooooo',
 ];
 
+/* ----- The general store (B10b) ----- */
+
+const VELVET: Legend = {
+  A: 'velvet1',
+  a: 'velvet2',
+  b: 'velvet3',
+  c: 'velvet4',
+  g: 'gold1',
+  G: 'gold2',
+};
+
+// The velvet cap: soft plum velvet slouched to one side, a sheen along its
+// crown, its band showing below, a gold pin at the front. Its worn layer is
+// the C-scale figure's `velvet_cap`.
+const VELVET_CAP: readonly string[] = [
+  '........aaaab.........',
+  '.....aaaaaaaabbb......',
+  '...aaaAAAaaaaabbbb....',
+  '..aaAAAAaaaaaabbbbb...',
+  '.aaaAAaaaaaaaabbbbbc..',
+  '.aaaaaaaaaaaabbbbbbcc.',
+  'aaaaaaaaaaaabbbbbbbccc',
+  'aaaaaaaaaaabbbbbbbbccc',
+  '.aaaaaaaaabbbbbbbbcccc',
+  '..bbbbbbbbbbbbbbbccccc',
+  '...bbbbbgGbbbbbbcccc..',
+  '...bbbbgggGbbbbccccc..',
+  '....bbbbGGbbbbccccc...',
+  '.....bbbbbbbbcccc.....',
+];
+
 export const GROTTO_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   poachers_longbow: { rows: POACHERS_LONGBOW, legend: L },
   wyrmscale_shield: { rows: WYRMSCALE_SHIELD, legend: L },
@@ -380,4 +411,5 @@ export const GROTTO_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   spyglass: { rows: SPYGLASS, legend: BRASS },
   brinebeards_anchor: { rows: BRINEBEARDS_ANCHOR, legend: L },
   ships_figurehead: { rows: SHIPS_FIGUREHEAD, legend: L },
+  velvet_cap: { rows: VELVET_CAP, legend: VELVET },
 };

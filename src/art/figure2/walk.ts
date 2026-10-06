@@ -23,8 +23,11 @@ import { LINE, darker, isMat, type TGrid, tgrid } from '../town2/cells';
 import { FIG_H, FIG_W } from './body';
 import { outlineIn, pixels, type Bone, type Part2 } from './engine';
 
-/** Which way a walker goes: toward the camera, or across (left is right mirrored). */
-export type Facing2 = 'down' | 'right' | 'left';
+/**
+ * Which way a walker goes: toward the camera, across, or away (`up`, B10b).
+ * Across is a true profile (side.ts); left keeps the sword in the right hand.
+ */
+export type Facing2 = 'down' | 'right' | 'left' | 'up';
 
 /** A part and what it moves with. */
 export interface Boned {
@@ -80,6 +83,25 @@ export const HERO_RIG: Rig2 = {
   half: 14,
 };
 
+/** The hero walking toward the camera with both arms hanging (no shield): the far wrist where the near one is. */
+export const FRONT_WALK_RIG: Rig2 = { ...HERO_RIG, wrists: [38, 38], swing: [1, 1] };
+/**
+ * The hero from behind: mirrored, so the eased leg is on the viewer's left
+ * (`split` 27) and the weight leg on the right; the arms hang, the left one
+ * bent on the hip under a shield.
+ */
+export const BACK_RIG: Rig2 = {
+  ...HERO_RIG,
+  split: 27,
+  feet: [
+    [19, 27],
+    [29, 36],
+  ],
+  wrists: [38, 38],
+  swing: [1, 1],
+};
+export const BACK_SHIELD_RIG: Rig2 = { ...BACK_RIG, wrists: [37, 38], swing: [0.4, 1] };
+
 /** A foot's place in a frame, from where it stands: forward (+) or back, lifted, the knee's move, tipped. */
 export interface LegKey {
   readonly dx: number;
@@ -112,6 +134,12 @@ export interface Key2 {
   readonly lean?: number;
   /** Columns each foot is lengthened toward the walk, toe first (walking across). */
   readonly toes?: number;
+  /** Columns the body above the legs moves sideways, over the foot that bears the weight. */
+  readonly shift?: number;
+  /** Rows a skirt's hem lifts on the near and far side, pushed up by a knee coming forward. */
+  readonly hem?: readonly [near: number, far: number];
+  /** Whether a lifted foot shows its sole (walking away). */
+  readonly soles?: boolean;
 }
 
 const still: LegKey = { dx: 0, lift: 0, knee: 0 };
@@ -222,53 +250,80 @@ export function walkSide2(half: number): readonly Key2[] {
 export const WALK_SIDE2: readonly Key2[] = walkSide2(HERO_HALF_STEP);
 
 /**
- * Walking toward the camera: the feet stay under the hips and step by
- * lifting (a knee brought toward the viewer shortens the leg), the body
- * lowest as a foot lands and highest as the other passes, the arms swinging a
- * little against the legs.
+ * Walking toward the camera (B10b, after B9's read as stepping on the spot at
+ * true size): the free foot comes up past the planted one with its knee
+ * toward the viewer, the thigh foreshortened to a couple of rows and the foot
+ * lifted seven; the foot behind sits two rows up the screen at each contact
+ * (it is further away), its heel lifting; the body rides over the foot that
+ * bears the weight, a column to that side, lowest as the foot lands; the arms
+ * swing against the legs, the hand coming forward rising and turning in, the
+ * hand going back rising less and turning out; a skirt's hem is pushed up
+ * over the knee that comes forward.
  */
-function downStep(lead: 'near' | 'far'): Key2[] {
-  const leg = (planted: LegKey, free: LegKey) =>
-    lead === 'near' ? { near: planted, far: free } : { near: free, far: planted };
-  const s = lead === 'near' ? 1 : -1;
+function frontStep(lead: 'near' | 'far', away: boolean): Key2[] {
+  const leg = (lead_: LegKey, trail: LegKey) =>
+    lead === 'near' ? { near: lead_, far: trail } : { near: trail, far: lead_ };
+  // The lead leg's side: -1 the near (viewer's left), +1 the far.
+  const side = lead === 'near' ? -1 : 1;
+  // The arm on the lead leg's side swings back as that leg comes forward; the other comes forward.
+  const arms = (amount: number, lift: number) => {
+    const fwd: ArmKey = { dx: -side * amount, dy: -lift };
+    const back: ArmKey = { dx: side * Math.max(0, amount - 1), dy: -Math.max(0, lift - 2) };
+    return lead === 'near' ? { armNear: back, armFar: fwd } : { armNear: fwd, armFar: back };
+  };
+  const hem = (n: number): readonly [number, number] => (lead === 'near' ? [0, n] : [n, 0]);
+  // Toward the camera the trailing foot is the one further away; walking away, the leading one.
+  const far = { dx: 0, lift: 2, knee: 0 };
   return [
     {
       bob: 1,
-      ...leg(still, { dx: 0, lift: 1, knee: 0 }),
-      armNear: { dx: 0, dy: 0 },
-      armFar: { dx: 0, dy: 0 },
+      ...(away ? leg(far, { ...still, tilt: 2 }) : leg(still, { ...far, tilt: 2 })),
+      ...arms(1, 2),
       sway: 0,
       cloak: 0,
+      shift: 0,
+      soles: away,
     },
     {
       bob: 1,
-      ...leg(still, { dx: 0, lift: 3, knee: 0, kneeUp: 1 }),
-      armNear: { dx: s, dy: s < 0 ? -1 : 0 },
-      armFar: { dx: 0, dy: 0 },
-      sway: s,
-      cloak: s,
+      ...leg(still, { dx: 0, lift: 4, knee: 0, kneeUp: away ? 0 : 2 }),
+      ...arms(2, 3),
+      sway: side,
+      cloak: side,
+      shift: -side,
+      hem: hem(away ? 0 : 2),
+      soles: away,
     },
     {
       bob: 0,
-      ...leg(still, { dx: 0, lift: 4, knee: 0, kneeUp: 2 }),
-      armNear: { dx: s, dy: -1 },
-      armFar: { dx: 0, dy: s > 0 ? -1 : 0 },
-      sway: s,
-      cloak: s,
+      ...leg(still, { dx: 0, lift: 7, knee: 0, kneeUp: away ? 1 : 3 }),
+      ...arms(1, 1),
+      sway: side,
+      cloak: side,
+      shift: -side,
+      hem: hem(away ? 1 : 3),
+      soles: away,
     },
     {
-      bob: 0,
-      ...leg(still, { dx: 0, lift: 2, knee: 0, kneeUp: 1 }),
-      armNear: { dx: 0, dy: 0 },
-      armFar: { dx: 0, dy: 0 },
+      bob: -1,
+      ...leg(still, { dx: 0, lift: 3, knee: 0, kneeUp: away ? 0 : 1 }),
+      ...arms(0, 0),
       sway: 0,
       cloak: 0,
+      shift: 0,
+      hem: hem(away ? 0 : 1),
+      soles: away,
     },
   ];
 }
 
 /** Walking toward the camera. */
-export const WALK_DOWN2: readonly Key2[] = [...downStep('far'), ...downStep('near')];
+export const WALK_DOWN2: readonly Key2[] = [
+  ...frontStep('far', false),
+  ...frontStep('near', false),
+];
+/** Walking away (from behind, the near leg is the viewer's left). */
+export const WALK_UP2: readonly Key2[] = [...frontStep('far', true), ...frontStep('near', true)];
 
 /** Frames of the standing breath, and the second: the chest and head a row up. */
 export const IDLE2_FRAMES = 2;
@@ -328,9 +383,10 @@ function legCtl(rig: Rig2, key: Key2, which: 'near' | 'far'): Ctl[] {
   const kneeT = Math.round(hipT + (ankleT - hipT) * share) - (stiff ? 0 : (k.kneeUp ?? 0));
   const kneeDx = stiff ? Math.round(k.dx * share) : k.knee;
   const hip = (key.hips ?? 0) * (which === 'near' ? 1 : -1);
+  const shift = key.shift ?? 0;
   return [
-    [rig.hip, hipT, hip],
-    [rig.knee, kneeT, kneeDx + hip],
+    [rig.hip, hipT, hip + shift],
+    [rig.knee, kneeT, kneeDx + hip + Math.round(shift / 2)],
     [rig.ankle, ankleT, k.dx + hip],
   ];
 }
@@ -447,13 +503,22 @@ export function posed(boned: readonly Boned[], rig: Rig2, key: Key2): TGrid {
         if (x > mid) xs = [x + key.toes];
         else if (x === mid) xs = Array.from({ length: key.toes + 1 }, (_, i) => x + i);
       }
+      const upper = !leg ? (key.shift ?? 0) : 0;
+      // A knee coming forward pushes the hem up on its side; walking away a lifted sole shows.
+      let lift = 0;
+      if (b === 'skirt' && key.hem) {
+        const hemRow = rig.skirt[1];
+        const n = key.hem[x <= rig.split ? 0 : 1];
+        if (n && y > hemRow - 6) lift = Math.round((n * (y - (hemRow - 6))) / 6);
+      }
+      const sole = leg && key.soles && k.lift > 0 && y >= rig.sole - 1 ? 1 : 0;
       for (const [t, dx] of rows)
         for (const sx of xs)
           all.push({
             px: {
-              x: sx + dx,
-              y: t + tip,
-              c,
+              x: sx + dx + upper,
+              y: t + tip - lift,
+              c: sole ? darker(c, 1) : c,
               depth,
               casts: part.cast === false ? 0 : 1,
               shaded: part.shaded === false ? 0 : 1,
@@ -493,9 +558,9 @@ export function posed(boned: readonly Boned[], rig: Rig2, key: Key2): TGrid {
 export const posedFigure = (boned: readonly Boned[], rig: Rig2, key: Key2): TGrid =>
   outlineIn(posed(boned, rig, key));
 
-/** The key for a facing and frame (any whole number: it wraps). Left uses right's keys; the caller mirrors. */
+/** The key for a facing and frame (any whole number: it wraps). Left uses right's keys (B9's sheared walk, kept for outfits with no side drawing). */
 export function walkKey(facing: Facing2, frame: number, half = HERO_HALF_STEP): Key2 {
-  const keys = facing === 'down' ? WALK_DOWN2 : walkSide2(half);
+  const keys = facing === 'down' ? WALK_DOWN2 : facing === 'up' ? WALK_UP2 : walkSide2(half);
   const n = keys.length;
   return keys[((Math.floor(frame) % n) + n) % n]!;
 }
