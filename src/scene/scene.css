@@ -16,6 +16,15 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  /*
+   * The town draws one canvas pixel per art pixel and the browser enlarges it
+   * by a whole number: it must not smooth. Older WebKit knows only its own
+   * name for this, Firefox before 93 only crisp-edges; the last one a browser
+   * understands wins, and every current one understands pixelated.
+   */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
   image-rendering: pixelated;
 }
 
@@ -24,15 +33,11 @@
  * drawn in 4px squares (one pixel each), from the menu colours.
  */
 .scene-light {
-  position: absolute;
-  top: 8px;
   /*
-   * Top left, over the forest and the tavern's roof: nowhere the hero can
-   * stand is ever under it, at any phone's width.
+   * Top left. Its place and size are set from `SCENE_BUTTONS` (stage.ts), where
+   * the test that nothing tappable hides under a button reads them.
    */
-  left: 8px;
-  width: 48px;
-  height: 48px;
+  position: absolute;
   padding: 0;
   background: var(--panel);
   border: var(--px) solid var(--gold);
@@ -146,6 +151,56 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/*
+ * The town coming into view, the first time it is opened before it is ready:
+ * its name, a line and a bar of the work's real steps, filled a quarter at a
+ * time, in the scene panel's frame. Laid over the scene until its first
+ * picture is in.
+ */
+.scene-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--backdrop);
+}
+
+.scene-loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 300px);
+  padding: 14px 16px 16px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+}
+
+.scene-loading-card h2 {
+  font-size: 20px;
+  color: var(--gold-bright);
+}
+
+.scene-loading-card p {
+  color: var(--text);
+}
+
+.scene-loading-bar {
+  display: block;
+  height: 12px;
+  background: var(--panel);
+  border: var(--px) solid var(--line);
+}
+
+.scene-loading-fill {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
 }
 
 /* ----- The Town tab's two scenes: the town, and a dungeon run reached from it. ----- */

@@ -1,31 +1,34 @@
 # Lane C: scenes
 
 **Next session: S16: Dungeon progression and replay** (brief to come in `docs/lanes.md`). Waiting
-in this lane besides: making the C-scale town the default once Cody has walked the preview
-("Making the C-scale town the default", under Notes), then the dungeons at the C scale (the plan
-is under Notes too).
+in this lane besides: the dungeons at the C scale (the plan is under Notes, with what it needs from
+lane B by id), and wiring lane B's walk cycle into `figures2.ts` once it is on `main` (the place is
+marked in that file; the steps are under Notes).
 
 ## The town's map
 
-Everything is in art pixels; tiles are 16. The town is 28 × 40 tiles (448 × 640), laid out in
-`TOWN_LAYOUT` and `GROUND_PLAN` (`src/scene/town.ts`). Its middle is the approved mock-up's town
-spaced out by about half again down the square; the extra width is a pine grove east of the smithy
-and room round the stall to the west.
+Everything is in art pixels; walking tiles are 24 (`TOWN2_TILE`). The town is lane B's
+(`src/art/town2/`): 60 x 89 tiles, 1440 x 2136, laid out by `town2Layout()` and walked on
+`town2Walk()`. This lane adds only footprints for the townsfolk, words, lookouts and taps
+(`src/scene/town2.ts`).
 
-| Rows  | What                                                                                                               |
-| ----- | ------------------------------------------------------------------------------------------------------------------ |
-| 0–2   | Forest (solid), the road north running into it (solid until it opens)                                              |
-| 3–10  | Grass: a strip behind the tavern (cols 5–12, rows 7–10) and the smithy (cols 16–21, rows 7–9), the road, the grove |
-| 11–19 | The cobbled square                                                                                                 |
-| 20    | The quay wall (solid) with the pier's head at cols 13–14                                                           |
-| 21–30 | The pier, cols 13–14, over the sea                                                                                 |
-| 31–39 | Sea                                                                                                                |
+| Rows  | What                                                                                             |
+| ----- | ------------------------------------------------------------------------------------------------ |
+| 0–8   | The forest (solid); its back-row pines are scenery, the front row (row 9) can be tapped          |
+| 9–45  | Grass: the road north, your house (cols 34–47, rows 22–27) with its garden fence, the oak, pines |
+| 40–45 | The tavern (cols 3–23) and the smithy (cols 34–51), fronts on row 45                             |
+| 46–59 | The square: well, stall, benches, lamps, notice board; the quay's cargo along rows 57–59         |
+| 57–64 | The beach west of the quay, down its stairs                                                      |
+| 60    | The quay wall; the pier (cols 27–30) runs out to row 77                                          |
+| 61–88 | Sea: the rowing boat, the ship, the rock and its wreck, two buoys                                |
 
-- A standing piece stands centred on its footprint's bottom edge unless it has an `at`. Things
-  afloat (ship, rowing boat, rock, buoys) have no footprint (the water is solid already), sort by
-  their own picture's base line and have `spots` on the pier or quay to be looked at from.
-- The net is painted with the ground and has a tap box but no footprint: people walk over it.
-- The hero starts at (14, 17), right of the well, with the tavern and smithy both in view.
+- Townsfolk (`TOWNSFOLK2_AT`): smith (40, 48), trader (13, 53), captain (28, 64) on the pier; the
+  villagers alewife (17, 46), market woman (6, 53), docker (38, 58), old man (34, 54). Each stands
+  on a tile of their own (solid), is talked to from the side(s) listed, and casts a contact
+  shadow laid into the ground when it is painted.
+- Start: lane B's `TOWN2_START` (26, 56); the boat lands him at (18, 59).
+- Scenery only (no tap, no words): forest pines with nowhere to stand beside them, and
+  `buoy-far` (`LOOKED_AT_ONLY` in `town2.ts`) until lane B moves it into the camera's reach.
 
 ## The grotto's map
 
@@ -52,6 +55,76 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
 - Lanterns hang only on rock with open floor below (north-facing walls).
 
 ## Done
+
+- **S16a: the C-scale town is the town.** No query string, no preview: the Town tab shows lane
+  B's C-scale town with lane B's C-scale figures for everyone. The dungeons are untouched (same
+  scale, figures and rules; their seven test files pass unmodified).
+  - **Deleted:** `preview.ts` and its test; the first town's `town.ts`, `townArt.ts`,
+    `ambient.ts` and their tests (`town.test.ts`, the preview's `town2View.test.ts`, which
+    became `townView.test.ts`). Its words came across into `town2.ts` under the same names. The
+    few old-scale figure helpers the grotto still draws with (`HERO_FEET`, `litWalker`, `litBy`,
+    `mirrored`, `walkerShadow`) moved to `walkerArt.ts`, unchanged; the dungeon files only had
+    their import path changed. The town's code is no longer loaded on demand. Nothing under
+    `src/art` was touched (lane B retires the first town's art).
+  - **Scrolling at one canvas pixel per art pixel.** The stage takes `pixelated: true` (the town
+    only): the canvas holds the view at one pixel per art pixel and the browser enlarges it by
+    the whole scale (`image-rendering: pixelated`, with `-webkit-optimize-contrast`,
+    `-moz-crisp-edges` and `crisp-edges` before it for older engines). `pixelFit` (`scale.ts`)
+    sizes it so the enlargement is exactly the scale both ways and the CSS size is whole device
+    pixels, trimming a step at most. A frame writes a ninth of the pixels it did at 3x. The
+    dungeons keep drawing every device pixel, because the fight writes words and thin lines.
+    Measured (production build with a scripted tap route round the whole town, about 58 s of
+    walking, counting only frames where the hero moved, 390 x 844 at 3x, headless Chromium in
+    software): unthrottled 60.0 before, 59.8 after; at 4x CPU throttle 46.1 fps before (p95 33 ms,
+    worst 117) and 59.9 after (p95 16.7, worst 50); at dusk at 4x 42.4 before, 59.9 after. A
+    second route (holding a finger to steer, standing included): 51.5 before, 59.9 after at 4x.
+  - **First open.** Nothing heavy on the page's thread: the worker (`town2Worker.ts`) now works
+    out the facts too (`town2Facts.ts`: the scene, the lights, where smoke and gulls are, as plain
+    data), and paints everything time-dependent (ground with townsfolk's shadows, pieces, foam,
+    smoke frames, the gull, the townsfolk facing each way). Where workers can draw
+    (`OffscreenCanvas`) it composes the still and sends bitmaps; elsewhere raw pixels, composed
+    on the page. The page starts the worker as soon as it loads, so the town is usually ready
+    before the tab is opened; if not, the tab shows a loading card at once (the town's name, a
+    line, a bar filled a quarter at a time by the worker's real steps: facts, ground, pixels,
+    town), with the stage under it from the moment the facts are in. Measured at 4x, tab tapped
+    about a second after load: before, a 914 ms long task and a dark scene until 2.7 s; after,
+    the card on the first frame, no long task, worst frame 20 ms, the town at 2.8 s. Opened the
+    moment a reloaded page is up, at dusk, at 4x: before, a 1.77 s freeze and the town at 7.0 s;
+    after, worst frame 53 ms, the town at 2.3 s. Unthrottled: the card at 2 ms, the town at
+    0.9–1.4 s, worst frame 17–67 ms.
+  - **Shadows** (`shadow2.ts`): a person's contact shadow is the ground's own cells darkened, as
+    the art lane shades everything (two steps in a core under the soles, one step in a penumbra
+    that falls further right than left, longer at dusk; never to the line step). The townsfolk's
+    are laid into the ground before it is painted; the hero's is cut from the ground's cells as
+    he walks and painted with the lamps that reach it, onto one small canvas reused. Right on
+    grass, road, cobbles, flagstones, sand, the pier and the quay, and at dusk.
+  - **Taps:** `reach.test.ts` walks every tile the hero can stand on at 360, 390 and 430 CSS px
+    (3x, with each phone's Town-tab height) and holds every tappable thing to being brought on
+    screen and picked by a tap somewhere not under the sun button (whose place now comes from
+    `SCENE_BUTTONS`). It found 17: back-row forest pines whose only unhidden part lay off the map
+    (one under the sun button), and `buoy-far`. The pines with nowhere to stand beside them are
+    scenery now; `buoy-far` is scenery until lane B moves it.
+  - **The villagers**: the alewife by the tavern, the market woman by the stall, the docker by
+    the east cargo, the old man by the bench east of the well, each with a name, a round of
+    lines and an evening one, no button (`townsfolk.ts`).
+  - **Day/dusk flip:** the new time's town arrives as bitmaps; nothing is composed on the page.
+    Worst frame 33 ms at 4x (was 183, with two long tasks of about 100 ms), 17 ms unthrottled
+    (was 33). The old picture stays up until the new one is in, as before.
+  - **Crisp, checked in Chromium**: screenshots at 390 x 844 at 3x (day and dusk), 412 x 915 at
+    2.625x and 375 x 667 at 2x, every art pixel tested as a uniform block of 3 x 3 (2 x 2 at 2x)
+    device pixels across the whole canvas: no exceptions. **Not checked in Safari or WebKit:**
+    no WebKit build in this sandbox and its download is blocked (see Deferred).
+  - Walked on a phone-shaped screen by taps: every villager's panel, the house, the oak, the
+    tavern, the smithy at dusk, the pier's end, the boat, into the grotto (sideways) and back to
+    the boat. Screenshots in `/home/claude/lane-shots/w9-c/`.
+  - Tests: `townView` (rewritten for the town: no query string shows it, the hero at its start,
+    buttons, crate, smithy, house, stall, oak, smith's round, each villager, day and dusk,
+    steering, dress, the boat and back; the loading card with a stand-in worker, asked once a
+    page, a flip keeping the old picture), `reach`, `shadow2`, `scale2` (`pixelFit` at seven
+    screens), `town2` (words, villagers, scenery), `town2Paint` (the paint as the worker makes
+    it, shadows laid only near the townsfolk and only one or two steps), and `path`, `walker`,
+    `steer`, `hero`, `draw`, `run` moved off the first town. `run.test.ts` changed only where it
+    walks the town to the boat and where it expects the landing.
 
 - **S16-prep: the C-scale town, walkable, as a preview.** Lane B's redrawn town
   (`src/art/town2/`, 1440 x 2136 art pixels) is a scene to walk in, shown only on a page opened
@@ -417,17 +490,22 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
 
 ## Deferred
 
-- From S16-prep: **the new town is a preview**: shown only with `?town=2`. Its first showing still blocks the page for the scene's data (lane B's layout draws
-  every piece's cells to know their sizes): 0.37 s, 1.1 s at 4x CPU throttling, then the backdrop
-  for about 2 s (3.5 s at 4x) until the worker's still arrives. `buoy-far` cannot be tapped on a phone:
-  it lies south-east of where the camera can look from anywhere the hero can stand (lane B's
-  placement; the ship's lower half is likewise only seen from the pier's end).
-- From S16-prep: **frame rate while scrolling** on slow phones (above): if it shows on a phone, the
-  next step is drawing the view at one canvas pixel per art pixel and letting CSS scale it up by
-  the whole number (`image-rendering: pixelated`), a ninth of the pixels a frame; not done here
-  because it needs checking on Safari that the browser's scaling is truly nearest-neighbour.
-- From S16-prep: the hero's shadow in the new town is one step-4 oval in the ground's material
-  under his feet (by `groundAt`, so flagstones take the cobbles' colour); not lit at dusk.
+- From S16a: **not checked in Safari.** No WebKit build exists under `/opt/pw-browsers` and the
+  Playwright WebKit download is blocked by this sandbox's proxy. Unverified there: that WebKit
+  enlarges the town's canvas nearest-neighbour (`image-rendering: pixelated`, which Safari has
+  supported since 10; on an iPhone with GPU-accelerated canvas this is the one thing to look at:
+  a zoomed screenshot of the square should show square, even pixels, no blur), that module
+  workers with `OffscreenCanvas` take the bitmap path (Safari 16.4 and later; older ones take the
+  raw-pixel path, which composes on the page and costs one long frame on first open and each
+  flip), and the frame rates on a real phone. If Safari smooths, the way back is one line:
+  `pixelated: true` off in `town2Stage()` (`town2Place.ts`), at the old frame cost.
+- From S16a: one walking frame in a minute or so still runs 50–83 ms (p95 stays 16.7), most
+  likely a path search over the 60 x 89 map on a tap, or a collection; not chased.
+- From S16a: the town is worked out afresh on every page load (about 2 s of a worker's time, 25 MB
+  held for one time of day); nothing is cached between visits.
+- From S16a: the loading card is honest but plain: the scene's panel on the backdrop, no picture.
+- From S16a: the townsfolk stand close beside whoever talks to them (their canvases are wider than
+  a tile), so the hero and, say, the alewife overlap a little while they talk.
 - From S15: **a run is not saved while it lasts**: a reload, or a phone that drops the page while
   locked, loses a seven-to-ten-minute run and what it picked up. Turning to portrait and the page
   going to the background both pause it cleanly (the background is tested: ten minutes away
@@ -445,16 +523,18 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
 
 ## Needs from another lane
 
-- **Lane B, for the C-scale town**: (1) done: `character2.ts` is in use. (2) `buoy-far` placed where the camera can see it (it is at
-  (1330, 2100); from the pier's end the view reaches x 895). (3) Optional: a way to let go of
-  `town2Ground`'s kept cell grids (6.2 MB a time of day on whichever thread composed them; the
-  worker is closed after each, so with workers this costs nothing today). (4) Optional, for a
-  faster first showing: the layout's facts (sizes, bases, feet, spots) without drawing every
-  piece, so the scene's data can be had without composing pictures.
-- **Lane A, for the C-scale town**: nothing to preview it, and nothing to make it the default;
-  the Shell is enough, and the town reads no header or menu heights (the stage measures its own
-  box). A later wish: the notice board could open `openBounties` (the current town's board has
-  no button, and the new one copies it).
+- **Lane B, for the town**: (1) `buoy-far` placed where the camera can see it: it is at (1314, 2055) and the camera, from anywhere the hero can stand, reaches x 1050 at the bottom of town at
+  390 wide. It is scenery (`LOOKED_AT_ONLY`, `town2.ts`) until then; take it out of that set when
+  it moves and `reach.test.ts` will say whether it can be tapped. (2) The walk cycle in
+  `character2.ts` (B9, under way): this lane wires it in as soon as it is on `main` (Notes).
+  (3) Optional now (the worker keeps them off the page): the layout's facts without drawing
+  every piece, and a way to let go of `town2Ground`'s kept cell grids, would shorten the worker's
+  two seconds and its memory while it works. (4) With lane B, retire the style guide's first-town
+  sizes ("What the swap supersedes") and the first town's art (`src/art/town.ts`, `ground.ts`
+  and the like): nothing in the town reads them now; `walkerArt.ts` still reads
+  `townPiece('hero').base` for the dungeons' hero until the dungeons move.
+- **Lane A**: nothing needed. A later wish, as before: the notice board could open
+  `openBounties`.
 - Nothing blocking. For lane B: the store asks `dungeonProp('grotto', 'crate')` and the bridge
   `dungeonProp('grotto', 'perch')` (a mooring post the parrot sits on); neither id is in the
   fixed list, so both show this lane's own drawing beside lane B's art until lane B adds them.
@@ -467,46 +547,64 @@ the tide reaches by height, `s` start, `x` end, `B`/`D` cell bars of the first a
 
 ## Notes for this lane's next session
 
-- **Making the C-scale town the default**, once Cody has walked the preview (the figures are
-  already lane B's):
-  1. Lane B's villagers (`alewife`, `market`, `docker`, `elder`) are drawn and unused: give them
-     places and words in `TOWNSFOLK2_AT` (`town2.ts`) if wanted.
-  2. In `townView.ts`, drop `previewTown2()` (always the new town), delete `preview.ts` and its
-     test, and remove the current town's branch of `place()`.
-  3. `town.ts`, `townArt.ts` and `hero.ts` stay only as long as the dungeons draw the current
-     hero (`Hero.atIn`); once they are at the C scale, the current town's files and tests go
-     (`town2.ts` borrows the current town's words from `TOWN_LAYOUT`: move them across first).
-  4. Check the panel still clears the hero (`PANEL_MARGIN`, `FOCUS_RISE2` 30) with the real
-     figures, the start and the boat landing, and walk every place at day and dusk as here.
-  5. With lane B, retire the style guide's old sizes ("What the swap supersedes").
-- **The dungeons at the C scale (a plan, not done).** Today they are a 270-wide world on 16-pixel
-  tiles, played sideways, `dungeonScale` the short side over 270. At the C scale:
-  - Tiles 24 (`TileMap.tile`), the rooms' rows re-cut on the new grid rather than scaled: keep
-    the same metres (corridors a person and a half wide, a room about two screens long), so a
-    38 x 14 room of 16 (608 x 224 px) becomes about 32 x 12 tiles of 24 (768 x 288), and the
-    sideways screen shows 360 x about 200 art pixels at 3 device pixels each.
-  - `dungeonScale` takes a `SceneSize` like the town (360 on the short side), so the hero is the
-    same size on screen in town and in a run.
-  - Everything in pixels in `battle.ts`, `foes.ts` and `cast.ts` scales by 1.5: walking paces
-    (44 becomes 66, the hero's 64 becomes 88 as in town), reaches, the powder monkey's 92 and 60,
-    heavy attacks' radii (28 and 46 become 42 and 69), the parrot's 120; distances counted in
-    tiles (the wash-off's five) stay. Times stay. The fairness and balance tests
-    (`grottoRun.test.ts`) must hold unchanged: a change in result is a change in design.
-  - Foes need C-scale figures from lane B (a canvas, an anchor and soles, as `FIGURE2_*`), and
-    tiles and props redrawn at 24 (the `dungeonArt` doors keep their names). The tide's and the
-    fight's overlays (warning circles, numbers, health bars) are this lane's and scale with the
-    tile.
-- **The C-scale town's pieces:** `preview.ts` (the switch), `town2Place.ts` (what `townView`
-  loads on demand: the stage's options, start and landing; tests `await loadTown2()`), `town2.ts` (things, words, lookouts,
-  townsfolk, pace), `town2Art.ts` (the still, standers, life, shadow, `Hero2`), `town2Paint.ts`
-  (pure pixels: ground strips, lit pieces, foam, smoke frames, lights), `town2Worker.ts`,
-  `figures2.ts`. `town2ArtNow()` in `townView.ts` reports what is held, for scripts. On the dev
-  server a script must import the app's own copy of a module: after an edit the page loads
-  `townView.ts?t=...`, so find its URL in `performance.getEntriesByType('resource')` rather than
-  importing `/src/scene/townView.ts`, which is a second, empty copy.
-- Default-town pixel check: a script on a frozen clock (`performance.now` replaced by a counter
-  the script steps, the hour pinned through `Date.prototype.getHours`) gives identical PNGs run
-  to run, so `main` and a branch can be compared by hash.
+- **Wiring the walk cycle** (lane B is drawing it into `character2.ts`; the place it plugs in is
+  the comment marked "THE WALK CYCLE PLUGS IN HERE" in `src/scene/figures2.ts`):
+  1. `Figure2.paint` and `pixels` take a frame (0 standing, 1..n the stride); `figureOf` keeps one
+     `Picture2` per frame and facing, made on first ask, from lane B's door.
+  2. `Hero2.at` (`town2Art.ts`) picks the frame from `play.walked` (a half-step is `STRIDE2`, 8 art
+     pixels) and keys its kept pictures (plain and lit) by frame too; the stage's one-pixel `bob`
+     is then dropped for him (a `StageArt` flag, or a stride that makes `bob` 0).
+  3. Townsfolk keep frame 0; the worker changes nothing. Test: the frame advances with distance,
+     not time, and a standing hero is frame 0.
+- **The dungeons at the C scale (a plan, not done).** Today a 270-wide world on 16-pixel tiles,
+  played sideways, `dungeonScale` the short side over 270, the first-scale hero (`walkerArt.ts`)
+  and foes. At the C scale:
+  - **Tiles of 24** (`TileMap.tile = 24`). Re-cut each room on the new grid rather than scaling
+    its rows: rooms about 32 x 12 tiles (768 x 288), two sideways screens long as now (the screen
+    shows 360 x about 200 art pixels), corridors two tiles wide. Every room keeps its doors, its
+    tide rows and the guarantees `grotto.test.ts` holds; the tide's 0–3 heights and the
+    wash-off's five tiles stay counted in tiles.
+  - **Scale**: `dungeonScale` takes a `SceneSize` like the town (360 on the short side, slack
+    12), so the hero is the same size on screen in town and in a run. `pixelated` could then
+    serve the rooms too, but only once the fight's words and thin lines (`fightArt.ts`,
+    `fillText` and 2-pixel strokes) go on an overlay canvas at device resolution.
+  - **Distances x 1.5** in `battle.ts`, `foes.ts`, `cast.ts`: walking paces (hero 64 to 88 as in
+    town; deckhand 44 to 66, powder monkey 50 to 75, crab 22 to 33, parrot 40 to 60, captain 34
+    to 51), notice ranges (104, 150, 96, 176 and the rest), reaches (22–32 to 33–48; melee 30 to
+    45; a bow's 120 to 180), the powder monkey's 92 keep-off and 60 back-away (138, 90), heavy
+    attacks' radii (keg 28 to 42, slam 46 to 69, anchor 58 to 87), volley line widths and
+    spacing (20 to 30, 48 to 72), the parrot's rally 120 (180), the brig's 40 (60), Step back's
+    40 (60). Times stay. Tap boxes scale with the figures. `grottoRun.test.ts` and the fairness
+    test must hold unchanged: a change in result is a change in design.
+  - **Art needed from lane B, by id** (a C-scale door beside each of today's, as
+    `characterPicture2` sits beside `characterPicture`):
+    - tiles at 24 for `grotto`: `sand`, `wet_sand`, `rock_floor`, `wall_top`, `wall_face`,
+      `shallows`, `deep_water`, `planks`, `door_barred`, `door_open` (`dungeonTile2`);
+    - props at the C scale: `powder_keg`, `crate`, `treasure_chest`, `anchor`, `rope_coil`,
+      `cannon`, `lantern`, `perch` (`dungeonProp2`);
+    - foes at the C scale, each a `Picture2` with an anchor and soles like `FIGURE2_*`:
+      `deckhand`, `powder_monkey`, `giant_crab`, `ships_parrot`, `brinebeard`, and the grey-box
+      `dock_rat`, `sand_crab`, `smuggler` (`foePicture2`);
+    - the hero is there already (`characterPicture2`); cave ground in cells, so `shadow2.ts`
+      can cast contact shadows in the rooms as it does in town.
+  - This lane's overlays (warning circles, numbers, health bars, the tide gauge) scale with the
+    tile; the HUD's CSS does not change.
+- **The town's pieces:** `town2.ts` (things, words, lookouts, townsfolk, scenery, pace),
+  `townsfolk.ts` (what people say), `town2Facts.ts` (the facts and the paint: what the worker
+  works out, pure), `town2Worker.ts` (bitmaps, or raw pixels), `town2Paint.ts` (pure pixel
+  helpers: palettes, lights, foam, smoke), `shadow2.ts` (contact shadows), `town2Art.ts` (what
+  the stage draws: held pictures, life, the hero and his shadow, the painter), `town2Place.ts`
+  (asking for the town once a page, the loading progress, the stage's options), `figures2.ts`
+  (the only door for people). `townView.ts` starts the worker when the page loads.
+- Measuring: a scratch entry under `.shots/` (`perf.html` loading `src/main.ts` and a hooks
+  module that puts `heroAt` and `town2ArtNow` on `window`), built with its own Vite config
+  (`root` the repo, `rollupOptions.input` the HTML), lets a script count only frames where the
+  hero moved and know when the town is held. `.shots` is ignored by version control but `eslint .`
+  lints it: move it aside before a local `npm run check`. For "before" numbers, extract `main`
+  into a scratch folder with `node_modules` linked and build the same entry there.
+- Crispness: screenshot at the phone's ratio and test every `scale` x `scale` block of device
+  pixels over the canvas for one colour (skip the sun button, which is DOM); offset the grid by
+  0..scale-1 both ways and take the best.
 
 - **The grotto's pieces:** the tide in `tide.ts`, a room's ground in `ground.ts`, the rooms in
   `grotto.ts`, the cast's numbers in `cast.ts`, how they move in `foes.ts`, the rules in

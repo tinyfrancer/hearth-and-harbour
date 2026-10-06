@@ -1,15 +1,12 @@
 /*
- * Gullwick at the C scale, as data: the art lane's layout of the redrawn
- * town (`src/art/town2/`, 1440 x 2136 art pixels on 24-pixel tiles) turned
- * into a scene to walk in, with what each thing says and opens. Shown only
- * in the preview (`preview.ts`) until it replaces `town.ts`.
+ * Gullwick, as data: the art lane's layout of the town (`src/art/town2/`,
+ * 1440 x 2136 art pixels on 24-pixel tiles) turned into a scene to walk in,
+ * with what each thing says and opens. The townsfolk stand where their work
+ * is; the villagers about the square and the quay.
  *
- * Every placement keeps the current town's name where it has one, and a
- * place with the current town's name says and opens exactly what it does
- * there (`TOWN_LAYOUT`'s words are reused, not copied). The words here are
- * for what is new, or drawn differently: the house, the oak, fences,
- * benches, planters, bushes, boulders, the forest's pines and a signpost
- * with two arms. The townsfolk stand where their work is.
+ * Placements keep the names the first town gave them (`tavern`,
+ * `crate-yours`, `lamp-west`), and the words for them came across with the
+ * names when that town was retired.
  */
 import {
   town2Layout,
@@ -19,7 +16,7 @@ import {
   town2Walk,
   type Placement2,
 } from '../art/town2/town';
-import { blockFootprints, type Scene, type Thing, type Use } from './things';
+import { blockFootprints, spotsBeside, type Scene, type Thing, type Use } from './things';
 import {
   cellAt,
   centreOf,
@@ -29,8 +26,7 @@ import {
   type TileKind,
   type TileMap,
 } from './tileMap';
-import { TOWN_LAYOUT } from './town';
-import { CAPTAIN, SMITH, TRADER } from './townsfolk';
+import { ALEWIFE, CAPTAIN, DOCKER, ELDER, MARKET, SMITH, TRADER } from './townsfolk';
 import type { Townsfolk2 } from './figures2';
 
 const T = TOWN2_TILE;
@@ -48,12 +44,117 @@ export const TOWN2_START_CELL: Cell = cellAt(TOWN2_START, T);
 /** Where the boat lands him back from a dungeon: on the quay beside it. */
 export const BOAT_LANDING2: Cell = { col: 18, row: 59 };
 
-/** The current town's words for a place, by its name there. */
-function wordsOf(id: string): Use {
-  const use = TOWN_LAYOUT.find((p) => p.id === id)?.use;
-  if (!use) throw new Error(`The current town has no words for ${id}.`);
-  return use;
-}
+const SMITHING = { label: 'Go to Smithing', opens: { skill: 'smithing' } } as const;
+
+const TAVERN: Use = {
+  name: 'The Gull & Anchor',
+  lines: ['The door is shut, but the smell of stew gets out anyway.'],
+  duskLines: ['Warm light, loud singing, and someone losing at cards with great dignity.'],
+};
+const SMITHY: Use = {
+  name: 'The smithy',
+  lines: ['Hot, loud, and smelling of honest work and singed eyebrows.'],
+  duskLines: ['The forge is still going. So is the smith, by the sound of it.'],
+  button: SMITHING,
+};
+const ANVIL: Use = {
+  name: 'Anvil',
+  lines: ['Older than the town, by the dents. It has been hit more often than the tavern door.'],
+  button: SMITHING,
+};
+const CRATE_YOURS: Use = {
+  name: 'Your crate',
+  lines: ['Everything you have gathered, packed with more care than you would expect.'],
+  button: { label: 'Open the bank', opens: { tab: 'bank' } },
+};
+const WELL: Use = {
+  name: 'The well',
+  lines: ['Deep and cold. Shout down it and it shouts back, but more politely.'],
+};
+const BOARD: Use = {
+  name: 'Notice board',
+  lines: [
+    'LOST: one goat, answers to Duchess. FOUND: one goat, does not.',
+    'Nothing yet worth drawing a sword over. Check back.',
+  ],
+};
+const PINE: Use = {
+  name: 'Pine',
+  lines: [
+    'Tall, straight and sticky. It would make a fine stack of logs, and it suspects as much.',
+  ],
+  button: { label: 'Go to Woodcutting', opens: { skill: 'woodcutting' } },
+};
+const LAMP: Use = {
+  name: 'Street lamp',
+  lines: ['Unlit. Someone comes round at six with a taper and a grudge.'],
+  duskLines: ['Lit, and busy with moths making poor decisions.'],
+};
+const BARREL: Use = {
+  name: 'Barrel',
+  lines: ['Salted herring, by the smell. The lid is nailed down for everyone’s sake.'],
+};
+const CARGO: Use = {
+  name: 'Cargo',
+  lines: ['Stamped for somewhere warmer. Not yours, and the gulls are keeping count.'],
+};
+const BUOY: Use = {
+  name: 'Buoy',
+  lines: ['Red, white and bobbing. It marks something underneath. Nobody agrees what.'],
+};
+const CRAB: Use = {
+  name: 'Crab',
+  lines: ['It has claimed this bit of quay. It is prepared to discuss it.'],
+};
+const BUCKET: Use = {
+  name: 'Bucket',
+  lines: ['Half full of seawater and one very confident shrimp.'],
+};
+const NET: Use = {
+  name: 'Fishing net',
+  lines: ['Spread out to dry. It dries in the sun and in the rain at about the same speed.'],
+};
+const ROWBOAT: Use = {
+  name: 'Rowing boat',
+  lines: [
+    'Tied up and bailed out, mostly. The name has worn off; it answers to “oi”.',
+    'Round the point is Brinebeard’s Grotto, where the tide comes and goes as it likes.',
+    'Take iron, at least, and a good stack of cooked fish. Mind the water: it moves.',
+  ],
+  button: {
+    label: 'Row out to Brinebeard’s Grotto',
+    opens: { dungeon: 'brinebeards_grotto' },
+  },
+};
+const SHIP: Use = {
+  name: 'The ship',
+  lines: [
+    'Black flag, patched sail, and barnacles that have clearly settled in for the long haul.',
+  ],
+  duskLines: ['One window lit aboard, and somebody in it singing badly about a mermaid.'],
+};
+const WRECK: Use = {
+  name: 'The rock',
+  lines: ['A rock with a face, and the bones of a ship that met it. The face looks sorry. Mostly.'],
+};
+
+/** What each placement with a name of its own says. */
+const NAMED: Readonly<Record<string, Use>> = {
+  tavern: TAVERN,
+  smithy: SMITHY,
+  anvil: ANVIL,
+  'crate-yours': CRATE_YOURS,
+  well: WELL,
+  board: BOARD,
+  crab: CRAB,
+  bucket: BUCKET,
+  net: NET,
+  rowboat: ROWBOAT,
+  ship: SHIP,
+  wreck: WRECK,
+  buoy: BUOY,
+  'buoy-far': BUOY,
+};
 
 const SIGNPOST: Use = {
   name: 'Signpost',
@@ -104,14 +205,16 @@ function useFor(name: string): Use | null {
   if (name === 'signpost') return SIGNPOST;
   if (name === 'house') return HOUSE;
   if (name === 'oak') return OAK;
-  if (name.startsWith('pine-')) return wordsOf('pine-grove-1');
-  if (name.startsWith('lamp-')) return wordsOf('lamp-west');
+  if (name.startsWith('pine-')) return PINE;
+  if (name.startsWith('lamp-')) return LAMP;
+  if (name.startsWith('barrel-')) return BARREL;
+  if (name.startsWith('crate-cargo-')) return CARGO;
   if (name.startsWith('fence-')) return FENCE;
   if (name.startsWith('bench-')) return BENCH;
   if (name.startsWith('planter-')) return PLANTER;
   if (name.startsWith('bush-')) return BUSH;
   if (name.startsWith('boulder-')) return BOULDER;
-  return TOWN_LAYOUT.find((p) => p.id === name)?.use ?? null;
+  return NAMED[name] ?? null;
 }
 
 /**
@@ -134,6 +237,14 @@ const LOOKOUTS: Readonly<Record<string, readonly Cell[]>> = {
   net: [{ col: 39, row: 57 }],
 };
 
+/**
+ * Placements that are only looked at for now: the far buoy lies south-east of
+ * anything the camera can show from where the hero can stand (lane B is asked
+ * to move it). Its picture stays; it takes no taps until it can be seen.
+ * `tests/scene/reach.test.ts` holds every tappable thing to being tappable.
+ */
+const LOOKED_AT_ONLY: ReadonlySet<string> = new Set(['buoy-far']);
+
 /** The townsfolk: where each stands, which sides the hero talks to them from, and their figure. */
 export interface Townsperson2 {
   readonly id: string;
@@ -150,6 +261,14 @@ export const TOWNSFOLK2_AT: readonly Townsperson2[] = [
   { id: 'trader', figure: 'trader', at: { col: 13, row: 53 }, sides: [1], use: TRADER },
   // A few boards out along the pier, looking at the ship.
   { id: 'captain', figure: 'pirate', at: { col: 28, row: 64 }, sides: [1], use: CAPTAIN },
+  // The villagers. The alewife on the tavern's front, a few steps along from its door.
+  { id: 'alewife', figure: 'alewife', at: { col: 17, row: 46 }, sides: [-1, 1], use: ALEWIFE },
+  // The market woman by the stall's west end, where the people are.
+  { id: 'market', figure: 'market', at: { col: 6, row: 53 }, sides: [-1], use: MARKET },
+  // The docker on the quay beside the east cargo.
+  { id: 'docker', figure: 'docker', at: { col: 38, row: 58 }, sides: [1], use: DOCKER },
+  // The old man by the bench east of the well.
+  { id: 'elder', figure: 'elder', at: { col: 34, row: 54 }, sides: [-1], use: ELDER },
 ];
 
 /** A person's tap box: about their figure, standing on their tile. */
@@ -245,7 +364,12 @@ export function buildTown2Scene(): Scene {
   // boughs would hide the hero, who stands behind them there.
   const things = laid.map((thing, i) => {
     const p = placed[i];
-    if (!p || !TREE.test(p.id) || thing.footprint.length === 0) return thing;
+    if (!p || !TREE.test(p.id)) return thing;
+    // Deep in the forest, with nowhere to stand beside it, a pine is only looked at: what of it
+    // is not hidden by the pines in front of it lies off the map, or under the sun button.
+    if (thing.id.startsWith('pine-forest') && spotsBeside(map, thing).length === 0)
+      return scenery(thing);
+    if (thing.footprint.length === 0) return thing;
     const below = Math.max(...thing.footprint.map((c) => c.row)) + 1;
     const front = thing.footprint
       .filter((c) => c.row === below - 1)
@@ -253,12 +377,27 @@ export function buildTown2Scene(): Scene {
       .filter((c) => !isSolid(map, c));
     return front.length ? { ...thing, spots: front } : thing;
   });
+  for (let i = 0; i < things.length; i++)
+    if (LOOKED_AT_ONLY.has(things[i]!.id)) things[i] = scenery(things[i]!);
   return {
     map,
     things,
     speed: WALK_SPEED2,
     stride: STRIDE2,
     notice: NOTICE2,
+  };
+}
+
+/** A thing with nothing to tap or say: only scenery. */
+function scenery(thing: Thing): Thing {
+  const { id, footprint, base, spots, panelOf, sprite } = thing;
+  return {
+    id,
+    footprint,
+    base,
+    ...(spots ? { spots } : {}),
+    ...(panelOf ? { panelOf } : {}),
+    ...(sprite ? { sprite } : {}),
   };
 }
 

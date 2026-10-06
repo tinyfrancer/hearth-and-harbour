@@ -4,7 +4,6 @@ import { approach, spotsBeside, thingAt, usable, type Thing } from '../../src/sc
 import { findPath } from '../../src/scene/path';
 import { advancePlay, startPlay, tapAt } from '../../src/scene/play';
 import { cellAt, centreOf, isSolid, mapSize } from '../../src/scene/tileMap';
-import { TOWN_LAYOUT } from '../../src/scene/town';
 import {
   BOAT_LANDING2,
   TOWN2_START_CELL,
@@ -13,8 +12,8 @@ import {
   buildTown2Scene,
 } from '../../src/scene/town2';
 
-// The C-scale town as a scene: lane B's layout and walking map, with words
-// and buttons, walked on 24-pixel tiles. Pure data and rules: no canvas.
+// The town as a scene: lane B's layout and walking map, with words and
+// buttons, walked on 24-pixel tiles. Pure data and rules: no canvas.
 
 const scene = buildTown2Scene();
 const { map, things } = scene;
@@ -104,17 +103,18 @@ describe('the C-scale town scene', () => {
     expect(play.walked).toBeCloseTo(88, 5);
   });
 
-  it('says and opens what the current town does, for every place they share', () => {
-    for (const p of TOWN_LAYOUT) {
-      const thing = things.find((t) => t.id === p.id);
-      if (!thing) continue;
-      if (p.id === 'signpost') continue; // Redrawn with two arms, so it says something else.
-      expect(thing.use, p.id).toBe(p.use);
-      expect(thing.panelOf, p.id).toBe(p.panelOf);
-    }
+  it('says and opens what the first town did, under the names it gave', () => {
+    expect(byId('tavern').use!.name).toBe('The Gull & Anchor');
+    expect(byId('smithy').use!.button!.opens).toEqual({ skill: 'smithing' });
+    expect(byId('anvil').use!.button!.opens).toEqual({ skill: 'smithing' });
     expect(byId('stall').panelOf).toBe('trader');
     expect(byId('crate-yours').use!.button!.opens).toEqual({ tab: 'bank' });
     expect(byId('rowboat').use!.button!.opens).toEqual({ dungeon: 'brinebeards_grotto' });
+    expect(byId('lamp-west').use!.duskLines!.length).toBeGreaterThan(0);
+    expect(byId('crate-cargo-1').use).toBe(byId('crate-cargo-6').use);
+    expect(byId('barrel-stall').use).toBe(byId('barrel-quay-1').use);
+    for (const id of ['well', 'board', 'crab', 'bucket', 'net', 'ship', 'wreck', 'buoy'])
+      expect(byId(id).use, id).toBeDefined();
   });
 
   it('has words for every new placement, and the right buttons on those that lead somewhere', () => {
@@ -127,7 +127,12 @@ describe('the C-scale town scene', () => {
     }
     expect(byId('house').use!.name).toBe('Your house');
     expect(byId('oak').use!.button!.opens).toEqual({ skill: 'woodcutting' });
-    expect(byId('pine-forest-0').use!.button!.opens).toEqual({ skill: 'woodcutting' });
+    expect(byId('pine-forest-47').use!.button!.opens).toEqual({ skill: 'woodcutting' });
+    // Deep in the forest, and the far buoy past the camera's reach, are only looked at.
+    for (const id of ['pine-forest-0', 'pine-forest-1', 'pine-forest-46', 'buoy-far']) {
+      expect(byId(id).tap, id).toBeUndefined();
+      expect(byId(id).use, id).toBeUndefined();
+    }
     expect(byId('bush-west').use!.button!.opens).toEqual({ skill: 'foraging' });
     expect(byId('boulder-1').use!.button!.opens).toEqual({ skill: 'mining' });
   });
@@ -149,5 +154,30 @@ describe('the C-scale town scene', () => {
     // The captain stands on the pier's boards.
     const captain = TOWNSFOLK2_AT.find((p) => p.id === 'captain')!;
     expect(town2Walk().kinds[captain.at.row * 60 + captain.at.col]).toBe('pier');
+  });
+
+  it('places the four villagers on open ground, each with words of their own', () => {
+    const walk = town2Walk();
+    for (const id of ['alewife', 'market', 'docker', 'elder']) {
+      const p = TOWNSFOLK2_AT.find((f) => f.id === id)!;
+      expect(p.figure, id).toBe(id);
+      // Their own tile is free on lane B's map: they stand on it, nothing else does.
+      expect(walk.solid[p.at.row * walk.cols + p.at.col], id).toBe(0);
+      expect(p.use.says!.length, id).toBeGreaterThanOrEqual(3);
+      expect(p.use.duskSays!.length, id).toBeGreaterThanOrEqual(1);
+      expect(approach(map, start, byId(id)), id).not.toBeNull();
+    }
+    const names = TOWNSFOLK2_AT.map((p) => p.use.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('gives every townsperson British words, and no line too long for the panel', () => {
+    for (const p of TOWNSFOLK2_AT) {
+      const said = [...(p.use.says ?? []), ...(p.use.duskSays ?? [])];
+      for (const line of said) {
+        expect(line, p.id).not.toMatch(/\b(color|neighbor|center|gray|favorite|realize)\b/i);
+        expect(line.length, p.id).toBeLessThanOrEqual(110);
+      }
+    }
   });
 });

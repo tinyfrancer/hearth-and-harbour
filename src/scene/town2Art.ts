@@ -1,62 +1,60 @@
 /*
- * How the C-scale town looks on the stage: the art lane's ground and pieces
- * (`src/art/town2/`) made into one still picture of the whole town, the
- * townsfolk and the hero from the figure adapter (`figures2.ts`), and the
- * town's life (chimney smoke, gulls, shore foam). Nothing here draws a
- * building or a person; it puts the art lane's cells on canvases and moves
- * them about.
+ * How the town looks on the stage. Nothing here draws a building or a
+ * person, and nothing heavy happens here: the town is worked out and painted
+ * off the main thread (`town2Facts.ts`, `town2Worker.ts`) and arrives as
+ * pictures ready to show; this holds them, moves the town's life about
+ * (chimney smoke, gulls, shore foam), paints the hero and cuts his shadow
+ * from the ground as he walks.
  *
- * Memory, the reason this does not use the stage's own still-maker: the
- * town is 1440 x 2136 art pixels, 12.3 MB a canvas. One still is kept, for
- * one time of day: the ground's pixels put straight onto it and every
- * standing piece drawn on top in depth order; the pieces' own canvases (4 to
- * 5 MB) are kept for drawing them again in front of the hero. Changing the
- * time of day makes the other still, then lets the first go. The townsfolk
- * are not in the still, so their turning to look at the hero never
- * recomposes it.
+ * Memory, the reason the stage's own still-maker is not used: the town is
+ * 1440 x 2136 art pixels, 12.3 MB a picture. One still is kept, for one time
+ * of day, with the standing pieces' own pictures (4 to 5 MB) for drawing
+ * them again in front of the hero, and the ground's cells (6.2 MB) for his
+ * shadow. Changing the time of day paints the other, then lets the first go.
+ * The townsfolk are not in the still, so their turning to look at the hero
+ * never recomposes it.
  *
- * Time: the ground's pixels are painted by a worker (`town2Worker.ts`) where
- * the browser has one, so the page never stops for the seconds composing
- * takes on a slow phone. Until the first still arrives the scene shows its
- * backdrop; on a change of time of day the old still stays up until the new
- * one is ready, and everything drawn with it (the hero, the townsfolk, the
- * smoke) follows the still's time, not the button's, so they always match.
+ * Until the first still arrives nothing is held (the Town tab shows that it
+ * is coming); on a change of time of day the old still stays up until the
+ * new one is ready, and everything drawn with it (the hero, his shadow, the
+ * townsfolk, the smoke) follows the still's time, not the button's, so they
+ * always match.
  *
- * A frame allocates nothing here: every picture, every placed sprite and
- * every list handed to the stage is made once and reused.
+ * A frame allocates nothing here but the hero's shadow, a few hundred bytes
+ * when his feet move to another pixel.
  */
 import type { Palette } from '../art/palette';
-import { cell, tgrid, type Picture2 } from '../art/town2/cells';
-import { town2Piece, type Town2Id } from '../art/town2/pieces';
-import { groundAt, town2Layout, TOWN2_H, TOWN2_W, type Placement2 } from '../art/town2/town';
-import type { Mat } from '../art/town2/ramps';
+import { shines, type Glow } from '../art/raster';
+import { rasterize2 } from '../art/town2/raster';
+import { TOWN2_H, TOWN2_W } from '../art/town2/town';
 import type { GameState } from '../core/state';
 import type { TimeOfDay } from './daylight';
-import type { Placed, Standing } from './draw';
+import type { Image, Placed, Standing } from './draw';
 import {
   FIGURE2_ANCHOR_X,
   FIGURE2_H,
   FIGURE2_SOLE_Y,
   FIGURE2_W,
   heroFigure2,
-  townsfolkFigure2,
   type Figure2,
 } from './figures2';
 import { dressKey, dressOf } from './hero';
 import { turnedTo, type Facing } from './play';
+import { shadowBox, shadowCells, type Cells } from './shadow2';
 import type { Life, StillPicture } from './stage';
 import type { Point } from './tileMap';
 import { feetOf, NOTICE2, TOWNSFOLK2_AT } from './town2';
 import {
-  cellPixels,
-  glowsIn,
-  groundPixels,
-  palette2,
-  SMOKE_FRAMES,
-  smokeFrame,
-  townLights,
-  type Ground2Pixels,
-} from './town2Paint';
+  folkBox,
+  paintTown,
+  town2Facts,
+  type Raw,
+  type TownAnswer,
+  type TownFacts,
+  type TownPaint,
+  type TownStep,
+} from './town2Facts';
+import { glowsIn, palette2, reaches } from './town2Paint';
 
 /** Where a figure's feet are in its canvas, facing right: the stage's `heroFeet`. */
 export const FIGURE2_FEET: Point = { x: FIGURE2_ANCHOR_X, y: FIGURE2_SOLE_Y };
@@ -66,70 +64,81 @@ export const SMOKE_FRAME_MS = 450;
 export const FOAM_FRAME_MS = 1100;
 
 /** Whether pixels can be made here at all: not in tests, where there is no canvas. */
-const canPaint = (): boolean => typeof ImageData !== 'undefined' && typeof document !== 'undefined';
+export const canPaint = (): boolean =>
+  typeof ImageData !== 'undefined' && typeof document !== 'undefined';
 
 /** Pixels on a new canvas of their size; null where the browser will not draw. */
-function canvasOf(data: Uint8ClampedArray, w: number, h: number): HTMLCanvasElement | null {
+function canvasOf(r: Raw): HTMLCanvasElement | null {
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = r.w;
+  canvas.height = r.h;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  ctx.putImageData(new ImageData(data as Uint8ClampedArray<ArrayBuffer>, w, h), 0, 0);
+  ctx.putImageData(new ImageData(r.data as Uint8ClampedArray<ArrayBuffer>, r.w, r.h), 0, 0);
   return canvas;
 }
 
-/** A picture of cells on a canvas at one pixel per art pixel, lit by its glows. */
-export function paintCells(pic: Picture2, time: TimeOfDay): HTMLCanvasElement | null {
-  return canvasOf(cellPixels(pic, palette2(time)), pic.grid.w, pic.grid.h);
+/** Lets a picture's pixels go now rather than whenever it is collected (Safari holds them otherwise). */
+function release(image: Image): void {
+  if ('close' in image) image.close();
+  else {
+    image.width = 0;
+    image.height = 0;
+  }
 }
 
-/** Lets a canvas's pixels go now rather than whenever it is collected (Safari holds them otherwise). */
-function release(canvas: HTMLCanvasElement): void {
-  canvas.width = 0;
-  canvas.height = 0;
+/* ----- Asking for the town ----- */
+
+/** What a painter reports as it goes: the facts if asked, steps, then the town. */
+export interface PainterCalls {
+  facts?(facts: TownFacts): void;
+  step?(step: TownStep): void;
+  done(paint: TownPaint<ImageBitmap | Raw>): void;
 }
 
-/** One time of day's still, the moved foam, and every canvas made for them. */
-interface Made {
-  readonly time: TimeOfDay;
-  readonly still: StillPicture;
-  readonly foam: Placed | null;
-  readonly canvases: HTMLCanvasElement[];
-}
+/** Works the town out for a time of day: in a worker where there is one. */
+export type Painter = (time: TimeOfDay, wantFacts: boolean, calls: PainterCalls) => void;
 
 /**
- * The town composed for one time of day from its pixels: the ground, then
- * every standing piece drawn on it in depth order. Only copying here; the
- * colouring and lighting was done where the pixels were painted.
+ * On the spot: a browser with no workers, and tests. Everything at once,
+ * before returning; with no canvas to show it on (tests) the facts but no
+ * paint, which would take seconds for nothing.
  */
-function compose(px: Ground2Pixels): Made | null {
-  const still = canvasOf(px.ground, TOWN2_W, TOWN2_H);
-  const ctx = still?.getContext('2d');
-  if (!still || !ctx) return null;
-  const canvases: HTMLCanvasElement[] = [still];
-  const images = px.pieces.map((p) => {
-    const image = canvasOf(p.data, p.w, p.h);
-    if (image) canvases.push(image);
-    return image;
-  });
-  const standing: Standing[] = [];
-  for (const s of px.standing) {
-    const image = images[s.piece];
-    if (!image) continue;
-    ctx.drawImage(image, s.x, s.y);
-    standing.push({ image, x: s.x, y: s.y, base: s.base });
+export const onTheSpot: Painter = (time, wantFacts, calls) => {
+  if (wantFacts) calls.facts?.(town2Facts());
+  if (canPaint()) calls.done(paintTown(time, (step) => calls.step?.(step)));
+};
+
+/** A worker per request, let go once it answers; on the spot if one cannot be had. */
+export const inAWorker: Painter = (time, wantFacts, calls) => {
+  let worker: Worker;
+  try {
+    worker = new Worker(new URL('./town2Worker.ts', import.meta.url), { type: 'module' });
+  } catch {
+    onTheSpot(time, wantFacts, calls);
+    return;
   }
-  const { band, data } = px.foam;
-  const foamImage = canvasOf(data, band.w, band.h);
-  if (foamImage) canvases.push(foamImage);
-  return {
-    time: px.time,
-    still: { still, standing },
-    foam: foamImage && { image: foamImage, x: band.x, y: band.y },
-    canvases,
+  let factsIn = !wantFacts;
+  worker.onmessage = (event: MessageEvent<TownAnswer>) => {
+    const answer = event.data;
+    if (answer.kind === 'facts') {
+      factsIn = true;
+      calls.facts?.(answer.facts);
+    } else if (answer.kind === 'step') calls.step?.(answer.step);
+    else {
+      worker.terminate();
+      calls.done(answer.paint);
+    }
   };
-}
+  worker.onerror = () => {
+    worker.terminate();
+    onTheSpot(time, !factsIn, calls);
+  };
+  worker.postMessage({ time, facts: wantFacts });
+};
+
+/** The painter this browser should use. */
+export const painter = (): Painter => (typeof Worker === 'function' ? inAWorker : onTheSpot);
 
 /* ----- The hero ----- */
 
@@ -150,6 +159,8 @@ export class Hero2 {
   private figure: Figure2 | null = null;
   private readonly plain = new Map<string, HTMLCanvasElement | null>();
   private readonly lit = new Map<string, HTMLCanvasElement | null>();
+  /** Every light in town; none until the town's facts are in. */
+  private lights: readonly Glow[] = [];
   /** How many times he has been drawn afresh, for tests. */
   drawn = 0;
 
@@ -168,9 +179,21 @@ export class Hero2 {
     return true;
   }
 
+  /** The town's lights, to light him by at dusk. */
+  lightBy(lights: readonly Glow[]): void {
+    if (lights === this.lights) return;
+    this.lights = lights;
+    this.forget();
+  }
+
   /** The figure he is drawn from now. */
   get dressedAs(): Figure2 | null {
     return this.figure;
+  }
+
+  /** The key of what he wears now. */
+  get dressKey(): string {
+    return this.key;
   }
 
   /** Lets every picture of him go. */
@@ -217,7 +240,7 @@ export class Hero2 {
     if (kept !== undefined) return kept ?? plain;
     const ax = facing === 'left' ? FIGURE2_W - 1 - FIGURE2_ANCHOR_X : FIGURE2_ANCHOR_X;
     const box = { x: x - ax, y: y - FIGURE2_SOLE_Y, w: FIGURE2_W, h: FIGURE2_H };
-    const local = glowsIn(townLights(), box, palette2(time));
+    const local = glowsIn(this.lights, box, palette2(time));
     const made = local.length ? this.figure.paint(facing, time, local) : null;
     if (this.lit.size >= LIT_KEPT) {
       const oldest = this.lit.keys().next().value!;
@@ -230,9 +253,141 @@ export class Hero2 {
   }
 }
 
+/* ----- The hero's shadow ----- */
+
+/**
+ * The hero's contact shadow, cut from the ground's own cells under his feet
+ * and darkened (`shadow2.ts`), painted in the time of day's colours with the
+ * lamps that reach it, onto one small canvas reused as he walks.
+ */
+class Shadow {
+  private readonly box: { x: number; y: number; w: number; h: number };
+  private readonly cells: Cells;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D | null;
+  private readonly lights: readonly Glow[];
+  private readonly glows: Glow[] = [];
+  private fx = NaN;
+  private fy = NaN;
+  readonly middle: Point;
+
+  private readonly ground: Cells;
+  private readonly time: TimeOfDay;
+
+  constructor(ground: Cells, time: TimeOfDay, lights: readonly Glow[]) {
+    this.ground = ground;
+    this.time = time;
+    this.box = shadowBox(time);
+    this.middle = { x: -this.box.x, y: -this.box.y };
+    this.cells = { w: this.box.w, h: this.box.h, d: new Int16Array(this.box.w * this.box.h) };
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = this.box.w;
+    this.canvas.height = this.box.h;
+    this.ctx = this.canvas.getContext('2d');
+    const palette = palette2(time);
+    this.lights = lights.filter((g) => shines(g, palette));
+  }
+
+  /** The shadow for feet at `feet`, painted again only when they move to another pixel. */
+  at(feet: Point): HTMLCanvasElement | null {
+    if (!this.ctx) return null;
+    const fx = Math.round(feet.x);
+    const fy = Math.round(feet.y);
+    if (fx === this.fx && fy === this.fy) return this.canvas;
+    this.fx = fx;
+    this.fy = fy;
+    shadowCells(this.ground, { x: fx, y: fy }, this.time, this.cells);
+    const x0 = fx + this.box.x;
+    const y0 = fy + this.box.y;
+    const here = { x: x0, y: y0, w: this.box.w, h: this.box.h };
+    this.glows.length = 0;
+    for (const g of this.lights)
+      if (reaches(g, here)) this.glows.push({ ...g, x: g.x - x0, y: g.y - y0 });
+    const image = rasterize2({ grid: this.cells, glows: this.glows }, palette2(this.time), 1);
+    this.ctx.clearRect(0, 0, this.box.w, this.box.h);
+    this.ctx.putImageData(
+      new ImageData(image.data as Uint8ClampedArray<ArrayBuffer>, image.width),
+      0,
+      0,
+    );
+    return this.canvas;
+  }
+}
+
 /* ----- Putting it together ----- */
 
-/** Everything the stage needs to draw the C-scale town, beside the hero. */
+/** One time of day's town, on canvases or bitmaps, and everything to let go when it goes. */
+interface Made {
+  readonly time: TimeOfDay;
+  readonly still: StillPicture;
+  readonly foam: Placed | null;
+  readonly smoke: readonly (readonly (Placed | null)[])[];
+  readonly gull: { readonly right: Image | null; readonly left: Image | null };
+  readonly folk: readonly { readonly right: Standing | null; readonly left: Standing | null }[];
+  readonly shadow: Shadow;
+  readonly images: Image[];
+}
+
+/** A painted town made ready to show: bitmaps as they come, or raw pixels put on canvases. */
+function madeOf(paint: TownPaint<ImageBitmap | Raw>, facts: TownFacts): Made | null {
+  const images: Image[] = [];
+  const show = (r: ImageBitmap | Raw | null): Image | null => {
+    if (!r) return null;
+    const image = 'data' in r ? canvasOf(r) : r;
+    if (image) images.push(image);
+    return image;
+  };
+  const pieces = paint.pieces.map(show);
+  let still: Image | null;
+  if (paint.composed) still = show(paint.still);
+  else {
+    // Composed here: the ground, then every standing piece in depth order.
+    const canvas = show(paint.still) as HTMLCanvasElement | null;
+    const ctx = canvas?.getContext('2d');
+    if (ctx)
+      for (const s of paint.standing)
+        if (pieces[s.piece]) ctx.drawImage(pieces[s.piece]!, s.x, s.y);
+    still = canvas;
+  }
+  if (!still) {
+    for (const i of images) release(i);
+    return null;
+  }
+  const standing: Standing[] = [];
+  for (const s of paint.standing) {
+    const image = pieces[s.piece];
+    if (image) standing.push({ image, x: s.x, y: s.y, base: s.base });
+  }
+  const foamImage = show(paint.foam.image);
+  const smoke = paint.smoke.map((frames, i) => {
+    const at = facts.smoke[i]!;
+    return frames.map((f) => {
+      const image = show(f);
+      return image && { image, x: at.x, y: at.y };
+    });
+  });
+  const folk = paint.folk.map((f, i) => {
+    const stand = (facing: Facing): Standing | null => {
+      const image = show(facing === 'right' ? f.right : f.left);
+      if (!image) return null;
+      const box = folkBox(i, facing);
+      return { image, x: box.x, y: box.y, base: feetOf(TOWNSFOLK2_AT[i]!).y };
+    };
+    return { right: stand('right'), left: stand('left') };
+  });
+  return {
+    time: paint.time,
+    still: { still, standing },
+    foam: foamImage && { image: foamImage, x: paint.foam.x, y: paint.foam.y },
+    smoke,
+    gull: { right: show(paint.gull.right), left: show(paint.gull.left) },
+    folk,
+    shadow: new Shadow({ w: TOWN2_W, h: TOWN2_H, d: paint.cells }, paint.time, facts.lights),
+    images,
+  };
+}
+
+/** Everything the stage needs to draw the town, beside the hero. */
 export interface Town2Art {
   still(palette: Palette): StillPicture | null;
   standers(palette: Palette, walker: Point): readonly Standing[];
@@ -243,194 +398,80 @@ export interface Town2Art {
   readonly life: readonly Life[];
   /** The time of day whose still is held, if any: what everything drawn with it follows. */
   held(): TimeOfDay | null;
+  /** Whether the first still is still on its way: what the Town tab shows a loading state for. */
+  loading(): boolean;
+  /** Takes a painted town asked for elsewhere (the first, with the facts). */
+  take(paint: TownPaint<ImageBitmap | Raw>): void;
   /** Lets every picture go. */
   forget(): void;
 }
 
-/** The size of the hero's shadow, and the point of it under his feet. */
-const SHADOW_RX = 13;
-const SHADOW_RY = 3.6;
-const SHADOW_MIDDLE: Point = { x: 14, y: 4 };
-
-/** What the hero's shadow falls on, by the ground's kind, and in which step: a shade under the ground's own. */
-const SHADOW_ON: Readonly<Partial<Record<ReturnType<typeof groundAt>, Mat>>> = {
-  grass: 'grass',
-  forest: 'grass',
-  road: 'dirt',
-  cobble: 'cobble',
-  sand: 'sand',
-  pier: 'wood',
-  quay: 'stone',
-};
-const SHADOW_STEP = 4;
-
-/** A gull's lazy loop: centre, half-width and half-height, a lap's length and where it starts. */
-interface GullLoop {
-  readonly x: number;
-  readonly y: number;
-  readonly rx: number;
-  readonly ry: number;
-  readonly lapMs: number;
-  readonly start: number;
-  readonly turn: 1 | -1;
-}
-
-/** Each gull the art lane placed circles where it was placed. */
-export function gullLoop(p: Placement2, i: number): GullLoop {
-  const piece = town2Piece(p.id);
-  return {
-    x: p.x + Math.round(piece.w / 2),
-    y: p.y + Math.round(piece.h / 2),
-    rx: 70 - i * 8,
-    ry: 20 - i * 2,
-    lapMs: 26000 + i * 5000,
-    start: [0.1, 0.6, 0.3][i % 3]!,
-    turn: i % 2 ? -1 : 1,
-  };
-}
-
 export interface Town2ArtOptions {
-  /**
-   * Paints the ground off the main thread. By default a worker where the
-   * browser has them; without one, on the spot.
-   */
-  readonly paint?: (time: TimeOfDay, done: (px: Ground2Pixels) => void) => void;
+  /** Works the town out. By default in a worker where the browser has one. */
+  readonly paint?: Painter;
+  /** A time of day already asked for (with the facts), arriving through `take`: not asked again. */
+  readonly awaiting?: TimeOfDay | null;
 }
 
-/** A worker per time of day asked for, let go once it answers. Falls back to painting on the spot. */
-function workerPaint(time: TimeOfDay, done: (px: Ground2Pixels) => void): void {
-  let worker: Worker;
-  try {
-    worker = new Worker(new URL('./town2Worker.ts', import.meta.url), { type: 'module' });
-  } catch {
-    done(groundPixels(time));
-    return;
-  }
-  worker.onmessage = (event: MessageEvent<Ground2Pixels>) => {
-    worker.terminate();
-    done(event.data);
-  };
-  worker.onerror = () => {
-    worker.terminate();
-    done(groundPixels(time));
-  };
-  worker.postMessage(time);
-}
-
-const onTheSpot = (time: TimeOfDay, done: (px: Ground2Pixels) => void): void =>
-  done(groundPixels(time));
-
-export function town2Art(options: Town2ArtOptions = {}): Town2Art {
-  const paint = options.paint ?? (typeof Worker === 'function' ? workerPaint : onTheSpot);
+export function town2Art(facts: TownFacts, options: Town2ArtOptions = {}): Town2Art {
+  const paint = options.paint ?? painter();
   let made: Made | null = null;
   /** The time of day being painted, if any. */
-  let pending: TimeOfDay | null = null;
-  /** Small pictures for the held time of day: shadows, smoke, gulls, the townsfolk. */
-  let small: HTMLCanvasElement[] = [];
-  const shadows = new Map<string, { picture: HTMLCanvasElement; middle: Point } | null>();
-  let smokeFrames = new Map<Town2Id, (HTMLCanvasElement | null)[]>();
-  let gullImages: { right: HTMLCanvasElement | null; left: HTMLCanvasElement | null } | null = null;
-  let folk: { right: Standing | null; left: Standing | null }[] | null = null;
+  let pending: TimeOfDay | null = options.awaiting ?? null;
   const folkShown: Standing[] = [];
   const folkFeet = TOWNSFOLK2_AT.map(feetOf);
 
-  const dropSmall = (): void => {
-    for (const c of small) release(c);
-    small = [];
-    shadows.clear();
-    smokeFrames = new Map();
-    gullImages = null;
-    folk = null;
+  const forget = (): void => {
+    if (made) for (const i of made.images) release(i);
+    made = null;
+    pending = null;
     folkShown.length = 0;
   };
 
-  const forget = (): void => {
-    if (made) for (const c of made.canvases) release(c);
-    made = null;
+  /** A new town is in: the old one, and everything drawn to go with it, goes. */
+  const arrived = (px: TownPaint<ImageBitmap | Raw>): void => {
+    if (pending !== null && pending !== px.time) return;
     pending = null;
-    dropSmall();
-  };
-
-  /** The new still is in: the old one, and everything drawn to go with it, goes. */
-  const arrived = (px: Ground2Pixels): void => {
-    if (pending !== px.time) return;
-    pending = null;
-    const next = compose(px);
+    if (!canPaint()) return;
+    const next = madeOf(px, facts);
     if (!next) return;
-    if (made) for (const c of made.canvases) release(c);
-    dropSmall();
+    forget();
     made = next;
   };
 
-  /** The held still, asking for the time of day wanted if it is not the one held. */
+  /** The held town, asking for the time of day wanted if it is not the one held. */
   const hold = (time: TimeOfDay): Made | null => {
     if (made?.time === time || !canPaint()) return made;
     if (pending !== time) {
       pending = time;
-      paint(time, arrived);
+      paint(time, false, { done: arrived });
     }
     return made;
   };
 
-  const keep = (c: HTMLCanvasElement | null): HTMLCanvasElement | null => {
-    if (c) small.push(c);
-    return c;
-  };
+  const smokeLives: Life[] = facts.smoke.map((_, i) => ({
+    layer: 'above',
+    at(ms, palette) {
+      const frames = hold(palette.name)?.smoke[i];
+      if (!frames?.length) return null;
+      return frames[Math.floor((ms + i * 1300) / SMOKE_FRAME_MS) % frames.length] ?? null;
+    },
+  }));
 
-  const smoke = town2Layout().filter((p) => p.layer === 'above' && p.id !== 'gull');
-  const smokeLives: Life[] = smoke.map((p, i) => {
-    /** One placed sprite per frame, made with the frames. */
-    let placed: (Placed | null)[] = [];
-    let of: (HTMLCanvasElement | null)[] | null = null;
+  const gullLives: Life[] = facts.gulls.map((loop) => {
+    const spot = { image: null as Image | null, x: 0, y: 0 };
     return {
       layer: 'above',
       at(ms, palette) {
         const m = hold(palette.name);
         if (!m) return null;
-        let frames = smokeFrames.get(p.id);
-        if (!frames) {
-          const src = town2Piece(p.id).picture.grid;
-          frames = Array.from({ length: SMOKE_FRAMES }, (_, f) =>
-            keep(paintCells({ grid: smokeFrame(src, f), glows: [] }, m.time)),
-          );
-          smokeFrames.set(p.id, frames);
-        }
-        if (of !== frames) {
-          of = frames;
-          placed = frames.map((image) => image && { image, x: p.x, y: p.y });
-        }
-        return placed[Math.floor((ms + i * 1300) / SMOKE_FRAME_MS) % SMOKE_FRAMES] ?? null;
-      },
-    };
-  });
-
-  const gulls = town2Layout().filter((p) => p.id === 'gull');
-  const gullLives: Life[] = gulls.map((p, i) => {
-    const loop = gullLoop(p, i);
-    const piece = town2Piece(p.id);
-    const spot = { image: null as HTMLCanvasElement | null, x: 0, y: 0 };
-    return {
-      layer: 'above',
-      at(ms, palette) {
-        const m = hold(palette.name);
-        if (!m) return null;
-        if (!gullImages) {
-          const g = piece.picture.grid;
-          const flipped = tgrid(g.w, g.h);
-          for (let y = 0; y < g.h; y++)
-            for (let x = 0; x < g.w; x++) flipped.d[y * g.w + (g.w - 1 - x)] = g.d[y * g.w + x]!;
-          gullImages = {
-            right: keep(paintCells({ grid: g, glows: [] }, m.time)),
-            left: keep(paintCells({ grid: flipped, glows: [] }, m.time)),
-          };
-        }
         const a = 2 * Math.PI * (loop.start + (loop.turn * ms) / loop.lapMs);
         // Facing the way the loop goes here: rightward where x is growing.
-        const image = -Math.sin(a) * loop.turn > 0 ? gullImages.right : gullImages.left;
+        const image = -Math.sin(a) * loop.turn > 0 ? m.gull.right : m.gull.left;
         if (!image) return null;
         spot.image = image;
-        spot.x = Math.round(loop.x + loop.rx * Math.cos(a)) - Math.round(piece.w / 2);
-        spot.y = Math.round(loop.y + loop.ry * Math.sin(a)) - Math.round(piece.h / 2);
+        spot.x = Math.round(loop.x + loop.rx * Math.cos(a)) - Math.round(facts.gull.w / 2);
+        spot.y = Math.round(loop.y + loop.ry * Math.sin(a)) - Math.round(facts.gull.h / 2);
         return spot as Placed;
       },
     };
@@ -453,28 +494,10 @@ export function town2Art(options: Town2ArtOptions = {}): Town2Art {
     standers(palette, walker) {
       const m = hold(palette.name);
       if (!m) return NO_STANDERS;
-      if (!folk) {
-        const glows = townLights();
-        folk = TOWNSFOLK2_AT.map((p, i) => {
-          const figure = townsfolkFigure2(p.figure);
-          const feet = folkFeet[i]!;
-          const stand = (facing: Facing): Standing | null => {
-            const ax = facing === 'left' ? FIGURE2_W - 1 - FIGURE2_ANCHOR_X : FIGURE2_ANCHOR_X;
-            const x = feet.x - ax;
-            const y = feet.y - FIGURE2_SOLE_Y;
-            const box = { x, y, w: FIGURE2_W, h: FIGURE2_H };
-            const image = keep(
-              figure?.paint(facing, m.time, glowsIn(glows, box, palette2(m.time))) ?? null,
-            );
-            return image && { image, x, y, base: feet.y };
-          };
-          return { right: stand('right'), left: stand('left') };
-        });
-      }
       folkShown.length = 0;
-      for (let i = 0; i < folk.length; i++) {
+      for (let i = 0; i < m.folk.length; i++) {
         const turned = turnedTo(folkFeet[i]!, walker, NOTICE2) === 'left';
-        const s = turned ? folk[i]!.left : folk[i]!.right;
+        const s = turned ? m.folk[i]!.left : m.folk[i]!.right;
         if (s) folkShown.push(s);
       }
       return folkShown;
@@ -483,26 +506,14 @@ export function town2Art(options: Town2ArtOptions = {}): Town2Art {
     shadowAt(feet, palette) {
       const m = hold(palette.name);
       if (!m) return null;
-      // A shadow falls on whatever ground is under the feet; over the sea there is none.
-      const mat = SHADOW_ON[groundAt(feet.x, feet.y)];
-      if (!mat) return null;
-      if (!shadows.has(mat)) {
-        const grid = tgrid(SHADOW_MIDDLE.x * 2 + 1, SHADOW_MIDDLE.y * 2);
-        const c = cell(mat, SHADOW_STEP);
-        for (let y = 0; y < grid.h; y++)
-          for (let x = 0; x < grid.w; x++) {
-            const a = (x - SHADOW_MIDDLE.x) / SHADOW_RX;
-            const b = (y + 0.5 - SHADOW_MIDDLE.y) / SHADOW_RY;
-            if (a * a + b * b <= 1) grid.d[y * grid.w + x] = c;
-          }
-        const picture = keep(paintCells({ grid, glows: [] }, m.time));
-        shadows.set(mat, picture && { picture, middle: SHADOW_MIDDLE });
-      }
-      return shadows.get(mat)!;
+      const picture = m.shadow.at(feet);
+      return picture && { picture, middle: m.shadow.middle };
     },
 
     life: [foamLife, ...smokeLives, ...gullLives],
     held: () => made?.time ?? null,
+    loading: () => canPaint() && !made,
+    take: arrived,
     forget,
   };
 }

@@ -76,6 +76,54 @@ export function canvasFit(box: Size, dpr: number): { css: Size; device: Size } {
   };
 }
 
+/**
+ * The canvas for a scene drawn at one canvas pixel per art pixel and
+ * enlarged by the browser (`image-rendering: pixelated`): `art` is the
+ * canvas's own size, `device` and `css` what it covers on screen, `scale` the
+ * whole number of device pixels each art pixel becomes.
+ *
+ * A frame then writes a ninth of the pixels it would at 3 device pixels an
+ * art pixel, and the enlarging is the compositor's. For it to stay crisp the
+ * enlargement must be exactly `scale` both ways: so the canvas covers a whole
+ * number of art pixels, each `scale` device pixels, and its CSS size is a
+ * whole number of device pixels (`cssStep`). Where the box is not such a
+ * size the canvas is a little smaller than it, never stretched.
+ */
+export function pixelFit(
+  box: Size,
+  dpr: number,
+  scaleOf: (device: Size) => number,
+): { css: Size; device: Size; art: Size; scale: number } {
+  const fit = canvasFit(box, dpr);
+  const step = Math.round(cssStep(dpr) * dpr);
+  let scale = scaleOf(fit.device);
+  // A trimmed canvas can want a smaller scale; a smaller scale never trims more. Two rounds settle it.
+  for (let round = 0; round < 3; round++) {
+    const art = {
+      width: whole(fit.device.width, scale, step),
+      height: whole(fit.device.height, scale, step),
+    };
+    const device = { width: art.width * scale, height: art.height * scale };
+    const next = scaleOf(device);
+    if (next === scale || round === 2)
+      return {
+        art,
+        device,
+        css: { width: device.width / dpr, height: device.height / dpr },
+        scale,
+      };
+    scale = next;
+  }
+  throw new Error('unreachable');
+}
+
+/** The most art pixels at `scale` in `device` pixels whose device size is a multiple of `step`. */
+function whole(device: number, scale: number, step: number): number {
+  let art = Math.floor(device / scale);
+  while (art > 0 && (art * scale) % step !== 0) art--;
+  return art;
+}
+
 /** How much of the scene, in art pixels, a canvas of this many device pixels shows at `scale`. */
 export function viewSize(device: Size, scale: number): Size {
   return { width: device.width / scale, height: device.height / scale };

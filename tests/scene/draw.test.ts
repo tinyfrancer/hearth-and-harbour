@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { frameAt, loopAt, risenPuffs, type Puff } from '../../src/scene/ambient';
 import { redrawn, type Frame, type Standing } from '../../src/scene/draw';
 import { mergeBoxes } from '../../src/scene/stage';
 
@@ -95,36 +94,5 @@ describe('mergeBoxes', () => {
       { x: 39, y: 39, w: 40, h: 40 },
     ]);
     expect(apart).toHaveLength(2);
-  });
-});
-
-describe('ambient motion', () => {
-  it('shows each frame in turn and goes round', () => {
-    expect([0, 399, 400, 800, 1200, 1600].map((ms) => frameAt(ms, 3, 400))).toEqual([
-      0, 0, 1, 2, 0, 1,
-    ]);
-    expect(frameAt(0, 3, 400, 400)).toBe(1);
-  });
-
-  it('starts the puffs where they were drawn and lifts each towards the next', () => {
-    const puffs: Puff[] = [
-      [5, 14, 4.5],
-      [9, 8, 3.6],
-      [14, 3, 3],
-    ];
-    expect(risenPuffs(puffs, 0)).toEqual(puffs);
-    const half = risenPuffs(puffs, 0.5);
-    expect(half[0]).toEqual([7, 11, 4.05]);
-    // The top puff has risen past the last place and thinned to half.
-    expect(half[2]![1]).toBeLessThan(3);
-    expect(half[2]![2]).toBeCloseTo(1.5);
-  });
-
-  it('flies a gull round its loop at whole pixels, back to the start after a lap', () => {
-    const loop = { x: 100, y: 50, rx: 20, ry: 5, lapMs: 1000, start: 0, turn: 1 as const };
-    expect(loopAt(loop, 0)).toEqual({ x: 120, y: 50 });
-    expect(loopAt(loop, 250)).toEqual({ x: 100, y: 55 });
-    expect(loopAt(loop, 1000)).toEqual(loopAt(loop, 0));
-    expect(loopAt({ ...loop, turn: -1 }, 250)).toEqual({ x: 100, y: 45 });
   });
 });

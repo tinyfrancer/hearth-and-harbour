@@ -55,7 +55,7 @@ import type { Play } from './play';
 import { dungeonScale } from './scale';
 import { stage, type Insets } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
-import { HERO_FEET } from './townArt';
+import { HERO_FEET } from './walkerArt';
 import { DUSK } from '../art/palette';
 
 /**

@@ -17,7 +17,7 @@ import { tileAt, type RoomTile } from './ground';
 import type { Scene, Thing } from './things';
 import { HIGH_WATER } from './tide';
 import { TILE, cellAt, inMap, type Point, type TileMap } from './tileMap';
-import { SHADOW_MIDDLE, litBy, walkerShadow } from './townArt';
+import { SHADOW_MIDDLE, litBy, walkerShadow } from './walkerArt';
 
 /** The grotto's theme, as the art doors know it. */
 export const THEME = 'grotto';

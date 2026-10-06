@@ -12,7 +12,7 @@ import type { GameState } from '../core/state';
 import { fullLook } from '../ui/look';
 import type { Facing } from './play';
 import type { Point } from './tileMap';
-import { HERO_FEET, litWalker } from './townArt';
+import { HERO_FEET, litWalker } from './walkerArt';
 
 /** What the hero looks like, as the art draws it: a whole look and the ids of what is worn. */
 export interface Dress {

@@ -9,7 +9,9 @@ import { DUNGEON_INSETS } from '../../src/scene/dungeonView';
 import { GROTTO } from '../../src/scene/grotto';
 import { FOCUS_RISE } from '../../src/scene/stage';
 import { centreOf, type Point } from '../../src/scene/tileMap';
-import { TOWN_HEIGHT, TOWN_WIDTH } from '../../src/scene/town';
+import { TOWN2_H, TOWN2_TILE, TOWN2_W } from '../../src/art/town2/town';
+import { town2Scene } from '../../src/scene/town2';
+import { FOCUS_RISE2 } from '../../src/scene/town2Place';
 import { BOAT_LANDING, heroAt, resetTown, runNow, townView } from '../../src/scene/townView';
 import { mountApp } from '../../src/ui/app';
 import type { Shell, View } from '../../src/ui/view';
@@ -132,18 +134,20 @@ function tap(root: ParentNode, at: Point): void {
     );
     camera = { x: c.x - room.left, y: c.y - room.top };
   } else {
+    // The town is 3 device pixels an art pixel at 3x: one CSS pixel each.
     const hero = heroAt();
     camera = cameraFor(
-      { x: hero.x, y: hero.y - FOCUS_RISE },
-      { width: (screen.width * 3) / 4, height: (screen.height * 3) / 4 },
-      { width: TOWN_WIDTH, height: TOWN_HEIGHT },
+      { x: hero.x, y: hero.y - FOCUS_RISE2 },
+      { width: screen.width, height: screen.height },
+      { width: TOWN2_W, height: TOWN2_H },
     );
   }
   const canvas = root.querySelector('canvas')!;
+  const css = run ? k : 1;
   const where = {
     bubbles: true,
-    clientX: (at.x - camera.x) * k,
-    clientY: (at.y - camera.y) * k,
+    clientX: (at.x - camera.x) * css,
+    clientY: (at.y - camera.y) * css,
   };
   canvas.dispatchEvent(new MouseEvent('pointerdown', where));
   canvas.dispatchEvent(new MouseEvent('pointerup', where));
@@ -154,12 +158,16 @@ const click = (root: ParentNode, text: string): void =>
     .find((b) => b.textContent === text)!
     .click();
 
+/** The rowing boat, in the middle of its tap box: in view from the start of town. */
+const boat = (): Point => {
+  const box = town2Scene().things.find((t) => t.id === 'rowboat')!.tap!;
+  return { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+};
+
 /** From the start of town to the boat's panel, and out in it. */
 function rowOut(view: View): void {
-  tap(view.el, centreOf({ col: 11, row: 17 }));
-  wait(view, 3000);
-  tap(view.el, { x: 130, y: 345 });
-  wait(view, 3000);
+  tap(view.el, boat());
+  wait(view, 6000);
   expect(view.el.querySelector('.scene-panel h2')!.textContent).toBe('Rowing boat');
   click(view.el, 'Row out to Brinebeard’s Grotto');
 }
@@ -250,7 +258,8 @@ describe('the way into the grotto', () => {
     expect(runNow()).toBeNull();
     // Back on the quay by the boat.
     const hero = heroAt();
-    expect([hero.x, hero.y]).toEqual([centreOf(BOAT_LANDING).x, centreOf(BOAT_LANDING).y]);
+    const landing = centreOf(BOAT_LANDING, TOWN2_TILE);
+    expect([hero.x, hero.y]).toEqual([landing.x, landing.y]);
   });
 
   /** Goes after whatever is standing in the room, one tap at a time, until it is clear or the run is over. */
@@ -432,10 +441,8 @@ describe('the idle task during a run', () => {
       }
     };
     frames(100);
-    tap(root, centreOf({ col: 11, row: 17 }));
-    frames(3000);
-    tap(root, { x: 130, y: 345 });
-    frames(3000);
+    tap(root, boat());
+    frames(6000);
     click(root, 'Row out to Brinebeard’s Grotto');
     expect(root.classList.contains('fullscreen')).toBe(true);
     app.save();
@@ -476,10 +483,8 @@ describe('a run’s spoils in the real app', () => {
       }
     };
     frames(100);
-    tap(root, centreOf({ col: 11, row: 17 }));
-    frames(3000);
-    tap(root, { x: 130, y: 345 });
-    frames(3000);
+    tap(root, boat());
+    frames(6000);
     click(root, 'Row out to Brinebeard’s Grotto');
     resize(844, 390);
     frames(100);

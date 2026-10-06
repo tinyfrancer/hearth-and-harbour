@@ -55,9 +55,15 @@ function paint(pic: Picture, palette: Palette): HTMLCanvasElement | null {
   return canvas;
 }
 
+/**
+ * Pixels ready to copy: a canvas, or a bitmap a worker painted (the C-scale
+ * town's, made off the main thread so showing them costs a frame nothing).
+ */
+export type Image = HTMLCanvasElement | ImageBitmap;
+
 /** Something to copy onto the frame, with its top-left at whole art pixels. */
 export interface Placed {
-  readonly image: HTMLCanvasElement;
+  readonly image: Image;
   readonly x: number;
   readonly y: number;
 }
@@ -96,7 +102,7 @@ export interface Frame {
   readonly scale: number;
   readonly camera: Point;
   /** The map with everything that stands still on it (`compose`). */
-  readonly still: HTMLCanvasElement;
+  readonly still: Image;
   /** Every standing thing, already in `still`, in depth order. */
   readonly standing: readonly Standing[];
   /** Laid on the ground over `still`: the walker's shadow, foam. */
