@@ -403,14 +403,14 @@ const GULL: Beast = {
     // The tail and the dark wingtips crossing behind.
     sprite(g, 4 + bx, 17 + by, ['aa.....', 'aaab...', '.aabbb.', '..cbbb.', '...c.c.'], {
       a: ['felt', 2],
-      b: ['sail', 3],
+      b: ['smoke', 3],
       c: ['felt', 3],
     });
     // The body: white breast, grey back.
-    mass(g, 19 + bx, 17 + by, 10, 7, 'sail', { base: 1.6, k: 1.6 });
+    mass(g, 19 + bx, 17 + by, 10, 7, 'smoke', { base: 1.4, k: 1.6 });
     mass(g, 16 + bx, 15 + by, 8, 4.5, 'stone', { base: 2.2, k: 1.6, tex: 'feather' });
     // The head: white, a fierce yellow eye under a flat brow, the chip in its beak.
-    mass(g, 27 + hx, 9 + hy, 5, 4.5, 'sail', { base: 1.4, k: 1.5 });
+    mass(g, 27 + hx, 9 + hy, 5, 4.5, 'smoke', { base: 1.1, k: 1.5 });
     eye(g, 28 + hx, 8 + hy, 'gold');
     put(g, 27 + hx, 7 + hy, cell('stone', 4));
     put(g, 28 + hx, 7 + hy, cell('stone', 4));

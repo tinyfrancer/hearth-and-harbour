@@ -70,7 +70,7 @@ export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
   goblin_poacher: { x: 5, y: 7, w: 63, h: 49 },
   bramble_wyrm: { x: 5, y: 3, w: 64, h: 53 },
   deckhand: { x: 11, y: 7, w: 42, h: 49 },
-  powder_monkey: { x: 15, y: 9, w: 56, h: 47 },
+  powder_monkey: { x: 15, y: 9, w: 57, h: 47 },
   giant_crab: { x: 2, y: 9, w: 68, h: 47 },
   ships_parrot: { x: 6, y: 8, w: 61, h: 48 },
   brinebeard: { x: 2, y: 0, w: 65, h: 56 },

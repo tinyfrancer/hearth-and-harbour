@@ -9,7 +9,7 @@
  * (`PORTRAIT2_SAFE`), so a frame that must crop a portrait can crop to it.
  */
 import { hash, put, stamp, tgrid, type Picture2, type TGrid } from '../town2/cells';
-import { cell } from './cave';
+import { cell, matOf as matOf2 } from './cave';
 import type { Mat2 as Mat } from './cave';
 import { outlineIn } from '../figure2/engine';
 import { browShift } from '../figure2/look';
@@ -427,27 +427,64 @@ const SMUGGLER: FaceDef = {
 const MONKEY: FaceDef = {
   disc: 'ochre',
   draw(g) {
-    shoulders(g, 'umber', { neck: 7, slope: 2 });
-    neck(g, H, 'skinbrown', 7);
-    face(g, { ...H, w: 17, jaw: 10 }, 'skinbrown', {
+    // His open indigo vest over a bare chest, the red kerchief knotted at his throat.
+    shoulders(g, 'indigo', { neck: 7, slope: 2 });
+    paint(g, 28, 58, 17, 14, (x, y) =>
+      Math.abs(x + 0.5 - 36) < 3 + (y - 58) * 0.35 ? cell('skin', x < 35 ? 1 : 2) : 0,
+    );
+    neck(g, H, 'skin', 7);
+    paint(g, 25, 53, 24, 7, (x, y) => {
+      const lx = x + 0.5 - 37;
+      if (Math.abs(lx) > 11 - (y - 53) * 0.8) return 0;
+      return cell('crimson', lim(2 + (lx > 4 ? 1 : 0) + (y > 57 ? 1 : 0), 1, 5));
+    });
+    sprite(g, 45, 55, ['ab.', 'bbc', '.cc', '..c'], {
+      a: ['crimson', 1],
+      b: ['crimson', 2],
+      c: ['crimson', 4],
+    });
+    face(g, { ...H, w: 17, jaw: 10 }, 'skin', {
       eyes: 'wide',
       brow: 'raised',
-      browMat: 'hair',
+      browMat: 'hairblack',
       nose: 'snub',
       mouth: 'grin',
     });
-    beard(g, { ...H, w: 17, jaw: 10 }, 'hair', { stubble: true });
-    baldShine(g, H, 'skinbrown');
-    // The keg's rim over his shoulder and its fuse, lit.
-    paint(g, 52, 50, 18, 22, (x, y) => {
-      const nx = ((x - 52 + 0.5) / 18) * 2 - 1;
-      if (Math.abs(nx) > 1) return 0;
-      return y === 56 || y === 66 ? cell('iron', 3) : cell('wood', lim(2.5 + nx * 1.4, 1, 5));
+    // Stubble: a shadow of it along the jaw and over the lip, sparse, so the grin shows.
+    const MH = { ...H, w: 17, jaw: 10 };
+    const ey = eyesY(MH);
+    for (let y = ey + 6; y <= MH.chin; y++)
+      for (let x = MH.cx - MH.w; x <= MH.cx + MH.w; x++) {
+        const c = g.d[y * 72 + x];
+        if (!c || matOf2(c) !== 'skin') continue;
+        const mouthBand = y >= ey + 10 && y <= ey + 14 && Math.abs(x - faceX(MH) + 0.5) < 6;
+        if (!mouthBand && hash(x, y, 91) < 0.22) g.d[y * 72 + x] = cell('hairblack', 2);
+      }
+    baldShine(g, H, 'skin');
+    // The keg held up beside his head, the skull painted on, its fuse lit.
+    paint(g, 51, 30, 20, 26, (x, y) => {
+      const nx = ((x - 51 + 0.5) / 20) * 2 - 1;
+      const ny = ((y - 30 + 0.5) / 26) * 2 - 1;
+      if (Math.abs(nx) > 0.95 && Math.abs(ny) > 0.8) return 0;
+      if (y === 34 || y === 51) return cell('iron', lim(2.5 + nx, 1, 5));
+      return cell('wood', lim(2.4 + nx * 1.5 + ((x - 51) % 4 === 3 ? 1 : 0), 1, 5));
     });
-    sprite(g, 62, 42, ['..FE', '.f..', 'f...', 'f...', 'f...', 'f...', 'f...', 'f...'], {
+    sprite(g, 57, 39, ['.ccc.', 'ccccc', 'cKcKc', 'ccKcc', '.c.c.'], {
+      c: ['sail', 0],
+      K: ['wood', 6],
+    });
+    sprite(g, 62, 22, ['..FE', '.fF.', '.f..', 'f...', 'f...', 'f...', 'f...', 'f...'], {
       f: ['tar', 2],
-      F: ['ember', 1],
-      E: ['ember', 3],
+      F: ['fire', 1],
+      E: ['fire', 3],
+    });
+    // His fist under the keg.
+    sprite(g, 50, 52, ['.stt.', 'sttuu', 'tuuvv', '.vvw.'], {
+      s: ['skin', 1],
+      t: ['skin', 2],
+      u: ['skin', 3],
+      v: ['skin', 4],
+      w: ['skin', 5],
     });
   },
 };

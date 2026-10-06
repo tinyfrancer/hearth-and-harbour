@@ -154,6 +154,27 @@ export interface SampleOptions {
   readonly level?: number;
   readonly warn?: boolean;
   readonly lit?: boolean;
+  /** Rock round the room, in whole tiles either side and above and below (a camera's view past its walls). */
+  readonly pad?: { readonly cols: number; readonly rows: number };
+}
+
+/** The room in rock: its rows padded and everything standing in it moved with them. */
+function framed(rows: readonly string[], stood: readonly Stood[], o: SampleOptions): Picture2 {
+  const pc = o.pad?.cols ?? 0;
+  const pr = o.pad?.rows ?? 0;
+  const wide = rows[0]!.length + pc * 2;
+  const padded = [
+    ...Array.from({ length: pr }, () => '#'.repeat(wide)),
+    ...roomAtTide(rows, o.level ?? 1, o.warn).map((r) => '#'.repeat(pc) + r + '#'.repeat(pc)),
+    ...Array.from({ length: pr }, () => '#'.repeat(wide)),
+  ];
+  const moved = stood.map((st) => ({
+    ...st,
+    x: st.x + pc * TILE2,
+    y: st.y + pr * TILE2,
+    ...(st.sort !== undefined ? { sort: st.sort + pr * TILE2 } : {}),
+  }));
+  return roomPicture2(padded, moved, { lit: o.lit });
 }
 
 /** The store, at low water, with its deckhands and powder monkey, the hero come in at the west door. */
@@ -174,7 +195,7 @@ export function storeRoom2(o: SampleOptions = {}): Picture2 {
     foe('smuggler', 230, 196, p('smuggler')),
     foe('dock_rat', 420, 222, p('dock_rat')),
   ];
-  return roomPicture2(roomAtTide(STORE2, o.level ?? 1, o.warn), stood, { lit: o.lit });
+  return framed(STORE2, stood, o);
 }
 
 /** The pools at the first rise, with every creature of the grotto, the captain and the hero. */
@@ -210,5 +231,5 @@ export function poolsRoom2(o: SampleOptions = {}): Picture2 {
     y: py - post.base + seat.y + 1,
     sort: py + 1,
   });
-  return roomPicture2(roomAtTide(POOLS2, o.level ?? 1, o.warn), stood, { lit: o.lit });
+  return framed(POOLS2, stood, o);
 }
