@@ -105,14 +105,86 @@ light and glow; the forge glows by day and more at dusk; `fire` never shifts. Gr
 **longer at dusk** (the town is composed per time of day: a building's wedge reaches about three
 times as far, trees' shadows stretch to the right), and the dusk shift leans them plum-cool.
 
+### Figures at the C scale (B8; not yet swapped in)
+
+The hero and the townsfolk redrawn for the C-scale town, beside the current figures
+(`src/art/figure2/`, door `src/art/character2.ts`). Cody chose the study's H2 head ("Let's go h2,
+with whatever enhancements you see fit"); what follows is what it was drawn to.
+
+- **Canvas and anchor.** A figure is 56 × 72 art pixels, outline included. Its face and eyes are
+  centred on column 28; the soles' outline is row 70, the lowest row drawn; row 71 and the outer
+  columns stay empty. The anchor, where a figure stands, is (28, 70): the middle of the soles. Every
+  part is drawn a pixel inside the canvas so the outline always fits. Figures face right as drawn;
+  mirror for left.
+- **Proportions.** About 64 pixels tall, 4.6 heads: hair top at row 6, jaw at row 19, shoulders 22 to
+  25, belt 36 to 38, crotch about 44, soles 69. The head is 13 wide and 14 tall, round, with ears;
+  the jaw (7 wide) is wider than the neck (5).
+- **The face, by hand.** Brows one skin row above the eyes; eyes three wide with a skin column
+  between them and the nose: a lid line over the outer and inner corners, the iris in the middle,
+  two rows tall (its top cutting the lid line), whites either side. The study's H2 had two-pixel
+  eyes with the iris on the inner side, which read as cross-eyed enlarged; centring the iris and
+  opening it to two rows is what fixed it (the eye tests hold it: mirror-symmetric about column 28,
+  irises at columns 25 and 31). A nose lit on its left, a three-pixel mouth, no blush. Only a
+  deliberate patch (the captain's) breaks the mirror.
+- **Hair** is drawn in `hair`, a pixel proud of the skull, and split as before into a crown (what
+  head gear covers) and what hangs (locks, a braid, the nape), so under any helmet or hood only the
+  hang is worn. Long hair hangs as a curtain beside the face, in vertical strands, onto the
+  shoulders. Hair never covers an eye or a brow.
+- **Brows on every look.** Brows are drawn in `brow` and take the look's hair colour at the step that
+  stands clear of its skin (a contrast of 1.6 at least): the hair's own dark steps on fair skin,
+  darker ones where hair and skin are close in value (blonde on fair, dark brown on deep), lighter
+  ones where the hair is lighter than the skin (blonde or grey on brown and deep skin).
+- **Light, ramps and lines** are the C scale's (seven-step ramps in `town2/ramps.ts`, figures' ones
+  appended there; lit from the upper left; each thing outlined in its own darkest step). A part
+  lying over another casts one step of shadow just below and right of its edge; a fist never takes
+  one, so it always shows whole.
+- **Hand-placed, with one assist.** Faces, hands, hair and every piece of armour and metal are rows of
+  characters, each pinned to a material and a step. Cloth alone may be roughed in by `cloth()` (a lit
+  edge, a field, a shadow third, folds laid as unbroken lines with a lit lip) and is then corrected
+  pixel by pixel. Folds go only where cloth is pulled or gathered (below a belt, at the knee, down a
+  skirt from the hips), widening as they fall. Plate is never bevelled automatically: each plate has
+  a white specular where the light strikes it, a ridge between its lit and shaded facets, and a dark
+  lower edge where one lame overlaps the next.
+- **The stance.** Square to the viewer from the neck up, with life below: the weight on the near leg
+  (the viewer's left), that hip a row higher (the belt tilts, the hem hangs a row lower on the other
+  side), that shoulder a row lower, the far leg eased with its knee in and its foot turned out. The
+  far hand rests on the hip, the elbow out; the near hand closes on what it holds out from the hip,
+  or with nothing held rests on the belt. Both poses share everything but the near forearm; any
+  part covering that forearm comes in both (`hold` and `ease`). Legs and arms are separate parts, so
+  a walk cycle can be built on them.
+- **The hand rule at this size.** The fist is 5 × 5 (thumb over the top, knuckles, two rows of
+  fingers) at columns 14 to 18, rows 39 to 43; every grip is two columns (15 and 16) under it. A held
+  thing shows directly above the fist (a guard, a haft, a binding) and directly below it (a pommel, a
+  butt), lies on one straight line through the grip leaning out one column every six to nine rows,
+  and passes left of the forearm, which comes into the fist from above and to the right, so the
+  forearm is never hidden. A shield is strapped to the far forearm and hides the hand on the hip; a
+  spyglass is held in that hand with the fingers drawn over it.
+- **The ladder still reads at a glance at true size**: linen (no metal, nothing held), leather (tan,
+  laced, a bow, a quiver), bronze (a domed cap, a hide jerkin with one disc, a plank buckler, a short
+  leaf blade), iron (a conical nasal helm, mail in offset rows of rings, a heater, a sword above the
+  head), the knight (polished plate, pauldrons of three lames, the red cloak, the kite shield, the
+  long sword to the top of the canvas). Shields grow buckler → heater → kite; blades reach higher.
+- **Townsfolk** are each a person of their own, drawn whole, told apart by silhouette first, then
+  dyes, then something in their hands: the smith (bald, bearded, leather apron, a hammer hanging head
+  down), the trader (a green headscarf, a violet dress, a basket on her hip and an apple held up),
+  the captain (tricorn, patch, red coat, a hook, a peg, his cutlass point down), the alewife (a broad
+  bun low at the back, a madder dress, a dulled cream apron, a tankard), the market woman (a braid,
+  a knotted ochre shawl, a basket hanging from her fist), the docker (a flat cap, a waistcoat, his
+  forearms crossing at a slant, the top hand gripping the other arm), the old man (stooped a head
+  lower, a long grey beard, a stick). Auburn is deeper and redder than the study's, so it no longer
+  sits on golden skin at the same value.
+
 ### What the swap supersedes
 
 When lane C switches the scene to the C-scale town, these parts of the guide above stop applying to
 the town (they stay for anything still drawn at the old scale until it is redrawn): the sizes table
 (screen 270 wide, person 30 × 47, buildings 96–150 wide, props 11–13 wide), "four device pixels per
 art pixel" for the town, the 3–4 step ramps and the single outline ink for town art, and the soft
-elliptical ground shadow as the only shadow. Figures, portraits, icons and dungeons are not changed
-by this section; figures are being reworked separately at the 64-pixel size.
+elliptical ground shadow as the only shadow. Portraits, icons and dungeons are not changed by this
+section. When the scene and the menus switch to the C-scale figures, the figure sizes above (38 × 48
+canvas, base 47) and the "Figures" section's code notes give way to "Figures at the C scale"; the
+Figures rules themselves (posed, arms doing something, mirrored eyes, gear readable, the hand rule,
+the ladder) all still hold.
 
 ## Colour
 

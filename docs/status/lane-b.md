@@ -1,8 +1,48 @@
 # Lane B: art
 
-**Next session:** Cody's review of the C-scale town (B7, below) and of the figures being
-reworked at the 64-pixel size; then whatever that review asks for. Still open from B6 (below,
-"Deferred"): faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
+**Next session:** Cody's review of the C-scale town (B7) and the C-scale figures (B8, below); then
+whatever that review asks for, then the C-scale walk cycle, foes and portraits ("Deferred"). Still
+open from B6: faces for `goblin_poacher` and `bramble_wyrm`, and the five tab icons.
+
+## The figures at the C scale, for lanes C and A (`src/art/character2.ts`)
+
+The hero and the townsfolk redrawn for the C-scale town (style guide, "Figures at the C scale"),
+**built beside the current figures, not swapped in**: `characterPicture`, `characterCanvas`,
+`LOOK_CHOICES`, `portrait`, `foePicture` and every other existing door are unchanged. Import from
+`src/art/character2.ts` (and `town2/ramps.ts` for `TimeOfDay`):
+
+- `FIGURE2_W = 56`, `FIGURE2_H = 72`, `FIGURE2_ANCHOR_X = 28`, `FIGURE2_SOLE_Y = 70`. A figure's
+  picture is 56 × 72 with its outline; the middle of its soles is (28, 70), the lowest row drawn.
+  Draw it at `(x - 28, y - 70)` for a walker standing at (x, y), and sort by y. Mirror to face left
+  (`facingLeft2(pic)`, or `scale(-1, 1)` on the sprite with the anchor at 56 - 28 = 28: it is
+  symmetric about the anchor, so a mirrored sprite stands on the same spot).
+- `characterPicture2(look, wornItemIds, extra = [])` → `Picture2` (`{ grid, glows }`, town2 cells).
+  Same arguments as `characterPicture`: the game's `Look` and item ids. Unknown looks fall back to
+  the default, unknown items are ignored, never throws. Kept once drawn (keyed by look and items).
+  `extra` takes art gear ids directly (only `KNIGHT_GEAR2` needs it today).
+- `characterCanvas2(look, wornItemIds, size = 'sheet' | 'thumb')` → `<canvas class="pixel-art">`:
+  `thumb` at the C scale's game scale (3 on a 390-wide 3x phone), `sheet` twice that, at whole
+  device pixels, aria-label "Your character". Same shape as `characterCanvas`.
+- `characterSprite2(look, wornItemIds, time = 'day' | 'dusk')` → an offscreen canvas at one pixel per
+  art pixel, made once per look, items and time of day and kept (`town2/raster.ts`'s `spriteCanvas`,
+  so `forgetSprites()` frees them with the town's). Draw it with `drawImage` at the scene's scale,
+  smoothing off; never rasterize in a frame.
+- Townsfolk: `townsfolkPicture2(id)`, `townsfolkSprite2(id, time)`, `townsfolkCanvas2(id)` and
+  `townsfolkName2(id)`, null for an unknown id. `TOWNSFOLK2_IDS`: `smith`, `trader`, `pirate` (the
+  ids `townPiece` and `src/scene/town.ts` use today) and the villagers `alewife`, `market`,
+  `docker`, `elder`. Same canvas and anchor as the hero.
+- `ITEM_LAYERS2` (item id → gear id; every one of the 38 wearables in `src/data/items.ts`, the new
+  `velvet_cap` included), `characterGear2(look, items)`, `characterBody2(gear)`, `LOOK_CHOICES2`
+  (the same object as `LOOK_CHOICES`, so the creator needs no change), `KNIGHT_GEAR2`
+  (`knight_plate`, `knight_knees`, `red_cloak`, `kite_shield`, `knight_sword`: tier 2, drawn, no items
+  yet), `c2Scale(cssWidth, dpr)`.
+- Memory: a sprite is 56 × 72 × 4 = 16 KB per figure per time of day. The hero in one outfit by day
+  and dusk is 32 KB; all seven townsfolk both ways 226 KB; a hundred cached outfits 3.2 MB. A
+  picture's cell grid (Int16, 8 KB) is kept per look and outfit in a Map; a cache of a few dozen is
+  under half a megabyte.
+- What a scene still draws itself: the contact shadow under the feet (the gallery darkens the
+  ground's own steps by two in an ellipse 22 × 4 centred on the anchor, as the town does under
+  props), lights at dusk on figures (none of them glow), and any animation.
 
 ## The C-scale town, for lane C (`src/art/town2/`)
 
@@ -285,6 +325,61 @@ from world position, so painting in pieces still lines up; only flecks and wear 
   foam along the shore row.
 
 ## Done
+
+- **B8: The figures at the C scale.** New art, not yet reviewed by Cody. Review sheets outside the
+  repo in `/home/claude/lane-shots/w8-b/`: `in-town.png` (a 1170 × 2532 phone view: the hero in iron
+  and three townsfolk at the new tavern's door), `head-closeup.png` (H2 before and after),
+  `hero-looks.png` (every hairstyle in every colour enlarged, then all 150 looks at true size),
+  `gear-ladder.png` (true size and ×8, day and dusk), `gear-all.png` (every wearable worn alone),
+  `townsfolk.png` (×6, true size, dusk).
+  - **Engine** (`src/art/figure2/engine.ts`): parts of rows whose every character is pinned to a
+    material and a step (digits a part's own material, letters the shared legend for skin, eyes
+    and brows); stacked by depth with one step of cast shadow below and right of a nearer part's
+    edge; outlined inside the canvas in each material's darkest step. `cloth()` roughs in cloth
+    only (lit edge, field, shadow, folds as unbroken lines with a lit lip), then `fix` corrects it
+    pixel by pixel. Taken from the study's hand-placed figures; its automatic bevel left behind.
+    Figure ramps (skins, hair colours, brow, eye, plate, leather, cloth, bronze, hide, tan, the
+    townsfolk's dyes, violet, plum, midnight, felt, shell, pinewood, willow) appended to
+    `town2/ramps.ts` so a figure stamps into the town's own grid; nothing existing moved. Bronze,
+    tan, shells, eye whites and the plate's glint are set by hand at dusk.
+  - **Body** (`body.ts`): the H2 head with its eyes reworked (below), ears, a neck narrower than
+    the jaw; weight on the near leg with the hip up and that shoulder down, the far leg eased with
+    its foot out; the far hand on the hip with the elbow out; the near hand closed out from the hip
+    (`standard`) or resting on the belt (`standard_at_ease`). Legs, arms and forearms are separate
+    parts.
+  - **What changed about H2**: eyes three wide instead of two, the iris centred and two rows tall
+    under the lid line (the study's irises sat on the inner side and read cross-eyed enlarged;
+    the full-width lid read sleepy); ears; hair a pixel proud of the skull; brows that take the
+    step of the hair colour that shows on the skin; long hair in vertical strands, symmetric;
+    a closed shaggy fringe; auburn deeper and redder.
+  - **Looks** (`look.ts`, `hair.ts`): all five skins, five hairstyles (each a crown and a hang) and
+    six hair colours, 150 combinations, each its own picture.
+  - **Gear** (`clothes.ts`, `headgear.ts`, `armour.ts`, `held.ts`, `knight.ts`, `trinkets.ts`):
+    every one of the 38 wearables in the item tables, through `ITEM_LAYERS2`: the everyday teal
+    tunic, grey trousers, boots and belt; linen tunic (sleeves rolled), trousers and hood; leather
+    cap, jerkin, bracers; bronze cap, jerkin with its disc, plank buckler, leaf blade, hatchet; iron
+    nasal helm, mail, heater, arming sword, bearded axe; cudgel; both cutlasses; boarding axe;
+    Brinebeard's anchor; three shortbows (one drawing, three woods) and the longbow; wyrmscale
+    shield; spyglass; feathered hat, tricorn, velvet cap; captain's coat; shell necklace and
+    bracelet, trollstone, hunter's charm; the two quivers (strap across the chest). Plus tier 2's
+    knight: plate, knee cops, red cloak, kite shield, long sword. No tools are drawn today (the
+    hatchet is the bronze axe), so none are here.
+  - **Townsfolk** (`folk.ts`): `smith`, `trader`, `pirate`, `alewife`, `market`, `docker`, `elder`.
+  - **Gallery**: Menu → Art gallery → "See the new figures at the finer scale" (second button at the
+    top) draws `figure2/gallery.ts`'s section under "The town": the row at the tavern door, the
+    ladder at game scale and twice it, the townsfolk, every look (a plate per hairstyle), every
+    gear piece worn, the knight piece by piece, and a button for dusk. About 39 MB of canvases
+    once drawn on a 390 × 844 3x phone.
+  - **Tests** (`tests/art/figure2.test.ts`): the door's names and numbers; every look draws inside
+    the canvas, each its own picture, in its own ramps; every part a pixel inside the canvas; the
+    eyes mirrored about column 28 with the irises centred in every look and under every head gear;
+    brows clear of every skin; long hair beside the face, kept under a helmet; every wearable
+    mapped, drawn and changing the picture; the hand rule (grip under the fist, something above and
+    below, nothing over the fist, the whole fist and the forearm showing in seven outfits with and
+    without each shield, a shield hiding its hand, fingers round the spyglass); the ladder (each
+    rung differs, metal climbs, the knight's polish and colour, shields grow, blades reach higher,
+    no gold or cloak in tier 1, bronze and iron apart); the townsfolk ids, individuality, canvas and
+    eyes; the old doors unchanged.
 
 - **B7: The town at the C scale.** New art, not yet reviewed by Cody. Review sheets outside the
   repo in `/home/claude/lane-shots/w7-b/` (`phone-1.png` to `phone-4.png` with a 64-pixel
@@ -602,6 +697,32 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **Not in B8, by its brief**, and what each will need:
+  - Walk cycle: the legs (`LEGS_SHAPE`, boots), the near forearm and the far arm are separate
+    parts already; a cycle needs four to six leg poses and an arm swing per pose, with every
+    clothes, armour and coat part that covers a leg or the far arm given a version per pose (as
+    `hold` and `ease` do for the near forearm). Townsfolk do not walk today.
+  - Foes and the dungeon cast at the C scale: drawn as people the hero's size on this canvas (the
+    deckhand, smuggler, powder monkey and Brinebeard can reuse the head and the hand rule), the
+    creatures on canvases of their own; `foePicture` keeps its shape, so a `foePicture2` beside it.
+  - Portraits from the C-scale faces: the H2 head is 15 × 18; a 48 × 48 bust needs it drawn at
+    about three times that, by hand, rather than scaled.
+- **B8, weaker than it should be** (for Cody's review), weakest first:
+  - The near hand at rest on the belt reads as a hand on the hip too, so the at-ease hero has both
+    hands at his waist; a hand hanging easy or a thumb in the belt might read as more relaxed.
+  - The bronze cap is a bowl a pixel proud of the skull with a riveted rim: it reads as a helmet,
+    but on blonde hair bronze and hair are close.
+  - The leaf blade still reads more yellow than olive at true size; the day shift lifts bronze.
+  - The trader's apple and the market woman's hand at her knot are a few pixels each: legible
+    enlarged, small at true size.
+  - The docker's crossed forearms now slant and the top hand grips the other arm, but at true
+    size they are a bundle across his chest rather than two clear arms.
+  - Cloth below the belt is still regular: three folds on every tunic, skirt and apron.
+  - The pirate's peg leg reads as a tan leg at true size; his cutlass point sits by his boot.
+  - Mail's rings are a regular weave rather than catching the light.
+  - The stance is still nearly front-on: the life is in the hip and shoulder tilt, the eased leg
+    and the arms, not in any turn of the body.
+
 - **B7, weaker than it should be** (for Cody's review), weakest first:
   - The ship: a solid cutter with a furled sail, gun ports and a lit stern window, but its stern
     cabin is a plain box and its rigging is a handful of straight lines.
@@ -617,8 +738,7 @@ from world position, so painting in pieces still lines up; only flecks and wear 
     give it more to look at.
   - Smoke, gulls and shore foam are still pictures: animating them is lane C's.
   - Grass and water are soft dithered patches; at game scale the dither shows as a fine texture.
-- Figures at the C scale (the hero, the townsfolk) are not drawn here: they are being reworked
-  separately, and the C-scale town has no figures in it.
+- Figures at the C scale were drawn in B8 (above).
 
 - **Not reached in B6**: faces for S9's bounty-only monsters, `goblin_poacher` and
   `bramble_wyrm` (part 5 of its brief), which stay null; and the five tab icons (part 6;
@@ -681,8 +801,22 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 - Lane C: nothing required for B6; the doors are filled behind their names. The notes above say
   how to lay walls, which shadow step to use, and that the lantern's light must be moved into the
   room's coordinates to light more than the lantern.
-- **Lane C, to switch the town to the C scale** (not before the 64-pixel figures land, or the hero
-  will be a third too small in it):
+- **Lane C, to switch the town to the C scale and its people to the C-scale figures** (the
+  figures have landed in B8; switch both together, or the hero will be a third too small):
+  - The hero: in `src/scene/hero.ts`, `characterPicture(dress.look, dress.worn)` becomes
+    `characterSprite2(dress.look, dress.worn, time)` (or `characterPicture2` if you keep your own
+    canvases); the feet are `{ x: FIGURE2_ANCHOR_X, y: FIGURE2_SOLE_Y }` (28, 70) on a 56 × 72
+    picture instead of `HERO_FEET` (20, 47) on 40 × 50. Re-make the sprite when the outfit or the
+    time of day changes; never per frame.
+  - The townsfolk: in `src/scene/town.ts` and `townArt.ts`, the `smith`, `trader` and `pirate`
+    pieces come from `townsfolkSprite2(id, time)` with the same anchor; the villagers `alewife`,
+    `market`, `docker`, `elder` are new and yours to place and give words (or leave out).
+  - Shadows: a contact shadow two of the ground's own steps darker in an ellipse about 22 × 4 under
+    the anchor; tap boxes for a person about 24 × 64 above the anchor.
+  - Dungeons: the grotto still draws the current figures (`foePicture` and the hero at 40 × 50) at
+    the old scale; it can keep them until its own C-scale pass, or take the hero from
+    `characterSprite2` if the dungeon moves to 3 device pixels per art pixel.
+  - The town's own switch, as B7 left it:
   - World width: `SCENE_WIDTH` 360 (`WORLD2_WIDTH` in `src/art/town2/scale.ts`), so `sceneScale`
     gives 3 on a 390-wide 3x phone (which then shows 390 art pixels across, at least 360).
     `MIN_SCENE_HEIGHT` scales with it (160 × 360 / 270 = 213).
@@ -700,7 +834,17 @@ from world position, so painting in pieces still lines up; only flecks and wear 
     placements are there for `ambient.ts` to animate; `shoreAt(x)` gives the shore for foam.
   - The words for the new placements (`house`, `oak`, `fence-*`, `bench-*`, `planter-*`,
     `bush-*`, `boulder-*`) are lane C's to write.
-- **Lane A**: nothing required for the C-scale town.
+- **Lane A, to switch the menus to the C-scale figures**:
+  - `src/ui/characterScreen.ts` and `src/ui/createScreen.ts`: `characterCanvas(look, worn, size)`
+    becomes `characterCanvas2(look, worn, size)` from `src/art/character2.ts`; same arguments. The
+    canvas is 56 × 72 art pixels at 3 (thumb) or 6 (sheet) device pixels each on a 390-wide 3x
+    phone, so 56 or 112 CSS pixels wide (today's is 40 × 50 at 4 or 8: 40 or 80 wide); the
+    `.figure` box may want room for it. `LOOK_CHOICES` stays as it is (`LOOK_CHOICES2` is the same
+    object).
+  - Tier 2's items, when they exist: one row each in `ITEM_LAYERS2` (art's, in
+    `src/art/character2.ts`) pointing at `knight_plate`, `knight_knees`, `red_cloak`, `kite_shield`
+    or `knight_sword`; tell lane B the ids. Nothing for the save.
+  - `tests/ui` that look for the character canvas by its size will need the new size.
 
 ## Notes for this lane's next session
 
