@@ -517,7 +517,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       if (id !== run.room && id !== next) roomLook(dungeon.rooms[id]!).forget();
     look = lookOf(run.room);
     // Painted ahead only where a worker paints them: on the spot, each is worked out when shown.
-    if (painter !== groundOnTheSpot) {
+    if (painter.offThread) {
       look.warm();
       if (next) lookOf(next).warm();
     }

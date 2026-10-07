@@ -20,6 +20,10 @@ import type { Shell, View } from '../../src/ui/view';
 // jsdom: the scene is told its size by hand (portrait or on its side) and
 // tapped where things are, and the shell is a spy that records what it is asked.
 
+// jsdom has no worker, so each room's ground at the C scale (34 x 13 tiles, lit) is worked
+// out here as it is shown: a few hundred ms a room, more on a slow CI runner.
+vi.setConfig({ testTimeout: 30_000 });
+
 let observers: ResizeObserverCallback[];
 let clock: number;
 /** The Town screen's size, as the scene is told it. */

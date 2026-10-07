@@ -98,7 +98,8 @@ floor (the lanterns hang on the second).
     lanterns' lights; `CAVE_DUSK`. A room's ground is painted per state of the tide in a worker
     (none in jsdom: on the spot) and handed over without copying, so a turn of the tide never
     stops a fight; the room is dark until its ground is in, the next room's is painted ahead, a
-    room left behind is forgotten. Lantern flicker by `flicker2` on the scene's clock.
+    room left behind is forgotten. Rooms are painted ahead only where a worker paints them
+    (`GroundPainter.offThread`); without one, each state is worked out when it is shown. Lantern flicker by `flicker2` on the scene's clock.
   - **Props** stand on their feet (`dungeonPropSprite2`'s `foot`; a lantern's post at the wall's
     foot, `LANTERN_FOOT` 8), each with its contact shadow; the parrot sits on its perch's `seat`.
     The powder monkey's lit fuse lights the ground about him (`FUSE_LIGHT2`, wavering by
@@ -160,7 +161,9 @@ floor (the lanterns hang on the second).
     pace), `grottoRules` (the same, walking and wading paces), `grotto` (the wash-off's five tiles,
     the bridge's two sample cells, a blade's reach), `dungeon` (tile size and cells), `run` (the
     canvas it taps at one CSS pixel an art pixel, the doors' new cells), `grottoBot.ts` (its
-    distances through `far`). No outcome changed in any of them.
+    distances through `far`). No outcome changed in any of them. `run.test.ts` also has a 30 s
+    timeout: jsdom has no worker, so each room's ground is worked out on the spot as it is shown
+    (a few hundred ms a room), which a slow CI runner took past 5 s once.
   - **Balance** (`grottoRun.test.ts`, unmodified, passes): the scale switch moves nothing (the
     proof above). The bot's single-seed outcomes are chaotic, so the tie rule and the re-cut
     rooms each move a seed or two within the test's bounds. At tier 1: `main` 11 of 12 clear,

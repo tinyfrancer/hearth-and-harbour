@@ -57,6 +57,9 @@ export function groundInAWorker(): WorkerPainter {
     worker.onerror = failed;
   }
   return {
+    get offThread() {
+      return worker !== null;
+    },
     paint(room, state, urgent, done) {
       if (!worker) {
         groundOnTheSpot.paint(room, state, urgent, done);

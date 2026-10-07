@@ -370,6 +370,12 @@ export function steadyGlows(room: Room): Glow[] {
 
 /** Works out a room's ground at a state of the tide, somewhere, and hands it back. */
 export interface GroundPainter {
+  /**
+   * Whether it paints off the page's thread, so asking ahead costs the page
+   * nothing; absent is on the spot, where each state is worked out only
+   * when it is shown.
+   */
+  readonly offThread?: boolean;
   paint(
     room: Room,
     state: TideState,
