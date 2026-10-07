@@ -125,9 +125,10 @@ describe('faces in the menus', () => {
     expect(header().querySelector<HTMLElement>('.portrait2-art')!.dataset.worn).toBe(
       'bronze_sword',
     );
-    // Not in town, where the hero walks on screen beneath it.
+    // In town too, the same face, though the hero walks on screen beneath it.
+    const kept = header().querySelector('.portrait2-art');
     tab('town');
-    expect(root.querySelector('.topbar .who-face')).toBeNull();
+    expect(header().querySelector('.portrait2-art')).toBe(kept);
   });
 
   it('size the header’s face crisp and whole at 1x, 2x, 2.625x and 3x', () => {

@@ -695,25 +695,24 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       h('header', { class: 'topbar' }, [
         h('h1', { text: current.label }),
         h('span', { class: 'who', text: state.name }),
-        // Their own face beside their name, in what they wear: a tap opens the sheet.
-        // Not in town, where the hero himself is on screen below it (and the
-        // scene's tests take the page's first canvas to be the town's).
-        tab !== 'town' &&
-          h(
-            'button',
-            {
-              class: 'who-face',
-              attrs: { type: 'button', 'aria-label': `${state.name}: the character sheet` },
-              on: {
-                click: () => {
-                  tab = 'character';
-                  records = null;
-                  render();
-                },
+        // Their own face beside their name, in what they wear, on every tab: a tap
+        // opens the sheet. (The scene's tests tap the scene's own canvas, so a
+        // canvas in the header is no trouble to them.)
+        h(
+          'button',
+          {
+            class: 'who-face',
+            attrs: { type: 'button', 'aria-label': `${state.name}: the character sheet` },
+            on: {
+              click: () => {
+                tab = 'character';
+                records = null;
+                render();
               },
             },
-            [headerFace(state)],
-          ),
+          },
+          [headerFace(state)],
+        ),
       ]),
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
       awards,
