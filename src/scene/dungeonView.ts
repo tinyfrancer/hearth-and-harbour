@@ -10,7 +10,6 @@
 import { DAY } from '../art/palette';
 import { pixelCanvas } from '../art/canvas';
 import { itemIcon, skillIcon } from '../art/icons';
-import { portrait2 } from '../art/portraits2';
 import { PLAYER_ATTACK_MS } from '../core/combat';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
@@ -57,6 +56,7 @@ import {
   type FightArt,
 } from './fightArt';
 import { anchorOf, FIGURE2_SOLE_Y, heroPose } from './figures2';
+import { wholeFace } from './face';
 import { abilityPicture, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
@@ -232,20 +232,14 @@ export function combatantBoxes(
   return boxes;
 }
 
-/** The frame a face is shown in at the top of a fight, in CSS pixels (`.fight-face` in `scene.css`). */
-export const FACE_FRAME = 48;
-
 /**
  * A foe's whole face for the target panel, or null if the art lane has
- * none: its C-scale portrait, which shows the whole of its 72-pixel face in
- * whatever square frame it is put in (in the 48-pixel frame, two device
- * pixels an art pixel on a 3x phone), so everything in its safe box
- * (`PORTRAIT2_SAFE`) shows, hat to chin.
+ * none: its portrait at whole device pixels, as large as fits the top strip,
+ * in a frame its own size (`face.ts`), so everything in its safe box
+ * (`PORTRAIT2_SAFE`) shows, hat to chin, at any screen.
  */
 export function framedFace(id: string): Element | null {
-  const face = portrait2(id);
-  face?.setAttribute('aria-hidden', 'true');
-  return face;
+  return wholeFace(id);
 }
 
 /** A picture for a button, two CSS pixels to the art pixel. */

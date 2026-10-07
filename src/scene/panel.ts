@@ -4,8 +4,8 @@
  * styled like the menus, so it reads as part of the app rather than the
  * picture.
  */
-import { portrait2 } from '../art/portraits2';
 import { button, h } from '../ui/dom';
+import { wholeFace } from './face';
 import type { TimeOfDay } from './daylight';
 import type { Opens, Use } from './things';
 
@@ -40,9 +40,9 @@ export function usePanel(use: Use, time: TimeOfDay, actions: PanelActions, visit
   });
   const opens = use.button?.opens;
   const say = sayingFor(use, time, visit);
-  // A face beside the name once the art lane has drawn one; until then, just the name. The
-  // art lane's element fills whatever square it is put in with the whole face: a 48-pixel one here.
-  const art = use.portrait ? portrait2(use.portrait) : null;
+  // A face beside the name once the art lane has drawn one; until then, just the name. The whole
+  // face at whole device pixels, as large as fits beside the name (`face.ts`).
+  const art = use.portrait ? wholeFace(use.portrait) : null;
   const face = art ? h('span', { class: 'scene-panel-face' }, [art]) : null;
   const title = h('h2', { text: use.name });
   return h('section', { class: 'scene-panel', attrs: { 'aria-label': use.name } }, [
