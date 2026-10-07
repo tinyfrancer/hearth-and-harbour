@@ -35,7 +35,7 @@ import { tileAt, type RoomTile } from './ground';
 import type { Life, StillPicture } from './stage';
 import type { Box, Scene } from './things';
 import { HIGH_WATER } from './tide';
-import { cellAt, inMap, type Point, type TileMap } from './tileMap';
+import { cellAt, type Point, type TileMap } from './tileMap';
 import { WALK_SPEED } from './walker';
 
 /** A tile's side, in art pixels. */
@@ -47,6 +47,18 @@ export const cellVariant = (cols: number, col: number, row: number): number => r
 /** Whether a kind is ground a wall's face looks out over: anything but rock and doors. */
 const open = (k: Tile2Kind | 'rock' | undefined): boolean =>
   k !== undefined && k !== 'rock' && k !== 'door_open' && k !== 'door_barred';
+
+/**
+ * The tile a door is drawn with, open or barred. LANE B'S SIDE-WALL DOOR
+ * PLUGS IN HERE: a door in a side wall (the room's first or last column)
+ * will take lane B's side-wall door tiles once they are on `main`; until
+ * then every door is the back wall's.
+ */
+export function doorTile(room: Room, col: number, barred: boolean): Tile2Kind {
+  const side = col === 0 || col === room.ground.cols - 1;
+  void side;
+  return barred ? 'door_barred' : 'door_open';
+}
 
 /** How a tile is drawn at a state of the tide, rock left as rock for the wall rule. */
 function groundKind(room: Room, col: number, row: number, level: number, warn: boolean) {
@@ -67,7 +79,7 @@ function groundKind(room: Room, col: number, row: number, level: number, warn: b
     case 'water':
       return 'deep_water';
     case 'door':
-      return 'door_open';
+      return doorTile(room, col, false);
     case 'sand': {
       // A brig's flooded floor is stone; its warning is laid over it (`overlays`).
       if (g.stone && g.heights[row]![col]! >= 0) return 'rock_floor';
@@ -602,9 +614,6 @@ function flickering(room: Room, glows: readonly Glow[]): Life[] {
     return [life];
   });
 }
-
-/** Whether a point is on the room's map. */
-export const onMap = (map: TileMap, p: Point): boolean => inMap(map, cellAt(p, T));
 
 /**
  * Someone's contact shadow on a room's ground: the cells under their feet

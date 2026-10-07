@@ -10,7 +10,7 @@
 import { DAY } from '../art/palette';
 import { pixelCanvas } from '../art/canvas';
 import { itemIcon, skillIcon } from '../art/icons';
-import { PORTRAIT2_SAFE, portrait2 } from '../art/portraits2';
+import { portrait2 } from '../art/portraits2';
 import { PLAYER_ATTACK_MS } from '../core/combat';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
@@ -247,9 +247,6 @@ export function framedFace(id: string): Element | null {
   face?.setAttribute('aria-hidden', 'true');
   return face;
 }
-
-/** Whether a face has a safe box: the art lane says what of it must show. */
-export const hasSafeFace = (id: string): boolean => Object.hasOwn(PORTRAIT2_SAFE, id);
 
 /** A picture for a button, two CSS pixels to the art pixel. */
 function buttonPicture(id: string): HTMLCanvasElement | null {

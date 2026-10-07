@@ -14,7 +14,7 @@ import {
   type CssBox,
 } from '../../src/scene/dungeonView';
 import { FIRST_KINDS, FOE_KINDS, foeKind, kindAtScale } from '../../src/scene/foes';
-import { dungeonScale, overlayFit, pixelFit } from '../../src/scene/scale';
+import { dungeonScale, overlayFit, overlayRect, pixelFit } from '../../src/scene/scale';
 
 // The fight's screen at the C scale: faces whole in their frames, the room's
 // name always read and never over anyone, the scale as data, and the
@@ -170,4 +170,55 @@ describe('the overlay that keeps words sharp', () => {
       expect(top.k * top.perArt).toBeCloseTo(dpr, 9);
     }
   });
+
+  // Phones 360, 390 and 430 CSS pixels wide at 3x, sideways (as the grotto is played) and upright.
+  const PHONES = [
+    [780, 360],
+    [844, 390],
+    [932, 430],
+  ] as const;
+  for (const [long, short] of PHONES) {
+    for (const [width, height] of [
+      [long, short],
+      [short, long],
+    ] as const) {
+      it(`lands every word on the art pixel it names at ${width} x ${height} (3x)`, () => {
+        const dpr = 3;
+        const fit = pixelFit({ width, height }, dpr, (d) => dungeonScale(d, DUNGEON.scene.width));
+        const top = overlayFit(fit.css, dpr, fit.device, fit.scale);
+        expect(fit.scale).toBe(3);
+        expect(top.perArt).toBe(fit.scale);
+        expect(top.width).toBe(fit.device.width);
+        // A box of the scene (a foe's health bar, say) wherever the camera is: the overlay
+        // canvas is put down on whole device pixels, and an art point drawn on it lands on the
+        // device pixel the room's canvas shows that point on.
+        for (const camera of [
+          { x: 0, y: 0 },
+          { x: 37, y: 11 },
+          { x: 455.5, y: 61.25 },
+        ]) {
+          const box = { x: camera.x + 101.5, y: camera.y + 40.25, w: 30, h: 9 };
+          const at = overlayRect(box, camera, top.perArt, top, dpr)!;
+          expect(at).not.toBeNull();
+          // Put down on whole CSS pixels that are whole device pixels.
+          expect(Number.isInteger(at.x / dpr) && Number.isInteger(at.y / dpr)).toBe(true);
+          // An art point on the overlay: its canvas is put at `at` and drawn through
+          // `setTransform(per, 0, 0, per, -camera * per - at)` (`stage.ts`); on the room's
+          // canvas it is `(p - camera)` art pixels enlarged `scale` times. The same device pixel.
+          for (const p of [
+            { x: box.x, y: box.y },
+            { x: box.x + box.w, y: box.y + box.h },
+          ]) {
+            const overlay = { x: at.x + p.x * top.perArt - camera.x * top.perArt - at.x };
+            expect(overlay.x).toBeCloseTo((p.x - camera.x) * fit.scale, 9);
+          }
+          // ...and the overlay covers the whole box.
+          expect(at.x).toBeLessThanOrEqual((box.x - camera.x) * top.perArt);
+          expect(at.x + at.w).toBeGreaterThanOrEqual(
+            Math.min(top.width, (box.x + box.w - camera.x) * top.perArt),
+          );
+        }
+      });
+    }
+  }
 });

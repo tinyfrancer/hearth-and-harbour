@@ -62,6 +62,7 @@ import { tileAt } from './ground';
 import {
   CaveShadow,
   cellVariant,
+  doorTile,
   glowsIn,
   paintCells,
   perchLift,
@@ -72,7 +73,7 @@ import type { Facing } from './play';
 import type { StageExtra } from './stage';
 import type { Box } from './things';
 import { rising, type TideNow } from './tide';
-import { cellAt, type Cell, type Point } from './tileMap';
+import type { Cell, Point } from './tileMap';
 
 /** A tile's side, in art pixels. */
 const T = DUNGEON.tile;
@@ -1003,7 +1004,7 @@ function barredDoor(art: FightArt, look: RoomLook, room: Room, cell: Cell, lette
   if (!art.bars.has(letter)) {
     const kinds = look.kindsAt(0, false);
     const tile = dungeonTile2(
-      'door_barred',
+      doorTile(room, cell.col, true),
       cellVariant(room.ground.cols, cell.col, cell.row),
       aroundOf(kinds, cell.col, cell.row),
       cell,
@@ -1388,6 +1389,3 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
 export function tapLift(room: Room): (foe: Foe) => number {
   return (foe) => liftOf(room, foe);
 }
-
-/** The tile under a point, for the views' own use. */
-export const cellOf = (p: Point): Cell => cellAt(p, T);

@@ -164,10 +164,11 @@ export function inMark(t: Telegraph, p: Point): boolean {
   }
   const d = distance(p, t.at);
   if (!under(d, t.radius)) return false;
-  if (t.shape === 'circle' || d < far(1)) return true;
+  if (t.shape === 'circle' || under(d, far(1))) return true;
   const turn = Math.atan2(p.y - t.at.y, p.x - t.at.x) - (t.facing ?? 0);
   const off = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
-  return off <= (t.spread ?? Math.PI * 2) / 2;
+  // On the wedge's edge is in it, to a hair of angle (as `within` has distances).
+  return off <= (t.spread ?? Math.PI * 2) / 2 + 1e-9;
 }
 
 /** Where a flier is in its round. */
@@ -1229,7 +1230,8 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
     for (let tries = 0; tries < 6; tries++) {
       const x = left + dice.next() * (right - left);
       if (xs.every((o) => !under(Math.abs(o - x), rules.volleys.gap))) {
-        xs.push(Math.round(x));
+        // On a whole first-scale pixel, so the same dice put a line in the same place at any scale.
+        xs.push(Math.round(x / far(1)) * far(1));
         break;
       }
     }

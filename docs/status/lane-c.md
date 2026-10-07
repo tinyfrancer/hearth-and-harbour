@@ -66,10 +66,21 @@ floor (the lanterns hang on the second).
   played on 24-pixel tiles in lane B's C-scale art; the old-scale dungeon drawing is gone; the
   four weak spots from wave 10 are dealt with.
   - **The switch** (`dungeonMetrics.ts`): `DUNGEON = C_SCALE` (360 across, tile 24, distances
-    ×1.5 through `far` and `kindAtScale`; times unchanged). An exactly ×1.5 world reproduces every
-    fight but for float ties at the edge of a reach, which `within(d, r)` (`battle.ts`, a 1e-6
-    hair) settles as before: a traced fight on this branch is event for event the one on `main`.
-    The line-of-sight step is `far(4)`; a foe's `walked` counts its ground for its stride.
+    ×1.5 through `far` and `kindAtScale`; times unchanged). What `far` did not reach is scaled by
+    hand or made scale-free: the line-of-sight step (`far(4)`), the line test's step (in
+    proportion to the tile, `path.ts`), the facing margins (`turnToward`), a wedge's centre, the
+    volley lines' rounding (a whole first-scale pixel). An exactly ×1.5 world still differs from
+    the first in the last digits of its sums, so every tie is settled to a hair the same way at
+    any scale: `within`/`under` for distances (`battle.ts`), a corner reached to a hair
+    (`walker.ts`), a tile's edge (`EDGE` in `tileMap.ts`, used by `cellAt` and the line test), a
+    line of exactly so many steps, a wedge's edge. **Proof**: `scaleTimeline.test.ts` plays the
+    balance test's 24 runs (12 seeds, both strengths, the scripted hero) on the same rooms once
+    with `FIRST_SCALE` and once with `C_SCALE` (the metrics module mocked, everything reloaded):
+    every blow, miss, heal, mark, splash and kill on the same millisecond for the same amount,
+    every hit point at every tick, the same ending and loot, everyone in the same place counted in
+    tiles to a thousandth of a tile. All 24 identical. (Checked as well on `main`'s own rows, 38 x
+    14 and so on, at both scales: all 24 identical there too.) A foe's `walked` counts its ground
+    for its stride.
   - **The rooms re-cut** (`grotto.ts`): every room 34 tiles across; two rows of rock on top so
     the wall is two tall over the floor (`roomKinds2`'s rule), lanterns on the second. Pools: 38 x
     14 to 34 x 13, the channel, bar and ledge kept, the crabs at (28, 6) and (31, 9). Store: 36 x 14
@@ -109,8 +120,13 @@ floor (the lanterns hang on the second).
     `overlayFit`, `overlayRect`) and moved over the room by a CSS transform. A full-screen overlay
     cost 18 fps at 4x; the boxed one costs nothing measurable.
   - **Frame rates** (production build, 844 x 390 at 3x, headless Chromium in software, the
-    captain's last phase with his crew, volleys and the anchor): `main` 60.0 unthrottled, 49.2 at
-    4x CPU throttle; this branch 60.0 unthrottled, 57.5 to 59.0 at 4x over three runs.
+    captain from his second phase with his crew ashore, volleys and the anchor, 20 s each, the
+    scripted hero fighting): `main` 59.6 fps unthrottled (worst frame 100 ms), 53.5 and 54.6 at 4x
+    CPU throttle (p95 33 ms, 1 to 5 frames over 40 ms); this branch 60.0 unthrottled, 59.8 and
+    59.6 at 4x (p95 16.8 ms, worst 33 ms, none over 40). Upright (390 x 844) the run is held
+    behind the turn-your-phone card, so there is no fight to time: 60.0 on this branch, 59.0 on
+    `main`. The wave's earlier figure for `main` at 4x was 49.2; this sandbox varies by a few fps
+    run to run.
   - **The HUD**: 48 px targets, safe-area insets, sideways and the turn-your-phone prompt as
     before; the target panel's face at the panel's size.
   - **Weak spots from wave 10:**
@@ -138,22 +154,37 @@ floor (the lanterns hang on the second).
     `foePicture` (`dungeonArt.ts`), `GROTTO_SHADOW` (`grottoRoom.ts`), `portrait`,
     `portraitPicture`, `PORTRAIT_SIZE` (`portraits.ts`), `townPiece` (`town.ts`),
     `characterPicture` (`character.ts`). Lane B may retire them.
-  - **Tests**: changed only where they named the first scale (16-pixel cells, 64 px/s, first-scale
-    coordinates now given through `far`): `battle`, `grottoRules`, `grotto`, `grottoBot.ts`,
-    `dungeon`, `run` (the canvas it taps). `grottoRun.test.ts` (balance) is unmodified and
-    passes: 11 of 12 seeds clear at tier 1, median 8.2 min; none at half strength. The fairness
-    test's walk-out rule is the same rule at the scaled pace. New or rewritten: `grottoArt`
-    (wall rule, two-tall wall, lanterns, shadows, lighting, worker and on the spot agree),
-    `fightArt` (poses, lunge, flash, facing, walked one step against many), `dungeonPolish`
-    (title slot with the strip, faces at phone ratios), `hero`, `stroll` (passing each other),
-    `loadingScene` (boat shadow, sky), `planted`. 1131 tests pass.
-  - **Checked** in Playwright, production build, touch, 844 x 390 and 390 x 844 at 3x, geared
-    save: the scripted hero cleared the whole grotto (about 6 to 6.6 min) and came back to town,
-    with shots of each room, its name, each kind of mark mid-warning, the captain's three phases,
-    the target panel, the results both ways round, the old and new store side by side, a 400%
-    crop (every device pixel of art shares its colour with a neighbour across and one down, as a
-    nearest-neighbour enlargement must: 100% over the floor and over the figures; the words sharp), `grotto-fight.gif`, the hero and the market woman meeting in town, and the
-    loading card. All in `/home/claude/lane-shots/w11-c/`.
+  - **Tests whose expectations changed**, each only where it named the first scale (16-pixel
+    cells, 64 px/s, first-scale coordinates or the old rooms' cells), now given through `T` and
+    `far`: `battle` (places through `P`, the bow's edge, the step back, the warning's walk-out
+    pace), `grottoRules` (the same, walking and wading paces), `grotto` (the wash-off's five tiles,
+    the bridge's two sample cells, a blade's reach), `dungeon` (tile size and cells), `run` (the
+    canvas it taps at one CSS pixel an art pixel, the doors' new cells), `grottoBot.ts` (its
+    distances through `far`). No outcome changed in any of them.
+  - **Balance** (`grottoRun.test.ts`, unmodified, passes): the scale switch moves nothing (the
+    proof above). The bot's single-seed outcomes are chaotic, so the tie rule and the re-cut
+    rooms each move a seed or two within the test's bounds. At tier 1: `main` 11 of 12 clear,
+    median 8.22 min, the captain's median 164 s; this code on `main`'s rows 11, 7.80 min, 169 s;
+    this branch (re-cut rooms) 10, 8.31 min, 182 s, both losses at the captain. Half strength:
+    none clear anywhere, falling in the brig or the cove.
+  - **New or rewritten tests**: `scaleTimeline` (above), `grottoArt` (wall rule, two-tall wall,
+    lanterns, shadows, lighting, worker and on the spot agree), `fightArt` (poses from state,
+    lunge, flash, facing, walked one step against many), `dungeonPolish` (title slot with the
+    strip, faces at phone ratios, tap boxes from `FOE2_SIZES`, the overlay landing on the art
+    pixel it names at 360, 390 and 430 CSS px both ways round), `hero`, `stroll` (passing each
+    other), `loadingScene` (boat shadow, sky), `planted`. 1161 tests pass.
+  - **Checked** in Playwright, production build, touch, 844 x 390 and 390 x 844 at 3x: a geared
+    save (level 30, iron, 20 cod) played by the scripted hero through all five rooms and the
+    captain's three phases, cleared in 4 min 56 s, back to town: food 20 to 15, 32 doubloons, a
+    pearl and four feathers in the bank, the clear recorded. A weak save (level 6, two cod) was
+    knocked out in the store at 2 min 44 s: washed back to town with its 4 doubloons and XP, its
+    fish eaten, no clear. Shots: each room, its name, the target panel, a blow mid-swing in four
+    rooms, each kind of mark mid-warning, the captain's three phases, the tide in every state in
+    the pools and the cove, the results both ways round (cleared and knocked out), the
+    turn-your-phone card, the old and new store side by side, a 400% crop (every device pixel of
+    art shares its colour with a neighbour across and one down: 100% over the floor and the
+    figures; the words sharp), `grotto-fight.gif`, the hero and the market woman meeting in town,
+    and the loading card. All in `/home/claude/lane-shots/w11-c/`.
 
 - **Wave 10: the walk, and the weak spots.** Lane B's B9 walk cycle is wired for the hero and two
   strollers, the town is kept between visits, and every weak spot left by S16a is dealt with.
@@ -718,114 +749,102 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 10)
+## Weak spots, honestly (wave 11)
 
-- The loading scene is a composition of what exists, not drawn for the purpose: the sky is three
-  flat bands, the boat is large for the frame and has no shadow on the water, the swell is short
-  ripples. It reads as the game's harbour, but an art pass would do better (lane B's, if wanted).
-- Strollers pass through the hero and he through them; if he stands on a stroller's route they
-  overlap while one walks by. Their routes are short and chosen out of the way, not avoided.
-- When both of the room's name's places are taken by the fight, the name is not shown at all;
-  a player who fights at the door of every room may never read one.
-- The cold first open is unchanged (about 2 s of worker time); only later visits are quick.
-  Storing the town costs a further second or so of the worker's time after the town is shown,
-  once per deploy and time of day.
-- Frame rates and timings are headless Chromium in software on this sandbox, not a phone.
-- The planted-foot test checks the arithmetic (one stride of ground per frame shown), not the
-  pixels of lane B's frames, by design; if lane B's frames ever moved the foot by something other
-  than `WALK2_STRIDE`, only looking would catch it.
+- **Figures overlap wide foes**: the hero's melee stand (`MELEE_STAND`, 36 px) is less than half
+  a giant crab's or the captain's width plus his own, so he is drawn over a crab's claw or the
+  captain's coat, and a deckhand beside the captain stands over him too. Balance holds the stand
+  where it is; standing off by foe size (`FOE2_SIZES`) is a change in the fight's distances and
+  so a decision (see Needs).
+- **Striking is a lunge and a glint**, not a pose: lane B has no strike frames for the hero.
+- **Side doors** are lane B's north-wall door tiles set in a side wall: they read as doors but
+  face the wrong way. `doorTile` (`grottoArt.ts`) is the one marked place for lane B's
+  side-wall door; its id had not landed on `main` when this branch was made.
+- **Loot** still falls as this lane's own small sack, not lane B's art.
+- **The room's name in the strip** takes the target panel's place for its moment; anything at the
+  very top of the room is under it then.
+- **Strollers giving way** is a stop, a wait and a turn back, not stepping round. It never
+  deadlocks and reads as polite, but it is not clever. The hero walking does plan round them.
+- **The loading card** is better (clumped sky, clouds, the boat with a shadow under its keel)
+  but the boat is still lane B's full-size rowing boat, nearly half the frame across, and the
+  card is a composition of the town's parts, not a picture drawn for it.
+- **Faces at 1x** (a desktop browser) are 72 px in a 48 px frame and are cut to the frame's
+  middle; at phone ratios they fit whole.
+- **A room is dark for its first moment** (a tenth of a second unthrottled, more at 4x) until its
+  ground comes back from the worker.
+- **The ties rule is new behaviour**: settling ties to a hair changes which way a few chaotic bot
+  runs go (balance numbers above), though no distance, pace or time changed.
+- Frame rates and timings are headless Chromium in software on this sandbox, not a phone. Not
+  checked in WebKit or Safari (none here), nor on the live site (unreachable from here).
 
 ## Deferred
 
+- From wave 11: the overlap with wide foes; the hero's strike pose; the side-wall door (one
+  marked place); loot art. The old `src/art` doors listed under Done are unused by this lane;
+  lane B retires them, and the style guide's first-scale dungeon sizes.
 - From S16a: **not checked in Safari.** No WebKit build exists under `/opt/pw-browsers` and the
   Playwright WebKit download is blocked by this sandbox's proxy. Unverified there: that WebKit
-  enlarges the town's canvas nearest-neighbour (`image-rendering: pixelated`, which Safari has
-  supported since 10; on an iPhone with GPU-accelerated canvas this is the one thing to look at:
-  a zoomed screenshot of the square should show square, even pixels, no blur), that module
-  workers with `OffscreenCanvas` take the bitmap path (Safari 16.4 and later; older ones take the
-  raw-pixel path, which composes on the page and costs one long frame on first open and each
-  flip), and the frame rates on a real phone. If Safari smooths, the way back is one line:
-  `pixelated: true` off in `town2Stage()` (`town2Place.ts`), at the old frame cost.
-- From wave 10, **unverified, no WebKit here**: the kept town in Safari and in the home-screen
-  app. Safari 16.4 or later has what it needs (IndexedDB in a module worker, `OffscreenCanvas`
-  with `convertToBlob`, `createImageBitmap` with its options, `CompressionStream`), but none of
-  it was run there; iOS keeps a home-screen app's storage apart from Safari's and may clear a
-  site's storage after weeks unused, both of which only mean a cold open. Older Safari takes the
-  raw-pixel path, which keeps nothing. Also unchecked: that the 48 px face and the loading
-  picture stay crisp in WebKit, and frame rates on a real phone's GPU.
-- From wave 10: strollers do not step round the hero: he can walk through one, drawn in
-  front or behind by their feet as anyone is. The hero's widest reach is a fixed 17 px tested
-  over every wearable; a new wide shield would need it raised (the test says so).
-- From wave 10: a few frames over 40 ms still occur at 4x (0 to 4 in two minutes), with no
+  enlarges the town's and the rooms' canvases nearest-neighbour (`image-rendering: pixelated`;
+  on an iPhone a zoomed screenshot should show square, even pixels, no blur), that the overlay's
+  words sit on the room in Safari's own rounding, that module workers with `OffscreenCanvas` take
+  the bitmap path (Safari 16.4 and later), the kept town in Safari and the home-screen app, and
+  frame rates on a real phone. If Safari smooths, the way back is `pixelated: true` off in
+  `town2Stage()` (`town2Place.ts`) and the dungeon's stage options, at the old frame cost.
+- From wave 10: a few frames over 40 ms still occur in town at 4x (0 to 4 in two minutes), with no
   script in them; not something this lane's code can reach in headless Chromium.
 - From S15: **a run is not saved while it lasts**: a reload, or a phone that drops the page while
-  locked, loses a seven-to-ten-minute run and what it picked up. Turning to portrait and the page
-  going to the background both pause it cleanly (the background is tested: ten minutes away
-  moves the run a quarter of a second). Saving a run needs a place in the save (lane A's).
-- From S15: fight frames run near 48 fps in headless software rendering at 4x; not checked on a
-  phone's GPU, where the canvas copy that costs most here is cheap. If it shows on a phone, the
-  next step is fewer, smaller patches a frame.
-- From S15: dungeons are always dusk; the waterline's foam moves only when the tide changes level.
-- From S14b, by choice: no eating by itself in a run (the food button is the player's); a run
-  does not report kills by monster, so bounties do not count dungeon kills (lane A noted the
-  same); no fall animation beyond a red blink; the foes' figures are placeholders (B6); a heavy
+  locked, loses the run and what it picked up. Turning upright and the page going to the
+  background both pause it cleanly. Saving a run needs a place in the save (lane A's).
+- From S15: dungeons are always dusk.
+- From S14b, by choice: no eating by itself in a run (the food button is the player's); a heavy
   attack's circle is drawn over rock as well as floor.
-- Ship, boat and buoys do not bob; the waterline foam on the ship and rock does not move.
+- Ship, boat and buoys in town do not bob; the waterline foam on the ship and rock does not move.
 
 ## Needs from another lane
 
-- **Lane B, for the town** (nothing blocking): (1) none for the walk: `'up'` is in use. (2) Lights live in the pieces' pictures, so the
-  worker still draws every piece to find them (`townLights`): lights in `town2Facts` would let a
-  cold open skip that. (3) As before, retire the first town's art and the style guide's
-  first-town sizes; `walkerArt.ts` still reads `townPiece('hero').base` for the dungeons' hero
-  until the dungeons move.
-- **Lane A**: nothing needed. A later wish, as before: the notice board could open
-  `openBounties`. If a deploy should ever be forced to forget the kept town without changing it,
-  bumping `CACHE_FORMAT` (`src/scene/town2Cache.ts`) does it; nothing in lane A's files is
-  involved.
-- Nothing blocking. For lane B: the store asks `dungeonProp('grotto', 'crate')` and the bridge
-  `dungeonProp('grotto', 'perch')` (a mooring post the parrot sits on); neither id is in the
-  fixed list, so both show this lane's own drawing beside lane B's art until lane B adds them.
-  Every other tile and prop id in `docs/lanes.md` is used. A foe sprite of any size drops in
-  (`foeSprite` in `foes.ts`); a prop stands on its tile with its `base` row two pixels above the
-  tile's bottom, and whatever glows in its picture lights the room.
-- For lane A, when wanted: the grotto's cast lives in `src/scene/cast.ts`, not the monster
-  tables, so `kills` by those ids count for nothing in the bestiary yet (as S10's brief says an
-  unknown id should). Saving a run in progress would need a place in the save.
+- **Lane B, for the grotto (nothing blocking):** (1) a **side-wall door** tile, open and barred,
+  for doors in a room's east and west walls; this lane picks it up by id at `doorTile`
+  (`grottoArt.ts`). (2) A **strike pose** for the hero (any facing, a frame or two) so a blow is
+  more than a lunge and a glint; `heroSwinging` says when. (3) A **loot pile** prop. (4) A
+  **portrait size** that fits 48 CSS px at 1x. (5) Either the captain and crab drawn narrower, or
+  a word that it is fine for this lane to stand the hero off by `FOE2_SIZES` (a change in the
+  fight's distances, which Cody should decide, as it moves balance). (6) Retire the old doors
+  this lane no longer uses (listed under Done, wave 11).
+- **Lane B, for the town** (unchanged): lights in `town2Facts` would let a cold open skip
+  drawing every piece to find them; retire the first town's art and the style guide's first-town
+  sizes.
+- **Lane A (for S16, nothing blocking):** a place in the save for a run in progress, if S16
+  wants a reload to keep one (a `Run` is plain data); the grotto's cast moving from
+  `src/scene/cast.ts` into the monster tables if the bestiary should count them (the drift test
+  in `src/data/dungeons.ts` holds the names together today). Later wish, as before: the notice
+  board could open `openBounties`.
 
 ## Notes for this lane's next session
 
-- **Switching the dungeons to the C scale** (what wave 10 left ready, and the exact steps left):
-  1. Lane B's 24-pixel grotto art (`dungeonTile2`, `dungeonProp2`, `foePicture2` or whatever B10
-     names them) must be on `main`. Draw the rooms with it in `grottoArt.ts` (tiles at
-     `DUNGEON.tile`, props on their tile's base) and the cast in `fightArt.ts`/`foes.ts`
-     (`foeSprite` takes any size; feet from the picture), the hero from `characterSprite2` and the
-     walk (`Painted` from `town2Art.ts` works on any `Figure2`) with `HERO_FEET` replaced by
-     `FIGURE2_ANCHOR_X`/`FIGURE2_SOLE_Y`.
-  2. Re-cut the five rooms in `grotto.ts` on 24-pixel tiles (about 32 x 12 tiles each; corridors
-     two tiles), keeping each room's doors, tide rows, start and end and every guarantee
-     `grotto.test.ts` holds; the cells in `foes`, `perches` and `spawns` move with them.
-  3. Set `DUNGEON = C_SCALE` in `dungeonMetrics.ts`. That alone sets the world to 360 across
-     (`dungeonScale` gives 3 at 3x on its side), every tile to 24 (maps carry `tile`, and
-     `dungeon.ts`, `battle.ts`, `ground.ts` read it) and every distance to 1.5 times (battle's
-     constants through `far`, every foe row through `kindAtScale`).
-  4. What `far` does not reach yet, to scale by hand: `fightArt.ts`'s drawn sizes (health bars,
-     numbers, chevrons, ring widths, the keg's arc), `grottoArt.ts`'s shadow sizes and
-     `LANTERN_LIGHT.radius`, `walkerArt.ts`'s shadow, the `OVERHEAD` and hero box in
-     `combatantBoxes` (`dungeonView.ts`), and `grottoBot.ts`'s distances (tests).
-  5. Balance must hold unchanged: `grottoRun.test.ts` and the fairness test are a decision if
-     they move (times stay; every distance and pace is ×1.5, so walks take as long). Several
-     dungeon tests name first-scale numbers (16-pixel cells, 64 px/s); those are the tests that
-     legitimately change with the switch, and only those.
-  6. `pixelated` for rooms needs the fight's words and thin lines on an overlay canvas at
-     device resolution first (as before).
-  7. Lane B's B10a (now on `main`, `src/art/dungeonArt2.ts`, `portraits2.ts`) lists its own seven
-     steps for this switch in `docs/status/lane-b.md` ("Lane C, to switch the dungeon"): tiles by
-     `roomKinds2`, contact shadows by `GROUND2_SHADOW`, `lightGround2` and `CAVE_DUSK`, props by
-     `dungeonPropSprite2`, foes by `foeSprite2` with their poses (walk frame by distance, as the
-     town's), and faces by `portrait2(id)`, which replaces `framedFace` (it carries a 48-pixel
-     canvas shown whole). Read those with steps 1 to 5 above; they are the same plan from the art's
-     side. Not done this wave: the brief kept the grotto exactly as it was.
+- **For S16 (dungeon progression and replay)**, what the scene gives and needs:
+  - A dungeon is a `DungeonPlan` (`grotto.ts`): rooms as rows, foes, perches, spawns, titles, its
+    own tide. A second dungeon is a second plan plus its cast rows (`cast.ts`, `foes.ts`) and any
+    new tile or prop ids from lane B; `buildDungeon` and the painter take any plan, but the worker
+    today builds only `GROTTO` (`grottoWorker.ts`): give it the plan's id.
+  - A run's whole truth is the `Run` (`dungeon.ts`, with its `Battle`): plain data, so saving one
+    is a matter of a place in the save (lane A) and a version.
+  - `spoilsOf` gives kills by monster id and `cleared` with the dungeon's id. Replay is a new
+    `Run` from the same plan.
+  - The boat's panel (`town2.ts`) is the one door to a dungeon; more dungeons need a choice there.
+  - Balance for a new dungeon goes in `grottoRun.test.ts`'s style, and its scale in
+    `scaleTimeline.test.ts`'s.
+- **The C scale in the dungeons**: `DUNGEON` in `dungeonMetrics.ts` is the one switch; every
+  distance in the rules is `far(first-scale px)` and every foe row `kindAtScale`. A new rule that
+  compares distances uses `within`/`under` (`battle.ts`), never a bare `<`; a new tile lookup
+  uses `cellAt` (which has `EDGE`). `scaleTimeline.test.ts` will catch anything missed. Drawing
+  sizes in `fightArt.ts` (bars, rings, numbers) are C-scale numbers.
+- **Painting a room**: `roomLook(room, painter)` holds its ground per tide state;
+  `groundInAWorker()` paints off the thread (jsdom answers on the spot). The overlay canvas only
+  covers `overlayBox`: anything the fight draws in words must be inside the boxes it reports.
+- **Measuring**: `.shots/` (ignored by git, but `eslint .` lints it: move it aside before
+  `npm run check`) holds `perf.html`, `hooks.ts` (puts `runNow`, `keepRun`, the bot's `step` on
+  `window.hh`) and `vite.perf.ts`; a scratch folder with `main` extracted and the same three files
+  gives the "before".
 - **The walk** (wired): `heroPose(play, now)` and `strollersNow` give `Pose2`s; `Painted`
   (`town2Art.ts`) paints any `Figure2` per pose, lit at dusk, warming every pose a frame at a
   time; `walkFacing` is the one place a facing is chosen. Lane B's frames are relied on only for
@@ -834,39 +853,6 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   stored (with bytes) or not kept and why; screenshot scripts read it. In DevTools it is the
   `hearth-and-harbour-town` IndexedDB database. Moving `.shots` aside for a check: use a new,
   unique name (a shared scratch folder may already hold one of the same name).
-- **The dungeons at the C scale (the original plan; see the steps above for what is left).** Today a 270-wide world on 16-pixel tiles,
-  played sideways, `dungeonScale` the short side over 270, the first-scale hero (`walkerArt.ts`)
-  and foes. At the C scale:
-  - **Tiles of 24** (`TileMap.tile = 24`). Re-cut each room on the new grid rather than scaling
-    its rows: rooms about 32 x 12 tiles (768 x 288), two sideways screens long as now (the screen
-    shows 360 x about 200 art pixels), corridors two tiles wide. Every room keeps its doors, its
-    tide rows and the guarantees `grotto.test.ts` holds; the tide's 0–3 heights and the
-    wash-off's five tiles stay counted in tiles.
-  - **Scale**: `dungeonScale` takes a `SceneSize` like the town (360 on the short side, slack
-    12), so the hero is the same size on screen in town and in a run. `pixelated` could then
-    serve the rooms too, but only once the fight's words and thin lines (`fightArt.ts`,
-    `fillText` and 2-pixel strokes) go on an overlay canvas at device resolution.
-  - **Distances x 1.5** in `battle.ts`, `foes.ts`, `cast.ts`: walking paces (hero 64 to 88 as in
-    town; deckhand 44 to 66, powder monkey 50 to 75, crab 22 to 33, parrot 40 to 60, captain 34
-    to 51), notice ranges (104, 150, 96, 176 and the rest), reaches (22–32 to 33–48; melee 30 to
-    45; a bow's 120 to 180), the powder monkey's 92 keep-off and 60 back-away (138, 90), heavy
-    attacks' radii (keg 28 to 42, slam 46 to 69, anchor 58 to 87), volley line widths and
-    spacing (20 to 30, 48 to 72), the parrot's rally 120 (180), the brig's 40 (60), Step back's
-    40 (60). Times stay. Tap boxes scale with the figures. `grottoRun.test.ts` and the fairness
-    test must hold unchanged: a change in result is a change in design.
-  - **Art needed from lane B, by id** (a C-scale door beside each of today's, as
-    `characterPicture2` sits beside `characterPicture`):
-    - tiles at 24 for `grotto`: `sand`, `wet_sand`, `rock_floor`, `wall_top`, `wall_face`,
-      `shallows`, `deep_water`, `planks`, `door_barred`, `door_open` (`dungeonTile2`);
-    - props at the C scale: `powder_keg`, `crate`, `treasure_chest`, `anchor`, `rope_coil`,
-      `cannon`, `lantern`, `perch` (`dungeonProp2`);
-    - foes at the C scale, each a `Picture2` with an anchor and soles like `FIGURE2_*`:
-      `deckhand`, `powder_monkey`, `giant_crab`, `ships_parrot`, `brinebeard`, and the grey-box
-      `dock_rat`, `sand_crab`, `smuggler` (`foePicture2`);
-    - the hero is there already (`characterPicture2`); cave ground in cells, so `shadow2.ts`
-      can cast contact shadows in the rooms as it does in town.
-  - This lane's overlays (warning circles, numbers, health bars, the tide gauge) scale with the
-    tile; the HUD's CSS does not change.
 - **The town's pieces:** `town2.ts` (things, words, lookouts, townsfolk, scenery, pace),
   `townsfolk.ts` (what people say), `town2Facts.ts` (the facts and the paint: what the worker
   works out, pure), `town2Worker.ts` (bitmaps, or raw pixels), `town2Paint.ts` (pure pixel
