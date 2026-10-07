@@ -75,6 +75,12 @@ export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
   giant_crab: { x: 0, y: 0, w: 72, h: 56 },
   ships_parrot: { x: 5, y: 8, w: 63, h: 48 },
   brinebeard: { x: 0, y: 0, w: 72, h: 56 },
+  // The thieving marks (B12).
+  steal_fisherman: { x: 6, y: 3, w: 61, h: 53 },
+  steal_fish_stall: { x: 6, y: 0, w: 62, h: 56 },
+  steal_sailor: { x: 6, y: 1, w: 60, h: 55 },
+  steal_pedlar: { x: 5, y: 1, w: 64, h: 55 },
+  steal_strongbox: { x: 5, y: 5, w: 61, h: 51 },
 };
 
 /** The hero's safe box: the union over every hairstyle and head gear. */

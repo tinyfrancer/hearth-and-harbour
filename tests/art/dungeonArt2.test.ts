@@ -659,6 +659,23 @@ describe('portraits at the C scale', () => {
     expect(portrait2('nobody')).toBeNull();
   });
 
+  it('draws the five thieving marks (B12), by the game’s action ids, each its own face', () => {
+    const marks = [
+      'steal_fisherman',
+      'steal_fish_stall',
+      'steal_sailor',
+      'steal_pedlar',
+      'steal_strongbox',
+    ];
+    for (const id of marks) expect(portrait2(id), id).not.toBeNull();
+    const busts = marks.map((id) => portraitBust2(id)!);
+    for (let i = 0; i < busts.length; i++)
+      for (let j = i + 1; j < busts.length; j++) {
+        const differ = busts[i]!.d.filter((c, k) => c !== busts[j]!.d[k]).length;
+        expect(differ, `${marks[i]} against ${marks[j]}`).toBeGreaterThan(1500);
+      }
+  });
+
   it('declares each face’s safe box as data, inside the square, and holds every face, hat, ear and horn inside it', () => {
     expect(Object.keys(PORTRAIT2_SAFE).sort()).toEqual([...PORTRAIT2_IDS].sort());
     for (const id of PORTRAIT2_IDS) {
