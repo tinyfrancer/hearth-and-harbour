@@ -90,10 +90,20 @@ rock above and below it the rock's top (`doorTile`, `tileKindsAt` in `grottoArt.
     `scaleTimeline.test.ts` (every blow, miss, heal, splash and kill on the same millisecond,
     every place to a thousandth of a tile, 24 runs) and `grottoRun.test.ts` pass unchanged. At
     the stand the hero is shown 12 px off a giant crab and 9 off the captain.
-  - **The hero's strike**: STRIKE_PLACEHOLDER
+  - **The hero's strike**: **not wired: lane B's blow had not reached `main`**
+    when this lane shipped (it was on lane B's branch). Ready for it: `heroStrikeFrame`
+    (`fightArt.ts`) gives the frame of the blow from the fight's state alone, the blow's frame
+    on the very millisecond the blow falls (the swing timer's next tick at nothing; the frames
+    after it from when it fell), and is tested against the scripted hero's real blows at three
+    timings and however the frames fall (`strike.test.ts`). Until then the one marked place is
+    `heroLunge`/`heroSwinging` (the 3 px lunge and the glint), used by `dungeonView.ts`'s
+    `walkerPlaced` and `fightExtra`. The wiring was built and checked against lane B's branch
+    (a local commit, not shipped): `Pose2.striking`, `STRIKE_POSES2`, the figure's `strike`
+    from `characterStrikePicture2`, `heroStrikePose` choosing the facing toward the target,
+    the lunge and glint deleted; see Notes.
   - **Loot** (`lootArt`, `fightArt.ts`): the one marked place. Lane B's `loot_pile` prop through
     `dungeonProp2`/`dungeonPropSprite2`, stood on its foot (`foot`, `base`), the moment the door
-    gives one; this scene's sack until then. LOOT_PLACEHOLDER
+    gives one; this scene's sack until then.
   - **Strollers step round** (`giveWay`, `stroll.ts`; `town2Folk.ts`): a stroller walking into
     the hero steps aside from her route, away from him, by as much as his room (`PERSONAL`)
     needs at that point of her passing and 15% more (`PASS_ROOM`), eased in and out over twice
@@ -152,7 +162,7 @@ rock above and below it the rock's top (`doorTile`, `tileKindsAt` in `grottoArt.
   - **Frame rates** (production build, 844 x 390 at 3x, headless Chromium, the captain held in
     his second phase with his crew ashore and the tide in, the scripted hero fighting, 20 s at
     4x CPU throttle): `main` 59.8 fps, p95 16.8 ms, worst 49.9 ms, 1 frame over 40; this branch
-    PERF_PLACEHOLDER.
+    60.0 fps, p95 16.8 ms, worst 33.4 ms, none over 40.
 
 - **Wave 11: the grotto at the C scale, and the weak spots.** Brinebeard's Grotto is drawn and
   played on 24-pixel tiles in lane B's C-scale art; the old-scale dungeon drawing is gone; the
@@ -854,7 +864,7 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   would find him. The balance-changing alternative, for Cody: stand the hero (and the crew) off
   by the foe's body (`FOE2_SIZES` box half plus the hero's) instead of a fixed 36 px; that moves
   every melee distance with a wide foe, so the balance tests' expectations would move.
-- STRIKE_WEAK
+- **Striking is still a lunge and a glint**: lane B's blow had not landed on `main` (see Done).
 - **Strollers pass behind (or in front of) the hero** on a way that runs across the screen:
   his room is 10 px deep there, so she passes 11.5 px above or below his feet, drawn behind or
   in front by her feet, the two figures overlapping as people passing in a street do. On a way
@@ -906,12 +916,27 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   in `townView`, a seed from `now` passed in rather than `Date.now()`) is this lane's next. (4)
   The scene's tests tap `.scene canvas.scene-canvas`, so the header face can stay on Town.
   Later wish, as before: the notice board could open `openBounties`.
-- **Lane B:** NEEDS_B
+- **Lane B:** (1) the hero's blow on `main` (`characterStrikePicture2`, `STRIKE2_FRAMES`,
+  `STRIKE2_HIT_FRAME`), and say how long a frame should show if not 80 ms (this lane's
+  `STRIKE2_FRAME_MS`); the wiring is ready (Notes). (2) The `loot_pile` prop through
+  `dungeonProp2`: picked up by `lootArt` the moment the door gives it, nothing else to do. (3)
+  The giant crab and the captain are drawn wider than the fight's 36 px stand (a claw's tip, his
+  cutlass arm): either drawn tighter about their feet, or the balance-changing stand-off in the
+  weak list, for Cody.
 - **Lane B, for the town** (unchanged): lights in `town2Facts` would let a cold open skip
   drawing every piece to find them.
 
 ## Notes for this lane's next session
 
+- **Wiring the hero's blow** (when lane B's lands on `main`): in `figures2.ts` add
+  `striking?: boolean` to `Pose2` (key `k`), `STRIKE_POSES2` (four facings by
+  `STRIKE2_FRAMES`) and a `strike` on the hero's poser from `characterStrikePicture2(look, worn,
+facing, frame)`; `Hero2.warm(time, poses)`; in `fightArt.ts` `HERO_STRIKE` and
+  `heroStrikePose(dungeon, run)` (the target in reach makes the blow `coming`; facing across as
+  he faces, or down/up when the target is more than 1.5 times as far up or down as across); in
+  `dungeonView.ts` the pose is `heroStrikePose(...) ?? heroPose(...)`, warm the fight's poses;
+  delete `heroLunge`, `heroSwinging`, `LUNGE*` and the glint. Built and seen working against
+  lane B's branch in wave 12.
 - **Wave 12's pieces:** `apart.ts` (figures drawn apart; `fightFigures`/`fightApart` in
   `fightArt.ts` say who and how wide), `face.ts` (a whole face at whole device pixels),
   `runSave.ts` (a run as plain data), `giveWay` in `stroll.ts` (stepping round), `lootArt` and
