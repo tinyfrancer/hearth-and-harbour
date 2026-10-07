@@ -13,9 +13,11 @@ import { closePanel, startPlay, type Play } from './play';
 import { loadingScene } from './loadingScene';
 import { stage } from './stage';
 import type { Cell } from './tileMap';
-import { BOAT_LANDING2 } from './town2';
+import { BOAT_LANDING2, town2Scene } from './town2';
 import { Hero2, type Town2Art } from './town2Art';
+import { roomLook } from './grottoArt';
 import { groundInAWorker, type WorkerPainter } from './grottoPainter';
+import { tideStateOf } from './fightArt';
 import {
   LANDING2,
   START2,
@@ -75,6 +77,33 @@ const dungeons = (id: string): Dungeon | null => {
 };
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
+
+/** The longest the town waits, as a boat rows out, for the first room's ground to come from the worker. */
+export const ROW_OUT_WAIT_MS = 1500;
+
+/**
+ * Starts painting a dungeon's first room, every state of its tide, in the
+ * run's worker while the town is still up: the boat's panel is open, so a
+ * run is near. Rowing out then finds its ground in, and the room is never
+ * dark for its first moment.
+ */
+function paintAhead(dungeon: Dungeon): void {
+  painter ??= groundInAWorker();
+  if (!painter.offThread) return;
+  const look = roomLook(dungeon.rooms[dungeon.first]!, painter);
+  look.paintWith(painter);
+  look.warm();
+}
+
+/** Whether a run's room has any of its ground in to show. */
+function groundIn(dungeon: Dungeon, next: Run): boolean {
+  const look = roomLook(dungeon.rooms[next.room]!);
+  const s = tideStateOf(dungeon, next);
+  return look.nearestIn(s.level, s.warn) !== null;
+}
+
+/** The Town tab's own: which dungeon's first room has been asked for ahead, so it is asked once. */
+let paintedAhead: string | null = null;
 
 // The town is worked out in a worker as soon as the page has loaded, so it is
 // usually ready before the Town tab is first opened. Only where there are
@@ -201,12 +230,18 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     shell?.settleRun(spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined));
   };
 
+  /**
+   * A run rowing out, waiting for its first room's ground: the town stays up
+   * meanwhile (`ROW_OUT_WAIT_MS` at most), so the room is never shown dark.
+   */
+  let rowing: { run: Run; dungeon: Dungeon; since: number } | null = null;
+
   /** Rows out: the idle task waits and the scene takes the whole screen until the run ends. */
   const enter = (id: string): void => {
     const dungeon = dungeons(id);
-    if (!dungeon) return;
+    if (!dungeon || rowing) return;
     // A run reads the character as they row out, and rolls its own dice, never the save's.
-    run = startRun(dungeon, {
+    const next = startRun(dungeon, {
       fighter: fighterOf(latest, content),
       // The grotto's own cast fights by its rows here; the tables' monsters by theirs.
       monsters: { ...(content.monsters ?? {}), ...GROTTO_CAST },
@@ -214,9 +249,37 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       // Loot the game's tables do not know yet is not dropped.
       known: Object.keys(content.items),
     });
+    paintAhead(dungeon);
+    rowing = { run: next, dungeon, since: performance.now() };
+    rowOn();
+  };
+
+  /** Out in the boat once the first room's ground is in, or the wait is over. */
+  const rowOn = (): void => {
+    if (!rowing) return;
+    const waited = performance.now() - rowing.since;
+    // Without a worker the room is worked out on the spot as it is shown: nothing to wait for.
+    const waiting = !!painter?.offThread && !groundIn(rowing.dungeon, rowing.run);
+    if (waiting && waited < ROW_OUT_WAIT_MS) return;
+    const { dungeon } = rowing;
+    run = rowing.run;
+    rowing = null;
     settled = false;
     tell(true, true);
     showDungeon(dungeon);
+  };
+
+  /** The boat's panel open in town: its dungeon's first room is painted ahead. */
+  const boatOpen = (): void => {
+    const open = play?.open ?? play?.heading;
+    if (!open) return;
+    const thing = town2Scene().things.find((t) => t.id === open);
+    const opens = thing?.use?.button?.opens;
+    if (!opens || !('dungeon' in opens) || paintedAhead === opens.dungeon) return;
+    const dungeon = dungeons(opens.dungeon);
+    if (!dungeon) return;
+    paintedAhead = opens.dungeon;
+    paintAhead(dungeon);
   };
 
   /** Back to town by any way out of a run: the clock and the bars come back, the hero by the boat. */
@@ -228,6 +291,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     run = null;
     painter?.close();
     painter = null;
+    paintedAhead = null;
     hero?.forget();
     play = {
       ...(play ?? startPlay(START2)),
@@ -264,6 +328,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         // The facts came in: the town can be walked, under the loading card until its picture comes.
         if (!run && loading && !current.update && townReady()) showTown();
         current.update?.(next);
+        if (!run) {
+          boatOpen();
+          rowOn();
+        }
         if (loading) {
           loading.update();
           if (!run && !townLoading()) {
@@ -285,6 +353,7 @@ export function resetTown(): void {
   hero = null;
   painter?.close();
   painter = null;
+  paintedAhead = null;
   forget2();
   run = null;
   settled = false;

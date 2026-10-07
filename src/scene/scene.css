@@ -930,29 +930,15 @@
   opacity: 0;
 }
 
+/* Up in the HUD's strip, in the target panel's place, when the fight fills both slots over the room. */
+.dungeon-title[data-slot='strip'] {
+  top: calc(8px + env(safe-area-inset-top));
+}
+
 /* Moved down above the ability bar when someone in the fight is under the top slot (`titleSlot`). */
 .dungeon-title[data-slot='bottom'] {
   top: auto;
   bottom: calc(88px + env(safe-area-inset-bottom));
-}
-
-.dungeon-title.shown {
-  animation: dungeon-title 2.8s ease-out forwards;
-}
-
-@keyframes dungeon-title {
-  0% {
-    opacity: 0;
-  }
-
-  12%,
-  70% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

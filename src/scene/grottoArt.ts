@@ -409,6 +409,18 @@ export interface RoomLook {
    * can be painted).
    */
   stillAt(level: number, warn: boolean): StillPicture | null;
+  /**
+   * The nearest state to this one whose ground is in (the same, if it is;
+   * else the nearest level of the water), or null if none of the room's is:
+   * shown for the moment the exact one is still being painted, so the room
+   * is never dark while its ground comes.
+   */
+  nearestIn(level: number, warn: boolean): TideState | null;
+  /**
+   * Works a state out here and now, before returning, if it is not in yet:
+   * for a moment when a pause cannot be seen (the dark of a door).
+   */
+  paintNow(level: number, warn: boolean): void;
   /** The cells of the ground at a state of the tide, lit; null until worked out. */
   cellsAt(level: number, warn: boolean): TGrid | null;
   /** The tile kinds at a state of the tide. */
@@ -516,6 +528,29 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       const s = stateOf(room, level, warn);
       ask(s, true);
       return done.get(key(s))?.still ?? null;
+    },
+    nearestIn(level, warn) {
+      const s = stateOf(room, level, warn);
+      if (done.has(key(s))) return s;
+      let best: TideState | null = null;
+      let far = Infinity;
+      for (const o of states) {
+        if (!done.has(key(o))) continue;
+        // The nearest water first; a warning's darkened sand only breaks a tie.
+        const d = Math.abs(o.level - s.level) * 2 + (o.warn === s.warn ? 0 : 1);
+        if (d < far) {
+          far = d;
+          best = o;
+        }
+      }
+      return best;
+    },
+    paintNow(level, warn) {
+      const s = stateOf(room, level, warn);
+      const k = key(s);
+      if (done.has(k)) return;
+      asked.add(k);
+      groundOnTheSpot.paint(room, s, true, (cells, data) => arrive(s, cells, data));
     },
     cellsAt(level, warn) {
       return done.get(key(stateOf(room, level, warn)))?.cells ?? null;
