@@ -44,6 +44,7 @@ import type { Mat } from '../art/town2/ramps';
 import {
   EFFECT_MS,
   SAY_MS,
+  TICK_MS,
   alive,
   held,
   roomLocked,
@@ -232,6 +233,48 @@ export function heroLunge(battle: Battle, facing: Facing): number {
   // Out for the first half, back for the second.
   const k = age < LUNGE_MS / 2 ? 1 : 0.5;
   return Math.round(LUNGE * k) * (facing === 'left' ? -1 : 1);
+}
+
+/** When the hero last struck, on the run's clock: his blows are the fight's 'hit' and 'miss' on foes. */
+export function heroStruckAt(battle: Battle): number {
+  return battle.effects.reduce(
+    (t, e) => ((e.kind === 'hit' || e.kind === 'miss') && e.on === 'foe' ? Math.max(t, e.from) : t),
+    -Infinity,
+  );
+}
+
+/** A strike as drawn: how many frames, which one is the blow, and how long each shows. */
+export interface StrikeTiming {
+  readonly frames: number;
+  readonly hit: number;
+  readonly frameMs: number;
+}
+
+/**
+ * Which frame of his strike the hero shows now, or null for none: timed so
+ * that the blow's frame (`hit`) shows exactly when the blow falls on the
+ * fight's clock. The frames before it play as his next blow comes due (when
+ * `coming`: a target in reach), from where the fight's state says it will
+ * fall (the next tick his swing timer reaches nothing); the frames after it
+ * play from when it fell. Drawn from the state and the time alone: nothing
+ * here changes when a blow falls, and a blow that does not come (the target
+ * steps out of reach at the last) just ends the wind-up.
+ */
+export function heroStrikeFrame(
+  battle: Battle,
+  coming: boolean,
+  timing: StrikeTiming,
+): number | null {
+  const { frames, hit, frameMs } = timing;
+  const clock = battle.clock;
+  const age = clock - heroStruckAt(battle);
+  if (age >= 0 && age < (frames - hit) * frameMs) return hit + Math.floor(age / frameMs);
+  if (!coming || battle.over || battle.wash || battle.blowMs <= 0) return null;
+  // His swing timer moves on ticks: the blow falls on the tick it reaches nothing.
+  const due = Math.floor(clock / TICK_MS + 1e-9) * TICK_MS + battle.blowMs;
+  const toGo = due - clock;
+  if (toGo <= 0 || toGo > hit * frameMs) return null;
+  return hit - Math.ceil(toGo / frameMs);
 }
 
 /** Whether the hero's blow is in its flash: the moment a weapon's glint is drawn. */
