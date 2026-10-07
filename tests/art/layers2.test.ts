@@ -8,6 +8,10 @@ import {
   townsfolkFrameTagged2,
 } from '../../src/art/character2';
 import type { Tagged } from '../../src/art/figure2/walk';
+import { characterGear2 } from '../../src/art/character2';
+import { SIDE_HIP, sideFrame } from '../../src/art/figure2/side';
+import { sideDress } from '../../src/art/figure2/sideDress';
+import { stackSheet } from '../../src/art/figure2/rig2';
 
 // The layer order of every facing that is drawn from the front drawing (toward
 // the camera, away and breathing), held by what drew each pixel
@@ -149,5 +153,39 @@ describe('what hangs over the legs hides them down to its hem', () => {
           if (bad.length) faults.push(`${id} ${facing} ${f}: ${bad.slice(0, 3).join('; ')}`);
         }
     expect(faults).toEqual([]);
+  });
+});
+
+describe('across, a cloak is the outermost thing behind the body', () => {
+  it('hides a leg striding back into it, down to its hem, both ways', () => {
+    const faults: string[] = [];
+    const backLine = SIDE_HIP[0] - 4;
+    for (const o of OUTFITS.filter((o) => (o.extra ?? []).includes('red_cloak')))
+      for (const swap of [false, true])
+        for (let f = 0; f < WALK2_FRAMES; f++) {
+          const dress = sideDress(characterGear2({}, o.worn, o.extra))!;
+          const fr = sideFrame(dress, f, 7, swap);
+          const under = new Uint8Array(W * 72);
+          for (const d of fr.sheet.dots)
+            if (d.tag === 'cloak' && d.x < backLine && d.y > 46) under[d.y * W + d.x] = 1;
+          const { tags } = stackSheet(fr.sheet);
+          const bad = tags.filter((t, i) => (t === 'leg' || t === 'foot') && under[i]).length;
+          if (bad) faults.push(`${o.name} ${swap ? 'left' : 'right'} ${f}: ${bad}`);
+        }
+    expect(faults).toEqual([]);
+  });
+
+  it('lays a coat, mail or jerkin over the tunic under it: their skirts and sleeves show', () => {
+    for (const [id, mat] of [
+      ['captains_coat', 'midnight'],
+      ['iron_breastplate', 'iron'],
+      ['leather_jerkin', 'tan'],
+    ] as const) {
+      const dress = sideDress(characterGear2({}, [id]))!;
+      expect(dress.skirt?.mat, id).toBe(mat);
+      // The jerkin has no sleeves; the coat's and the mail's go over the tunic's.
+      if (id !== 'leather_jerkin')
+        expect(dress.arm[dress.arm.length - 1]!.mat, id).not.toBe('teal');
+    }
   });
 });

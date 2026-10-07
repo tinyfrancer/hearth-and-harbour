@@ -238,6 +238,8 @@ export interface SkirtSpec {
 export const SIDE = {
   FAR_ARM: -14,
   CLOAK: -13,
+  /** The cloak where it hangs behind the body's back line: over a leg striding back into it. */
+  CLOAK_OVER: 14,
   FAR_LEG: -11,
   BACK: -9,
   NEAR_LEG: 10,
@@ -329,7 +331,7 @@ export function sideFrame(
   const by = bob + body[1];
   if (dress.skirt) drawSkirt(sheet, dress.skirt, by, [near, far], body[0]);
   if (dress.skirt2) drawSkirt(sheet, dress.skirt2, by, [near, far], body[0]);
-  if (dress.cloak) drawCloak(sheet, dress.cloak.mat, by, f);
+  if (dress.cloak) drawCloak(sheet, dress.cloak.mat, by, f, hip[0] - 4);
 
   // The torso and head, rigid with the hips' bob; the head leads by a column.
   const head = dress.headAt ?? [0, 0];
@@ -632,9 +634,12 @@ function drawSkirt(
 /**
  * A cloak from the shoulders, hanging behind and trailing as the walker goes:
  * its hem lifts and sways with each step, its outer face lit along the back
- * edge, two long folds down it.
+ * edge, two long folds down it. Behind the body's back line (`backLine`, the
+ * back of the hips) it is the outermost thing, so a leg striding back goes in
+ * under it and only its foot shows below the hem (B12; Cody: "Shoes through
+ * the cape"); under the body it stays behind the legs.
  */
-function drawCloak(sheet: Sheet, mat: Mat, bob: number, f: number): void {
+function drawCloak(sheet: Sheet, mat: Mat, bob: number, f: number, backLine: number): void {
   const top = 23 + bob;
   const hem = Math.min(67, 66 + bob);
   const trail = 4 + 1.5 * Math.sin((f / 8) * Math.PI * 4);
@@ -654,7 +659,8 @@ function drawCloak(sheet: Sheet, mat: Mat, bob: number, f: number): void {
         step += 1;
       if (y === hem) step += 1;
       void lift;
-      sheet.add(x, y, cell(mat, Math.min(5, step)), SIDE.CLOAK, 'cloak');
+      const over = x < backLine && y > 44 + bob;
+      sheet.add(x, y, cell(mat, Math.min(5, step)), over ? SIDE.CLOAK_OVER : SIDE.CLOAK, 'cloak');
     }
   }
 }

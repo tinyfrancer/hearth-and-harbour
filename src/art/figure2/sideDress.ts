@@ -485,7 +485,11 @@ export function sideDress(gearIds: readonly string[]): SideDress | null {
     shield: [],
     back: [],
   };
-  for (const id of gearIds) {
+  // What is worn under goes on first, so a jerkin's, mail's or coat's skirt and
+  // sleeves are laid over the tunic's (B12: the everyday tunic came last and
+  // its skirt and sleeves replaced the coat's and the armour's in profile).
+  const under = (id: string) => (id === 'teal_tunic' || id === 'linen_tunic' ? 0 : 1);
+  for (const id of [...gearIds].sort((a, b) => under(a) - under(b))) {
     const hair = HAIR_VIEWS[id];
     if (hair) {
       d.head.push(...hair.map((p) => ({ ...p, depth: SIDE.HEAD + 5 })));
