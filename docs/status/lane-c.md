@@ -172,7 +172,7 @@ floor (the lanterns hang on the second).
     lunge, flash, facing, walked one step against many), `dungeonPolish` (title slot with the
     strip, faces at phone ratios, tap boxes from `FOE2_SIZES`, the overlay landing on the art
     pixel it names at 360, 390 and 430 CSS px both ways round), `hero`, `stroll` (passing each
-    other), `loadingScene` (boat shadow, sky), `planted`. 1161 tests pass.
+    other), `loadingScene` (boat shadow, sky), `planted`. 1163 tests pass (on `main` with lane A's wave 11b).
   - **Checked** in Playwright, production build, touch, 844 x 390 and 390 x 844 at 3x: a geared
     save (level 30, iron, 20 cod) played by the scripted hero through all five rooms and the
     captain's three phases, cleared in 4 min 56 s, back to town: food 20 to 15, 32 doubloons, a
