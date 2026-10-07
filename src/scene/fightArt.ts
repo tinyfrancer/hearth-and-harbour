@@ -39,7 +39,6 @@ import {
 } from '../art/dungeonArt2';
 import { STRIKE2_FRAMES, STRIKE2_HIT_FRAME, WALK2_STRIDE, type Facing2 } from '../art/character2';
 import { addGlow, type Glow } from '../art/raster';
-import { cell, outlined, tgrid, type Picture2 } from '../art/town2/cells';
 import type { Mat } from '../art/town2/ramps';
 import {
   EFFECT_MS,
@@ -106,8 +105,13 @@ const FLY_RISE = far(10);
  * hero's rig, by `WALK2_STRIDE`).
  */
 export const CREATURE_STRIDE = 6;
-/** How long each frame of the hero's blow shows (lane B's `STRIKE2_FRAMES`, the blow on `STRIKE2_HIT_FRAME`). */
-export const STRIKE2_FRAME_MS = 80;
+/**
+ * How long each frame of the hero's blow shows (lane B's `STRIKE2_FRAMES`, the
+ * blow on `STRIKE2_HIT_FRAME`: about 90 to 110 ms reads well, lane B says),
+ * and how much longer the recovery is held before he stands again.
+ */
+export const STRIKE2_FRAME_MS = 100;
+export const STRIKE2_HOLD_MS = 150;
 
 const FONT = "'HH Digits', 'Pixelify Sans', ui-monospace, monospace";
 const WORDS = "'Pixelify Sans', ui-monospace, monospace";
@@ -236,6 +240,8 @@ export interface StrikeTiming {
   readonly frames: number;
   readonly hit: number;
   readonly frameMs: number;
+  /** How much longer the last frame (the recovery) is held. */
+  readonly holdMs?: number;
 }
 
 /**
@@ -253,10 +259,11 @@ export function heroStrikeFrame(
   coming: boolean,
   timing: StrikeTiming,
 ): number | null {
-  const { frames, hit, frameMs } = timing;
+  const { frames, hit, frameMs, holdMs = 0 } = timing;
   const clock = battle.clock;
   const age = clock - heroStruckAt(battle);
-  if (age >= 0 && age < (frames - hit) * frameMs) return hit + Math.floor(age / frameMs);
+  if (age >= 0 && age < (frames - hit) * frameMs + holdMs)
+    return Math.min(frames - 1, hit + Math.floor(age / frameMs));
   if (!coming || battle.over || battle.wash || battle.blowMs <= 0) return null;
   // His swing timer moves on ticks: the blow falls on the tick it reaches nothing.
   const due = Math.floor(clock / TICK_MS + 1e-9) * TICK_MS + battle.blowMs;
@@ -265,11 +272,12 @@ export function heroStrikeFrame(
   return hit - Math.ceil(toGo / frameMs);
 }
 
-/** The hero's blow as lane B draws it: four frames, the blow on the third. */
+/** The hero's blow as lane B draws it: four frames, the blow on the third, the recovery held. */
 export const HERO_STRIKE: StrikeTiming = {
   frames: STRIKE2_FRAMES,
   hit: STRIKE2_HIT_FRAME,
   frameMs: STRIKE2_FRAME_MS,
+  holdMs: STRIKE2_HOLD_MS,
 };
 
 /**
@@ -959,43 +967,6 @@ function drawRipples(ctx: CanvasRenderingContext2D, cells: readonly Cell[], cloc
   ctx.globalAlpha = 1;
 }
 
-/** A sack of loot on the floor, with a glint of coin: this scene's own, while the art lane has none. */
-const LOOT: Picture2 = (() => {
-  const g = tgrid(14, 13);
-  const W = 14;
-  for (let y = 3; y < 12; y++)
-    for (let x = 1; x < W - 1; x++) {
-      const dx = (x - 6.5) / 5.5;
-      const dy = (y - 7.5) / 4.5;
-      if (dx * dx + dy * dy > 1) continue;
-      // Lit from the upper left, as everything is.
-      const lit = dx + dy;
-      g.d[y * W + x] = cell('linen', lit < -0.6 ? 1 : lit < 0.2 ? 2 : lit < 0.8 ? 3 : 4);
-    }
-  for (const [x, y] of [
-    [5, 1],
-    [6, 1],
-    [7, 1],
-    [6, 2],
-  ] as const)
-    g.d[y * W + x] = cell('linen', 3);
-  for (const [x, y] of [
-    [5, 3],
-    [6, 3],
-    [7, 3],
-  ] as const)
-    g.d[y * W + x] = cell('leather', 3);
-  for (const [x, y, t] of [
-    [10, 10, 1],
-    [11, 10, 2],
-    [10, 11, 3],
-    [11, 11, 3],
-  ] as const)
-    g.d[y * W + x] = cell('gold', t);
-  return { grid: outlined(g), glows: [] };
-})();
-const LOOT_FEET = { x: 7, y: 13 };
-
 /** Loot on the floor as drawn: its picture, and where on it the floor is. */
 export interface LootArt {
   readonly image: HTMLCanvasElement;
@@ -1003,16 +974,13 @@ export interface LootArt {
 }
 
 /**
- * The one place loot's look is chosen: the art lane's `loot_pile` prop
- * (`dungeonProp2`, stood on its foot) once it has one, else this scene's own
- * sack. Null where nothing can be painted.
+ * Loot on the floor: the art lane's `loot_pile` prop (`dungeonProp2`), stood
+ * on its foot, in the cave's dusk. Null where nothing can be painted.
  */
 export function lootArt(): LootArt | null {
   const pile = dungeonProp2('loot_pile');
   const image = pile && dungeonPropSprite2('loot_pile', CAVE_DUSK);
-  if (pile && image) return { image, feet: { x: pile.foot, y: pile.base } };
-  const own = paintCells(LOOT);
-  return own && { image: own, feet: LOOT_FEET };
+  return pile && image ? { image, feet: { x: pile.foot, y: pile.base } } : null;
 }
 
 /** The half-width of a lit fuse's glow on its canvas. */

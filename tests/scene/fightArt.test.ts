@@ -16,6 +16,7 @@ import {
   fightExtra,
   foePose,
   STRIKE2_FRAME_MS,
+  STRIKE2_HOLD_MS,
   heroStrikePose,
   liftOf,
 } from '../../src/scene/fightArt';
@@ -201,7 +202,10 @@ describe('who stands how', () => {
       frame: STRIKE2_HIT_FRAME,
     });
     expect(at(5000 + STRIKE2_FRAME_MS)!.frame).toBe(STRIKE2_HIT_FRAME + 1);
-    expect(at(5000 + (STRIKE2_FRAMES - STRIKE2_HIT_FRAME) * STRIKE2_FRAME_MS)).toBeNull();
+    // The recovery is held a while, then he stands again.
+    const end = 5000 + (STRIKE2_FRAMES - STRIKE2_HIT_FRAME) * STRIKE2_FRAME_MS + STRIKE2_HOLD_MS;
+    expect(at(end - 10)!.frame).toBe(STRIKE2_FRAMES - 1);
+    expect(at(end)).toBeNull();
     // No blow, no target: he walks or breathes.
     expect(heroStrikePose(GROTTO_DUNGEON, run)).toBeNull();
   });

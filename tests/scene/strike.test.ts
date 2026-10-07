@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { inReach, mapOf, type Battle } from '../../src/scene/battle';
 import { advanceRun, placeOf, type Run } from '../../src/scene/dungeon';
-import { heroStrikeFrame, heroStruckAt, type StrikeTiming } from '../../src/scene/fightArt';
+import {
+  HERO_STRIKE,
+  heroStrikeFrame,
+  heroStruckAt,
+  type StrikeTiming,
+} from '../../src/scene/fightArt';
 import { begin, decide, GROTTO_DUNGEON, prepared } from './grottoBot';
 
 // The hero's strike, drawn from the fight's state: its blow frame shows on the very
@@ -17,6 +22,7 @@ function coming(run: Run): boolean {
 }
 
 const timings: StrikeTiming[] = [
+  HERO_STRIKE,
   { frames: 4, hit: 2, frameMs: 70 },
   { frames: 5, hit: 3, frameMs: 60 },
   { frames: 3, hit: 1, frameMs: 90 },
