@@ -206,34 +206,9 @@ describe('wide foes at strike reach (B12)', () => {
     return p.feet.x - x0;
   };
 
-  it('draws the giant crab and the captain no further ahead of their feet than a hero can stand clear of', () => {
-    // The crab, standing, walking or winding up, ends where a hero's front foot begins.
-    for (const pose of ['idle', 'walk', 'windup', 'hurt'] as const)
-      expect(ahead('giant_crab', pose), pose).toBeLessThanOrEqual(REACH - 4);
-    // The captain's cutlass no longer reaches over the hero standing; his coat still meets the
-    // hero's chest at this reach (lane C's stand-off by size is the rest of the fix).
+  it('draws the captain’s cutlass up before him, not levelled over a hero at strike reach', () => {
+    // His coat still meets a hero at this reach; lane C draws the hero apart from it (apart.ts).
     for (const pose of ['idle', 'walk', 'windup', 'hurt'] as const)
       expect(ahead('brinebeard', pose), pose).toBeLessThanOrEqual(REACH + 2);
-  });
-
-  it('keeps the hero’s legs and body out of the crab but where a claw meets the blow', () => {
-    for (const pose of ['idle', 'walk'] as const) {
-      const foe = foePicture2('giant_crab', pose, 'left', 0, 1)!;
-      const g = foe.picture.grid;
-      const t = characterStrikeTagged2(
-        {},
-        ['iron_breastplate', 'iron_sword'],
-        'right',
-        STRIKE2_HIT_FRAME,
-      )!;
-      let inside = 0;
-      t.tags.forEach((tag, i) => {
-        if (!tag || !['body', 'head', 'hair', 'hat', 'leg', 'foot'].includes(tag)) return;
-        const x = (i % W) - FIGURE2_ANCHOR_X - REACH + foe.feet.x;
-        const y = Math.floor(i / W) - FIGURE2_SOLE_Y + foe.feet.y;
-        if (x >= 0 && y >= 0 && x < g.w && y < g.h && g.d[y * g.w + x]) inside++;
-      });
-      expect(inside, pose).toBeLessThanOrEqual(60);
-    }
   });
 });

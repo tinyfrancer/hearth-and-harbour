@@ -11,15 +11,14 @@ faces, the wide foes), and whatever it asks for.
   has a `PORTRAIT2_SAFE` box. Lane A's cards show them as they are.
 - **Icons**: `shell_necklace` and `shell_bracelet` redrawn to fill their 22 x 22 like the other
   icons (same ids, same size, same door).
-- **The giant crab and the captain** (`FOE2_SIZES`, drawing-only numbers; no reach the fight uses
-  changed): the crab is drawn at 1.7 times the sand crab (it was 2.15) with its legs in under its
-  shell, so it ends 31 columns ahead of its feet (it was 41): `tall` 50 to 44, `front` and `back`
-  41 and 42 to 31, `strike` 41 to 34, `box` 69 x 50 to 49 x 44, `shadow` 34 to 24 (its canvas,
-  feet and anchor unchanged). The captain stands with his cutlass held up before his shoulder
-  (it was levelled forward over a hero at strike reach): `front` 51 to 38, `box` 56 to 54 wide,
-  `shadow` 27 to 26 (canvas, feet, tall and his strike unchanged). At the melee stand (36) the
-  hero is now clear of the crab but for a claw meeting his blade; the captain's coat still meets
-  the hero's chest (his body is 60 columns wide): see Needs.
+- **The captain** (`FOE2_SIZES`, drawing-only numbers; no reach the fight uses changed) stands
+  with his cutlass held up before his shoulder; levelled forward, it reached over a hero at
+  strike reach. `front` 51 to 38, `box` 56 to 54 wide, `shadow` 27 to 26 (canvas, feet, tall and
+  his strike unchanged). His coat still meets the hero at the melee stand, and lane C's wave 12
+  now draws the hero apart from it (`apart.ts`, from these sizes). **The giant crab is unchanged**:
+  B12 drew it narrower (legs in under the shell, 1.7 times the sand crab), but lane C's "figures
+  drawn apart", merged meanwhile, already clears the hero from it by half a tile and its tests
+  hold the crab's sizes, so the crab went back to its B11 drawing.
 - **The first scale is retired** (next section): `dungeonTile`, `dungeonProp`, `foePicture`,
   `GROTTO_SHADOW`, `portrait`, `portraitPicture`, `PORTRAIT_SIZE`, `townPiece`, `townLayout`,
   `characterPicture`, `characterCanvas` and the modules behind them are gone. `character.ts` keeps
@@ -449,7 +448,8 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
     which read as a second ear, replaced by a herring held up beside her).
   - **Icons** (`gearIcons.ts`): the necklace a cord dropping to a scallop between smaller shells; the
     bracelet a ring of cord seen from above with shells along its front.
-  - **Wide foes** (`dungeon2/beasts.ts`, `boss.ts`, `sizes.ts`): above.
+  - **Wide foes** (`dungeon2/boss.ts`, `sizes.ts`): the captain's cutlass, above. The crab was
+    narrowed, then put back when lane C's wave 12 (drawing figures apart) landed first.
   - **The blow** lands chopping down and forward at full stretch (across): laid level, a long blade
     had room for a hand's breadth of itself on the canvas and read as a stub.
   - **Retired**: 20 modules and 12 test files, 9,591 lines, the gallery's first-scale parts and the
@@ -457,12 +457,10 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
     230.0 kB) and the town's worker from 227.8 to 210.2 kB, with the new faces in. The style guide's
     first-scale sizes, "what the swap supersedes" and references to deleted files went, with a
     short historical note under "Sizes".
-  - **Tests**: the marks' faces (each drawn and its own); the wide foes (drawn no further ahead of
-    their feet than a hero can stand clear of; the hero's body and legs out of the crab at the
-    blow); the gallery's new shape. **Expectations changed on purpose**: `FOE2_SIZES` for the crab
-    and the captain; the crab's eyes counted against its smaller drawing (30 white, 3 dark, from 40
-    and 8); `tests/art/figure2.test.ts` checks the look choices rather than the old 40 x 50 picture;
-    the first scale's door checks and their tests are gone.
+  - **Tests**: the marks' faces (each drawn and its own); the captain drawn no further ahead of his
+    feet than the strike reach and two; the gallery's new shape. **Expectations changed on
+    purpose**: `FOE2_SIZES` for the captain; `tests/art/figure2.test.ts` checks the look choices
+    rather than the old 40 x 50 picture; the first scale's door checks and their tests are gone.
 
 - **B12, first PR: Cody's two faults, the layer audit, the blow, the loot pile.** Review sheets
   outside the repo in `/home/claude/lane-shots/w12-b/`: `back-view-before-after.png` (every frame
@@ -1079,11 +1077,9 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
     still cut to the frame's middle.
   - **Lights in `town2Facts`** (lane C's town ask) and the captain drawn narrower: not reached.
 - **B12, weaker than it should be** (for Cody's review), weakest first:
-  - The captain still meets the hero at the melee stand: his coat is 60 columns wide on a 104-wide
-    canvas and the stand is 36 from his feet. Only a stand-off by size (lane C) or a narrower
-    captain (a redraw) clears it.
-  - The giant crab is smaller than "a rowing boat" now (about 1.8 m across with its claws), and its
-    legs drawn in under the shell are stiff posts at true size.
+  - The captain still meets the hero at the melee stand (his coat is 60 columns wide; the stand is
+    36 from his feet): lane C's drawing-apart shifts the hero by up to half a tile, which leaves the
+    coat and the hero's chest touching.
   - The blow toward the camera and away reads less strongly than across: a swing toward the camera
     lands pointing at the viewer, which at this size is a short blade over the legs; from behind
     the blow lands out of sight, only the blade's end showing past the head; a bow end-on is a
@@ -1304,13 +1300,9 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Needs from another lane
 
-- **Lane C, for B12's second PR** (nothing breaks if you do nothing): the crab's `box` is 49 x 44
-  (was 69 x 50) and its `tall` 44, the captain's `box` 54 wide: taps and the health bar follow the
-  smaller crab. **For Cody to decide**: the captain is 60 columns wide and the melee stand is 36
-  feet to feet, so the hero still stands against his coat; standing the hero off by
-  `FOE2_SIZES[id].front` (38 for him, 31 for the crab, 14 for a deckhand) would clear every foe,
-  but it moves the fight's distances, which is balance. The first scale's doors are gone; nothing
-  of yours imported them on `main`.
+- **Lane C, for B12's second PR** (nothing breaks if you do nothing): the captain's `front` is
+  38 and his `box` 54 wide (were 51 and 56); your `apart.ts` takes them as they are. The crab is
+  as it was. The first scale's doors are gone; nothing of yours imported them on `main`.
 - **Lane A, for B12's second PR**: nothing; the marks' faces arrive through `portrait2`, and
   `character.ts` keeps the look's names. `src/art/tabIcons.ts` (the glyph fallback) is gone, as
   wave 12 no longer imports it.

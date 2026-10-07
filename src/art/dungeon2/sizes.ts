@@ -147,17 +147,16 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     shadow: 12,
     hover: 0,
   },
-  // B12: drawn narrower (legs in under the shell), so a hero at strike reach is not inside it.
   giant_crab: {
     w: 84,
     h: 52,
     anchor: { x: 42, y: 50 },
-    tall: 44,
-    front: 31,
-    back: 31,
-    strike: 34,
-    box: { w: 49, h: 44 },
-    shadow: 24,
+    tall: 50,
+    front: 41,
+    back: 42,
+    strike: 41,
+    box: { w: 69, h: 50 },
+    shadow: 34,
     hover: 0,
   },
   ships_parrot: {
