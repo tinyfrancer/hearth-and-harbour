@@ -14,6 +14,7 @@ import {
   type Facing2,
 } from '../../src/art/character2';
 import { strikeKind } from '../../src/art/figure2/strike';
+import { foePicture2 } from '../../src/art/dungeonArt2';
 import type { TGrid } from '../../src/art/town2/cells';
 
 // The hero's blow (docs/style-guide.md, "The blow"): four frames in every
@@ -190,5 +191,24 @@ describe('the blow, in every facing', () => {
     });
     expect(reach).toBeGreaterThan(FIGURE2_ANCHOR_X + 12);
     expect(rest.w).toBe(56);
+  });
+});
+
+describe('wide foes at strike reach (B12)', () => {
+  // The fight's melee stand (lane C's MELEE_STAND, far(24)): feet to feet, in art pixels.
+  const REACH = 36;
+  const ahead = (id: string, pose: 'idle' | 'walk' | 'windup' | 'hurt') => {
+    const p = foePicture2(id, pose, 'left', 0, 1)!;
+    let x0 = p.picture.grid.w;
+    p.picture.grid.d.forEach((c, i) => {
+      if (c) x0 = Math.min(x0, i % p.picture.grid.w);
+    });
+    return p.feet.x - x0;
+  };
+
+  it('draws the captain’s cutlass up before him, not levelled over a hero at strike reach', () => {
+    // His coat still meets a hero at this reach; lane C draws the hero apart from it (apart.ts).
+    for (const pose of ['idle', 'walk', 'windup', 'hurt'] as const)
+      expect(ahead('brinebeard', pose), pose).toBeLessThanOrEqual(REACH + 2);
   });
 });

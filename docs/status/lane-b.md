@@ -1,7 +1,28 @@
 # Lane B: art
 
-**Next session:** Cody's review of B12 (the back view, the layer order, the hero's blow), and
-whatever it asks for.
+**Next session:** Cody's review of B12 (the back view, the layer order, the hero's blow, the marks'
+faces, the wide foes), and whatever it asks for.
+
+## Faces, icons, wide foes, the first scale retired, for lanes A and C (B12, second PR)
+
+- **Faces for the five thieving marks**, by the game's action ids, through `portrait2(id)` and
+  `portraitPicture2(id)` (72 x 72, the same element and three canvases as every face):
+  `steal_fisherman`, `steal_fish_stall`, `steal_sailor`, `steal_pedlar`, `steal_strongbox`. Each
+  has a `PORTRAIT2_SAFE` box. Lane A's cards show them as they are.
+- **Icons**: `shell_necklace` and `shell_bracelet` redrawn to fill their 22 x 22 like the other
+  icons (same ids, same size, same door).
+- **The captain** (`FOE2_SIZES`, drawing-only numbers; no reach the fight uses changed) stands
+  with his cutlass held up before his shoulder; levelled forward, it reached over a hero at
+  strike reach. `front` 51 to 38, `box` 56 to 54 wide, `shadow` 27 to 26 (canvas, feet, tall and
+  his strike unchanged). His coat still meets the hero at the melee stand, and lane C's wave 12
+  now draws the hero apart from it (`apart.ts`, from these sizes). **The giant crab is unchanged**:
+  B12 drew it narrower (legs in under the shell, 1.7 times the sand crab), but lane C's "figures
+  drawn apart", merged meanwhile, already clears the hero from it by half a tile and its tests
+  hold the crab's sizes, so the crab went back to its B11 drawing.
+- **The first scale is retired** (next section): `dungeonTile`, `dungeonProp`, `foePicture`,
+  `GROTTO_SHADOW`, `portrait`, `portraitPicture`, `PORTRAIT_SIZE`, `townPiece`, `townLayout`,
+  `characterPicture`, `characterCanvas` and the modules behind them are gone. `character.ts` keeps
+  `Look`, `LookChoice`, `LOOK_CHOICES` and `DEFAULT_LOOK`.
 
 ## The blow, the back view, the loot pile, for lanes C and A (B12, first PR)
 
@@ -389,90 +410,20 @@ Import each name from its file (there is no index file).
   - Ground dressing on the square and the upper street, the redrawn ship, rock, oak, pines and
     eyebrow window: same ids, same sizes and bases, so nothing in the layout moved but the buoy.
 
-## Dungeon art, for lane C (`src/art/dungeonArt.ts`)
+## The first scale, retired (B12)
 
-The three doors answer for the grotto now; nothing about their names, parameters or return types
-changed. Anything else (another theme, an unknown id, `toString`) is still null.
-
-**Tiles: `dungeonTile('grotto', kind, variant)`**, a 16 x 16 `Picture`, no transparent pixels,
-no glows. Any number works as `variant` (negative, large, fractional: it is floored); it is mixed
-before choosing, so pass something per cell such as `row * 97 + col * 31` or `row * cols + col`
-and neighbouring cells will not step through the wears in order. The same number always gives
-the same tile (the same object, cached).
-
-| Kind          | Wears | What it is                                                                        |
-| ------------- | ----- | --------------------------------------------------------------------------------- |
-| `sand`        | 20    | dry cave sand; 3 wears in 20 carry a shell, pebbles or a crab's hole              |
-| `wet_sand`    | 16    | the same sand a step darker with water shining on it; 3 carry a pool, weed, shell |
-| `rock_floor`  | 20    | worn grey-purple rock with cracks; 3 carry pebbles, a rock pool, weed             |
-| `wall_top`    | 4     | the rock seen from above: dark slate, a crack, sometimes a paler boss             |
-| `wall_face`   | 4     | the rock's front face, one tile tall (see joining rules)                          |
-| `shallows`    | 4     | light green-teal water over sand: plainly wadeable                                |
-| `deep_water`  | 4     | dark blue swell: plainly not                                                      |
-| `planks`      | 4     | boards across, as the town's pier; one wear has a split showing water             |
-| `door_barred` | 1     | timber frame, iron bars and a band across                                         |
-| `door_open`   | 1     | the same frame, dark beyond, the floor going on into it                           |
-
-How they join (tests hold all of it, `tests/art/dungeonArt.test.ts`):
-
-- Every kind tiles with itself in any arrangement, and every wear of a kind with every other:
-  floors, water and the wall's top have nothing but single grains at their edges, and their base
-  step is most of every edge. The face's and the planks' patterns sit at the same rows on every
-  wear's left and right edges, so a row of faces or a deck runs on without a seam.
-- **Put `wall_face` in a rock cell whose cell below is open ground (floor, water, a door), and
-  `wall_top` in every other rock cell**, as the grey-box's `paintRoom` did with its five rows of
-  face. Its top two rows are a lit lip that meets the `wall_top` above it; its bottom two rows are
-  a dark foot (`shade1`) that anything standing in front of it reads against. Do not stack two
-  faces (the lip would show twice); a face with open ground above it, a rock one cell tall, reads
-  as a low ledge. Side and bottom walls are all `wall_top`.
-- A door tile is a whole timber frame. It works in a top wall's face row and in a side wall. If
-  you swap `door_barred` for `door_open` when a room is cleared, you can drop the drawn bars; if
-  you keep `drawDoorBars`, draw it over `door_open`.
-- Between kinds the join is the tile edge, straight. Where water meets anything above it, a
-  broken row of `foam1` (as `paintRoom` and the town's `sea` do) softens the shore; it is yours to
-  keep or not.
-- Shadows: draw a standing thing's shadow in its ground's next step down, which
-  `GROTTO_SHADOW` in `src/art/grottoRoom.ts` gives by kind: `sand` `cavesand3`, `wet_sand`
-  `cavesand4`, `rock_floor` `stone3`, `shallows` `shoal3`, `planks` `wood3`, none on deep water.
-  (`sand3` on cave sand reads too orange.)
-
-**The cast: `foePicture(id)`**, facing right (mirror it to face left), outlined, cached. `feet`
-is on the outlined picture, from its top-left: the row the feet stand on and the middle between
-them. Sizes and tap boxes are yours as data; these are the pictures' own:
-
-| Id              | Picture | Feet     | Notes                                                                                                         |
-| --------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| `dock_rat`      | 32 x 15 | (17, 12) | tail sweeps behind to row 13; box about 24 x 13                                                               |
-| `sand_crab`     | 28 x 18 | (13, 16) | leg tips either side of the feet point                                                                        |
-| `smuggler`      | 39 x 47 | (23, 45) | the hero's height; cutlass raised on the right, a corked bottle in the other hand                             |
-| `deckhand`      | 39 x 49 | (22, 47) | the hero's height; boathook rises to the top row                                                              |
-| `powder_monkey` | 34 x 44 | (14, 42) | rows 0 to 4 are empty, so his fuse's glow fits inside the picture                                             |
-| `giant_crab`    | 52 x 29 | (25, 27) | wide and low                                                                                                  |
-| `ships_parrot`  | 29 x 39 | (14, 37) | flies: drawn in rows 0 to 24, its feet point is the ground below it; tap box about 28 x 25 above a 12-row gap |
-| `brinebeard`    | 60 x 62 | (29, 60) | a head taller than the hero; his anchor stands at his right, cols 38 to 59                                    |
-
-`powder_monkey` carries one glow (his lit fuse, radius 7, inside the picture), lit by
-`rasterize` at dusk like any other; nothing else of the cast glows.
-
-**Props: `dungeonProp('grotto', id)`**, outlined, cached; `base` is the row the prop stands on.
-
-| Id               | Picture | Base | Glows                                        |
-| ---------------- | ------- | ---- | -------------------------------------------- |
-| `powder_keg`     | 13 x 16 | 14   |                                              |
-| `treasure_chest` | 24 x 13 | 11   | (a dropped coin beside it is part of it)     |
-| `brig_bars`      | 18 x 29 | 27   | a section of bars in timber, one tile wide   |
-| `lantern`        | 12 x 25 | 23   | one, at (8.5, 7.5), radius 44, strength 0.55 |
-| `anchor`         | 19 x 22 | 20   |                                              |
-| `rope_coil`      | 18 x 10 | 8    | lies flat: fine to draw with the ground      |
-| `cannon`         | 27 x 16 | 14   | faces right                                  |
-
-The lantern's light is far bigger than its picture: rasterized on its own it is clipped to the
-prop's 12 x 25. Move its glow into the room's own coordinates and light the room with it, as
-`src/scene/town.ts` does with the town's lamps (`glow.x + at.x`, `glow.y + at.y`).
-
-`src/art/grottoRoom.ts` has the art lane's own test room (`roomPicture(rows, placed)`, rock
-resolved to face or top by `roomKinds`), which the gallery shows: a reference for how the pieces
-are meant to sit together, not a layout for the game.
+Deleted in B12, nothing outside `src/art` importing them on `main` (checked by a script that walks
+every import from `src/ui`, `src/scene`, `src/main.ts` and every non-art test): the first scale's
+dungeon art (`dungeonArt.ts`: `dungeonTile`, `dungeonProp`, `foePicture`, `GROTTO_SHADOW`; and
+`grottoTiles.ts`, `grottoCast.ts`, `grottoProps.ts`, `grottoRoom.ts`), portraits (`portraits.ts`:
+`portrait`, `portraitPicture`, `PORTRAIT_SIZE`; and `faces.ts`), figures (`figure.ts`,
+`wardrobe.ts`, `armoury.ts`, `hair.ts`, `townsfolk.ts`, `plates.ts`), town (`town.ts`: `townPiece`,
+`townLayout`; and `scenery.ts`, `harbour.ts`, `ground.ts`, `rng.ts`), `pixelSvg.ts`,
+`tabIcons.ts`, and the old character door's drawing (`characterPicture`, `characterCanvas`,
+`characterGear`, `ITEM_LAYERS`). Still here because other lanes import them: `character.ts` (now
+only `Look`, `LookChoice`, `LOOK_CHOICES`, `DEFAULT_LOOK`), `icons.ts` and the icon tables,
+`canvas.ts`, `raster.ts`, `palette.ts`, `grid.ts` (lane C's `foes.ts` draws the ability buttons
+with it), `tabArt.ts`, `depth.ts` (the C-scale figures' layer order), `gallery.ts`, `art.css`.
 
 ## Icons, for lanes A and C (`src/art/icons.ts`)
 
@@ -486,149 +437,30 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 `skillIconPicture(id)` (the `Picture`, for drawing onto a canvas of your own, as the town does),
 `ITEM_ICON_IDS`, `SKILL_ICON_IDS` and `ICON_FAMILIES`.
 
-## The character, for lanes A and C (`src/art/character.ts`)
-
-`characterPicture(look, wornItemIds)` draws the player in any look wearing any items, by the
-game's own item ids; `characterCanvas` gives it as an element. Unknown ids are ignored and an
-unknown look part falls back to its default, so it never throws. Nothing it exported before
-changed its name or shape. New exports: `ITEM_LAYERS` (item id to gear layer) and
-`characterGear(look, items)` (the gear ids a picture is dressed in). For S12c, draw the town's
-hero with `characterPicture(look, equippedIds)` instead of `figure('standard', HERO_OUTFIT)`; it is
-the same 40 × 50 outlined figure, base 47, so the hero's index entry (shadow, base) still applies.
-
-- `LOOK_CHOICES`: skin `fair`, `pale`, `golden`, `brown`, `deep`; hair `short`, `long`, `braid`,
-  `shaggy`, `bald`; hair colour `brown`, `black`, `chestnut`, `auburn`, `blonde`, `grey`. The
-  first of each is the default, and the default character with nothing worn is pixel for pixel
-  what it was before.
-- Every wearable in the tables draws: both metals' sword, axe, helmet, shield and breastplate,
-  the linen hood, tunic and trousers, the shell necklace and bracelet, the three shortbows, and
-  either kind of arrow (a quiver). Items sit on the gear ladder (style guide, "Gear ladder"); no
-  tier 1 item is drawn with the approved hero's gear, which waits for tier 2.
-- With nothing in the main hand the character stands at ease (`characterBody` says which body):
-  the same 40 × 50 figure, base 47, with that hand resting at the belt.
-- One item per slot: if two items share a slot (a sword and an axe), the first listed is drawn.
-  A bow and a shield together both draw; emptying the off hand is lane A's rule.
-- As of B5 the leather cap, jerkin and bracers, the cudgel, the smuggler's cutlass and the
-  trollstone draw too, and a held thing is held in a visible fist (style guide, "How things are
-  held"). The figure's size, base line and every export are unchanged; lane C's cached hero
-  picks this up by itself.
-- As of B6 S9's bounty items and the grotto's loot draw too: `poachers_longbow`,
-  `wyrmscale_shield`, `barbed_arrows` (a quiver with red fletchings), `hunters_charm`,
-  `feathered_hat`, `pirate_cutlass`, `boarding_axe`, `tricorn`, `captains_coat`, `spyglass` (held
-  in the off hand, so it takes the shield's place) and `brinebeards_anchor`. `doubloon` and
-  `ships_figurehead` are not worn and have icons only.
-
-## Portraits, for lanes A and C (`src/art/portraits.ts`)
-
-`portrait(id)` gives a face for the eight monsters (`dock_rat`, `sand_crab`, `thieving_gull`,
-`bramble_boar`, `footpad`, `grey_wolf`, `smuggler`, `marsh_troll`) and the three townsfolk
-(`smith`, `trader`, `pirate`), and, as of B6, the grotto's `deckhand`, `powder_monkey`, `giant_crab`,
-`ships_parrot` and `brinebeard` (for the dungeon's target panel); null for anything else, S9's
-bounty-only monsters included (see "Deferred"). The element is a `div.portrait-art` holding two canvases, the face at 3 and at 2 CSS
-pixels per art pixel (144 and 96 CSS pixels at whole device ratios); it fills whatever frame it is
-put in, and a container query in `art.css` shows the canvas that fits that frame, so the fight
-screen's 148px frame shows the 3x face and its lists' 100px frames the 2x one, never resized.
-Also exported: `portraitPicture(id)` (the 48 × 48 `Picture`), `PORTRAIT_IDS`, `PORTRAIT_SIZE`
-and `portraitScales(dpr)`.
-
-## The town index, for lane C (`src/art/town.ts`)
-
-Every building, prop, boat and person in the approved mock-up is one piece, looked up by a plain
-id. Each piece is the exact picture the mock-up drew (same pixels, same wear), so a town built from
-them looks like the approved picture.
-
-```ts
-import { townPiece } from '../art/town';
-import { rasterize } from '../art/raster';
-import { DUSK } from '../art/palette';
-
-const smithy = townPiece('smithy'); // 98 x 90, base 86, spots.door = (38, 88)
-const image = rasterize(smithy.picture, DUSK, 1); // RGBA, one pixel per art pixel, forge lit
-sprite.getContext('2d')!.putImageData(new ImageData(image.data, image.width), 0, 0); // then drawImage(sprite, x, y)
-```
-
-(`sprite` is a canvas `image.width` × `image.height`. Draw it onto the world with `drawImage`, not
-`putImageData`, so its empty pixels stay see-through. There is no `src/art/index.ts`: import each
-name from its file.) Ground shadows and attached smoke are drawn separately; see below.
-
-A `TownPiece` gives:
-
-- `picture`: a `Picture` (`grid` plus `glows`), outline included. Glows are lit by `rasterize` when
-  the palette is `DUSK`; the smithy's forge also glows (more weakly) by `DAY`.
-- `w`, `h`: its size in art pixels.
-- `base`: the row, counted from its top, where it meets the ground (bottom of feet, posts or step;
-  the waterline for things afloat). Sort standing things by `y + base`.
-- `layer`: `ground` (lies flat, draw with the ground, people walk over it: the pier, the net),
-  `stand` (sort by base line), `above` (draw over everything: smoke, gulls).
-- `spots`: where a person's feet stand to use a door or counter, from the piece's top-left.
-- `shadow`: the mock-up's ground shadow, `{ cx, cy, rx, ry }` from the piece's top-left. Draw it
-  on the ground first with `groundShadow(grid, x + cx, y + cy, groundDark, rx, ry)` (`src/art/grid`),
-  where `groundDark` is the ground's dark step: `cobble3`, `grass3`, or `wood3` on the pier.
-- `attached`: pieces that go with it, at (x, y) from its top-left (chimney smoke, layer `above`).
-
-| id                         | size      | base | layer  | spots            | shadow (cx, cy) rx × ry | attached                    | glows |
-| -------------------------- | --------- | ---- | ------ | ---------------- | ----------------------- | --------------------------- | ----- |
-| `tavern`                   | 150 × 118 | 112  | stand  | door (65, 114)   | (66, 117) 66 × 4        | `tavern_smoke` at (93, -20) | 7     |
-| `smithy`                   | 98 × 90   | 86   | stand  | door (38, 88)    | (48, 89) 48 × 4         | `smithy_smoke` at (73, -26) | 3     |
-| `stall`                    | 62 × 44   | 39   | stand  | counter (31, 41) | (30, 43) 29 × 3.5       |                             |       |
-| `pier`                     | 44 × 128  | 126  | ground |                  |                         |                             |       |
-| `ship`                     | 90 × 104  | 100  | stand  |                  |                         |                             | 1     |
-| `well`                     | 29 × 32   | 29   | stand  |                  | (14, 30) 15 × 3.5       |                             |       |
-| `notice_board`             | 26 × 29   | 27   | stand  |                  |                         |                             |       |
-| `signpost`                 | 22 × 24   | 22   | stand  |                  |                         |                             |       |
-| `anvil`                    | 19 × 14   | 12   | stand  |                  |                         |                             |       |
-| `lamp`                     | 9 × 29    | 27   | stand  |                  |                         |                             | 1     |
-| `barrel`                   | 13 × 17   | 15   | stand  |                  |                         |                             |       |
-| `crate`                    | 15 × 15   | 13   | stand  |                  |                         |                             |       |
-| `net`                      | 31 × 14   | 13   | ground |                  |                         |                             |       |
-| `bucket`                   | 11 × 8    | 7    | stand  |                  |                         |                             |       |
-| `pine`, `pine_2`, `pine_3` | 29 × 41   | 39   | stand  |                  |                         |                             |       |
-| `rowboat`                  | 35 × 23   | 21   | stand  |                  |                         |                             |       |
-| `buoy`                     | 11 × 13   | 11   | stand  |                  |                         |                             |       |
-| `wreck_rock`               | 68 × 47   | 45   | stand  |                  |                         |                             |       |
-| `crab`                     | 13 × 9    | 7    | stand  |                  |                         |                             |       |
-| `gull`                     | 8 × 4     | 3    | above  |                  |                         |                             |       |
-| `tavern_smoke`             | 18 × 18   | 17   | above  |                  |                         |                             |       |
-| `smithy_smoke`             | 22 × 24   | 23   | above  |                  |                         |                             |       |
-| `hero`                     | 40 × 50   | 47   | stand  |                  | (20, 47) 10 × 2.6       |                             |       |
-| `pirate`                   | 40 × 50   | 47   | stand  |                  | (19, 47) 10 × 2.6       |                             |       |
-| `smith`                    | 40 × 50   | 47   | stand  |                  | (20, 47) 10 × 2.6       |                             |       |
-| `trader`                   | 40 × 50   | 46   | stand  |                  | (20, 46) 10 × 2.6       |                             |       |
-
-Notes on particular pieces:
-
-- `pier`: the deck is 38 wide starting 3 pixels in (x 3 to 40); the 3-pixel margins hold the foam
-  round its piles. `pier(rand, length)` in `src/art/harbour.ts` draws one of any length.
-- `rowboat`: its mooring line runs up from the boat to row 0 at column 27, where it ties to a quay
-  ring; in the mock-up the boat's top-left is (60, 236), with the quay's ring at x 87.
-- `ship`, `wreck_rock`, `buoy` carry their own waterline foam.
-- `bucket`: in the mock-up it stands at the head of the pier, which hides all but its rim.
-- People: the hero is `figure('standard', HERO_OUTFIT)`; the others are `figure('pirate',
-PIRATE_OUTFIT)`, `figure('smith', SMITH_OUTFIT)`, `figure('trader', TRADER_OUTFIT)`
-  (`src/art/figure.ts`). Mirror the picture to face left.
-
-**The mock-up's own layout.** `townLayout()` lists every placement `{ id, x, y }` (top-left, in
-the mock-up's 270 × 360 town) in drawing order; `townPicture()` is the whole assembled town.
-`TOWN_GROUND` gives the boxes its grounds were painted in. Use them as the starting map for S12b.
-
-**Grounds** are painters, not pieces: each takes `(grid, rand, ...)` and paints into a grid you
-own. Patterns that must line up (cobble joints, the road's bend, the sea's swell, shore foam) come
-from world position, so painting in pieces still lines up; only flecks and wear are random.
-
-- `grass(g, rand, box)`, `cobbles(g, rand, box)` (`scenery.ts`, unchanged).
-- `cobbledSquare(g, rand, box)`: cobbles whose top edge tapers into the grass over 6 rows and whose
-  sides wander by a pixel (the grass-to-square edge).
-- `road(g, rand, x, y, h)`: the sandy road north–south around column `x`, rows `y` to `y + h`,
-  20 wide, with ruts; `roadCentre(x, row)` gives its bend.
-- `sand(g, rand, box)`: open sand with the road's grit. The mock-up has no beach; this is its road's
-  surface, for any sandy ground.
-- `wildflowers(g, rand, box, n)`.
-- `quayWall(g, rand, x, y, w, rings)`: `QUAY_H` (11) rows from a pale kerb to an ink line, with iron
-  rings at the given columns. The water starts at `y + QUAY_H`.
-- `sea(g, rand, box, shore = true)`: water deepening away from `box.y`, crests and foam, and broken
-  foam along the shore row.
-
 ## Done
+
+- **B12, second PR: the faces, the icons, the wide foes, the first scale retired.** Review sheets in
+  `/home/claude/lane-shots/w12-b/`: `new-faces-icons.png`, `wide-foes.png`, and `strike-frames.png`
+  and `strike-4way.gif` redone after the blow's landing was changed (below), with
+  `gallery-blow-*.png` and `gallery-walking-away.png` from the gallery at 390 x 844, 3x.
+  - **The marks' faces** (`dungeon2/markFaces.ts`): three critique rounds (stubble as a scatter on a
+    darkened jaw, not a pattern that read as stitches or stripes; the stallholder's cupped hand,
+    which read as a second ear, replaced by a herring held up beside her).
+  - **Icons** (`gearIcons.ts`): the necklace a cord dropping to a scallop between smaller shells; the
+    bracelet a ring of cord seen from above with shells along its front.
+  - **Wide foes** (`dungeon2/boss.ts`, `sizes.ts`): the captain's cutlass, above. The crab was
+    narrowed, then put back when lane C's wave 12 (drawing figures apart) landed first.
+  - **The blow** lands chopping down and forward at full stretch (across): laid level, a long blade
+    had room for a hand's breadth of itself on the canvas and read as a stub.
+  - **Retired**: 20 modules and 12 test files, 9,591 lines, the gallery's first-scale parts and the
+    old portrait CSS. The built app's main chunk went from 747.2 kB to 650.8 kB (gzip 255.7 to
+    230.0 kB) and the town's worker from 227.8 to 210.2 kB, with the new faces in. The style guide's
+    first-scale sizes, "what the swap supersedes" and references to deleted files went, with a
+    short historical note under "Sizes".
+  - **Tests**: the marks' faces (each drawn and its own); the captain drawn no further ahead of his
+    feet than the strike reach and two; the gallery's new shape. **Expectations changed on
+    purpose**: `FOE2_SIZES` for the captain; `tests/art/figure2.test.ts` checks the look choices
+    rather than the old 40 x 50 picture; the first scale's door checks and their tests are gone.
 
 - **B12, first PR: Cody's two faults, the layer audit, the blow, the loot pile.** Review sheets
   outside the repo in `/home/claude/lane-shots/w12-b/`: `back-view-before-after.png` (every frame
@@ -1238,7 +1070,16 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **Not done in B12**, and why:
+  - **A face for the 48-pixel frame at 1x** (lane C's ask): a face drawn for 72 art pixels shown
+    honestly in 48 device pixels would be a second drawing of every face at two thirds the size;
+    the phone ratios (2x, 2.625x, 3x) all show a whole face. On a 1x desktop the 72-pixel face is
+    still cut to the frame's middle.
+  - **Lights in `town2Facts`** (lane C's town ask) and the captain drawn narrower: not reached.
 - **B12, weaker than it should be** (for Cody's review), weakest first:
+  - The captain still meets the hero at the melee stand (his coat is 60 columns wide; the stand is
+    36 from his feet): lane C's drawing-apart shifts the hero by up to half a tile, which leaves the
+    coat and the hero's chest touching.
   - The blow toward the camera and away reads less strongly than across: a swing toward the camera
     lands pointing at the viewer, which at this size is a short blade over the legs; from behind
     the blow lands out of sight, only the blade's end showing past the head; a bow end-on is a
@@ -1459,6 +1300,13 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
+- **Lane C, for B12's second PR** (nothing breaks if you do nothing): the captain's `front` is
+  38 and his `box` 54 wide (were 51 and 56); your `apart.ts` takes them as they are. The crab is
+  as it was. The first scale's doors are gone; nothing of yours imported them on `main`.
+- **Lane A, for B12's second PR**: nothing; the marks' faces arrive through `portrait2`, and
+  `character.ts` keeps the look's names. `src/art/tabIcons.ts` (the glyph fallback) is gone, as
+  wave 12 no longer imports it.
+
 - **Lane C, for B12** (nothing breaks if you do nothing):
   1. The blow: replace the lunge and glint with `characterStrike2(look, worn, 'dusk', facing,
 frame)` (or the picture) for `STRIKE2_FRAMES` frames while `heroSwinging`, in the hero's
@@ -1544,8 +1392,8 @@ worn, 'dusk')` is identical under it.
 - Lane A, `src/data/items.ts`, `captains_coat`'s description begins "Long, red and heavy with
   braid": Brinebeard and his coat are drawn purple with brass braid, so that he is never taken
   for the town's red-coated captain. One word: "Long, purple and heavy with braid". (Or, if Cody
-  prefers red, say so and art recolours the coat; it is a legend change in `grottoCast.ts`,
-  `armoury.ts` and `grottoIcons.ts`.)
+  prefers red, say so and art recolours the coat; it is a dye change in `dungeon2/boss.ts`,
+  `figure2/armour.ts` and `grottoIcons.ts`.)
 - Lane C: nothing required for B6; the doors are filled behind their names. The notes above say
   how to lay walls, which shadow step to use, and that the lantern's light must be moved into the
   room's coordinates to light more than the lantern.
@@ -1596,19 +1444,6 @@ worn, 'dusk')` is identical under it.
 
 ## Notes for this lane's next session
 
-- **What can be deleted next wave**, once lane A's `src/ui/face.ts` and lane C's
-  `src/scene/panel.ts`, `dungeonView.ts`, `foes.ts` and `grottoArt.ts` no longer import the first
-  scale's portraits and dungeon (check with `grep -rn "art/portraits'\|art/dungeonArt'\|art/grottoRoom'" src`):
-  `src/art/portraits.ts`, `src/art/faces.ts`, `src/art/dungeonArt.ts`, `src/art/grottoTiles.ts`,
-  `src/art/grottoCast.ts`, `src/art/grottoProps.ts`, `src/art/grottoRoom.ts`; their tests
-  `tests/art/portraits.test.ts` and `tests/art/dungeonArt.test.ts`; the "first scale's doors" block
-  in `tests/art/dungeonArt2.test.ts`; the gallery's first-scale "Brinebeard's Grotto" and
-  "Portraits" parts (`src/art/gallery.ts`, and the titles in `tests/art/gallery.test.ts`); the old
-  portrait CSS in `art.css`. Keep `grottoIcons.ts` (item icons) and `ground.ts` (the scene still
-  imports it). The first scale's figures (`figure.ts`, `wardrobe.ts`, `armoury.ts`, `townsfolk.ts`,
-  `hair.ts`, `plates.ts`, `scenery.ts`, `harbour.ts`, `town.ts`) wait until no `src/ui` or
-  `src/scene` file imports them (today `characterScreen.ts`, `createScreen.ts`, `town2.ts` and
-  the town's scene files still do); `character.ts` keeps the `Look` types the C scale uses.
 - **Faces** are drawn in `src/art/dungeon2/folkFaces.ts` with the tools in `heads.ts`: a head is
   `blob([...points])` shaded by `form`, features are `marks(rows, pinsFor(...))`. Iterate on PNG
   dumps from a `.shots/` vitest (no browser) at 4 and 2 device pixels per art pixel beside the
@@ -1665,24 +1500,20 @@ worn, 'dusk')` is identical under it.
 - A C-scale piece is a painter in `src/art/town2/` returning a grid of material-and-step cells, a
   row in `MAKE` and `TOWN2_IDS` (`pieces.ts`), and, if placed, a line in `SPECS` (`town.ts`).
   Lay sizes out in metres (`m()`); shade by material steps; let `outlined` draw the line.
-- Game scale is a world 270 art pixels wide across the app (4 device pixels per art pixel on a
-  390-wide 3x phone). The gallery's town is 270 wide, so on that phone it is shrunk to 3 to fit
-  inside the menu's padding, as the mock-up itself is on the same phone.
-- `scenery.ts`'s pieces (tavern, pine) take a random source; the index's are the ones drawn in the
-  mock-up's town with seed 21. Calling `tavern(seeded(n))` yourself gives the same building with
-  wear in other places.
 - At a fractional device pixel ratio (2.625 on many Androids) pictures are close to exact but not
   always pixel-perfect; at whole ratios they are exact.
-- Gear ids are art ids; `ITEM_LAYERS` in `character.ts` maps the game's item ids onto them. A new
-  wearable item needs a layer in `armoury.ts`, a row there, and its id in the list in
-  `tests/art/character.test.ts`. A new held thing is drawn to the hand rule: a `GRIP` part in the
-  fist's columns (`FIST_PART`), the rest `HELD_FRONT`, and its gear id in the list at the top of
-  `tests/art/hands.test.ts`.
-- A new portrait is a row in `FACES` (`faces.ts`) and its id in `tests/art/portraits.test.ts`.
-- A new dungeon theme is a tile table like `GROTTO_TILES`, a cast entry per monster in `FOES`
-  (`grottoCast.ts`, or a file of its own) and props in a table like `grottoProps.ts`'s, wired in
-  `dungeonArt.ts`. Iterate on an assembled room (`roomPicture`), not single tiles, and redraw lane
-  C's overlays on it (warning circle, loot sack) to judge whether floors are quiet enough.
+- Gear ids are art ids; `ITEM_LAYERS2` in `character2.ts` maps the game's item ids onto them. A
+  new wearable needs a gear entry in `figure2/` (front), a row in `SIDE_GEAR` (`sideDress.ts`,
+  across), and, if something about it is only on the front, a rule in `BACK_RULES` (`views.ts`).
+  A new held thing is drawn to the hand rule (a `GRIP` part under the fist, the rest
+  `HELD_FRONT`), needs a `CARRY` row if taller than the shoulder, and is swung, loosed or punched
+  by `strikeKind` in `strike.ts` (by its id). `tests/art/layers2.test.ts` and `strike2.test.ts`
+  take every wearable from `ITEM_LAYERS2`.
+- A new portrait is a `FaceDef` (`dungeon2/folkFaces.ts`, `markFaces.ts`, `beastFaces.ts`), a row
+  in `FACES2` (`faces2.ts`) and its box in `PORTRAIT2_SAFE` (`safe.ts`, from `measureSafe2`).
+- A new dungeon theme at the C scale is tiles in `dungeon2/tiles.ts`, foes in `beasts.ts` or
+  `people.ts` with a `FOE2_SIZES` row, and props in `props.ts`. Iterate on an assembled room
+  (`dungeon2/sample.ts`), not single tiles, with lane C's overlays redrawn on it.
 - Sketching a creature with `grid.ts`'s primitives and dumping it as rows, then finishing it by
   hand, was much quicker than writing rows blind; the dump needs a reverse legend.
 - Moving `.shots` aside for a check: move it to a name that does not exist yet. `mv` into an

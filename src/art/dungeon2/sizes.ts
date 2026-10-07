@@ -171,16 +171,17 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     shadow: 8,
     hover: 0,
   },
+  // B12: the cutlass held up before him standing (levelled, it reached over a hero at strike reach).
   brinebeard: {
     w: 104,
     h: 112,
     anchor: { x: 48, y: 110 },
     tall: 104,
-    front: 51,
+    front: 38,
     back: 32,
     strike: 53,
-    box: { w: 56, h: 104 },
-    shadow: 27,
+    box: { w: 54, h: 104 },
+    shadow: 26,
     hover: 0,
   },
   thieving_gull: {

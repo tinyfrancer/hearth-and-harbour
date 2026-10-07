@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { dungeonProp, dungeonTile, foePicture } from '../../src/art/dungeonArt';
 import {
   aroundOf,
   CAVE_DAY,
@@ -34,7 +33,6 @@ import {
   PORTRAIT2_SAFE,
   PORTRAIT2_SIZE,
 } from '../../src/art/portraits2';
-import { PORTRAIT_IDS, PORTRAIT_SIZE, portrait } from '../../src/art/portraits';
 import { CAVE_FIRST, cell as cell2, matOf as matOf2 } from '../../src/art/dungeon2/cave';
 import { portraitBust2 } from '../../src/art/dungeon2/faces2';
 import { measureFoe2 } from '../../src/art/dungeon2/sizes';
@@ -45,7 +43,25 @@ import { stepOf, tgrid, type TGrid } from '../../src/art/town2/cells';
 import { DUSK2, MATS } from '../../src/art/town2/ramps';
 import { MONSTERS } from '../../src/data/monsters';
 
-/** The first scale's lists (docs/lanes.md, wave 6), and lane C's two props, copied here on purpose. */
+/** The first scale's lists (docs/lanes.md, wave 6; its art retired in B12), and lane C's props, copied here on purpose. */
+const PORTRAIT_IDS = [
+  'dock_rat',
+  'sand_crab',
+  'thieving_gull',
+  'bramble_boar',
+  'grey_wolf',
+  'footpad',
+  'smuggler',
+  'marsh_troll',
+  'smith',
+  'trader',
+  'pirate',
+  'deckhand',
+  'powder_monkey',
+  'giant_crab',
+  'ships_parrot',
+  'brinebeard',
+];
 const TILE_KINDS = [
   'sand',
   'wet_sand',
@@ -391,7 +407,6 @@ describe('every foe at the C scale', () => {
     expect(monsters).toContain('bramble_wyrm');
     expect([...MONSTER2_IDS].sort()).toEqual([...monsters].sort());
     expect(new Set(FOE2_IDS)).toEqual(new Set([...FOE_IDS, ...monsters]));
-    for (const id of FOE_IDS) expect(foePicture(id), id).not.toBeNull();
   });
 
   it('draws every foe in every pose and frame, facing both ways, standing on its feet', () => {
@@ -644,6 +659,23 @@ describe('portraits at the C scale', () => {
     expect(portrait2('nobody')).toBeNull();
   });
 
+  it('draws the five thieving marks (B12), by the game’s action ids, each its own face', () => {
+    const marks = [
+      'steal_fisherman',
+      'steal_fish_stall',
+      'steal_sailor',
+      'steal_pedlar',
+      'steal_strongbox',
+    ];
+    for (const id of marks) expect(portrait2(id), id).not.toBeNull();
+    const busts = marks.map((id) => portraitBust2(id)!);
+    for (let i = 0; i < busts.length; i++)
+      for (let j = i + 1; j < busts.length; j++) {
+        const differ = busts[i]!.d.filter((c, k) => c !== busts[j]!.d[k]).length;
+        expect(differ, `${marks[i]} against ${marks[j]}`).toBeGreaterThan(1500);
+      }
+  });
+
   it('declares each face’s safe box as data, inside the square, and holds every face, hat, ear and horn inside it', () => {
     expect(Object.keys(PORTRAIT2_SAFE).sort()).toEqual([...PORTRAIT2_IDS].sort());
     for (const id of PORTRAIT2_IDS) {
@@ -811,17 +843,4 @@ describe('faces that do not unsettle', () => {
             }
     },
   );
-});
-
-describe('the first scale’s doors', () => {
-  it('are unchanged', () => {
-    expect(foePicture('deckhand')!.picture.grid.w).toBe(39);
-    expect(foePicture('brinebeard')!.feet).toEqual({ x: 29, y: 60 });
-    expect(foePicture('goblin_poacher')).toBeNull();
-    expect(dungeonTile('grotto', 'sand', 3)!.grid.w).toBe(16);
-    expect(dungeonProp('grotto', 'lantern')!.base).toBe(23);
-    expect(dungeonProp('grotto', 'crate')).toBeNull();
-    expect(PORTRAIT_SIZE).toBe(48);
-    expect(portrait('goblin_poacher')).toBeNull();
-  });
 });

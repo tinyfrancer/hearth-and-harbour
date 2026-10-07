@@ -19,6 +19,7 @@ import { mass } from './beasts';
 import { BUST, disc } from './bust';
 import * as BEAST from './beastFaces';
 import * as FOLK from './folkFaces';
+import * as MARKS from './markFaces';
 import { drawHero, type HeroBust } from './heroFace';
 
 export type { HeroBust };
@@ -537,6 +538,12 @@ const FACES2: Readonly<Record<string, FaceDef>> = {
   giant_crab: BEAST.GIANT_CRAB,
   ships_parrot: BEAST.PARROT,
   brinebeard: FOLK.BRINEBEARD,
+  // The thieving marks (B12), by the game's action ids.
+  steal_fisherman: MARKS.FISHERMAN,
+  steal_fish_stall: MARKS.STALLHOLDER,
+  steal_sailor: MARKS.SAILOR,
+  steal_pedlar: MARKS.PEDLAR,
+  steal_strongbox: MARKS.CLERK,
 };
 
 export const PORTRAIT2_IDS: readonly string[] = Object.keys(FACES2);

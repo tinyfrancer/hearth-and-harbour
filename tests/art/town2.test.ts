@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { SCREEN_ART_WIDTH, gameScale } from '../../src/art/canvas';
-import { TOWN_IDS, townLayout, townPiece } from '../../src/art/town';
 import { LINE, cell, matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
 import {
   TOWN2_FACTS,
@@ -105,11 +104,6 @@ describe('the C-scale ramps', () => {
 });
 
 describe('the C-scale pieces', () => {
-  it('keep the current town’s ids, but for the figures being reworked', () => {
-    const figures = ['hero', 'pirate', 'smith', 'trader'];
-    for (const id of TOWN_IDS) if (!figures.includes(id)) expect(TOWN2_IDS).toContain(id);
-  });
-
   it('every piece draws, non-empty, at its declared size, standing on its base line', SLOW, () => {
     for (const id of TOWN2_IDS) {
       const p = town2Piece(id);
@@ -309,13 +303,6 @@ describe('the C-scale town', () => {
       else if (stepOf(a) > stepOf(b)) darkerByDay++;
     }
     expect(darkerAtDusk).toBeGreaterThan(darkerByDay * 3 + 1000);
-  });
-});
-
-describe('the current town, untouched', () => {
-  it('still gives the approved mock-up’s pieces and layout', () => {
-    expect([townPiece('tavern').w, townPiece('tavern').h]).toEqual([150, 118]);
-    expect(townLayout().find((p) => p.id === 'tavern')).toEqual({ id: 'tavern', x: 6, y: 20 });
   });
 });
 

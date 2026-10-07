@@ -166,7 +166,7 @@ const BEATS: Readonly<Record<StrikeKind, readonly Beat[]>> = {
   swing: [
     { lean: -1, bob: 0, weapon: [-7, -11], off: [7, 7], turn: { q: 2, lean: -0.8 }, behind: true },
     { lean: 0, bob: 0, weapon: [13, -6], off: [8, 5], turn: { q: 0, lean: 0.9 } },
-    { lean: 2, bob: 1, weapon: [13.5, 2], off: [6, 7], turn: { q: 1, lean: 0.5 } },
+    { lean: 2, bob: 1, weapon: [12, 4], off: [6, 7], turn: { q: 2, lean: 0.6 } },
     { lean: 1, bob: 0, weapon: [9, 9], off: [6, 8], turn: { q: 2, lean: 0.75 } },
   ],
   bow: [

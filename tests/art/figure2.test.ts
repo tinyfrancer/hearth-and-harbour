@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOOK, LOOK_CHOICES, characterPicture } from '../../src/art/character';
+import { DEFAULT_LOOK, LOOK_CHOICES } from '../../src/art/character';
 import {
   FIGURE2_ANCHOR_X,
   FIGURE2_H,
@@ -129,9 +129,16 @@ describe('the door', () => {
     expect(townsfolkCanvas2('nobody')).toBeNull();
   });
 
-  it('leaves the current doors exactly as they were', () => {
-    const old = characterPicture(DEFAULT_LOOK, []);
-    expect([old.grid.w, old.grid.h]).toEqual([40, 50]);
+  it('keeps the look choices the game stores, in their order', () => {
+    expect(DEFAULT_LOOK).toEqual({ skin: 'fair', hair: 'short', hairColour: 'brown' });
+    expect(LOOK_CHOICES.hairColour.map((c) => c.id)).toEqual([
+      'brown',
+      'black',
+      'chestnut',
+      'auburn',
+      'blonde',
+      'grey',
+    ]);
     expect(LOOK_CHOICES.skin.map((c) => c.id)).toEqual(['fair', 'pale', 'golden', 'brown', 'deep']);
     expect(LOOK_CHOICES.hair.map((c) => c.id)).toEqual([
       'short',

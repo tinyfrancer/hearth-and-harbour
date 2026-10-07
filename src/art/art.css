@@ -56,14 +56,7 @@
   color: var(--text);
 }
 
-/* Left-aligned with whole-pixel gaps, so every canvas starts on a device pixel. */
-.gallery-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 8px;
-}
-
+/* A picture with its caption under it. */
 .gallery-shot {
   display: flex;
   flex-direction: column;
@@ -129,32 +122,6 @@
 .swatch {
   width: 20px;
   height: 20px;
-}
-
-/* A portrait carries a 3x and a 2x canvas; the frame it is placed in decides
-   which shows (the fight screen's 148px frame or its lists' 100px), so neither
-   is ever resized. */
-.portrait-art {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  container-type: size;
-}
-
-.portrait-art > .portrait-large {
-  display: none;
-}
-
-@container (min-width: 140px) {
-  .portrait-art > .portrait-large {
-    display: block;
-  }
-
-  .portrait-art > .portrait-small {
-    display: none;
-  }
 }
 
 .portrait-grid {
