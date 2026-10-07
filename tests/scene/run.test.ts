@@ -150,7 +150,8 @@ function tap(root: ParentNode, at: Point): void {
       { width: TOWN2_W, height: TOWN2_H },
     );
   }
-  const canvas = root.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
+  // The scene's own canvas, whatever else on the page draws (the header's face, the tab icons).
+  const canvas = root.querySelector<HTMLCanvasElement>('.scene canvas.scene-canvas')!;
   const css = run ? k : 1;
   const where = {
     bubbles: true,
@@ -449,6 +450,10 @@ describe('the idle task during a run', () => {
       }
     };
     frames(100);
+    // A face in the header on the Town tab too (lane A may show one there): taps still find the scene.
+    const face = document.createElement('canvas');
+    face.className = 'pixel-art';
+    root.querySelector('header')!.prepend(face);
     tap(root, boat());
     frames(6000);
     click(root, 'Row out to Brinebeard’s Grotto');
@@ -491,6 +496,10 @@ describe('a run’s spoils in the real app', () => {
       }
     };
     frames(100);
+    // A face in the header on the Town tab too (lane A may show one there): taps still find the scene.
+    const face = document.createElement('canvas');
+    face.className = 'pixel-art';
+    root.querySelector('header')!.prepend(face);
     tap(root, boat());
     frames(6000);
     click(root, 'Row out to Brinebeard’s Grotto');

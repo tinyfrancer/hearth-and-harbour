@@ -94,7 +94,7 @@ function tap(view: View, at: Point): void {
     width: TOWN2_W,
     height: TOWN2_H,
   });
-  const canvas = view.el.querySelector('canvas')!;
+  const canvas = view.el.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
   const where = { bubbles: true, clientX: at.x - camera.x, clientY: at.y - camera.y };
   canvas.dispatchEvent(new MouseEvent('pointerdown', where));
   canvas.dispatchEvent(new MouseEvent('pointerup', where));
@@ -148,7 +148,9 @@ describe('the Town tab', () => {
   it('is the town with no query string: a canvas scene that says what it is, the hero at its start', () => {
     window.history.replaceState(null, '', '/');
     const view = shown();
-    expect(view.el.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Tap the ground/);
+    expect(
+      view.el.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!.getAttribute('aria-label'),
+    ).toMatch(/Tap the ground/);
     expect(view.el.querySelector('.scene-light')).not.toBeNull();
     expect(heroAt()).toMatchObject({ x: start.x, y: start.y, walking: false, open: null });
     expect(town2ArtNow()).not.toBeNull();
@@ -171,7 +173,7 @@ describe('the Town tab', () => {
 
   it('sizes its canvas to whole CSS and device pixels, and puts its button where the reach test looks', () => {
     const view = shown();
-    const canvas = view.el.querySelector('canvas')!;
+    const canvas = view.el.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
     expect(canvas.style.width).toBe('390px');
     expect(canvas.style.height).toBe('727px');
     const light = view.el.querySelector<HTMLElement>('.scene-light')!;
@@ -305,7 +307,7 @@ describe('the Town tab', () => {
 
   it('steers while a finger is held on the ground, re-aiming as it moves', () => {
     const view = shown();
-    const canvas = view.el.querySelector('canvas')!;
+    const canvas = view.el.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
     const camera = cameraFor({ x: start.x, y: start.y - FOCUS_RISE2 }, CSS, {
       width: TOWN2_W,
       height: TOWN2_H,
