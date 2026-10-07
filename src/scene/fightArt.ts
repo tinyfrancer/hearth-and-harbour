@@ -53,6 +53,7 @@ import {
   type Foe,
   type Telegraph,
 } from './battle';
+import { shownApart, type Figure } from './apart';
 import type { Placed, Standing } from './draw';
 import { placeOf, type Dungeon, type Room, type Run } from './dungeon';
 import { DUNGEON, far } from './dungeonMetrics';
@@ -675,6 +676,7 @@ function drawFoeOver(
   ctx: CanvasRenderingContext2D,
   battle: Battle,
   foe: Foe,
+  shownX: number,
   lift: number,
   targeted: boolean,
   k: number,
@@ -682,7 +684,7 @@ function drawFoeOver(
   const def = battle.monsters[foe.monster]!;
   const kind = foeKind(foe.monster);
   const w = Math.max(24, Math.min(54, kind.box.w));
-  const x = foe.at.x - w / 2;
+  const x = shownX - w / 2;
   const y = Math.round(foe.at.y - lift - standsOf(foe.monster) - 8);
   const bar = 4 * k;
   if (!kind.boss) {
@@ -704,7 +706,7 @@ function drawFoeOver(
   if (foe.rallied) {
     // Egged on by the parrot: a pair of bold green chevrons over his head, flickering.
     const on = Math.floor(battle.clock / 200) % 2 === 0;
-    const cx = foe.at.x + w / 2 + 4 * k;
+    const cx = shownX + w / 2 + 4 * k;
     const cy = y - 12 * k;
     const s = 2 * k;
     ctx.fillStyle = C.ink;
@@ -720,9 +722,9 @@ function drawFoeOver(
   if (foe.heavy) {
     // Winding up something big.
     const blink = Math.floor(battle.clock / 120) % 2 === 0;
-    label(ctx, '!', foe.at.x, y - 3 * k, 18, blink ? C.fire1 : C.fire2, k);
+    label(ctx, '!', shownX, y - 3 * k, 18, blink ? C.fire1 : C.fire2, k);
   } else if (targeted) {
-    const tx = foe.at.x;
+    const tx = shownX;
     const ty = y - 5 * k;
     ctx.fillStyle = C.ink;
     ctx.fillRect(tx - 6 * k, ty - 6 * k, 13 * k, 3 * k);
@@ -1024,6 +1026,56 @@ export function tideStateOf(dungeon: Dungeon, run: Run): { level: number; warn: 
 /** How tall the hero stands above his feet, for what floats over him. */
 export const HERO_TALL = 66;
 
+/** Half the hero's body across, in art pixels, as `apart.ts` reckons him: his box, less its edge. */
+export const HERO_HALF = 13;
+
+/**
+ * Everyone fighting in a run's room as `shownApart` reckons them: the hero,
+ * and each foe standing on the ground (or falling, counting less as it
+ * goes), its body either side of its feet from the art lane's sizes. A bird
+ * in the air, someone behind bars, and a crew that has fled are left out.
+ */
+export function fightFigures(dungeon: Dungeon, run: Run): Figure[] {
+  const battle = run.battle;
+  const hero: Figure = {
+    key: 'hero',
+    at: run.play.walker.at,
+    left: HERO_HALF,
+    right: HERO_HALF,
+    rank: 0,
+    weight: 1,
+  };
+  if (!battle) return [hero];
+  const place = placeOf(dungeon, run);
+  const out: Figure[] = [hero];
+  for (const foe of battle.foes) {
+    if (foe.room !== run.room || foe.fled || held(battle, place, foe)) continue;
+    if (foe.flight && foe.flight.mode !== 'down') continue;
+    const weight = alive(foe) ? 1 : Math.max(0, 1 - (battle.clock - foe.diedAt!) / FALL_MS);
+    if (weight <= 0) continue;
+    const size = sizeOf(foe.monster);
+    const half = size.box.w / 2;
+    // The body ahead of the feet and behind them, less a weapon held clear of it.
+    const front = Math.min(size.front, half + 8);
+    const back = Math.min(size.back, half + 8);
+    const right = foe.facing === 'right';
+    out.push({
+      key: foe.key,
+      at: foe.at,
+      left: right ? back : front,
+      right: right ? front : back,
+      rank: foeKind(foe.monster).boss || size.box.w >= 48 ? 2 : 1,
+      weight,
+    });
+  }
+  return out;
+}
+
+/** How far to the side each figure in a run's room is drawn from its feet, by key (`'hero'` for him). */
+export function fightApart(dungeon: Dungeon, run: Run): Map<string, number> {
+  return shownApart(fightFigures(dungeon, run));
+}
+
 /**
  * Everything a run's fight adds to the stage this frame: the cast standing,
  * their shadows, what lies on the ground, what is over them in art pixels,
@@ -1042,6 +1094,9 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
   const here = battle.foes.filter(
     (f) => f.room === run.room && !f.fled && (alive(f) || clock - f.diedAt! < FALL_MS),
   );
+  // Drawn a little apart where two would be painted over each other; nobody's place in the fight moves.
+  const apart = fightApart(dungeon, run);
+  const shownX = (foe: Foe): number => foe.at.x + (apart.get(foe.key) ?? 0);
   const actors: Standing[] = [];
   const shadows: Placed[] = [];
   const fuses: Point[] = [];
@@ -1054,7 +1109,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     const kind = foeKind(foe.monster);
     const shown = foePose(foe, clock, def?.speedMs ?? 2000, kind);
     const lift = liftOf(room, foe);
-    const feet = { x: Math.round(foe.at.x), y: Math.round(foe.at.y) - lift };
+    const feet = { x: Math.round(shownX(foe)), y: Math.round(foe.at.y) - lift };
     const drawn = art.foes.at(foe.monster, foe.key, shown, feet);
     const size = sizeOf(foe.monster);
     if (drawn) {
@@ -1099,7 +1154,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     }
     // The rings at its feet.
     const rx = Math.round(kind.box.w / 2) + 6;
-    boxes.push(around({ x: foe.at.x, y: feet.y }, rx + 2));
+    boxes.push(around({ x: shownX(foe), y: feet.y }, rx + 2));
     const t = foe.heavy;
     if (t) {
       boxes.push(markBox(t));
@@ -1114,7 +1169,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         });
       }
     }
-    if (kind.rally) boxes.push(around({ x: foe.at.x, y: feet.y - 12 }, 54));
+    if (kind.rally) boxes.push(around({ x: shownX(foe), y: feet.y - 12 }, 54));
   }
   for (const t of battle.volleys) boxes.push(markBox(t));
   for (const e of battle.effects) {
@@ -1217,6 +1272,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     actors,
     boxes,
     overlayBox,
+    walkerOffset: apart.get('hero') ?? 0,
     walker: (image) => {
       if (flashing(battle.struckAt, clock)) return flashOf(image, C.white);
       // Down: he blinks red until the tide takes him.
@@ -1256,11 +1312,11 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         if (foe.rallied) {
           // The parrot's work, at his feet too: a green ring, pulsing.
           ctx.fillStyle = Math.floor(clock / 200) % 2 === 0 ? C.green : C.greenDark;
-          oval(ctx, foe.at.x, feet, rx + 4, 6);
+          oval(ctx, shownX(foe), feet, rx + 4, 6);
         }
         if (foe.key === battle.target) {
           ctx.fillStyle = C.gold;
-          oval(ctx, foe.at.x, feet, rx + 2, 5);
+          oval(ctx, shownX(foe), feet, rx + 2, 5);
         }
       }
       for (const foe of here)
@@ -1287,7 +1343,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         const k = (clock % 500) / 500;
         ctx.globalAlpha = 0.9 * (1 - k);
         ctx.fillStyle = C.green;
-        ring(ctx, foe.at.x, foe.at.y - liftOf(room, foe) - 12, 9 + k * 36, 2);
+        ring(ctx, shownX(foe), foe.at.y - liftOf(room, foe) - 12, 9 + k * 36, 2);
         ctx.globalAlpha = 1;
       }
     },
@@ -1355,7 +1411,15 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     overlay(ctx, k) {
       for (const foe of here)
         if (alive(foe) && !held(battle, place, foe))
-          drawFoeOver(ctx, battle, foe, liftOf(room, foe), foe.key === battle.target, k);
+          drawFoeOver(
+            ctx,
+            battle,
+            foe,
+            shownX(foe),
+            liftOf(room, foe),
+            foe.key === battle.target,
+            k,
+          );
       // Numbers landing together on one spot (a double shot) stand side by side.
       const together = new Map<string, number>();
       for (const e of battle.effects) {

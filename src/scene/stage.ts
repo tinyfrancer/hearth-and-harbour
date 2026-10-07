@@ -289,6 +289,12 @@ export interface StageExtra {
   readonly overlayBox?: Box | null;
   /** The walker's picture as it should show this frame (a flash when struck). */
   walker?(image: HTMLCanvasElement): HTMLCanvasElement;
+  /**
+   * How far to the side of where the walker stands they are drawn this frame,
+   * in art pixels (with their shadow): kept clear of a wide figure beside
+   * them. Drawing only: where they are does not change.
+   */
+  readonly walkerOffset?: number;
 }
 
 /** Room kept clear at each edge of the canvas, in CSS pixels, for buttons laid over the scene. */
@@ -652,9 +658,10 @@ export function stage(options: StageOptions): View {
     if (!ctx) return;
     const scale = scaleOf(device);
     const cam = camera(scale);
-    const feet = round(play.walker.at);
-    const left = play.facing === 'left';
     const extra = options.extra?.(now, palette) ?? null;
+    // Where the walker is drawn: where they stand, or a little to the side if the scene says so.
+    const feet = round({ x: play.walker.at.x + (extra?.walkerOffset ?? 0), y: play.walker.at.y });
+    const left = play.facing === 'left';
     let walker: Standing | null;
     if (art.walkerPlaced) {
       walker = art.walkerPlaced(play, feet, palette, now);

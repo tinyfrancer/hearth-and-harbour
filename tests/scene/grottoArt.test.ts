@@ -87,12 +87,10 @@ describe('a room’s ground at the C scale', () => {
     const east = pools.doors[0]!.cell;
     const west = store.doors.find((d) => d.cell.col === 0)!.cell;
     const tile = (room: typeof pools, c: { col: number; row: number }) =>
-      dungeonTile2(
-        'door_side_open',
-        0,
-        aroundOf(tileKindsAt(room, 0, false), c.col, c.row),
-        { col: 0, row: 0 },
-      )!.grid.d;
+      dungeonTile2('door_side_open', 0, aroundOf(tileKindsAt(room, 0, false), c.col, c.row), {
+        col: 0,
+        row: 0,
+      })!.grid.d;
     expect(tile(pools, east)).not.toEqual(tile(store, west));
   });
 
