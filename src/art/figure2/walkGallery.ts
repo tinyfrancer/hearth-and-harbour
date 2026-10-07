@@ -85,3 +85,58 @@ export function walkPreview(
   void raf;
   return canvas;
 }
+
+/** How long each frame of the blow shows, and the rest between blows, in the gallery. */
+const STRIKE_FRAME_MS = 110;
+const STRIKE_REST_MS = 500;
+
+/**
+ * A canvas showing a blow in each facing (down, right, left, up), over and
+ * over with a rest between, at `scale` device pixels per art pixel (B12).
+ */
+export function strikePreview(
+  strike: (time: TimeOfDay, facing: Facing2, frame: number) => HTMLCanvasElement | null,
+  frames: number,
+  scale: number,
+  dpr: number,
+  time: () => TimeOfDay,
+  label: string,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'pixel-art';
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', label);
+  const cell = FIGURE2_W + GAP;
+  const artW = cell * FACINGS.length - GAP;
+  canvas.width = deviceSize(artW, scale, dpr);
+  canvas.height = deviceSize(FIGURE2_H, scale, dpr);
+  canvas.style.width = `${canvas.width / dpr}px`;
+  canvas.style.height = `${canvas.height / dpr}px`;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const start = performance.now();
+  const cycle = frames * STRIKE_FRAME_MS + STRIKE_REST_MS;
+  let last = '';
+  const paint = (now: number) => {
+    const t = (now - start) % cycle;
+    // Resting, the last frame (the recovery) holds.
+    const frame = Math.min(frames - 1, Math.floor(t / STRIKE_FRAME_MS));
+    const key = `${time()} ${frame}`;
+    if (key === last) return;
+    last = key;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    FACINGS.forEach((f, i) => {
+      const s = strike(time(), f, frame);
+      if (s) ctx.drawImage(s, i * cell * scale, 0, FIGURE2_W * scale, FIGURE2_H * scale);
+    });
+  };
+  paint(start);
+  const tick = (now: number) => {
+    if (!canvas.isConnected && now - start > 1000) return;
+    paint(now);
+    requestAnimationFrame(tick);
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
+  return canvas;
+}

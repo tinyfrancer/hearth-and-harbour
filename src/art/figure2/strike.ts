@@ -405,10 +405,10 @@ const FRONT_BEATS: Readonly<
       { weapon: [17, 38], off: [33, 37], hand: 'open', key: legsApart(0, 0) },
     ],
     unarmed: [
-      { weapon: [19, 35], off: [33, 25], key: legsApart(0, -1) },
-      { weapon: [23, 32], off: [33, 25], key: legsApart(0, 0) },
-      { weapon: [26, 29], off: [34, 27], key: legsApart(1, 1) },
-      { weapon: [21, 35], off: [33, 25], key: legsApart(0, 0) },
+      { weapon: [19, 35], off: [35, 28], key: legsApart(0, -1) },
+      { weapon: [23, 32], off: [35, 28], key: legsApart(0, 0) },
+      { weapon: [26, 29], off: [36, 30], key: legsApart(1, 1) },
+      { weapon: [21, 35], off: [35, 28], key: legsApart(0, 0) },
     ],
   },
   up: {
@@ -466,7 +466,8 @@ export function frontStrike(
   const beat =
     FRONT_BEATS[facing][kit.kind][((f % STRIKE_FRAMES) + STRIKE_FRAMES) % STRIKE_FRAMES]!;
   const key: Key2 = { ...STAND2, ...beat.key };
-  const bothArms = kit.kind !== 'swing' && !kit.shield;
+  // A bow takes both hands (a shield is not drawn with it); a punch keeps a shield braced.
+  const bothArms = kit.kind === 'bow' || (kit.kind === 'unarmed' && !kit.shield);
   // Toward the camera the sword arm is the near bone; from behind (views.ts), the far one.
   const weaponBones: Bone[] = facing === 'down' ? ['near', 'nearHeld'] : ['far', 'farHeld'];
   const offBones: Bone[] = facing === 'down' ? ['far', 'farHeld'] : ['near', 'nearHeld'];
@@ -536,7 +537,8 @@ export function frontStrike(
         );
   }
   if (bothArms && beat.off) {
-    const offDepth = behind ? BACK_DEPTH.HELD + 6 : armDepth - 0.5;
+    // From behind, the off hand is up in front (a guard by the chin, a bow held out): behind the body.
+    const offDepth = behind || facing === 'up' ? BACK_DEPTH.HELD + 6 : armDepth - 0.5;
     drawArm(shoulders.off, beat.off, kit.arm, offDepth, -side as 1 | -1);
     const [ox, oy] = hand(beat.off, offDepth + 1, kit.kind === 'bow' ? 'fist' : 'hand');
     if (kit.kind === 'bow') {

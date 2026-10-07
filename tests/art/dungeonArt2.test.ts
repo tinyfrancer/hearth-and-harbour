@@ -67,7 +67,7 @@ const PROP_IDS = [
   'rope_coil',
   'cannon',
 ];
-const LANE_C_PROPS = ['crate', 'perch'];
+const LANE_C_PROPS = ['crate', 'perch', 'loot_pile'];
 const FOE_IDS = [
   'dock_rat',
   'sand_crab',
@@ -359,6 +359,21 @@ describe('dungeon props at the C scale', () => {
     expect(dungeonProp2('perch')!.seat).toBeDefined();
     expect(dungeonProp2('nothing')).toBeNull();
     expect(dungeonPropSprite2('nothing')).toBeNull();
+  });
+
+  it('draws the loot pile (B12) as a tied sack with coins spilled before it, knee high', () => {
+    const p = dungeonProp2('loot_pile')!;
+    const g = p.picture.grid;
+    const mats = new Set(
+      Array.from(g.d)
+        .filter(Boolean)
+        .map((c) => matOf2(c)),
+    );
+    expect(mats.has('gold')).toBe(true);
+    expect(mats.has('linen')).toBe(true);
+    // About 0.45 m: well under the keg's height, wider than it is tall with its coins.
+    expect(g.h).toBeLessThan(dungeonProp2('powder_keg')!.picture.grid.h);
+    expect(g.w).toBeGreaterThan(g.h);
   });
 
   it('draws the brig’s bars a tile wide and two metres tall', () => {
