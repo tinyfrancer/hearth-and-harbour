@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { settleRun } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
@@ -114,19 +115,38 @@ describe('the Combat section', () => {
     expect(q('[data-cast="giant_crab"]').classList).toContain('unmet');
   });
 
-  it("names a grotto foe's drops once they are in the collection log, and ? until then", () => {
+  it("names a grotto foe's drops once that foe has dropped them, and ? until then", () => {
     playing({
-      bestiary: { deckhand: { kills: 4, seen: [] }, brinebeard: { kills: 1, seen: [] } },
-      collection: ['doubloon', 'pirate_cutlass', 'spyglass'],
+      bestiary: {
+        deckhand: { kills: 4, seen: ['doubloon', 'pirate_cutlass'] },
+        brinebeard: { kills: 1, seen: ['spyglass'] },
+        giant_crab: { kills: 2, seen: [] },
+        // A pearl from a sand crab, found and in the collection log...
+        sand_crab: { kills: 9, seen: ['pearl'] },
+      },
+      collection: ['doubloon', 'pirate_cutlass', 'spyglass', 'pearl', 'tricorn'],
     });
     q<HTMLButtonElement>('[data-combat]').click();
     expect(q('[data-cast="deckhand"] .drops').textContent).toBe(
       'Drops: Doubloon, Pirate cutlass, ?',
     );
-    // The captain's one-thing-or-the-other shows both, each found or not.
-    expect(q('[data-cast="brinebeard"] .drops').textContent).toBe(
-      'Drops: Doubloon, ?, ?, ?, Spyglass',
+    // The captain's one-thing-or-the-other shows both, each seen or not;
+    // a doubloon in the collection log is not one the captain was seen to drop.
+    expect(q('[data-cast="brinebeard"] .drops').textContent).toBe('Drops: ?, ?, ?, ?, Spyglass');
+    // ...names nothing of the giant crab's, nor a tricorn found elsewhere the powder monkey's.
+    expect(q('[data-cast="giant_crab"] .drops').textContent).toBe('Drops: ?, ?');
+  });
+
+  it("names a grotto foe's drops from the run that saw them dropped", () => {
+    // What a run reports, settled as the town's scene settles it.
+    const after = settleRun(
+      newGame('Cody', clock),
+      { kills: { powder_monkey: 1 }, dropped: { powder_monkey: ['tricorn'] } },
+      CONTENT,
     );
+    playing({ bestiary: after.bestiary });
+    q<HTMLButtonElement>('[data-combat]').click();
+    expect(q('[data-cast="powder_monkey"] .drops').textContent).toBe('Drops: ?, Tricorn');
   });
 
   it('fills the food slot and moves the line to eat at', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Content, MonsterDef } from '../../src/core/content';
-import { knownFoe, settleRun } from '../../src/core/run';
+import { foeDrops, knownFoe, settleRun } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 
 const base: GameState = {
@@ -163,6 +163,56 @@ describe('settleRun: kills and clears', () => {
     expect(knownFoe(withCast, 'rat')).toBe(true);
     expect(knownFoe(withCast, 'kraken')).toBe(false);
     expect(knownFoe(withCast, 'constructor')).toBe(false);
+  });
+
+  it('keeps what each foe was seen to drop, only from its own row, as an idle fight does', () => {
+    const rows: Content = {
+      ...tables,
+      monsters: {
+        rat: { ...monster('rat'), always: [{ item: 'hide', min: 1, max: 1 }] },
+        crab: {
+          ...monster('crab'),
+          rare: [{ item: 'pearl', min: 1, max: 1, oneIn: 5 }],
+        },
+      },
+      dungeons: {
+        cove: {
+          id: 'cove',
+          name: 'The Cove',
+          loot: [],
+          cast: [
+            {
+              ...monster('captain'),
+              always: [{ item: 'doubloon', min: 1, max: 2 }],
+              pick: { items: ['coat', 'spyglass'], oneIn: 2 },
+            },
+          ],
+        },
+      },
+    };
+    const after = settleRun(
+      known,
+      {
+        kills: { crab: 1, captain: 1 },
+        dropped: {
+          // Already seen, seen twice, and one it cannot drop: only what is new and its own.
+          rat: ['hide'],
+          crab: ['pearl', 'pearl', 'doubloon'],
+          captain: ['spyglass', 'doubloon'],
+          nobody: ['pearl'],
+        },
+      },
+      rows,
+    );
+    expect(after.bestiary).toEqual({
+      rat: { kills: 4, seen: ['hide'] },
+      crab: { kills: 1, seen: ['pearl'] },
+      captain: { kills: 1, seen: ['spyglass', 'doubloon'] },
+    });
+    // Without the tables, or with nothing new, the bestiary is left as it was.
+    expect(settleRun(known, { dropped: { rat: ['hide'] } }, rows).bestiary).toBe(known.bestiary);
+    expect(settleRun(known, { dropped: { crab: ['pearl'] } }).bestiary).toBe(known.bestiary);
+    expect(foeDrops(rows.dungeons!.cove!.cast![0]!)).toEqual(['doubloon', 'coat', 'spyglass']);
   });
 
   it('keeps a clear and the best time, and counts a clear without a time', () => {
