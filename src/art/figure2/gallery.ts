@@ -17,7 +17,9 @@ import {
   c2Scale,
   characterIdlePicture2,
   characterPicture2,
+  characterStrike2,
   characterWalk2,
+  STRIKE2_FRAMES,
   townsfolkIdle2,
   townsfolkName2,
   townsfolkPicture2,
@@ -27,7 +29,7 @@ import { deviceSize } from '../canvas';
 import { dim, stamp, tgrid, type Picture2 } from '../town2/cells';
 import { cut, plate } from '../town2/gallery2';
 import { pixelCanvas2, repaint2, spriteCanvas } from '../town2/raster';
-import { walkPreview, type Walker2 } from './walkGallery';
+import { strikePreview, walkPreview, type Walker2 } from './walkGallery';
 import { DAY2, DUSK2, type TimeOfDay } from '../town2/ramps';
 import { town2Layout, town2Picture } from '../town2/town';
 
@@ -55,6 +57,23 @@ export const LADDER2: readonly {
   },
   { name: 'Iron', items: ['iron_helmet', 'iron_breastplate', 'iron_shield', 'iron_sword'] },
   { name: 'Tier 2 (the knight)', items: [], extra: KNIGHT_GEAR2 },
+];
+
+/** The blows the gallery shows: each weapon class, in linen and in the knight's gear. */
+const LINEN = ['linen_tunic', 'linen_trousers'];
+const KNIGHT_BODY = ['knight_plate', 'knight_knees', 'red_cloak'];
+const STRIKES2: readonly (readonly [string, readonly string[], readonly string[]])[] = [
+  ['Linen, a bronze sword', [...LINEN, 'bronze_sword'], []],
+  ['Linen, an iron axe', [...LINEN, 'iron_axe'], []],
+  ['Linen, the cudgel', [...LINEN, 'cudgel'], []],
+  ['Linen, a shortbow', [...LINEN, 'pine_shortbow', 'bronze_arrows'], []],
+  ['Linen, empty-handed', LINEN, []],
+  ['Iron: sword and heater', ['iron_helmet', 'iron_breastplate', 'iron_shield', 'iron_sword'], []],
+  ['The knight: long sword and kite shield', [], KNIGHT_GEAR2],
+  ['The knight, the boarding axe', ['boarding_axe'], [...KNIGHT_BODY, 'kite_shield']],
+  ['The knight, the poacher’s longbow', ['poachers_longbow', 'barbed_arrows'], KNIGHT_BODY],
+  ['The knight, empty-handed', [], KNIGHT_BODY],
+  ['The captain’s coat and the anchor', ['captains_coat', 'tricorn', 'brinebeards_anchor'], []],
 ];
 
 /** Every wearable, grouped as the gallery shows them, each worn alone over the everyday clothes. */
@@ -231,6 +250,24 @@ export function figure2Gallery(): { section: HTMLElement; draw: () => void } {
     body.append(box);
   };
 
+  const striking = (label: string, worn: readonly string[], extra: readonly string[] = []) => {
+    const cell = el('figure', 'gallery-shot');
+    cell.append(
+      strikePreview(
+        (when, facing, f) => characterStrike2(DEFAULT_LOOK, worn, when, facing, f, extra),
+        STRIKE2_FRAMES,
+        game(),
+        dpr(),
+        () => time,
+        label,
+      ),
+    );
+    cell.append(el('figcaption', 'muted', label));
+    const box = el('div', 'gallery-scroll');
+    box.append(cell);
+    body.append(box);
+  };
+
   let built = false;
   const build = () => {
     if (built) return;
@@ -247,6 +284,24 @@ export function figure2Gallery(): { section: HTMLElement; draw: () => void } {
             when === 'day' ? DAY2 : DUSK2,
           ),
       });
+    sub('Walking away (B12): every rung under a cloak, and the knight without his');
+    for (const rung of LADDER2) {
+      const cloaked = rung.extra?.includes('red_cloak') ?? false;
+      const extra = cloaked
+        ? (rung.extra ?? []).filter((g) => g !== 'red_cloak')
+        : [...(rung.extra ?? []), 'red_cloak'];
+      walking(`${rung.name}, ${cloaked ? 'no cloak' : 'with a cloak'}`, {
+        walk: (when, facing, f) => characterWalk2(DEFAULT_LOOK, rung.items, when, facing, f, extra),
+        idle: (when, f) =>
+          spriteCanvas(
+            `gallery idle cloak ${rung.name} ${f}`,
+            characterIdlePicture2(DEFAULT_LOOK, rung.items, f, extra),
+            when === 'day' ? DAY2 : DUSK2,
+          ),
+      });
+    }
+    sub('The blow (B12): toward you, to the right, to the left, away; each weapon class');
+    for (const [label, worn, extra] of STRIKES2) striking(label, worn, extra);
     for (const id of TOWNSFOLK2_IDS)
       walking(townsfolkName2(id) ?? id, {
         walk: (when, facing, f) => townsfolkWalk2(id, when, facing, f),

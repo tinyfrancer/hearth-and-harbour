@@ -1,8 +1,43 @@
 # Lane B: art
 
-**Next session:** Cody's review of B11 (the portraits redrawn, the weapon carry, the walk's and
-the dungeon's weak spots), and whatever it asks for; then deleting the first scale's portraits
-and dungeon art once lanes A and C have switched off them (the list is under "Notes").
+**Next session:** Cody's review of B12 (the back view, the layer order, the hero's blow), and
+whatever it asks for.
+
+## The blow, the back view, the loot pile, for lanes C and A (B12, first PR)
+
+**No door renamed or re-signed, no constant changed.** Added:
+
+```ts
+characterStrike2(look, wornItemIds, time, facing, frame, extra = []): HTMLCanvasElement
+characterStrikePicture2(look, wornItemIds, facing, frame, extra = []): Picture2
+STRIKE2_FRAMES = 4        // wind-up, swing, the blow landing, recovery
+STRIKE2_HIT_FRAME = 2     // count the hit, flash the foe, on this frame
+characterStrikeTagged2(look, worn, facing, frame, extra = [])  // tests and review sheets only
+```
+
+- Same canvas (56 x 72), anchor (28, 70) and caching as `characterWalk2`/`characterWalkPicture2`;
+  `frame` is any whole number (it wraps); `forgetWalks2()` lets the strike pictures go with the
+  walk's (`forgetSprites()` the canvases). Every facing (`'down' | 'right' | 'left' | 'up'`); use
+  the `'left'` frames as they come (the weapon stays in the right hand), never a mirrored right.
+- **Reach**: kept on the same canvas and anchor; a weapon longer than the room in front of the fist
+  is foreshortened (and if need be leant less), so nothing touches the canvas edge. The blow lands
+  about 13 to 26 art pixels ahead of the anchor across (the fist at about 41 to 44), so a foe at
+  `MELEE_STAND` (36) is within the drawn reach of the longer weapons and just beyond a punch.
+- Timing is lane C's: about 90 to 110 ms a frame reads well (the gallery shows 110 with a rest);
+  hold frame 3 (the recovery) as long as wanted, then go back to standing or walking. Feet are
+  planted (both soles on row 70 across; toward and away the stance widens two columns each side).
+- Kinds by the weapon worn: swung (every blade, axe, the cudgel, the anchor), drawn and loosed (the
+  three shortbows and the longbow), a punch (no weapon). A bow takes both hands: a shield worn with
+  a bow is not drawn during the blow.
+- **New prop, for lane C**: `dungeonProp2('loot_pile')` (and `dungeonPropSprite2`): a tied canvas
+  sack with coins spilled before it, 26 x 20 with its outline, about 0.45 m; stand it at
+  (x - foot, y - base) like every prop. It replaces your sack.
+- **The walk** changed behind the same doors (no size, anchor or constant): walking away, held
+  things and shields are behind the body (only what reaches past it shows), the quiver under the
+  cloak, the hands over its edge; across, the cloak takes a leg striding back into it, and a coat's,
+  mail's or jerkin's skirt and sleeves show over the tunic (they had been replaced by it). Townsfolk
+  from behind hide what they hold in front; the captain's cutlass now swings with his hand (it had
+  walked with his leg) in every facing. Rules in the style guide, "What covers what (B12)".
 
 ## Portraits redrawn, the carry, the weak spots, for lanes A and C (B11)
 
@@ -595,6 +630,49 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B12, first PR: Cody's two faults, the layer audit, the blow, the loot pile.** Review sheets
+  outside the repo in `/home/claude/lane-shots/w12-b/`: `back-view-before-after.png` (every frame
+  walking away, before and after, x5 and true size: the knight with cloak, sword and kite; iron
+  with its heater; linen with a bow and quiver; the captain's coat; the trader's and the alewife's
+  dresses; the townsfolk captain), `walk-knight-4way.gif`, `walk-ladder-up.gif`, `layer-audit.png`,
+  `strike-frames.png`, `strike-4way.gif`.
+  - **Walking away** (`figure2/views.ts`, `BACK_DEPTH`): every held thing and shield behind the
+    person, showing only past the silhouette; the shield's forearm behind the body below row 35;
+    the quiver under the cloak; the hands over the cloak's edge. Townsfolk (`folkBack.ts`,
+    `IN_FRONT`): the cutlass, hammer, tankard and forearms, basket and forearm, stick behind them.
+  - **Layer faults found and fixed** (by the frames' provenance, then by eye): (1) the sword, its
+    guard and fist, and the shield drawn over the back and cloak walking away (Cody's); (2) the
+    bow over the arm from behind; (3) the quiver over the cloak from behind; (4) the shield arm's
+    forearm and hand drawn across the back from behind; (5) across, the trailing leg and boot drawn
+    over the cloak (Cody's "shoes through the cape"); (6) across, the everyday tunic's skirt and
+    sleeves replacing the captain's coat's, the mail's and the jerkins' (the coat was a short
+    jacket in profile, the mail had teal sleeves, the jerkin lost its tabs); (7) the townsfolk
+    captain's cutlass blade walked with his far leg, apart from its guard and hand, in every
+    facing; (8) the smith's thighs from behind hung as a skirt and a lifted boot showed over them;
+    (9) the alewife's tankard and hands, the trader's basket and forearm, drawn over their backs.
+    Looked at and left (correct as drawn): toward the camera the cloak behind the legs and the held
+    things in front; hair over the collar and hats over hair in every facing; the pauldrons'
+    outer edges showing beside the cloak from behind (it is narrower than them); the docker's sack
+    and the market woman's basket from behind (carried up, in front).
+  - **The blow** (`figure2/strike.ts`; `SidePose` in `side.ts`): doors above. Three critique rounds
+    on each facing (the hand moved clear of the face over the top; the hit laid out at full stretch;
+    the overhead chop toward the camera; the guard hand behind the body from behind; the bow in the
+    left hand; weapons fitted to the canvas by foreshortening, then lean, then the far end).
+  - **Loot pile** (`dungeon2/props.ts`, `loot_pile`).
+  - **Gallery**: walking away for every rung under a cloak (and the knight without his), the blow
+    in four facings for eleven outfits and every weapon class.
+  - **Tests**: `tests/art/layers2.test.ts` (walking away, no weapon, bow or shield pixel inside the
+    person's silhouette in any frame for every wearable, the held things under the cloak, iron,
+    linen and the coat, and the townsfolk; each held thing still shows past the body; no leg or boot
+    pixel shows inside a cloak or skirt toward, away or breathing, hero and townsfolk; across, none
+    inside the cloak behind the back line; coat, mail and jerkin skirts and sleeves over the tunic).
+    The held-thing, townsfolk, side-cloak and under-over tests fail on B11's art. The hero's legs
+    under a cloak or skirt toward and away already passed: the fault Cody saw was across.
+    `tests/art/strike2.test.ts` (frames, hit frame, kinds, caching and forgetting; every outfit,
+    facing and frame on the canvas and anchor, nothing at its edge, each frame its own; the hand rule;
+    the bow's draw and loose; the blow from behind landing behind the body; the punch's reach).
+    `tests/art/dungeonArt2.test.ts`: the loot pile.
+
 - **B11: Cody's review of wave 10 — the portraits, the sword through the head, the weak spots.**
   Review sheets outside the repo in `/home/claude/lane-shots/w11-b/`: `portraits.png` (each face:
   the first scale at its list size, last wave and now in the lists' 100 px frame, last wave and now
@@ -1160,6 +1238,24 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **B12, weaker than it should be** (for Cody's review), weakest first:
+  - The blow toward the camera and away reads less strongly than across: a swing toward the camera
+    lands pointing at the viewer, which at this size is a short blade over the legs; from behind
+    the blow lands out of sight, only the blade's end showing past the head; a bow end-on is a
+    stick. Honest, but the across frames are the ones that sell it.
+  - Long weapons at the blow are foreshortened to about half their length across (the canvas has
+    12 to 14 columns in front of the fist); the knight's sword at full stretch reads as a shorter
+    sword.
+  - The punch is small: a fist out at the shoulder, the other up by the chin; toward the camera it
+    is a fist in front of the chest.
+  - From behind, the knight's kite shield is a sliver of planks and rim at his elbow, and the
+    pauldrons show beside the cloak at both shoulders; the shield arm's elbow leaves a gap where the
+    shield shows between arm and body.
+  - Across, a long cloak now swallows the trailing leg to the boot: correct, but the knight reads a
+    little one-legged at the contact frames.
+  - A bow and a shield together: the shield is not drawn during the blow.
+  - The alewife from behind has stumps for forearms (her hands are round the tankard in front).
+
 - **Not done in B11**, and why:
   - **The standing hero's three-quarter turn** (still B9's one column): it needs every face, hair
     and hat drawn again at that angle; the brief left it.
@@ -1362,6 +1458,16 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 - The townsfolk bodies are drawn only where they show, so they cannot be dressed in other gear.
 
 ## Needs from another lane
+
+- **Lane C, for B12** (nothing breaks if you do nothing):
+  1. The blow: replace the lunge and glint with `characterStrike2(look, worn, 'dusk', facing,
+frame)` (or the picture) for `STRIKE2_FRAMES` frames while `heroSwinging`, in the hero's
+     facing; land the hit (the flash, the number) on `STRIKE2_HIT_FRAME`. Same anchor and contact
+     shadow as walking. The glint can go or stay on the hit frame.
+  2. Loot: `dungeonProp2('loot_pile')` for a pile on the floor instead of `LOOT` in
+     `fightArt.ts`, stood at (x - foot, y - base).
+  3. Nothing for the walk: the back view and layer fixes are behind the same doors.
+- **Lane A, for B12**: nothing.
 
 - **Lane C, for B11** (nothing breaks if you do nothing): use `door_side_open` /
   `door_side_barred` for the grotto's doors in side walls, with `around`, and keep the rock above

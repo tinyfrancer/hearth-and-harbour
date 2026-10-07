@@ -11,7 +11,7 @@ import { cell } from './cave';
 import type { Glow } from '../raster';
 import { LANTERN_LIGHT2, type Light2 } from './light';
 import { cyl } from '../town2/texture';
-import { dome, lim, line, paint, rod, sprite } from './kit';
+import { dome, lim, line, litBy, paint, rod, sprite, stepFor } from './kit';
 
 export interface Prop2 {
   readonly grid: TGrid;
@@ -475,6 +475,56 @@ function perch(): Omit<Prop2, 'foot'> {
   return { grid: outlined(g), base: H - 2, glows: [], seat: { x: cx + 1, y: 2 } };
 }
 
+/**
+ * What a foe leaves on the floor (B12, for lane C's dropped loot), about 0.45
+ * m: a slumped canvas sack tied at the neck with a cord, its ears standing up,
+ * a fold where it sags, and coins spilled from its mouth across the floor with
+ * one standing on its edge, so it reads from across a room as treasure, not a
+ * rock.
+ */
+function lootPile(): Omit<Prop2, 'foot'> {
+  const W = 26;
+  const H = 20;
+  const g = tgrid(W, H);
+  // The sack: a pear slumped to the left, widest near the floor.
+  const cx = 10;
+  paint(g, 0, 4, 20, 15, (x, y) => {
+    const t = (y - 4) / 14;
+    const half = 3 + 6.2 * Math.sin(Math.min(1, t * 1.25) * (Math.PI / 2)) - (t > 0.92 ? 1 : 0);
+    const mid = cx - t * 1.2;
+    const nx = (x + 0.5 - mid) / half;
+    if (Math.abs(nx) > 1) return 0;
+    const ny = t * 2 - 1;
+    let s = stepFor(litBy(nx * 0.95, ny * 0.6), 2.6, 1.6, 1, 5);
+    // A fold where the cloth sags against the cord, and the base settling on the floor.
+    if (Math.abs(x + 0.5 - (mid + half * 0.35)) < 0.6 && t > 0.15 && t < 0.7) s = lim(s + 1, 1, 5);
+    if (y === 18) s = 5;
+    return cell('linen', s);
+  });
+  // The neck and its ears of cloth above the cord.
+  sprite(g, 6, 0, ['.a..b.', 'aab.bc', '.abbc.', '..bc..'], {
+    a: ['linen', 1],
+    b: ['linen', 2],
+    c: ['linen', 4],
+  });
+  // The cord round the neck, its end hanging.
+  sprite(g, 6, 4, ['ddeef.', '..e...', '..f...'], {
+    d: ['leather', 2],
+    e: ['leather', 3],
+    f: ['leather', 5],
+  });
+  // Coins spilled across the floor in front of it: flat ones, and one on its edge.
+  const coin = { a: ['gold', 0], b: ['gold', 2], c: ['gold', 4] } as const;
+  sprite(g, 16, 15, ['.ab.', 'abbc', '.cc.'], coin);
+  sprite(g, 20, 17, ['abb.', '.bcc'], coin);
+  sprite(g, 9, 17, ['abbc', '.cc.'], coin);
+  sprite(g, 21, 12, ['a', 'b', 'b', 'c'], coin);
+  sprite(g, 14, 18, ['ab.', '.cc'], coin);
+  // A patch sewn on the sack, darker cloth with its stitches.
+  sprite(g, 4, 11, ['pqp', 'q.q', 'pqp'], { p: ['linen', 4], q: ['linen', 3] });
+  return { grid: outlined(g), base: H - 1, glows: [] };
+}
+
 const MAKE: Readonly<Record<string, () => Omit<Prop2, 'foot'>>> = {
   powder_keg: powderKeg,
   crate,
@@ -485,6 +535,7 @@ const MAKE: Readonly<Record<string, () => Omit<Prop2, 'foot'>>> = {
   rope_coil: ropeCoil,
   cannon,
   perch,
+  loot_pile: lootPile,
 };
 
 export const PROP2_IDS: readonly string[] = Object.keys(MAKE);

@@ -10,7 +10,8 @@ import { HEAD_AT } from './body';
 import { cloth, type Part2, type Pins } from './engine';
 import { FOLK2, folkBoneOf, folkRig, folkSwap } from './folk';
 import { HEAD_BACK } from './sideHeads';
-import { BACK_AXIS, filled, flipLit, rechar } from './views';
+import { BACK_AXIS, BACK_DEPTH, filled, flipLit, rechar } from './views';
+import type { Bone } from './engine';
 import type { Boned, Rig2 } from './walk';
 
 const [BX, BY] = HEAD_AT;
@@ -263,15 +264,19 @@ const EXTRA: Readonly<Record<string, readonly Part2[]>> = {
       ],
       pins: { a: ['leather', 3], b: ['leather', 2], c: ['leather', 4] },
     },
-    cloth(
-      0,
-      'umber',
-      [
-        ...Array.from({ length: 13 }, (_, i): [number, number, number] => [43 + i, 21, 27]),
-        ...Array.from({ length: 13 }, (_, i): [number, number, number] => [43 + i, 29, 35]),
-      ],
-      { turn: 0.6 },
-    ),
+    // His thighs walk with his legs (B12: they hung as a skirt, and a lifted boot showed over them).
+    {
+      ...cloth(
+        0,
+        'umber',
+        [
+          ...Array.from({ length: 13 }, (_, i): [number, number, number] => [43 + i, 21, 27]),
+          ...Array.from({ length: 13 }, (_, i): [number, number, number] => [43 + i, 29, 35]),
+        ],
+        { turn: 0.6 },
+      ),
+      bone: 'legs',
+    },
   ],
 };
 
@@ -294,6 +299,30 @@ const BEHIND: Readonly<Record<string, (p: Part2, i: number) => Part2 | null>> = 
   elder: (p, i) => (i === 0 || i === 1 ? null : i === 2 ? rechar(filled(p, '2'), { '5': '3' }) : p),
 };
 
+/**
+ * What each townsperson holds in front of them (by its index in the front
+ * drawing), which from behind is hidden by their body and shows only where it
+ * reaches past it (B12, the rule in views.ts, `BACK_DEPTH`): the captain's
+ * cutlass, the smith's hammer, the alewife's tankard and the forearms round
+ * it, the trader's basket, the old man's stick. What is carried on the head
+ * or a shoulder stays in front.
+ */
+const IN_FRONT: Readonly<Record<string, readonly number[]>> = {
+  pirate: [17],
+  smith: [9, 10, 12, 13],
+  alewife: [6, 7, 10, 11],
+  trader: [9, 10, 11],
+  elder: [6, 8],
+};
+
+/** Walking away, a drawn-in near side is the far side, and the other way about. */
+const SWAP: Partial<Record<Bone, Bone>> = {
+  near: 'far',
+  far: 'near',
+  nearHeld: 'farHeld',
+  farHeld: 'nearHeld',
+};
+
 /** A townsperson from behind, ready for the walk's rig; null for an unknown id. */
 export function folkBackParts(
   id: string,
@@ -314,11 +343,20 @@ export function folkBackParts(
   };
   const rule = BEHIND[id] ?? ((p: Part2) => p);
   const boned: Boned[] = [];
+  const inFront = IN_FRONT[id] ?? [];
   folk.parts.forEach((p, i) => {
     const kept = rule(p, i);
     if (!kept) return;
-    const turned = flipLit(kept, BACK_AXIS);
-    boned.push({ part: turned, bone: folkBoneOf(turned, rig) });
+    let turned = flipLit(kept, BACK_AXIS);
+    if (kept.bone) turned = { ...turned, bone: SWAP[kept.bone] ?? kept.bone };
+    const bone = folkBoneOf(turned, rig);
+    if (inFront.includes(i))
+      boned.push({
+        part: { ...turned, depth: BACK_DEPTH.HELD + turned.depth / 100 },
+        bone,
+        tag: 'held',
+      });
+    else boned.push({ part: turned, bone });
   });
   for (const p of HEADS[id] ?? []) boned.push({ part: p, bone: 'head' });
   for (const p of EXTRA[id] ?? []) boned.push({ part: p, bone: folkBoneOf(p, rig) });

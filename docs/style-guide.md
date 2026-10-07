@@ -347,7 +347,8 @@ the far hand stayed on the hip. What replaced it:
   featureless, so it never reads as one), the back of every hairstyle and head gear (and the hair
   that shows below a hat's rim), a shirt lit afresh with a fold down the spine, a belt without its
   buckle, a jerkin without its disc or laces, a coat closed, the quiver across the back, a shield's
-  planks and straps, the cloak over all. With no shield both arms hang.
+  planks and straps, the cloak over all. With no shield both arms hang. _What covers what from
+  behind was changed in B12 (below): the B10b back showed the sword and the shield in front._
 - **Toward the camera** the free foot comes up past the planted one with the knee toward the
   viewer (the thigh foreshortened, the foot lifted seven rows), the planted foot climbs the screen
   two rows a frame as the walker passes over it (B11: it stepped on the spot and slid; the whole
@@ -366,6 +367,76 @@ the far hand stayed on the hip. What replaced it:
   back, a bald head shows its crown's light, the backs of both ears and the cords of the neck,
   and long hair has a sheen across it and lit strands so black hair is not a dark mass.
 - **Boots**: the heel striking with the toe turned up has its sole as a dark line rising to the toe.
+
+#### What covers what (B12)
+
+Cody, on B11's walk: "sword and shield are visible when character is facing away. Shoes through
+the cape/body." The rule, in every facing, is the plain anatomy of who is nearer the viewer; the
+frames' provenance (`posedTagged` in `walk.ts`, the side view's tags) holds it in
+`tests/art/layers2.test.ts`, for every wearable and weapon, every frame.
+
+- **From behind, the body hides what it holds in front of it.** A weapon, a bow, a spyglass and a
+  shield are drawn behind everything of the person (`BACK_DEPTH.HELD` in `views.ts`) and show only
+  where they reach past the silhouette of the body, head, limbs and cloak: a blade above the
+  shoulder and beside the hip, a pommel below the fist, a shield's rim (its planks and straps)
+  past the elbow. Chosen over slinging the shield on the back: it is what the eye expects of
+  someone walking away, it needs no second drawing, and the shield still shows as a shield's edge.
+- **The shield arm from behind**: the upper arm hangs and the elbow comes out, but the forearm goes
+  forward to the straps, so from row 35 down it is behind the body and in front of the shield
+  (`BACK_FOREARM_ROW`). Where the front drawing never drew the torso under that forearm, the shield
+  shows through the gap between arm and body, as it would.
+- **What is worn on the back is in front**: the quiver over the shirt, the cloak over the quiver
+  (its fletchings above the shoulder), long hair over the cloak, head gear over the hair, and the
+  hands over the cloak's edge where they come out from under it (`BACK_DEPTH`).
+- **Townsfolk from behind**: what each holds in front (the captain's cutlass, the smith's hammer,
+  the alewife's tankard and the forearms round it, the trader's basket and the arm round it, the
+  old man's stick) is behind their body the same way (`IN_FRONT` in `folkBack.ts`); what is carried
+  on the head or a shoulder (the market woman's basket, the docker's sack) stays in front. A held
+  thing moves with the hand that holds it, never with a leg (the captain's blade reached below the
+  hip and walked with his leg until B12), and thighs move with the legs (the smith's hung as a
+  skirt from behind, and a lifted boot showed over them).
+- **A cloak, a coat's tails, a dress or a skirt hides the legs down to its hem** wherever it hangs
+  in front of them from the viewer's side: from behind, cloak and skirt; toward the camera, the
+  skirt (a cloak hangs behind there); across, the cloak behind the body's back line (the back of
+  the hips) is the outermost thing, so a leg striding back goes in under it and only its foot shows
+  below the hem (`SIDE.CLOAK_OVER`); under the body the cloak stays behind the legs.
+- **Under before over**: across, the everyday tunic is dressed first, so a coat's, mail's or
+  jerkin's skirt and sleeves are laid over it (until B12 the tunic came last and its skirt and
+  sleeves replaced theirs in profile: the captain's coat was a short jacket, mail had teal sleeves).
+
+#### The blow (B12)
+
+Lane C struck with a lunge and a glint. The hero's blow is four frames, the same in every facing
+and for every outfit (`figure2/strike.ts`, door `characterStrike2` in `character2.ts`): the wind-up,
+the swing, the blow landing (frame 2, `STRIKE2_HIT_FRAME`), the recovery.
+
+- **By weapon class**: a blade, an axe, the cudgel or the anchor is swung (`swing`); a bow is
+  raised, drawn to the cheek and loosed (`bow`); empty hands punch (`unarmed`). No weapon in the
+  game is a thrusting one, so there is no thrust.
+- **Across**: the walk's skeleton in a pose (`SidePose` in `side.ts`): the feet planted a stride
+  apart, the hips dropping a row and moving two columns into the blow as it lands, each wrist placed
+  and its elbow found. A swing is cocked high behind the head with the blade down the back (behind
+  the body), brought over the top, laid out at the full stretch of the arm as it lands, and let fall
+  to the carry. A bow is held out in the left hand and drawn with the right (a right-handed archer:
+  the walk carries the bow in the right hand, the blow changes hands); its string makes a V to the
+  hand on the draw and is straight once loosed; the arrow is drawn nocked until the loose. A punch
+  is cocked at the chest and driven out at the shoulder's height, the other fist up by the chin.
+  Walking left the arms swap jobs and the frame is mirrored and re-lit, as the walk does.
+- **Toward the camera**: the weapon raised beside the head, brought down past the shoulder and
+  landing pointing at the viewer below the fist; **away**: cocked out to the right, up past the
+  shoulder, the blow landing ahead (up the screen) with arm and blade behind the body and only the
+  blade's end showing past the head (the back-view rule holds in a blow). The arms are drawn again
+  along their bones in the outfit's own sleeves (`drawLimb`, the side view's covers; plate down the
+  whole arm where a pauldron hides the upper arm across). A bow toward or away is end-on: a stave a
+  few columns wide.
+- **The weapon is its own drawing turned about the fist**: by quarter turns, exactly, then leant by
+  sliding rows (or columns), as the carry does, so a blade's edge and midrib stay unbroken.
+- **Reach**: the canvas stays 56 x 72 with the anchor at (28, 70). A weapon longer than the room
+  in front of the fist is foreshortened (rows dropped along its length, as pointing partly toward
+  the viewer), then leant less, and as a last resort its far end left off; nothing touches the
+  canvas's edge (tested). A knight's long sword at full stretch is drawn about half its length.
+- **The shield arm is braced**: raised a little toward the blow and held there. With a bow the
+  shield is not drawn (both hands are on the bow); see the status file's weak list.
 
 ### The dungeon at the C scale (B10a; not yet swapped in)
 

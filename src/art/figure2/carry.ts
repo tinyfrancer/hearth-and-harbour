@@ -54,7 +54,7 @@ export const CARRY: Readonly<
 };
 
 /** Rows beyond the fist's own, along the weapon, kept every `keep`: the far end foreshortened. */
-function foreshorten(
+export function foreshorten(
   px: readonly (readonly [number, number, string])[],
   keep: number,
 ): [number, number, string][] {
