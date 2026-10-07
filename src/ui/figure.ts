@@ -89,9 +89,10 @@ export function heroFigure(look: DrawnLook, worn: readonly string[], cssScale: n
 }
 
 /**
- * CSS pixels to an art pixel for what is worn, in the doll's squares: the
- * hero's own grain beside them (`sheetScale`), so the squares and the figure
- * read as one picture. A 24-pixel icon is 72 CSS pixels at three.
+ * CSS pixels to an art pixel for what is worn, in the doll's squares, unless
+ * told otherwise: the hero's own grain beside them (`sheetScale`, which
+ * passes its own), so the squares and the figure read as one picture. A
+ * 24-pixel icon is 72 CSS pixels at three.
  */
 export const DOLL_ICON_SCALE = 3;
 
@@ -105,26 +106,26 @@ export const ICON_ART = 24;
 /** The doll's square border, each side (`--px`). */
 const SLOT_BORDER = 2;
 
-/** A doll square's side in CSS pixels on this screen: an icon at `DOLL_ICON_SCALE`, whole on the device, and its border. */
-export const dollSlotSize = (dpr: number = ratio()): number =>
-  (ICON_ART * deviceScale(DOLL_ICON_SCALE, dpr)) / dpr + 2 * SLOT_BORDER;
+/** A doll square's side in CSS pixels: an icon at `cssScale`, whole on the device, and its border. */
+export const dollSlotSize = (dpr: number = ratio(), cssScale = DOLL_ICON_SCALE): number =>
+  (ICON_ART * deviceScale(cssScale, dpr)) / dpr + 2 * SLOT_BORDER;
 
 /**
  * An item's icon for the doll, on a canvas of its own exactly the picture's
- * size at a whole number of device pixels per art pixel near
- * `DOLL_ICON_SCALE` (9 at 3x, 6 at 2x, 8 at 2.625x): art's own icon canvas
+ * size at a whole number of device pixels per art pixel near `cssScale`
+ * (at three: 9 at 3x, 6 at 2x, 8 at 2.625x): art's own icon canvas
  * (`itemIcon`) copied across pixel for pixel, smoothing off. Art pads its
  * canvas at the right and foot to a whole CSS pixel, so showing that canvas
  * itself sat the picture off the square's centre at 2.625x; this one holds
  * the picture alone, so it centres at every ratio. Null when art has not
  * drawn the item.
  */
-export function dollIcon(itemId: string): HTMLCanvasElement | null {
+export function dollIcon(itemId: string, cssScale = DOLL_ICON_SCALE): HTMLCanvasElement | null {
   const art = itemIcon(itemId);
   const pic = itemIconPicture(itemId);
   if (!(art instanceof HTMLCanvasElement) || !pic) return null;
   const dpr = ratio();
-  const per = deviceScale(DOLL_ICON_SCALE, dpr);
+  const per = deviceScale(cssScale, dpr);
   const drawn = iconScale(dpr);
   const { w, h } = pic.grid;
   const canvas = document.createElement('canvas');

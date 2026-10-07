@@ -33,18 +33,19 @@ const screenRatio = (): number =>
   typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 
 /**
- * CSS pixels to an art pixel for the figure on the sheet: three wherever the
- * doll's squares (at the same grain, `dollSlotSize`) leave room for him
- * whole, on the device's own whole pixels (every phone from 356 wide at 2x
- * and 3x, 361 at 2.625x), so he fills his room from the floor up; two on
- * anything narrower.
+ * CSS pixels to an art pixel for the figure on the sheet and the icons in
+ * the doll's squares, one grain for both: three wherever two squares and the
+ * hero at three fit across, on the device's own whole pixels (every phone
+ * from 356 wide at 2x and 3x, 361 at 2.625x), so he fills his room from the
+ * floor up; two on anything narrower, squares and all.
  */
 export function sheetScale(
   width = typeof innerWidth === 'number' ? innerWidth : 390,
   dpr = screenRatio(),
 ): number {
-  const room = Math.min(width, 480) - DOLL_GUTTERS - DOLL_GAPS - 2 * dollSlotSize(dpr);
-  const fits = (css: number): boolean => (FIGURE2_W * deviceScale(css, dpr)) / dpr <= room + 1e-9;
+  const fits = (css: number): boolean =>
+    (FIGURE2_W * deviceScale(css, dpr)) / dpr <=
+    Math.min(width, 480) - DOLL_GUTTERS - DOLL_GAPS - 2 * dollSlotSize(dpr, css) + 1e-9;
   return fits(3) ? 3 : 2;
 }
 
@@ -179,7 +180,8 @@ export function characterView(
   actions: SheetActions,
 ): View {
   const updates: ((state: GameState, now?: number) => void)[] = [];
-  const figure = heroFigure(fullLook(state.look), wornItemIds(state), sheetScale());
+  const scale = sheetScale();
+  const figure = heroFigure(fullLook(state.look), wornItemIds(state), scale);
   // The name heads the figure's room, in the air above him, so the doll is the sheet's top.
   const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [
     h('h2', { class: 'sheet-name', text: state.name }),
@@ -193,7 +195,7 @@ export function characterView(
     const worn = state.equipment[slot];
     const name = worn ? (content.items[worn.item]?.name ?? worn.item) : 'Nothing';
     const open = panel === slot;
-    const icon = worn ? dollIcon(worn.item) : null;
+    const icon = worn ? dollIcon(worn.item, scale) : null;
     const count = worn && slot === 'ammo' ? h('span', { class: 'slot-qty qty' }) : null;
     if (count) {
       // Arrows go as they are shot, with the sheet open.
@@ -230,11 +232,15 @@ export function characterView(
     panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
   // While a slot's choices are open the doll stays at the screen's top as they
   // scroll beneath it, so what is tried on is seen on him.
-  const doll = h('div', { class: 'doll', attrs: { style: `--slot: ${dollSlotSize()}px` } }, [
-    h('div', { class: 'doll-side' }, DOLL[0]!.map(square)),
-    stage,
-    h('div', { class: 'doll-side' }, DOLL[1]!.map(square)),
-  ]);
+  const doll = h(
+    'div',
+    { class: 'doll', attrs: { style: `--slot: ${dollSlotSize(screenRatio(), scale)}px` } },
+    [
+      h('div', { class: 'doll-side' }, DOLL[0]!.map(square)),
+      stage,
+      h('div', { class: 'doll-side' }, DOLL[1]!.map(square)),
+    ],
+  );
   const head = h('section', { class: `stack sheet${picker ? ' choosing' : ''}` }, [
     doll,
     picker ?? wornList(state, content),

@@ -309,6 +309,22 @@ describe('the character sheet', () => {
     }
   });
 
+  it('keeps the squares at the hero’s grain on a 320-wide phone too, two to one', () => {
+    vi.stubGlobal('innerWidth', 320);
+    vi.stubGlobal('devicePixelRatio', 2);
+    try {
+      geared({ iron_sword: 1 });
+      wear('main_hand', 'iron_sword');
+      expect(figure().style.width).toBe(`${FIGURE2_W * 2}px`);
+      const sword = q<HTMLCanvasElement>('[data-slot="main_hand"] canvas.doll-icon');
+      expect(sword.style.width).toBe(`${ICON_ART * 2}px`);
+      // 52-pixel squares: still more than a thumb's 48.
+      expect(q('.doll').style.getPropertyValue('--slot')).toBe('52px');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('sizes the squares from art’s own icons', () => {
     for (const id of ['iron_sword', 'iron_helmet', 'shell_necklace', 'bronze_arrows']) {
       const pic = itemIconPicture(id)!;
