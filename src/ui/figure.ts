@@ -1,4 +1,3 @@
-import type { Look } from '../art/character';
 import {
   FIGURE2_H,
   FIGURE2_W,
@@ -7,6 +6,7 @@ import {
   characterIdle2,
 } from '../art/character2';
 import { iconScale, itemIcon } from '../art/icons';
+import type { DrawnLook } from './look';
 
 /**
  * The hero drawn large for a menu, breathing: lane B's breath frames
@@ -20,7 +20,7 @@ export interface HeroFigure {
   /** Shows the breath due at `ms` on the app's clock (passed in, never read). */
   breathe(ms: number): void;
   /** Draws a new look or outfit on the same canvas, at the breath it is on. */
-  dress(look: Look, worn: readonly string[]): void;
+  dress(look: DrawnLook, worn: readonly string[]): void;
 }
 
 /** Which breath is due at `ms`: the frames alternate every `IDLE2_FRAME_MS`. */
@@ -38,7 +38,7 @@ export const deviceScale = (cssScale: number, dpr: number): number =>
 const ratio = (): number =>
   typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 
-export function heroFigure(look: Look, worn: readonly string[], cssScale: number): HeroFigure {
+export function heroFigure(look: DrawnLook, worn: readonly string[], cssScale: number): HeroFigure {
   const dpr = ratio();
   const scale = deviceScale(cssScale, dpr);
   const canvas = document.createElement('canvas');

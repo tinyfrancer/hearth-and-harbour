@@ -8,7 +8,7 @@ import { GAME_STATE_VERSION, newGame } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 import { mountApp } from '../../src/ui/app';
 import { CONTENT } from '../../src/data';
-import { LOOK_CHOICES } from '../../src/art/character';
+import { LOOK_CHOICES2 } from '../../src/art/character2';
 
 // The whole shell, driven the way a thumb would, against real storage.
 let root: HTMLElement;
@@ -715,9 +715,9 @@ describe('the app shell', () => {
     // The art lane adds choices over time, so these read them rather than name them.
     const parts = ['skin', 'hair', 'hairColour'] as const;
     const first = {
-      skin: LOOK_CHOICES.skin[0]!.id,
-      hair: LOOK_CHOICES.hair[0]!.id,
-      hairColour: LOOK_CHOICES.hairColour[0]!.id,
+      skin: LOOK_CHOICES2.skin[0]!.id,
+      hair: LOOK_CHOICES2.hair[0]!.id,
+      hairColour: LOOK_CHOICES2.hairColour[0]!.id,
     };
 
     it('draws the character on the creation screen and makes them with the first choices', () => {
@@ -725,7 +725,7 @@ describe('the app shell', () => {
       expect(q('.create canvas[role="img"]')).toBeDefined();
       for (const part of parts) {
         expect(q(`[data-part="${part}"] .look-choice`).textContent).toBe(
-          LOOK_CHOICES[part][0]!.name,
+          LOOK_CHOICES2[part][0]!.name,
         );
       }
       create('Cody');
@@ -735,7 +735,7 @@ describe('the app shell', () => {
     it('steps through the choices of a part that has several, and offers no steps for one', () => {
       mount();
       for (const part of parts) {
-        const choices = LOOK_CHOICES[part];
+        const choices = LOOK_CHOICES2[part];
         const steps = root.querySelectorAll(`[data-part="${part}"] button`);
         if (choices.length < 2) {
           expect(steps, part).toHaveLength(0);
@@ -755,7 +755,7 @@ describe('the app shell', () => {
       create('Cody');
       const look = new LocalStorageSaveService().load()!.look;
       for (const part of parts) {
-        expect(look[part]).toBe(LOOK_CHOICES[part].at(-1)!.id);
+        expect(look[part]).toBe(LOOK_CHOICES2[part].at(-1)!.id);
       }
     });
 

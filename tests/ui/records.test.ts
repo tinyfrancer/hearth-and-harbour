@@ -181,10 +181,11 @@ describe('achievements', () => {
 });
 
 describe('the tab bar', () => {
-  it('shows a picture for every tab, the old glyph where art has none yet', () => {
+  it('shows art’s own picture for every tab', () => {
     playing();
     for (const tab of root.querySelectorAll('.tab')) {
-      expect(tab.querySelector('svg, canvas'), tab.getAttribute('data-tab')!).not.toBeNull();
+      // The first scale's placeholder glyphs are gone: every tab has art's icon.
+      expect(tab.querySelector('.tab-icon canvas'), tab.getAttribute('data-tab')!).not.toBeNull();
     }
   });
 });

@@ -1,6 +1,4 @@
 import { tabIcon } from '../art/icons';
-import { TAB_ICONS } from '../art/tabIcons';
-import { pixelSvg } from '../art/pixelSvg';
 import { takeStock } from '../core/achievements';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
@@ -748,8 +746,11 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                 },
               },
             },
-            // Art's own picture for the tab when it has drawn one; the old glyph until then.
-            [tabIcon(id) ?? pixelSvg(TAB_ICONS[id]!), h('span', { text: label })],
+            // Art's own picture for the tab; an empty place of the same kind if it ever has none.
+            [
+              tabIcon(id) ?? h('span', { class: 'tab-icon', attrs: { 'aria-hidden': 'true' } }),
+              h('span', { text: label }),
+            ],
           ),
         ),
       ),

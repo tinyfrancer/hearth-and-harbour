@@ -1,6 +1,6 @@
-import type { Look } from '../art/character';
 import { heroPortrait2, portrait2 } from '../art/portraits2';
 import { h } from './dom';
+import type { DrawnLook } from './look';
 
 /**
  * The frames a face is shown in, by the sizes the art draws faces at
@@ -46,7 +46,7 @@ export function faceIfDrawn(who: { id: string }, size: FaceSize): HTMLElement | 
  * labelled for a screen reader ("Your character"), unlike the others, since
  * it may be the only picture of them on the page.
  */
-export function heroFace(look: Look, worn: readonly string[], size: FaceSize): HTMLElement {
+export function heroFace(look: DrawnLook, worn: readonly string[], size: FaceSize): HTMLElement {
   return h('div', { class: `portrait ${size} hero-face`, attrs: { 'data-face': 'hero' } }, [
     heroPortrait2(look, worn),
   ]);

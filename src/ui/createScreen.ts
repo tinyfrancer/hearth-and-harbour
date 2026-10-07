@@ -1,14 +1,13 @@
-import type { Look } from '../art/character';
 import { FIGURE2_H } from '../art/character2';
 import { NAME_MAX_LENGTH, nameProblem } from '../core/state';
 import { button, h } from './dom';
 import { heroFigure } from './figure';
 import { importPanel } from './importPanel';
-import { fullLook, lookPicker } from './look';
+import { fullLook, lookPicker, type DrawnLook } from './look';
 import type { GameState } from '../core/state';
 
 interface CreateScreenOptions {
-  onCreate(name: string, look: Look): void;
+  onCreate(name: string, look: DrawnLook): void;
   onImport(state: GameState): void;
 }
 

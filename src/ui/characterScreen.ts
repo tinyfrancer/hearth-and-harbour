@@ -1,4 +1,3 @@
-import type { Look as DrawnLook } from '../art/character';
 import { FIGURE2_W } from '../art/character2';
 import { itemIcon } from '../art/icons';
 import { type Content, type Slot } from '../core/content';
@@ -9,7 +8,7 @@ import { formatNumber } from './format';
 import { SLOT_NAMES, gearText, statName } from './gear';
 import { recordsEntry } from './logScreen';
 import { dollIcon, heroFigure } from './figure';
-import { fullLook, lookPicker } from './look';
+import { fullLook, lookPicker, type DrawnLook } from './look';
 import type { View } from './view';
 
 /** What is open under the sheet: one slot's choices, the look, or nothing. */
