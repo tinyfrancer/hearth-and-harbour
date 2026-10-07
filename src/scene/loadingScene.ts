@@ -9,10 +9,13 @@
  * moves ahead of them. Only the swell, the boat's bob and the gull move with
  * time, which the Town tab passes in.
  *
- * Built from the art lane's doors (its rowing boat and gull, its ramps) and
- * plain cells; nothing new is drawn for it. The scene is 296 x 100 art pixels
- * at the town's own size on screen: one CSS pixel an art pixel at 3x, so the
- * boat (the town's own, at its own size) is under half the picture's width.
+ * Built from the art lane's doors (its rowing boat, buoy, gull, barrel and
+ * crate, its ramps) and plain cells; nothing new is drawn for it. The scene
+ * is a wide stretch of harbour, 432 x 150 art pixels, so the boat (the
+ * town's own, at its own size) is under a third of it across, the quay with
+ * its cargo on the right and a buoy riding the swell between; it is shown
+ * at the largest whole number of device pixels an art pixel that keeps the
+ * card within a phone's width (`cardScale`): two at 3x, so 288 CSS pixels.
  */
 import { cell, darker, tgrid, type Picture2, type TGrid } from '../art/town2/cells';
 import { town2Piece } from '../art/town2/pieces';
@@ -22,12 +25,20 @@ import type { TimeOfDay } from './daylight';
 import { palette2 } from './town2Paint';
 
 /** The scene's size in art pixels. */
-export const CARD_W = 296;
-export const CARD_H = 100;
+export const CARD_W = 432;
+export const CARD_H = 150;
 
 /** Where the water meets the sky, and where the quay's face begins, in art pixels. */
-const HORIZON = 38;
-const QUAY_X = 254;
+const HORIZON = 54;
+export const QUAY_X = 340;
+
+/** The most the picture takes across, in CSS pixels: inside a phone's width with the card's edges. */
+export const CARD_MOST = 330;
+
+/** Whole device pixels an art pixel for the picture at this device pixel ratio: never under one. */
+export function cardScale(dpr: number): number {
+  return Math.max(1, Math.floor((CARD_MOST * dpr) / CARD_W + 1e-9));
+}
 
 /** How long each beat of the swell and the boat's bob lasts. */
 export const SWELL_MS = 420;
@@ -65,7 +76,7 @@ export function harbourGrid(sway: number, boat?: BoatShadow): TGrid {
   };
   const get = (x: number, y: number) => g.d[y * CARD_W + x] ?? 0;
   // The sky in four bands, lightest at the horizon, each edge ragged in clumps of three or four columns.
-  const edges = [9, 18, 28];
+  const edges = [13, 26, 40];
   for (let x = 0; x < CARD_W; x++) {
     const clump = Math.floor(x / 4);
     const breaks = edges.map((e, i) => e + Math.round((jitter(clump, i) - 0.5) * 3));
@@ -76,9 +87,10 @@ export function harbourGrid(sway: number, boat?: BoatShadow): TGrid {
   }
   // A cloud or two: lumps of sailcloth, light on top and a step down beneath.
   for (const [cx, cy, w] of [
-    [52, 11, 26],
-    [150, 7, 18],
-    [214, 15, 22],
+    [60, 15, 28],
+    [180, 9, 18],
+    [292, 21, 24],
+    [390, 12, 16],
   ] as const) {
     for (let x = cx - w; x <= cx + w; x++) {
       const t = (x - cx) / w;
@@ -89,7 +101,7 @@ export function harbourGrid(sway: number, boat?: BoatShadow): TGrid {
   // The sea: lighter near the horizon, deeper toward us.
   for (let y = HORIZON; y < CARD_H; y++)
     for (let x = 0; x < CARD_W; x++) {
-      const depth = y < HORIZON + 8 ? 1 : y < HORIZON + 28 ? 2 : 3;
+      const depth = y < HORIZON + 10 ? 1 : y < HORIZON + 40 ? 2 : 3;
       put(x, y, cell('sea', depth));
     }
   // The far shore: low pine-dark hills along the horizon.
@@ -99,7 +111,7 @@ export function harbourGrid(sway: number, boat?: BoatShadow): TGrid {
       put(x, y, cell('pine', y === HORIZON - rise ? 3 : 4));
   }
   // The swell: long low crests in rows, rocking to and fro, the nearer rows further and longer.
-  for (let row = 0; row < 7; row++) {
+  for (let row = 0; row < 10; row++) {
     const y = HORIZON + 4 + row * 9;
     const drift = sway * (row % 2 ? 1 : -1) * (1 + (row % 3));
     const every = 30 + row * 4;
@@ -165,6 +177,27 @@ export function boatX(progress: number, boatW: number): number {
   return Math.round(from + (to - from) * Math.max(0, Math.min(1, progress)));
 }
 
+/** Where the quay's top is, in art pixels: its coping, where the cargo stands. */
+const QUAY_TOP = HORIZON - 10;
+
+/** Where the buoy rides, its waterline: out in the harbour, clear of the boat's way in. */
+const BUOY = { x: 212, y: HORIZON + 30 };
+
+/** The quay's cargo, a barrel and a crate side by side on its top: the art lane's own. */
+function cargoOf(time: TimeOfDay): HTMLCanvasElement | null {
+  const barrel = canvasOf(town2Piece('barrel').picture, time);
+  const crate = canvasOf(town2Piece('crate').picture, time);
+  if (!barrel || !crate) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = barrel.width + crate.width + 2;
+  canvas.height = Math.max(barrel.height, crate.height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(crate, 0, canvas.height - crate.height);
+  ctx.drawImage(barrel, crate.width + 2, canvas.height - barrel.height);
+  return canvas;
+}
+
 /** A picture on a canvas of its own, one pixel per art pixel; null where nothing can be drawn. */
 function canvasOf(pic: Picture2, time: TimeOfDay): HTMLCanvasElement | null {
   if (typeof ImageData === 'undefined' || typeof document === 'undefined') return null;
@@ -188,8 +221,8 @@ export function loadingScene(time: TimeOfDay): {
   canvas.width = CARD_W;
   canvas.height = CARD_H;
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
-  // Whole device pixels an art pixel, at the town's size on screen (3 on a 3x phone).
-  const scale = Math.max(1, Math.round(dpr));
+  // Whole device pixels an art pixel, as many as fit a phone's width (2 on a 3x phone).
+  const scale = cardScale(dpr);
   canvas.style.width = `${(CARD_W * scale) / dpr}px`;
   canvas.style.height = `${(CARD_H * scale) / dpr}px`;
   const fill = h('span', { class: 'scene-loading-fill' });
@@ -205,6 +238,8 @@ export function loadingScene(time: TimeOfDay): {
   let ctx: CanvasRenderingContext2D | null | undefined;
   let boat: HTMLCanvasElement | null | undefined;
   let gull: HTMLCanvasElement | null | undefined;
+  let buoy: HTMLCanvasElement | null | undefined;
+  let cargo: HTMLCanvasElement | null | undefined;
   const water = new Map<string, HTMLCanvasElement | null>();
   let keel: number[] | null = null;
   let shown = '';
@@ -223,14 +258,16 @@ export function loadingScene(time: TimeOfDay): {
     shown = key;
     if (ctx === undefined) ctx = typeof ImageData === 'undefined' ? null : canvas.getContext('2d');
     if (!ctx) return;
-    // The art lane's own boat and gull, drawn once.
+    // The art lane's own boat, gull and buoy, and the quay's cargo, drawn once.
     boat ??= canvasOf(town2Piece('rowboat').picture, time);
     gull ??= canvasOf(town2Piece('gull').picture, time);
+    buoy ??= canvasOf(town2Piece('buoy').picture, time);
+    cargo ??= cargoOf(time);
     const phase = beat % 4;
     const boatPic = town2Piece('rowboat').picture.grid;
     keel ??= keelOf(boatPic);
     const bx = boatX(k, boatPic.w);
-    const by = CARD_H - boatPic.h - 6;
+    const by = CARD_H - boatPic.h - 10;
     // To and fro in four beats: 0, 1, 2, 1, so the loop has no jump; the boat's shadow where it is.
     const seaKey = `${phase} ${bx}`;
     if (!water.has(seaKey))
@@ -246,10 +283,16 @@ export function loadingScene(time: TimeOfDay): {
       );
     const sea = water.get(seaKey);
     if (sea) ctx.drawImage(sea, 0, 0);
+    if (cargo) ctx.drawImage(cargo, QUAY_X + 6, QUAY_TOP - cargo.height + 2);
+    if (buoy) {
+      // Riding the swell, half a beat behind the boat.
+      const ride = phase === 1 || phase === 2 ? 1 : 0;
+      ctx.drawImage(buoy, BUOY.x, BUOY.y - buoy.height + ride);
+    }
     if (gull) {
       const a = (beat % 30) / 30;
-      const gx = Math.round(40 + 180 * a);
-      const gy = Math.round(8 + 4 * Math.sin(a * Math.PI * 4));
+      const gx = Math.round(40 + 260 * a);
+      const gy = Math.round(10 + 5 * Math.sin(a * Math.PI * 4));
       ctx.drawImage(gull, gx, gy);
     }
     if (boat) {

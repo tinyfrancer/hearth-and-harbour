@@ -3,8 +3,11 @@ import { isMat, stepOf } from '../../src/art/town2/cells';
 import { town2Piece } from '../../src/art/town2/pieces';
 import {
   CARD_H,
+  CARD_MOST,
   CARD_W,
+  QUAY_X,
   boatX,
+  cardScale,
   harbourGrid,
   keelOf,
   loadingScene,
@@ -20,8 +23,8 @@ describe('the loading scene', () => {
     expect(xs[0]! + w).toBeLessThan(CARD_W / 4);
     for (let i = 1; i < xs.length; i++) expect(xs[i]!).toBeGreaterThan(xs[i - 1]!);
     // Alongside the quay when the work is done, never into it, and never past it.
-    expect(xs[4]! + w).toBeLessThanOrEqual(254);
-    expect(xs[4]! + w).toBeGreaterThan(246);
+    expect(xs[4]! + w).toBeLessThanOrEqual(QUAY_X);
+    expect(xs[4]! + w).toBeGreaterThan(QUAY_X - 8);
     expect(boatX(2, w)).toBe(xs[4]);
   });
 
@@ -61,9 +64,9 @@ describe('the loading scene', () => {
     expect(g.d.some((c) => isMat(c, 'sail'))).toBe(true);
   });
 
-  it('lays the boat’s shadow on the water under its hull, and the boat is under half the picture', () => {
+  it('lays the boat’s shadow on the water under its hull, and the boat is under a third of the picture', () => {
     const boat = town2Piece('rowboat').picture.grid;
-    expect(boat.w).toBeLessThan(CARD_W / 2);
+    expect(boat.w).toBeLessThan(CARD_W / 3);
     const keel = keelOf(boat);
     const x = boatX(0.5, boat.w);
     const top = CARD_H - boat.h - 6;
@@ -75,5 +78,16 @@ describe('the loading scene', () => {
     expect(stepOf(shaded.d[below]!)).toBeGreaterThan(stepOf(plain.d[below]!));
     // Nothing changes away from the boat.
     expect(shaded.d[(CARD_H - 1) * CARD_W + 2]).toBe(plain.d[(CARD_H - 1) * CARD_W + 2]);
+  });
+
+  it('is shown at whole device pixels, as large as fits a phone’s width, never under one', () => {
+    for (const dpr of [1, 2, 2.625, 3, 3.5]) {
+      const k = cardScale(dpr);
+      expect(Number.isInteger(k) && k >= 1).toBe(true);
+      if (dpr >= 2) expect((CARD_W * k) / dpr).toBeLessThanOrEqual(CARD_MOST);
+      // The next whole scale up would not fit.
+      expect((CARD_W * (k + 1)) / dpr).toBeGreaterThan(CARD_MOST);
+    }
+    expect(cardScale(3)).toBe(2);
   });
 });
