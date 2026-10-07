@@ -203,6 +203,7 @@ function crabBody(
   cx: number,
   ground: number,
   barnacles: boolean,
+  splay = 1,
 ): void {
   const [bx, by] = o('body');
   const [lx, ly] = o('legs');
@@ -214,8 +215,8 @@ function crabBody(
     for (let i = 0; i < 3; i++) {
       const lift = (i + (side > 0 ? 1 : 0)) % 2 === 0 ? ly : -ly;
       const hip = cx + bx + side * (R * 0.55 + i * 2 * s);
-      const knee = cx + bx + side * (R * 0.9 + i * 3.2 * s) + lx * side;
-      const tipX = cx + bx + side * (R * 1.0 + i * 4.4 * s) + lx * side;
+      const knee = cx + bx + side * (R * 0.9 + i * 3.2 * s * splay) + lx * side;
+      const tipX = cx + bx + side * (R * (0.6 + 0.4 * splay) + i * 4.4 * s * splay) + lx * side;
       const tipY = ground - Math.max(0, lift);
       const far = i === 0;
       rod(
@@ -381,11 +382,17 @@ const SAND_CRAB: Beast = {
   draw: (g, o, p) => crabBody(g, o, p, 1, 20, 23, false),
 };
 
+/**
+ * The giant crab, on the same canvas, drawn at 1.7 times the sand crab with
+ * its legs drawn in under the shell (B12: at 2.15 with the sand crab's splay,
+ * its legs reached 41 columns ahead of its feet, so the hero at strike reach,
+ * 36, stood inside it). Still nearly twice a person's width.
+ */
 const GIANT_CRAB: Beast = {
   w: 84,
   h: 52,
   anchor: { x: 42, y: 50 },
-  draw: (g, o, p) => crabBody(g, o, p, 2.15, 42, 49, true),
+  draw: (g, o, p) => crabBody(g, o, p, 1.7, 42, 49, true, 0.35),
 };
 
 /* ----------------------------------------------------------- the ship's parrot */

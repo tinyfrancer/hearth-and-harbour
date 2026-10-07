@@ -586,7 +586,8 @@ describe('the weak spots of B10a, mended (B11)', () => {
 
   it('gives the crabs eyes on stalks that glare: white eyeballs, pupils, at true size', () => {
     for (const [id, white] of [
-      ['giant_crab', 40],
+      // B12: the giant crab drawn at 1.7 times the sand crab, not 2.15, so smaller eyes.
+      ['giant_crab', 30],
       ['sand_crab', 6],
     ] as const) {
       const g = foePicture2(id, 'idle')!.picture.grid;
@@ -597,7 +598,7 @@ describe('the weak spots of B10a, mended (B11)', () => {
       expect(
         count(g, (c) => matOf2(c) === 'eye'),
         id,
-      ).toBeGreaterThan(id === 'giant_crab' ? 8 : 2);
+      ).toBeGreaterThan(id === 'giant_crab' ? 3 : 2);
     }
   });
 

@@ -539,8 +539,9 @@ const still = {
 
 /** His standing keys by phase: the hands where each phase holds them. */
 const STANDING: Readonly<Record<BossPhase, BossKey>> = {
-  // The cutlass levelled forward and up, the other fist on his hip.
-  1: { ...still, near: at(26, 66), far: at(76, 46), aim: at(10, -6) },
+  // The cutlass held up before his shoulder, the other fist on his hip (B12: levelled forward,
+  // it reached over the head of a hero standing at strike reach).
+  1: { ...still, near: at(26, 66), far: at(66, 52), aim: at(3, -10) },
   // Both arms up and out, calling the sea.
   2: { ...still, near: at(18, 18), far: at(80, 16), aim: at(0, -1) },
   // The anchor gripped low across him, its crown out in front.

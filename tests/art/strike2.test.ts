@@ -14,6 +14,7 @@ import {
   type Facing2,
 } from '../../src/art/character2';
 import { strikeKind } from '../../src/art/figure2/strike';
+import { foePicture2 } from '../../src/art/dungeonArt2';
 import type { TGrid } from '../../src/art/town2/cells';
 
 // The hero's blow (docs/style-guide.md, "The blow"): four frames in every
@@ -190,5 +191,49 @@ describe('the blow, in every facing', () => {
     });
     expect(reach).toBeGreaterThan(FIGURE2_ANCHOR_X + 12);
     expect(rest.w).toBe(56);
+  });
+});
+
+describe('wide foes at strike reach (B12)', () => {
+  // The fight's melee stand (lane C's MELEE_STAND, far(24)): feet to feet, in art pixels.
+  const REACH = 36;
+  const ahead = (id: string, pose: 'idle' | 'walk' | 'windup' | 'hurt') => {
+    const p = foePicture2(id, pose, 'left', 0, 1)!;
+    let x0 = p.picture.grid.w;
+    p.picture.grid.d.forEach((c, i) => {
+      if (c) x0 = Math.min(x0, i % p.picture.grid.w);
+    });
+    return p.feet.x - x0;
+  };
+
+  it('draws the giant crab and the captain no further ahead of their feet than a hero can stand clear of', () => {
+    // The crab, standing, walking or winding up, ends where a hero's front foot begins.
+    for (const pose of ['idle', 'walk', 'windup', 'hurt'] as const)
+      expect(ahead('giant_crab', pose), pose).toBeLessThanOrEqual(REACH - 4);
+    // The captain's cutlass no longer reaches over the hero standing; his coat still meets the
+    // hero's chest at this reach (lane C's stand-off by size is the rest of the fix).
+    for (const pose of ['idle', 'walk', 'windup', 'hurt'] as const)
+      expect(ahead('brinebeard', pose), pose).toBeLessThanOrEqual(REACH + 2);
+  });
+
+  it('keeps the hero’s legs and body out of the crab but where a claw meets the blow', () => {
+    for (const pose of ['idle', 'walk'] as const) {
+      const foe = foePicture2('giant_crab', pose, 'left', 0, 1)!;
+      const g = foe.picture.grid;
+      const t = characterStrikeTagged2(
+        {},
+        ['iron_breastplate', 'iron_sword'],
+        'right',
+        STRIKE2_HIT_FRAME,
+      )!;
+      let inside = 0;
+      t.tags.forEach((tag, i) => {
+        if (!tag || !['body', 'head', 'hair', 'hat', 'leg', 'foot'].includes(tag)) return;
+        const x = (i % W) - FIGURE2_ANCHOR_X - REACH + foe.feet.x;
+        const y = Math.floor(i / W) - FIGURE2_SOLE_Y + foe.feet.y;
+        if (x >= 0 && y >= 0 && x < g.w && y < g.h && g.d[y * g.w + x]) inside++;
+      });
+      expect(inside, pose).toBeLessThanOrEqual(60);
+    }
   });
 });
