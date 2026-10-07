@@ -22,10 +22,6 @@ export function faceScale(dpr: number, most = FACE_MOST): number {
   return Math.max(1, Math.floor((most * dpr) / PORTRAIT2_SIZE + 1e-9));
 }
 
-/** How wide a face shows at this ratio, in CSS pixels. */
-export const faceSize = (dpr: number, most = FACE_MOST): number =>
-  (PORTRAIT2_SIZE * faceScale(dpr, most)) / dpr;
-
 const ratio = (): number =>
   typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 

@@ -908,7 +908,7 @@ function drawRipples(ctx: CanvasRenderingContext2D, cells: readonly Cell[], cloc
   ctx.globalAlpha = 1;
 }
 
-/** A sack of loot on the floor, with a glint of coin: this scene's own, until the art lane draws one. */
+/** A sack of loot on the floor, with a glint of coin: this scene's own, while the art lane has none. */
 const LOOT: Picture2 = (() => {
   const g = tgrid(14, 13);
   const W = 14;
@@ -944,6 +944,25 @@ const LOOT: Picture2 = (() => {
   return { grid: outlined(g), glows: [] };
 })();
 const LOOT_FEET = { x: 7, y: 13 };
+
+/** Loot on the floor as drawn: its picture, and where on it the floor is. */
+export interface LootArt {
+  readonly image: HTMLCanvasElement;
+  readonly feet: Point;
+}
+
+/**
+ * The one place loot's look is chosen: the art lane's `loot_pile` prop
+ * (`dungeonProp2`, stood on its foot) once it has one, else this scene's own
+ * sack. Null where nothing can be painted.
+ */
+export function lootArt(): LootArt | null {
+  const pile = dungeonProp2('loot_pile');
+  const image = pile && dungeonPropSprite2('loot_pile', CAVE_DUSK);
+  if (pile && image) return { image, feet: { x: pile.foot, y: pile.base } };
+  const own = paintCells(LOOT);
+  return own && { image: own, feet: LOOT_FEET };
+}
 
 /** The half-width of a lit fuse's glow on its canvas. */
 const FUSE_R = Math.ceil(FUSE_LIGHT2.radius);
@@ -986,7 +1005,7 @@ function fuseGlow(strength: number): HTMLCanvasElement | null {
 export interface FightArt {
   readonly foes: FoePictures;
   readonly shadows: Map<string, CaveShadow>;
-  readonly loot: HTMLCanvasElement | null;
+  readonly loot: LootArt | null;
   /** Each door's barred tile, on a canvas, by the door's letter. */
   readonly bars: Map<string, HTMLCanvasElement | null>;
 }
@@ -996,7 +1015,7 @@ export function fightArtFor(look: RoomLook): FightArt {
   return {
     foes: new FoePictures(look.glows),
     shadows: new Map(),
-    loot: paintCells(LOOT),
+    loot: lootArt(),
     bars: new Map(),
   };
 }
@@ -1199,8 +1218,19 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
   if (swing !== null || battle.braceUntil > clock)
     boxes.push({ x: Math.floor(hero.x) - 40, y: Math.floor(hero.y) - 90, w: 81, h: 96 });
   for (const p of battle.piles)
-    if (p.room === run.room)
-      boxes.push({ x: Math.floor(p.at.x) - 9, y: Math.floor(p.at.y) - 16, w: 18, h: 18 });
+    if (p.room === run.room) {
+      // Its picture where it lies, and the pixel it bobs.
+      const w = art.loot?.image.width ?? 18;
+      const h = art.loot?.image.height ?? 18;
+      const fx = art.loot?.feet.x ?? 9;
+      const fy = art.loot?.feet.y ?? 16;
+      boxes.push({
+        x: Math.floor(p.at.x) - fx - 1,
+        y: Math.floor(p.at.y) - fy - 2,
+        w: w + 2,
+        h: h + 3,
+      });
+    }
 
   // A cell's bars stand in the room until the cell opens, in front of whoever waits behind them.
   const barsArt = dungeonProp2('brig_bars');
@@ -1299,9 +1329,9 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         if (p.room !== run.room || !art.loot) continue;
         const bobbed = Math.floor(clock / 400) % 2;
         ctx.drawImage(
-          art.loot,
-          Math.round(p.at.x) - LOOT_FEET.x,
-          Math.round(p.at.y) - LOOT_FEET.y - bobbed,
+          art.loot.image,
+          Math.round(p.at.x) - art.loot.feet.x,
+          Math.round(p.at.y) - art.loot.feet.y - bobbed,
         );
       }
       for (const foe of here) {
