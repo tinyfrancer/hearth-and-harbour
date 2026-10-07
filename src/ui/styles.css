@@ -764,59 +764,77 @@ button.card:active {
   text-wrap: balance;
 }
 
-/* The sheet: the name, then the character with the eight slots down either side. */
-.sheet {
-  /* A little narrower at the sides than other panels, so the figure has room at three to one. */
-  padding: 14px 10px;
-}
-
-.sheet-name {
-  text-align: center;
-}
-
-.doll {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 56px;
-  gap: 8px;
-}
-
 /*
- * What is worn, by name, under the doll: two columns in the doll's own
- * order, a line each; an empty slot's line dim.
+ * The sheet: the character with the eight slots down either side, then what
+ * is worn, the totals and the look. No panel round it: the squares at the
+ * hero's grain (72 CSS pixels of icon) and a room for him at three to one
+ * need the width a panel's border and padding would take at 360.
  */
-.worn-lists {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 12px;
-  padding: 8px 10px;
-  background: var(--panel);
-  border: var(--px) solid var(--line);
-}
-
-.worn-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 15px;
-  line-height: 1.2;
-}
-
-.worn-list > li {
+.sheet-name {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  left: 6px;
   overflow: hidden;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Reaches 6 pixels into the screen's side padding, so the room is wide enough for him at 360. */
+.doll {
+  display: grid;
+  grid-template-columns: var(--slot, 76px) minmax(0, 1fr) var(--slot, 76px);
+  gap: 6px;
+  margin: 0 -6px;
+  background: var(--panel);
+}
+
+/*
+ * Choosing for a slot: the doll stays at the top of the screen while the
+ * choices scroll beneath it, with a little of the screen's colour under it
+ * and a line, so the choices pass behind rather than through it.
+ */
+/* Sticky offsets count from inside the screen's 16-pixel padding: -16 is its very top. */
+.sheet.choosing > .doll {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  margin-top: -16px;
+  padding: 16px 0 8px;
+  border-bottom: var(--px) solid var(--line);
+}
+
+/*
+ * What is worn, by name, under the doll: two columns in the doll's own
+ * order, laid out row by row so a long name wraps onto a second line with
+ * its neighbour level beside it; an empty slot's line dim.
+ */
+.worn-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.2;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--line);
+}
+
+.worn-lists > li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
 /* The right-hand names line up under the right-hand squares. */
-.worn-list + .worn-list {
+.worn-lists > li:nth-child(even) {
   text-align: right;
 }
 
-.worn-list > .empty {
+.worn-lists > .empty {
   color: var(--text-muted);
 }
 
@@ -824,7 +842,7 @@ button.card:active {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* The three totals, side by side under the figure: the number large, its name beneath. */
@@ -860,16 +878,21 @@ button.card:active {
   line-height: 1;
 }
 
-/* A slot: a square holding what is worn in it, or the slot's name, dim, when empty. */
+/*
+ * A slot: a square holding what is worn in it, or the slot's name, dim, when
+ * empty. Its inside is exactly an icon at the hero's grain (`--slot`, set
+ * from `dollSlotSize`), so the icon fills it, centred, at every ratio.
+ */
 .slot {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  padding: 2px;
-  background: var(--panel);
+  width: var(--slot, 76px);
+  height: var(--slot, 76px);
+  padding: 0;
+  overflow: hidden;
+  background: var(--panel-raised);
   border: var(--px) solid var(--gold);
   border-radius: 0;
   color: var(--text);
@@ -897,8 +920,9 @@ button.card:active {
 /* An empty slot's name, or a worn thing's name until art draws it an icon. */
 .slot-word {
   max-width: 100%;
+  padding: 2px;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.1;
   overflow-wrap: anywhere;
   text-align: center;
@@ -906,8 +930,8 @@ button.card:active {
 
 .slot-qty {
   position: absolute;
-  right: 3px;
-  bottom: 1px;
+  right: 4px;
+  bottom: 2px;
   font-size: 14px;
   line-height: 1;
   text-shadow:
@@ -920,9 +944,30 @@ button.card:active {
   background: var(--panel);
 }
 
+/* The slot's name with Close beside it, and what is worn gives with Take off beside it. */
+.picker-head,
+.worn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.worn-row > p {
+  min-width: 0;
+}
+
 .slot-picker .worn {
   padding-bottom: 12px;
   border-bottom: var(--px) solid var(--line);
+}
+
+/* A button beside words: a thumb's height, only as wide as its label. */
+.btn.small-btn {
+  flex: none;
+  width: auto;
+  min-height: 48px;
+  padding: 0 14px;
 }
 
 .choice-card {

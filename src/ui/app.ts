@@ -118,9 +118,25 @@ export function scrollToShow(screen: DOMRect, el: DOMRect): number {
   return Math.max(0, Math.min(below, el.top - VIEW_MARGIN - screen.top));
 }
 
-/** Scrolls the screen to show `el`, gliding unless the player asked for less motion. */
-function bringIntoView(screen: HTMLElement, el: HTMLElement): void {
-  const by = scrollToShow(screen.getBoundingClientRect(), el.getBoundingClientRect());
+/**
+ * How far to scroll for a slot's choices under a doll that sticks to the
+ * screen's top while they are open: as `scrollToShow` would, but never past
+ * the doll's top reaching the screen's top. From there the doll stays put
+ * and the choices scroll beneath it, so they are never hidden behind it.
+ */
+export function scrollToChoose(screen: DOMRect, doll: DOMRect, choices: DOMRect): number {
+  return Math.min(scrollToShow(screen, choices), Math.max(0, doll.top - screen.top));
+}
+
+/**
+ * Scrolls the screen to show `el`, gliding unless the player asked for less
+ * motion; with `under`, a doll that sticks above it (`scrollToChoose`).
+ */
+function bringIntoView(screen: HTMLElement, el: HTMLElement, under?: HTMLElement | null): void {
+  const box = screen.getBoundingClientRect();
+  const by = under
+    ? scrollToChoose(box, under.getBoundingClientRect(), el.getBoundingClientRect())
+    : scrollToShow(box, el.getBoundingClientRect());
   if (by <= 0) return;
   const top = screen.scrollTop + by;
   const still =
@@ -597,7 +613,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             panel === 'look' ? '[data-look-picker]' : '[data-picker]',
           );
           const screen = root.querySelector<HTMLElement>('#screen');
-          if (opened && screen) bringIntoView(screen, opened);
+          const doll = panel === 'look' ? null : root.querySelector<HTMLElement>('.doll');
+          if (opened && screen) bringIntoView(screen, opened, doll);
         },
         equip: (itemId) => {
           sheetPanel = null;
