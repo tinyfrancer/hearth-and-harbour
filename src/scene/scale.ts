@@ -166,3 +166,45 @@ export function tapToWorld(
 export function dungeonScale(device: Size, width = SCENE_WIDTH): number {
   return Math.max(1, Math.floor(Math.min(device.width, device.height) / width));
 }
+
+/**
+ * A scene's overlay for words and thin lines (`StageOptions.overlay`): as
+ * big on the page as the scene's canvas, `css`, and a device pixel per pixel
+ * whatever the scene's own canvas holds (`device` covered at `scale` device
+ * pixels an art pixel). `perArt` is how many of its pixels an art pixel
+ * takes, so drawing in art pixels lands on the scene's own; `k` is how many
+ * art pixels a CSS pixel is, for sizes given in CSS pixels.
+ */
+export function overlayFit(
+  css: Size,
+  dpr: number,
+  device: Size,
+  scale: number,
+): { width: number; height: number; perArt: number; k: number } {
+  const width = Math.round(css.width * dpr);
+  const height = Math.round(css.height * dpr);
+  const perArt = (scale * width) / Math.max(1, device.width);
+  return { width, height, perArt, k: width / Math.max(1, css.width) / perArt };
+}
+
+/**
+ * Where on the overlay a box of the scene (art pixels) falls, in its device
+ * pixels, snapped out to whole CSS-and-device steps so the overlay canvas
+ * placed there sits exactly on device pixels, and clamped to the scene's
+ * canvas; null where none of it is on screen.
+ */
+export function overlayRect(
+  box: { x: number; y: number; w: number; h: number },
+  camera: Point,
+  perArt: number,
+  full: { width: number; height: number },
+  dpr: number,
+): { x: number; y: number; w: number; h: number } | null {
+  const step = Math.max(1, Math.round(cssStep(dpr) * dpr));
+  const x0 = Math.max(0, Math.floor(((box.x - camera.x) * perArt) / step) * step);
+  const y0 = Math.max(0, Math.floor(((box.y - camera.y) * perArt) / step) * step);
+  const x1 = Math.min(full.width, Math.ceil(((box.x + box.w - camera.x) * perArt) / step) * step);
+  const y1 = Math.min(full.height, Math.ceil(((box.y + box.h - camera.y) * perArt) / step) * step);
+  if (x1 <= x0 || y1 <= y0) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}

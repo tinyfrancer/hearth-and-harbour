@@ -9,13 +9,13 @@ import { GROTTO_CAST } from './cast';
 import { buildDungeon, startRun, type Dungeon, type Run } from './dungeon';
 import { dungeonView } from './dungeonView';
 import { GROTTO } from './grotto';
-import { Hero, dressOf } from './hero';
 import { closePanel, startPlay, type Play } from './play';
 import { loadingScene } from './loadingScene';
 import { stage } from './stage';
 import type { Cell } from './tileMap';
 import { BOAT_LANDING2 } from './town2';
-import type { Town2Art } from './town2Art';
+import { Hero2, type Town2Art } from './town2Art';
+import { groundInAWorker, type WorkerPainter } from './grottoPainter';
 import {
   LANDING2,
   START2,
@@ -41,11 +41,15 @@ let play: Play | null = null;
 let chosen: TimeOfDay | null = null;
 
 /**
- * The player's character as the dungeons draw him (at their own, older
- * scale), kept until his look or gear changes: made the first time a boat
- * rows out, not before. The town draws him itself (`town2Place.ts`).
+ * The player's character as the dungeons draw him, at the C scale as the
+ * town does but lit by each room's lanterns, kept until his look or gear
+ * changes: made the first time a boat rows out, not before. The town draws
+ * him itself (`town2Place.ts`).
  */
-let hero: Hero | null = null;
+let hero: Hero2 | null = null;
+
+/** The run's worker for painting its rooms' grounds, while a run lasts. */
+let painter: WorkerPainter | null = null;
 
 /** A dungeon run under way, kept like `play` so a rebuilt tab carries on with it. */
 let run: Run | null = null;
@@ -101,8 +105,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   hero?.wear(state);
   wear2(state);
   /** The dungeons' hero, made when first needed. */
-  const dungeonHero = (): Hero => {
-    hero ??= new Hero(dressOf(latest));
+  const dungeonHero = (): Hero2 => {
+    hero ??= new Hero2();
     hero.wear(latest);
     return hero;
   };
@@ -175,6 +179,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         run = next;
       },
       hero: dungeonHero(),
+      painter: (painter ??= groundInAWorker()),
       leave,
       // The run is over: its spoils go home, and the idle task carries on while the results are read.
       finished: () => {
@@ -221,6 +226,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     // The shell first: starting the clock again draws a frame, and that frame is still the run's.
     tell(false, false);
     run = null;
+    painter?.close();
+    painter = null;
+    hero?.forget();
     play = {
       ...(play ?? startPlay(START2)),
       walker: { at: LANDING2, path: [] },
@@ -275,6 +283,8 @@ export function resetTown(): void {
   play = null;
   chosen = null;
   hero = null;
+  painter?.close();
+  painter = null;
   forget2();
   run = null;
   settled = false;
@@ -314,6 +324,6 @@ export function keepRun(next: Run): void {
 }
 
 /** The dungeons' hero, for tests: how many times he has been drawn afresh. Null until a boat rows out. */
-export function heroNow(): Hero | null {
+export function heroNow(): Hero2 | null {
   return hero;
 }

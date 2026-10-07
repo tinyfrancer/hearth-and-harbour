@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { get } from '../../src/art/grid';
 import {
   DOOR_FADE_MS,
   advanceRun,
@@ -15,25 +14,23 @@ import {
 } from '../../src/scene/dungeon';
 import { groundMap } from '../../src/scene/ground';
 import { GROTTO } from '../../src/scene/grotto';
-import {
-  cellVariant,
-  paintGround,
-  roomLook,
-  tileGrid,
-  tileKindAt,
-} from '../../src/scene/grottoArt';
+import { DUNGEON } from '../../src/scene/dungeonMetrics';
+import { CaveShadow, groundCells, propsOf, roomLook, tileKindsAt } from '../../src/scene/grottoArt';
 import { cheapest } from '../../src/scene/path';
 import type { Play } from '../../src/scene/play';
 import { dungeonScale, sceneScale } from '../../src/scene/scale';
-import { TILE, centreOf, isSolid } from '../../src/scene/tileMap';
+import { centreOf, isSolid } from '../../src/scene/tileMap';
+import { TOWN2_SCENE } from '../../src/scene/town2Place';
 
 const grotto = buildDungeon(GROTTO);
 const rooms = Object.values(grotto.rooms);
+/** A tile's side in the dungeons. */
+const T = DUNGEON.tile;
 
 /** The run's walker put at `cell`, as if he had walked there. */
 const standingAt = (run: Run, col: number, row: number): Play => ({
   ...run.play,
-  walker: { at: centreOf({ col, row }), path: [] },
+  walker: { at: centreOf({ col, row }, T), path: [] },
 });
 
 describe('the grotto’s rooms and doors', () => {
@@ -46,7 +43,7 @@ describe('the grotto’s rooms and doors', () => {
         expect(back.to).toBe(room.id);
         // Who comes through stands on open floor just inside, not on the door.
         expect(isSolid(there.map, back.inside)).toBe(false);
-        expect(doorAt(there, centreOf(back.inside))).toBeNull();
+        expect(doorAt(there, centreOf(back.inside, T))).toBeNull();
       }
     }
   });
@@ -58,11 +55,11 @@ describe('the grotto’s rooms and doors', () => {
       const from = room.start ?? room.doors[0]!.inside;
       for (const door of room.doors) {
         expect(
-          cheapest(room.map, centreOf(from), [door.cell]),
+          cheapest(room.map, centreOf(from, T), [door.cell]),
           `${room.id} ${door.letter}`,
         ).toEqual(door.cell);
       }
-      if (room.end) expect(cheapest(room.map, centreOf(from), [room.end])).toEqual(room.end);
+      if (room.end) expect(cheapest(room.map, centreOf(from, T), [room.end])).toEqual(room.end);
     }
     expect(rooms.filter((r) => r.end)).toHaveLength(1);
   });
@@ -122,53 +119,83 @@ describe('the grotto’s rooms and doors', () => {
 describe('how a room looks', () => {
   const pools = grotto.rooms.pools!;
 
-  it('draws walls with a face where rock stands above floor, and open doors as dark doorways', () => {
-    expect(tileKindAt(pools, 0, 0, 0, false)).toBe('wall_top');
-    // The cliff over the ledge path, above open ground.
-    expect(tileKindAt(pools, 9, 0, 0, false)).toBe('wall_face');
+  it('stands its walls two tiles tall over the floor, and draws open doors as doorways', () => {
+    const kinds = tileKindsAt(pools, 0, false);
+    // Rock with nothing open below it is the rock's top.
+    expect(kinds[0]![0]).toBe('wall_top');
+    // Over the floor: the face, and the face's upper half above it.
+    expect(kinds[1]![5]).toBe('wall_face');
+    expect(kinds[0]![5]).toBe('wall_face_high');
     const door = pools.doors[0]!.cell;
-    expect(tileKindAt(pools, door.col, door.row, 0, false)).toBe('door_open');
-    const g = paintGround(pools, 0, false);
-    const tile = tileGrid('door_open', cellVariant(pools.ground.cols, door.col, door.row));
-    expect(get(g, door.col * TILE + 8, door.row * TILE + 8)).toBe(get(tile, 8, 8));
+    expect(kinds[door.row]![door.col]).toBe('door_open');
+    // The rock over a door in a side wall is the upper half of a face, as the art lane's rule has it.
+    expect(kinds[door.row - 1]![door.col]).toBe('wall_face_high');
   });
 
   it('shows the tide: the sandbar dry at low water, shallows, then sea; wet before it floods', () => {
-    const bar = { col: 22, row: 7 };
-    expect(tileKindAt(pools, bar.col, bar.row, 0, false)).toBe('sand');
+    const bar = { col: 22, row: 6 };
+    const kind = (level: number, warn: boolean) =>
+      tileKindsAt(pools, level, warn)[bar.row]![bar.col];
+    expect(kind(0, false)).toBe('sand');
     // The sea about to come in: the sand it will cover darkens first.
-    expect(tileKindAt(pools, bar.col, bar.row, 0, true)).toBe('wet_sand');
-    expect(tileKindAt(pools, bar.col, bar.row, 1, false)).toBe('shallows');
-    expect(tileKindAt(pools, bar.col, bar.row, 2, false)).toBe('deep_water');
+    expect(kind(0, true)).toBe('wet_sand');
+    expect(kind(1, false)).toBe('shallows');
+    expect(kind(2, false)).toBe('deep_water');
     // Ground the tide never reaches never darkens.
-    expect(tileKindAt(pools, 2, 6, 0, true)).toBe('sand');
-    // Foam along the waterline, and it moves with the tide.
-    const low = paintGround(pools, 0, false);
-    const high = paintGround(pools, 3, false);
-    expect(low).not.toEqual(high);
+    expect(tileKindsAt(pools, 0, true)[6]![2]).toBe('sand');
+    const low = groundCells(pools, 0, false);
+    const high = groundCells(pools, 3, false);
+    expect([low.w, low.h]).toEqual([pools.ground.cols * T, pools.ground.rows * T]);
+    expect(low.d).not.toEqual(high.d);
   });
 
-  it('makes each tide’s ground once, and every one of them can be painted ahead', () => {
+  it('works each tide’s ground out once, and every one of them can be asked for ahead', () => {
     const look = roomLook(pools);
-    expect(look.groundAt(1, false)).toBe(look.groundAt(1, false));
-    expect(look.groundAt(1, true)).not.toBe(look.groundAt(1, false));
     // Four levels, and a warning before each of the three rises.
-    expect(look.grounds()).toHaveLength(7);
-    // Lit by its lanterns.
-    expect(look.lights.length).toBe(pools.ground.lanterns.length);
-    expect(look.groundAt(0, false).glows.length).toBe(look.lights.length);
+    expect(look.states).toHaveLength(7);
+    look.forget();
+    expect(look.ready(1, false)).toBe(false);
+    look.warm();
+    for (const s of look.states) expect(look.ready(s.level, s.warn)).toBe(true);
+    expect(look.cellsAt(1, false)).toBe(look.cellsAt(1, false));
+    expect(look.cellsAt(1, true)).not.toBe(look.cellsAt(1, false));
+    // Lit by its lanterns: one glow each.
+    expect(look.glows.length).toBe(pools.ground.lanterns.length);
+    look.forget();
+    expect(look.ready(1, false)).toBe(false);
   });
 
-  it('stands its props and lanterns in the room, and casts the hero’s shadow on dry ground only', () => {
+  it('stands its props and lanterns in the room on their feet', () => {
     const store = grotto.rooms.store!;
-    const look = roomLook(store);
-    const kegs = look.scene.things.filter((t) => t.id.startsWith('powder_keg'));
+    const props = propsOf(store);
+    const kegs = props.filter((p) => p.id === 'powder_keg');
     expect(kegs.length).toBe(store.ground.props.filter((p) => p.id === 'powder_keg').length);
-    expect(look.scene.things.some((t) => t.id.startsWith('lantern'))).toBe(true);
-    look.lock.map = groundMap(store.ground, { level: 3, shut: true, released: 0 });
-    expect(look.shadowAt(centreOf({ col: 5, row: 4 }))).not.toBeNull();
-    expect(look.shadowAt(centreOf({ col: 5, row: 12 }))).toBeNull();
-    expect(roomLook(store)).toBe(look);
+    expect(props.some((p) => p.id === 'lantern')).toBe(true);
+    // Every prop stands on its foot, as the art lane marks it.
+    for (const p of props) {
+      expect(p.topLeft.x + p.art.foot).toBe(p.feet.x);
+      expect(p.topLeft.y + p.art.base).toBe(p.feet.y);
+    }
+    // jsdom paints nothing: a shadow is null here; the cells it darkens are in `grottoArt.test.ts`.
+    const shadow = new CaveShadow();
+    const cells = groundCells(store, 3, false);
+    expect(() =>
+      shadow.at(cells, tileKindsAt(store, 3, false), [], centreOf({ col: 5, row: 4 }, T), 11),
+    ).not.toThrow();
+  });
+
+  it('bars a room’s doors on its shut ground, and leaves the rest as it was', () => {
+    const store = grotto.rooms.store!;
+    const door = store.doors[0]!;
+    expect(isSolid(store.shut, door.cell)).toBe(true);
+    expect(isSolid(store.map, door.cell)).toBe(false);
+    expect(isSolid(store.shut, door.inside)).toBe(false);
+    // The stage walks on whatever ground the view says is under the room now.
+    const look = roomLook(store);
+    look.lock.map = store.shut;
+    expect(look.scene.map).toBe(store.shut);
+    look.lock.map = groundMap(store.ground, { level: 3, shut: false, released: 0 });
+    expect(isSolid(look.scene.map, door.cell)).toBe(false);
   });
 });
 
@@ -176,7 +203,7 @@ describe('a run', () => {
   it('starts in the first room where the boat puts you ashore, with nothing on the clock', () => {
     const run = startRun(grotto);
     expect(run.room).toBe('pools');
-    expect(run.play.walker.at).toEqual(centreOf(grotto.rooms.pools!.start!));
+    expect(run.play.walker.at).toEqual(centreOf(grotto.rooms.pools!.start!, T));
     expect(run.ms).toBe(0);
     expect(run.finished).toBe(false);
   });
@@ -193,7 +220,7 @@ describe('a run', () => {
     const half = advanceRun(grotto, stepped, stepped.play, DOOR_FADE_MS);
     expect(half.room).toBe('store');
     const inside = grotto.rooms.store!.doors.find((d) => d.letter === 'a')!.inside;
-    expect(half.play.walker.at).toEqual(centreOf(inside));
+    expect(half.play.walker.at).toEqual(centreOf(inside, T));
     // Coming in from the west door, facing into the room.
     expect(half.play.facing).toBe('right');
     expect(doorwayDark(half.doorway)).toBe(1);
@@ -206,7 +233,7 @@ describe('a run', () => {
   it('ends at the marked spot and stops its clock there', () => {
     const run: Run = { ...startRun(grotto), room: 'cove' };
     const end = grotto.rooms.cove!.end!;
-    expect(atEnd(grotto.rooms.cove!, centreOf(end))).toBe(true);
+    expect(atEnd(grotto.rooms.cove!, centreOf(end, T))).toBe(true);
     const finished = advanceRun(grotto, run, standingAt(run, end.col, end.row), 500);
     expect(finished.finished).toBe(true);
     expect(finished.ms).toBe(500);
@@ -229,12 +256,14 @@ describe('played sideways', () => {
   });
 
   it('keeps the hero the size he was in town when the phone is turned', () => {
+    const scale = (device: { width: number; height: number }) =>
+      dungeonScale(device, DUNGEON.scene.width);
     // 390 x 844 at 3x, turned: the town's scale for the short side.
-    expect(dungeonScale({ width: 2532, height: 1170 })).toBe(
-      sceneScale({ width: 1170, height: 2532 }),
+    expect(scale({ width: 2532, height: 1170 })).toBe(
+      sceneScale({ width: 1170, height: 2532 }, TOWN2_SCENE),
     );
-    expect(dungeonScale({ width: 2532, height: 1170 })).toBe(4);
-    expect(dungeonScale({ width: 1334, height: 750 })).toBe(2);
-    expect(dungeonScale({ width: 200, height: 100 })).toBe(1);
+    expect(scale({ width: 2532, height: 1170 })).toBe(3);
+    expect(scale({ width: 1334, height: 750 })).toBe(2);
+    expect(scale({ width: 200, height: 100 })).toBe(1);
   });
 });

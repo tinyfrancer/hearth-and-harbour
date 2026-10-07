@@ -4,6 +4,14 @@ import type { Point, TileMap } from './tileMap';
 /** How fast a walker crosses the ground, in art pixels a second: four tiles. */
 export const WALK_SPEED = 64;
 
+/**
+ * How short of a corner still reaches it: a hair, so that whether a walk of
+ * so many steps of a pace arrives exactly does not hang on the last digit of
+ * a sum (the dungeons' paces at the C scale round differently from the
+ * first scale's, and must walk the same).
+ */
+const HAIR = 1e-6;
+
 /** Someone on the ground: where their feet are and the points still to walk through. */
 export interface Walker {
   readonly at: Point;
@@ -43,10 +51,10 @@ export function stepBy(
   while (path.length > 0 && left > 0) {
     const next = path[0]!;
     const gap = Math.hypot(next.x - at.x, next.y - at.y);
-    if (gap <= left) {
+    if (gap <= left + HAIR) {
       at = next;
       path = path.slice(1);
-      left -= gap;
+      left = Math.max(0, left - gap);
     } else {
       at = { x: at.x + ((next.x - at.x) * left) / gap, y: at.y + ((next.y - at.y) * left) / gap };
       left = 0;

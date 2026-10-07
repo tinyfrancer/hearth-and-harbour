@@ -10,7 +10,14 @@ import {
 } from '../../src/scene/figures2';
 import { clearLine } from '../../src/scene/path';
 import { STAND_HALF, advancePlay, startPlay, tapAt, type Play } from '../../src/scene/play';
-import { roundOf, strollAt, strollOn } from '../../src/scene/stroll';
+import {
+  PERSONAL,
+  crowding,
+  roundOf,
+  strollAt,
+  strollOn,
+  turnedAbout,
+} from '../../src/scene/stroll';
 import { grown, thingAt, type Box } from '../../src/scene/things';
 import { cellAt, centreOf, isSolid, type Point } from '../../src/scene/tileMap';
 import {
@@ -33,6 +40,7 @@ import {
   strolling,
   strollersNow,
   talkToStroller,
+  walkAmong,
   type FolkClocks,
 } from '../../src/scene/town2Folk';
 
@@ -205,5 +213,93 @@ describe('townsfolk who stroll', () => {
     expect(strollerAt(clocks, scene, { x: box.x + 1, y: s.at.y - 30 }, 44 / 3)).toBe(0);
     expect(talkGap('market')).toBeGreaterThan(HERO_FRONT);
     expect(roundOf(STROLLERS2[0]!.stroll, TOWN2_TILE).ms).toBe(ROUNDS[0]!.ms);
+  });
+});
+
+describe('passing each other', () => {
+  /** The hero standing on the market woman's way west, between her turn and the far end. */
+  const parked = startPlay(centreOf({ col: 4, row: 51 }, TOWN2_TILE));
+  const nearest = (clocks: FolkClocks, at: Point) =>
+    Math.min(...strolling(clocks).map((s) => crowding(at, s.at)));
+
+  it('a stroller stops at the edge of a hero parked on her way, waits, turns back, and goes on', () => {
+    let clocks: FolkClocks = startFolk();
+    const seen: Point[] = [];
+    let turned = false;
+    let last = strolling(clocks)[0]!;
+    for (let t = 0; t < 120_000; t += 50) {
+      clocks = folkOn(clocks, 50, parked);
+      const s = strolling(clocks)[0]!;
+      // Never into his room, at any moment.
+      expect(crowding(s.at, parked.walker.at)).toBeGreaterThan(1 - 1e-6);
+      if (s.walking && last.walking && s.side !== last.side && s.at.x > 2 * TOWN2_TILE + 12)
+        turned = true;
+      seen.push(s.at);
+      last = s;
+    }
+    // She turned back short of the far end, and still went round: no one stood stuck.
+    expect(turned).toBe(true);
+    const far = centreOf({ col: 2, row: 51 }, TOWN2_TILE);
+    expect(seen.some((p) => p.x === far.x && p.y === far.y)).toBe(false);
+    const home = centreOf(STROLLERS2[0]!.stroll.route[0]!, TOWN2_TILE);
+    expect(seen.filter((p) => p.x === home.x && p.y === home.y).length).toBeGreaterThan(0);
+    const moves = seen.filter(
+      (p, i) => i > 0 && (p.x !== seen[i - 1]!.x || p.y !== seen[i - 1]!.y),
+    );
+    expect(moves.length).toBeGreaterThan(500);
+  });
+
+  it('gives way the same however the time is cut', () => {
+    for (const total of [3000, 9000, 20_000]) {
+      let many: FolkClocks = startFolk();
+      for (let t = 0; t < total; t += 16) many = folkOn(many, Math.min(16, total - t), parked);
+      const one = folkOn(startFolk(), total, parked);
+      strolling(many).forEach((s, i) => {
+        const o = strolling(one)[i]!;
+        expect(s.at.x).toBeCloseTo(o.at.x, 3);
+        expect(s.at.y).toBeCloseTo(o.at.y, 3);
+      });
+    }
+  });
+
+  it('a hero walking through a stroller’s way goes round her, never into her, and gets there', () => {
+    // Back and forth across the market woman's way while she strolls: nobody ends up inside anybody.
+    const goals = [
+      centreOf({ col: 4, row: 49 }, TOWN2_TILE),
+      centreOf({ col: 4, row: 54 }, TOWN2_TILE),
+    ];
+    let play = parked;
+    let clocks: FolkClocks = startFolk();
+    let arrived = 0;
+    for (let lap = 0; lap < 8; lap++) {
+      play = tapAt(scene, play, goals[lap % 2]!);
+      for (let t = 0; t < 20_000 && play.walker.path.length > 0; t += 50) {
+        clocks = folkOn(clocks, 50, play);
+        const others = strolling(clocks).map((s) => s.at);
+        play = walkAmong((p, ms) => advancePlay(scene, p, ms), map, play, 50, others);
+        expect(nearest(clocks, play.walker.at)).toBeGreaterThan(1 - 1e-6);
+      }
+      if (play.walker.path.length === 0) arrived++;
+      // A while standing still, as a player might; she gives way to him meanwhile.
+      for (let s = 0; s < 3000; s += 50) {
+        clocks = folkOn(clocks, 50, play);
+        expect(nearest(clocks, play.walker.at)).toBeGreaterThan(1 - 1e-6);
+      }
+    }
+    expect(arrived).toBe(8);
+  });
+
+  it('turns a walker about where she is, going the other way', () => {
+    const r = ROUNDS[0]!;
+    const out = r.stroll.restMs - r.stroll.startMs + 1500;
+    const here = strollAt(r, out);
+    const back = strollAt(r, turnedAbout(r, out));
+    expect(back.at.x).toBeCloseTo(here.at.x, 6);
+    expect(back.at.y).toBeCloseTo(here.at.y, 6);
+    expect(back.walking).toBe(true);
+    expect(strollAt(r, turnedAbout(r, out) + 500).walked).toBeGreaterThan(back.walked);
+    // Resting, nothing to turn.
+    expect(turnedAbout(r, -r.stroll.startMs + 10)).toBe(-r.stroll.startMs + 10);
+    expect(PERSONAL.rx).toBeLessThan(talkGap('market'));
   });
 });

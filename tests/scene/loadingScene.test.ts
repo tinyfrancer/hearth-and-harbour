@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { isMat } from '../../src/art/town2/cells';
-import { CARD_H, CARD_W, boatX, harbourGrid, loadingScene } from '../../src/scene/loadingScene';
+import { isMat, stepOf } from '../../src/art/town2/cells';
+import { town2Piece } from '../../src/art/town2/pieces';
+import {
+  CARD_H,
+  CARD_W,
+  boatX,
+  harbourGrid,
+  keelOf,
+  loadingScene,
+} from '../../src/scene/loadingScene';
 
 // The loading card as a little harbour scene: honest about progress, built
 // from the town's own cells and the art lane's boat.
@@ -12,8 +20,8 @@ describe('the loading scene', () => {
     expect(xs[0]! + w).toBeLessThan(CARD_W / 4);
     for (let i = 1; i < xs.length; i++) expect(xs[i]!).toBeGreaterThan(xs[i - 1]!);
     // Alongside the quay when the work is done, never into it, and never past it.
-    expect(xs[4]! + w).toBeLessThanOrEqual(198);
-    expect(xs[4]! + w).toBeGreaterThan(190);
+    expect(xs[4]! + w).toBeLessThanOrEqual(254);
+    expect(xs[4]! + w).toBeGreaterThan(246);
     expect(boatX(2, w)).toBe(xs[4]);
   });
 
@@ -38,5 +46,34 @@ describe('the loading scene', () => {
     expect(fill.style.transform).toBe('scaleX(0.25)');
     card.update(1, 2000);
     expect(fill.style.transform).toBe('scaleX(1)');
+  });
+
+  it('has a sky in broken bands and a cloud, not three ruled stripes', () => {
+    const g = harbourGrid(0);
+    const steps = (y: number) =>
+      new Set(Array.from({ length: CARD_W }, (_, x) => g.d[y * CARD_W + x]!));
+    // Somewhere a band's edge breaks: one row of sky holds two of its steps.
+    const broken = [...Array(30).keys()].some(
+      (y) => [...steps(y)].filter((c) => isMat(c, 'glass')).length > 1,
+    );
+    expect(broken).toBe(true);
+    // And sailcloth clouds in it.
+    expect(g.d.some((c) => isMat(c, 'sail'))).toBe(true);
+  });
+
+  it('lays the boat’s shadow on the water under its hull, and the boat is under half the picture', () => {
+    const boat = town2Piece('rowboat').picture.grid;
+    expect(boat.w).toBeLessThan(CARD_W / 2);
+    const keel = keelOf(boat);
+    const x = boatX(0.5, boat.w);
+    const top = CARD_H - boat.h - 6;
+    const plain = harbourGrid(0);
+    const shaded = harbourGrid(0, { x, top, bottom: top, keel });
+    const mid = Math.floor(boat.w / 2);
+    const below = (top + keel[mid]! + 2) * CARD_W + x + mid;
+    expect(isMat(shaded.d[below]!, 'sea')).toBe(true);
+    expect(stepOf(shaded.d[below]!)).toBeGreaterThan(stepOf(plain.d[below]!));
+    // Nothing changes away from the boat.
+    expect(shaded.d[(CARD_H - 1) * CARD_W + 2]).toBe(plain.d[(CARD_H - 1) * CARD_W + 2]);
   });
 });

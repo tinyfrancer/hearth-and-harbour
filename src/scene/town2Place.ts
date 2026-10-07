@@ -34,7 +34,9 @@ import {
   startFolk,
   strollerAt,
   strollersNow,
+  strolling,
   talkToStroller,
+  walkAmong,
   type FolkClocks,
 } from './town2Folk';
 import { STEPS, type KeptReport, type TownFacts } from './town2Facts';
@@ -185,7 +187,10 @@ export function town2Stage(): {
     // The strollers stroll with the hero's time, and stop for him.
     drive: (play, ms) => {
       folk = folkOn(folk, ms, play);
-      return faceStroller(play, advancePlay(scene, play, ms), folk);
+      // Nobody walks through anybody: he goes round them, and they give way to him.
+      const others = strolling(folk).map((s) => s.at);
+      const walked = walkAmong((p, t) => advancePlay(scene, p, t), scene.map, play, ms, others);
+      return faceStroller(play, walked, folk);
     },
     tap: (point, min, play) => {
       const i = strollerAt(folk, scene, point, min);

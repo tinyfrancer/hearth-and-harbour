@@ -6,7 +6,8 @@ import { FOE_KINDS } from '../../src/scene/foes';
 import { groundMap, standable, type RoomTile } from '../../src/scene/ground';
 import { GROTTO } from '../../src/scene/grotto';
 import { PROP_LETTERS } from '../../src/scene/ground';
-import { shoreOf } from '../../src/scene/battle';
+import { MELEE_REACH, shoreOf } from '../../src/scene/battle';
+import { DUNGEON } from '../../src/scene/dungeonMetrics';
 import { HIGH_WATER } from '../../src/scene/tide';
 import { centreOf, inMap, isSolid, type Cell, type TileMap } from '../../src/scene/tileMap';
 
@@ -14,6 +15,8 @@ const grotto = buildDungeon(GROTTO);
 const ORDER = ['pools', 'store', 'bridge', 'brig', 'cove'];
 const rooms = ORDER.map((id) => grotto.rooms[id]!);
 const LEVELS = [0, 1, 2, 3];
+/** A tile's side in the dungeons. */
+const T = DUNGEON.tile;
 
 /** The room's ground at a level of the tide, every cell open, doors as given. */
 const at = (room: Room, level: number, shut = false): TileMap<RoomTile> =>
@@ -157,10 +160,10 @@ describe('Brinebeard’s Grotto, room by room', () => {
         const after = at(room, level);
         for (const cell of standing(before)) {
           if (after.tiles[cell.row]![cell.col] !== 'water') continue;
-          const shore = shoreOf(after, centreOf(cell));
+          const shore = shoreOf(after, centreOf(cell, T));
           expect(shore, `${room.id} ${cell.col},${cell.row} at ${level}`).not.toBeNull();
-          const d = Math.hypot(shore!.x - centreOf(cell).x, shore!.y - centreOf(cell).y);
-          expect(d, `${room.id} ${cell.col},${cell.row}`).toBeLessThanOrEqual(5 * 16);
+          const d = Math.hypot(shore!.x - centreOf(cell, T).x, shore!.y - centreOf(cell, T).y);
+          expect(d, `${room.id} ${cell.col},${cell.row}`).toBeLessThanOrEqual(5 * T);
         }
       }
     }
@@ -179,7 +182,7 @@ describe('Brinebeard’s Grotto, room by room', () => {
     const boss = cove.foes.find((f) => f.monster === 'brinebeard')!;
     expect(high.tiles[boss.at.row]![boss.at.col]).not.toBe('water');
     for (const p of cove.spawns) {
-      const c = { col: Math.floor(p.x / 16), row: Math.floor(p.y / 16) };
+      const c = { col: Math.floor(p.x / T), row: Math.floor(p.y / T) };
       expect(high.tiles[c.row]![c.col]).toMatch(/floor|sand|planks/);
     }
     // At high water only the middle is left: under half the beach is still dry.
@@ -205,8 +208,8 @@ describe('Brinebeard’s Grotto, room by room', () => {
     );
     // Under the bridge: a way over below it only at low water.
     const bridge = grotto.rooms.bridge!;
-    const below = { col: 9, row: 10 };
-    const far = { col: 36, row: 10 };
+    const below = { col: 8, row: 10 };
+    const far = { col: 30, row: 10 };
     expect(steps(at(bridge, 0), below, far)).toBeLessThan(Infinity);
     expect(steps(at(bridge, 1), below, far)).toBe(Infinity);
     // ...and only then to within a blade's reach of the parrot's lower perch.
@@ -214,11 +217,11 @@ describe('Brinebeard’s Grotto, room by room', () => {
     const nearest = (level: number) =>
       Math.min(
         ...standing(at(bridge, level)).map((c) =>
-          Math.hypot(centreOf(c).x - perch.x, centreOf(c).y - perch.y),
+          Math.hypot(centreOf(c, T).x - perch.x, centreOf(c, T).y - perch.y),
         ),
       );
-    expect(nearest(0)).toBeLessThanOrEqual(30);
-    expect(nearest(1)).toBeGreaterThan(30);
+    expect(nearest(0)).toBeLessThanOrEqual(MELEE_REACH);
+    expect(nearest(1)).toBeGreaterThan(MELEE_REACH);
   });
 
   it('puts its cast on their feet, its parrot on a perch, and two waves in the brig’s cells', () => {

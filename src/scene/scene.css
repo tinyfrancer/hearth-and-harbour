@@ -29,6 +29,19 @@
 }
 
 /*
+ * A scene's words and thin lines, over its canvas at the screen's own
+ * resolution (a dungeon fight's numbers and health bars): exactly over the
+ * canvas, taking no taps, and never enlarged.
+ */
+.scene-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+}
+
+/*
  * The sun-and-moon button: flips day and dusk for the session. Its icon is
  * drawn in 4px squares (one pixel each), from the menu colours.
  */
@@ -153,6 +166,18 @@
   gap: 10px;
 }
 
+/* The face's frame: the art lane's portrait shows the whole face inside whatever square it is in. */
+.scene-panel-face {
+  display: block;
+  flex: none;
+  width: 48px;
+  height: 48px;
+}
+
+.scene-panel-head h2 {
+  min-width: 0;
+}
+
 /*
  * The town coming into view, the first time it is opened before it is ready:
  * its name, a line and a bar of the work's real steps, filled a quarter at a
@@ -173,7 +198,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: min(100%, 300px);
+  width: min(100%, 336px);
   padding: 14px 16px 16px;
   background: var(--panel-raised);
   border: var(--px) solid var(--gold);

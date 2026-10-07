@@ -22,11 +22,15 @@ import { FOE_KINDS } from '../../src/scene/foes';
 import { readGround } from '../../src/scene/ground';
 import { startPlay, type Play } from '../../src/scene/play';
 import { SURGE_FIRST_MS, SURGE_STEP_MS, TIDE_CYCLE, TIDE_START } from '../../src/scene/tide';
+import { DUNGEON, far } from '../../src/scene/dungeonMetrics';
 import { centreOf, type Point } from '../../src/scene/tileMap';
 import { WALK_SPEED } from '../../src/scene/walker';
 
 const monsters = { ...CONTENT.monsters!, ...GROTTO_CAST };
-const P = (x: number, y: number): Point => ({ x, y });
+/** A place given in first-scale pixels, at the dungeons' scale. */
+const P = (x: number, y: number): Point => ({ x: far(x), y: far(y) });
+/** A tile's side in the dungeons. */
+const T = DUNGEON.tile;
 
 const fighter = (over: Partial<Fighter> = {}): Fighter => ({
   style: 'melee',
@@ -69,7 +73,7 @@ function run(b: Battle, where: Place, play: Play, ms: number, frame = TICK_MS) {
 }
 
 const foe = (b: Battle, i = 0): Foe => b.foes[i]!;
-const cell = (col: number, row: number): Point => centreOf({ col, row });
+const cell = (col: number, row: number): Point => centreOf({ col, row }, T);
 /** The first rise of the shared tide, and the second, on the run's clock. */
 const FIRST_RISE = TIDE_CYCLE[0]!.ms - TIDE_START;
 const SECOND_RISE = FIRST_RISE + TIDE_CYCLE[1]!.ms;
@@ -108,9 +112,9 @@ describe('the tide in a fight', () => {
     const walk = run(b, where, going(2), 2000);
     const waded = wade.play.walker.at.x - cell(1, 1).x;
     const walked = walk.play.walker.at.x - cell(1, 2).x;
-    expect(walked).toBeCloseTo(2 * WALK_SPEED, 5);
+    expect(walked).toBeCloseTo(2 * far(WALK_SPEED), 5);
     // The first tenth of a second is before he has felt the water.
-    expect(waded).toBeCloseTo(WALK_SPEED * (0.1 + 1.9 * WADE_PACE), 5);
+    expect(waded).toBeCloseTo(far(WALK_SPEED) * (0.1 + 1.9 * WADE_PACE), 5);
   });
 
   it('holds the enemies to the same water: washed off, and slowed', () => {
@@ -119,7 +123,7 @@ describe('the tide in a fight', () => {
     const after = run(b, where, startPlay(cell(1, 1)), 2000);
     const d = foe(after.battle);
     const map = mapOf(after.battle, where);
-    const c = { col: Math.floor(d.at.x / 16), row: Math.floor(d.at.y / 16) };
+    const c = { col: Math.floor(d.at.x / T), row: Math.floor(d.at.y / T) };
     expect(map.tiles[c.row]![c.col]).not.toBe('water');
     expect(d.at.x).not.toBe(cell(5, 2).x);
   });
@@ -131,7 +135,7 @@ describe('the tide in a fight', () => {
     const play = { ...startPlay(cell(1, 1)), walker: { at: cell(1, 1), path: [cell(8, 1)] } };
     const after = run(b, where, play, 6000);
     const map = mapOf(after.battle, where);
-    const c = { col: Math.floor(after.play.walker.at.x / 16), row: 1 };
+    const c = { col: Math.floor(after.play.walker.at.x / T), row: 1 };
     expect(map.tiles[c.row]![c.col]).not.toBe('water');
     expect(after.play.walker.at.x).toBeLessThan(cell(5, 1).x);
   });
@@ -327,11 +331,16 @@ describe('Captain Brinebeard', () => {
     expect(Math.abs(lines[0]!.at.x - lines[1]!.at.x)).toBeGreaterThanOrEqual(rules.volleys.gap);
     // Standing in one when it lands hurts; beside it does not.
     const t = lines[0]!;
-    const hit = run(state.battle, where, startPlay(P(t.at.x, 40)), t.lands - state.battle.clock);
+    const hit = run(
+      state.battle,
+      where,
+      startPlay({ x: t.at.x, y: P(0, 40).y }),
+      t.lands - state.battle.clock,
+    );
     const missed = run(
       state.battle,
       where,
-      startPlay(P(t.at.x + t.radius + 1, 40)),
+      startPlay({ x: t.at.x + t.radius + 1, y: P(0, 40).y }),
       t.lands - state.battle.clock,
     );
     const hurt = (s: { battle: Battle }) =>

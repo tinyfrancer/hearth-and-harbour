@@ -39,7 +39,7 @@ import { groundMap, standable, wading, type Ground, type RoomTile } from './grou
 import { clearLine, route } from './path';
 import { advancePlay, facingToward, type Facing, type Play } from './play';
 import { cycleTide, surgeTide, type TideNow } from './tide';
-import { step, WALK_SPEED } from './walker';
+import { stepBy, WALK_SPEED } from './walker';
 import { DUNGEON, far } from './dungeonMetrics';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
 
@@ -160,14 +160,15 @@ export interface Telegraph {
 /** Whether feet at `p` are in a mark's ground when it lands. */
 export function inMark(t: Telegraph, p: Point): boolean {
   if (t.shape === 'line') {
-    return Math.abs(p.x - t.at.x) < t.radius && p.y >= t.at.y && p.y <= (t.bottom ?? t.at.y);
+    return under(Math.abs(p.x - t.at.x), t.radius) && p.y >= t.at.y && p.y <= (t.bottom ?? t.at.y);
   }
   const d = distance(p, t.at);
-  if (d >= t.radius) return false;
-  if (t.shape === 'circle' || d < 1) return true;
+  if (!under(d, t.radius)) return false;
+  if (t.shape === 'circle' || under(d, far(1))) return true;
   const turn = Math.atan2(p.y - t.at.y, p.x - t.at.x) - (t.facing ?? 0);
   const off = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
-  return off <= (t.spread ?? Math.PI * 2) / 2;
+  // On the wedge's edge is in it, to a hair of angle (as `within` has distances).
+  return off <= (t.spread ?? Math.PI * 2) / 2 + 1e-9;
 }
 
 /** Where a flier is in its round. */
@@ -215,6 +216,11 @@ export interface Foe {
   readonly phase: number;
   /** A boss's time until its next volley. */
   readonly volleyMs: number;
+  /**
+   * How far it has walked (or flown), in art pixels: what its stride is
+   * timed by when it is drawn. Nothing in the rules reads it.
+   */
+  readonly walked: number;
 }
 
 /** Loot on the floor where something fell. */
@@ -416,12 +422,32 @@ function newFoe(
     flight: kind.flies ? { mode: 'perch', perch: 0, until: 0 } : null,
     phase: kind.boss ? 1 : 0,
     volleyMs: kind.boss ? kind.boss.volleys.firstMs : 0,
+    walked: 0,
   };
 }
 
 /* ----- Reading a battle ----- */
 
 const distance = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y);
+
+/**
+ * How far past a reach still counts as within it: a hair, so that where
+ * someone stops exactly at a reach (a walk of so many steps of a pace) the
+ * last digit of a sum does not decide whether a blow lands. Paces at the C
+ * scale are half as long again as the first scale's, and their sums round
+ * differently; with this, a fight comes out as it did at the first scale.
+ */
+const HAIR = 1e-6;
+
+/** Whether `d` is within `r`, to a hair. */
+const within = (d: number, r: number): boolean => d <= r + HAIR;
+
+/** Whether `d` is short of `r` by more than a hair: `within`'s other side. */
+const under = (d: number, r: number): boolean => d < r - HAIR;
+
+/** `facingToward` with its margin at the dungeons' scale. */
+const turnToward = (facing: Facing, from: Point, x: number): Facing =>
+  facingToward(facing, from, x, far(2));
 
 export const alive = (foe: Foe): boolean => foe.diedAt === null;
 
@@ -462,7 +488,8 @@ export function reachOf(fighter: Fighter): number {
 
 /** Whether nothing that blocks sight (rock; not water, bars or what stands about) lies between. */
 export function inSight(map: TileMap, a: Point, b: Point): boolean {
-  const steps = Math.max(1, Math.ceil(distance(a, b) / 4));
+  // A look every four first-scale pixels: the same looks at any scale.
+  const steps = Math.max(1, Math.ceil(distance(a, b) / far(4)));
   for (let i = 1; i < steps; i++) {
     const cell = cellAt(
       { x: a.x + ((b.x - a.x) * i) / steps, y: a.y + ((b.y - a.y) * i) / steps },
@@ -479,7 +506,7 @@ export function inSight(map: TileMap, a: Point, b: Point): boolean {
 export function inReach(battle: Battle, map: TileMap, hero: Point, foe: Foe): boolean {
   if (!alive(foe)) return false;
   const reach = reachOf(battle.fighter);
-  if (distance(hero, foe.at) > reach) return false;
+  if (!within(distance(hero, foe.at), reach)) return false;
   return battle.fighter.style !== 'ranged' || inSight(map, hero, foe.at);
 }
 
@@ -491,8 +518,18 @@ export function foodLeft(battle: Battle): number {
   return Math.max(0, (battle.fighter.food?.qty ?? 0) - battle.tally.eaten);
 }
 
-/** The foe a tap at `point` is on, if any: its tap box from the data, grown to `min` art pixels. */
-export function foeAt(battle: Battle, room: string, point: Point, min = 0): Foe | null {
+/**
+ * The foe a tap at `point` is on, if any: its tap box from the data, grown
+ * to `min` art pixels, standing on its feet, or as far above them as `lift`
+ * says it is drawn (a bird up on its perch).
+ */
+export function foeAt(
+  battle: Battle,
+  room: string,
+  point: Point,
+  min = 0,
+  lift: (foe: Foe) => number = () => 0,
+): Foe | null {
   let best: Foe | null = null;
   let bestDistance = Infinity;
   for (const foe of battle.foes) {
@@ -500,10 +537,11 @@ export function foeAt(battle: Battle, room: string, point: Point, min = 0): Foe 
     const { w, h } = foeKind(foe.monster).box;
     const width = Math.max(w, min);
     const height = Math.max(h, min);
-    const top = foe.at.y - h + (h - height) / 2;
+    const feet = foe.at.y - lift(foe);
+    const top = feet - h + (h - height) / 2;
     if (Math.abs(point.x - foe.at.x) > width / 2 || point.y < top || point.y > top + height)
       continue;
-    const d = distance(point, { x: foe.at.x, y: foe.at.y - h / 2 });
+    const d = distance(point, { x: foe.at.x, y: feet - h / 2 });
     if (d < bestDistance) {
       best = foe;
       bestDistance = d;
@@ -787,7 +825,7 @@ function nextWave(w: Work, place: Place, hero: Point, doors: readonly Point[]): 
   const bars = place.ground.bars.length;
   const released = w.released[place.room] ?? 0;
   if (bars === 0 || released >= bars) return false;
-  if (released === 0) return doors.every((d) => distance(d, hero) > RELEASE_STEP);
+  if (released === 0) return doors.every((d) => !within(distance(d, hero), RELEASE_STEP));
   return !w.foes.some((f) => f.room === place.room && alive(f) && f.wave < released);
 }
 
@@ -863,7 +901,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     if (kind.crew) {
       for (const r of rallies) {
         const rally = foeKind(r.monster).rally!;
-        if (distance(r.at, foe.at) <= rally.radius) fastest = Math.max(fastest, rally.pace);
+        if (within(distance(r.at, foe.at), rally.radius)) fastest = Math.max(fastest, rally.pace);
       }
     }
     foe.rallied = fastest > 1;
@@ -924,7 +962,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
   for (const foe of here) {
     if (foe.aware || held(w, place, foe)) continue;
     const kind = foeKind(foe.monster);
-    if (distance(foe.at, hero) <= kind.notice && inSight(map, foe.at, hero)) {
+    if (within(distance(foe.at, hero), kind.notice) && inSight(map, foe.at, hero)) {
       foe.aware = true;
       foe.heavyMs = kind.heavy?.firstMs ?? 0;
     }
@@ -932,7 +970,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
 
   for (let i = w.piles.length - 1; i >= 0; i--) {
     const pile = w.piles[i]!;
-    if (pile.room === place.room && distance(pile.at, hero) <= PICKUP) {
+    if (pile.room === place.room && within(distance(pile.at, hero), PICKUP)) {
       pickUp(w, pile);
       w.piles.splice(i, 1);
     }
@@ -963,7 +1001,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     } else {
       const slot = chaseTo(w, map, hero, target.at);
       const end = next.walker.path.at(-1);
-      if (!end || distance(end, slot) > T / 2)
+      if (!end || !within(distance(end, slot), T / 2))
         next = { ...next, walker: { at: hero, path: walkPath(map, hero, slot) } };
     }
   }
@@ -975,7 +1013,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       effect(w, { kind: 'empty', at: hero, from: w.clock });
     } else {
       w.blowMs = PLAYER_ATTACK_MS;
-      next = { ...next, facing: facingToward(next.facing, hero, target.at.x) };
+      next = { ...next, facing: turnToward(next.facing, hero, target.at.x) };
       strike(w, dice, target, hero, place);
       // A boss falling ends the fight round him at once.
       map = mapOf(w, place);
@@ -1031,7 +1069,7 @@ function act(
     foe.heavyMs === 0 &&
     (heavy.fromPhase ?? 0) <= foe.phase &&
     !(heavy.aim === 'sweep' && w.volleys.length > 0) &&
-    d <= heavy.range &&
+    within(d, heavy.range) &&
     (heavy.aim === 'self' || inSight(map, foe.at, hero))
   ) {
     const sweep = heavy.aim === 'sweep';
@@ -1050,31 +1088,35 @@ function act(
     };
     foe.path = [];
     foe.engaged = false;
-    foe.facing = facingToward(foe.facing, foe.at, hero.x);
+    foe.facing = turnToward(foe.facing, foe.at, hero.x);
     return false;
   }
-  if (kind.shy && d < kind.shy && !foe.flight) {
+  if (kind.shy && under(d, kind.shy) && !foe.flight) {
     // Too close: backs off, keeping its distance, while there is room to.
     const away = backOff(map, foe.at, hero, kind.keep - d);
     if (away) {
       const end = foe.path.at(-1);
-      if (!end || distance(end, away) > T / 2) foe.path = [away];
+      if (!end || !within(distance(end, away), T / 2)) foe.path = [away];
     }
   } else {
     // Walk up beside the hero, as near as it likes to be, without pushing past one already closer.
     const crowded = here.some(
-      (o) => o !== foe && alive(o) && distance(o.at, hero) < d && distance(o.at, foe.at) < far(12),
+      (o) =>
+        o !== foe &&
+        alive(o) &&
+        under(distance(o.at, hero), d) &&
+        under(distance(o.at, foe.at), far(12)),
     );
     if (arrived(foe.at, hero, kind.keep) || crowded) {
       foe.path = [];
     } else {
       const slot = kind.keep > BESIDE_MOST ? hero : besideOf(map, foe.at, hero, kind.keep);
       const end = foe.path.at(-1);
-      if (!end || distance(end, slot) > T / 2) foe.path = walkPath(map, foe.at, slot);
+      if (!end || !within(distance(end, slot), T / 2)) foe.path = walkPath(map, foe.at, slot);
     }
   }
-  if (d <= kind.reach) {
-    foe.facing = facingToward(foe.facing, foe.at, hero.x);
+  if (within(d, kind.reach)) {
+    foe.facing = turnToward(foe.facing, foe.at, hero.x);
     if (!foe.engaged) {
       foe.engaged = true;
       foe.blowMs = Math.max(foe.blowMs, WINDUP_MS);
@@ -1121,13 +1163,13 @@ function fly(w: Work, place: Place, foe: Writable<Foe>, map: TileMap, hero: Poin
   }
   if (foe.flight!.mode === 'in') {
     const to = besideOf(map, foe.at, hero, foeKind(foe.monster).keep);
-    if (foe.path.length === 0 && distance(foe.at, to) <= far(2)) {
+    if (foe.path.length === 0 && within(distance(foe.at, to), far(2))) {
       foe.flight = { ...foe.flight!, mode: 'down', until: w.clock + flies.downMs };
       foe.engaged = false;
       return false;
     }
     foe.path = [to];
-    foe.facing = facingToward(foe.facing, foe.at, to.x);
+    foe.facing = turnToward(foe.facing, foe.at, to.x);
     return true;
   }
   if (foe.flight!.mode === 'down') {
@@ -1187,8 +1229,9 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
   for (let i = 1; i < volley.lines; i++) {
     for (let tries = 0; tries < 6; tries++) {
       const x = left + dice.next() * (right - left);
-      if (xs.every((o) => Math.abs(o - x) >= rules.volleys.gap)) {
-        xs.push(Math.round(x));
+      if (xs.every((o) => !under(Math.abs(o - x), rules.volleys.gap))) {
+        // On a whole first-scale pixel, so the same dice put a line in the same place at any scale.
+        xs.push(Math.round(x / far(1)) * far(1));
         break;
       }
     }
@@ -1257,10 +1300,12 @@ export function besideOf(map: TileMap, from: Point, other: Point, gap: number): 
 
 /** Whether someone at `at` keeping `keep` from `other` has got there: beside it, or nearer than that. */
 export function arrived(at: Point, other: Point, keep: number): boolean {
-  if (keep > BESIDE_MOST) return distance(at, other) <= keep;
+  if (keep > BESIDE_MOST) return within(distance(at, other), keep);
   const dx = Math.abs(at.x - other.x);
   const dy = Math.abs(at.y - other.y);
-  return (dy <= far(6) && dx <= keep + far(3)) || distance(at, other) <= keep * 0.6;
+  return (
+    (within(dy, far(6)) && within(dx, keep + far(3))) || within(distance(at, other), keep * 0.6)
+  );
 }
 
 /** Where the hero walks to strike his target: beside it for a blade; straight at it for a bow. */
@@ -1306,13 +1351,14 @@ function moveFoes(w: Work, place: Place, ms: number): void {
       : flying
         ? kind.flies!.speed
         : kind.speed * (foe.wading ? WADE_PACE : 1);
-    const moved = step({ at: foe.at, path: foe.path }, ms, speed);
+    const { walker: moved, distance: went } = stepBy({ at: foe.at, path: foe.path }, ms, speed);
     if (!foe.wash) {
-      if (moved.at.x < foe.at.x - 0.01) foe.facing = 'left';
-      else if (moved.at.x > foe.at.x + 0.01) foe.facing = 'right';
+      if (moved.at.x < foe.at.x - far(0.01)) foe.facing = 'left';
+      else if (moved.at.x > foe.at.x + far(0.01)) foe.facing = 'right';
     }
     foe.at = moved.at;
     foe.path = moved.path;
+    foe.walked += went;
   }
 }
 
@@ -1377,7 +1423,7 @@ export function targetFoe(
       },
       heading: null,
       open: null,
-      facing: there ? facingToward(play.facing, hero, foe.at.x) : play.facing,
+      facing: there ? turnToward(play.facing, hero, foe.at.x) : play.facing,
     },
   };
 }
@@ -1399,7 +1445,7 @@ export function abilityProblem(
   const ability = ABILITIES[battle.fighter.style][slot];
   const hero = play.walker.at;
   const here = foesIn(battle, place.room).filter((f) => alive(f) && !held(battle, place, f));
-  if (ability.id === 'sweep' && !here.some((f) => distance(f.at, hero) <= SWEEP_REACH))
+  if (ability.id === 'sweep' && !here.some((f) => within(distance(f.at, hero), SWEEP_REACH)))
     return 'nobody';
   if (ability.id === 'double') {
     if (arrowsLeft(battle) === 0) return 'no_arrows';
@@ -1450,12 +1496,13 @@ export function useAbility(
   if (ability.id === 'sweep') {
     effect(w, { kind: 'swing', at: hero, radius: SWEEP_REACH, from: w.clock });
     for (const foe of here)
-      if (alive(foe) && distance(foe.at, hero) <= SWEEP_REACH) strike(w, dice, foe, hero, place);
+      if (alive(foe) && within(distance(foe.at, hero), SWEEP_REACH))
+        strike(w, dice, foe, hero, place);
   } else if (ability.id === 'brace') {
     w.braceUntil = w.clock + BRACE_MS;
   } else if (ability.id === 'double') {
     const target = here.find((f) => f.key === w.target)!;
-    next = { ...next, facing: facingToward(next.facing, hero, target.at.x) };
+    next = { ...next, facing: turnToward(next.facing, hero, target.at.x) };
     strike(w, dice, target, hero, place);
     if (alive(target) && arrowsLeft(w) > 0) strike(w, dice, target, hero, place);
   } else {

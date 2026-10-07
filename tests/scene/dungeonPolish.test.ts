@@ -1,41 +1,48 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PORTRAIT_IDS, PORTRAIT_SIZE } from '../../src/art/portraits';
-import { MELEE_REACH, RANGED_REACH } from '../../src/scene/battle';
+import { FOE2_SIZES } from '../../src/art/dungeonArt2';
+import { PORTRAIT2_SAFE, PORTRAIT2_SIZE, portraitScales2 } from '../../src/art/portraits2';
+import { MELEE_REACH, RANGED_REACH, STEP_BACK, SWEEP_REACH } from '../../src/scene/battle';
+import { GROTTO_CAST } from '../../src/scene/cast';
 import { C_SCALE, DUNGEON, FIRST_SCALE, far } from '../../src/scene/dungeonMetrics';
 import {
   FACE_FRAME,
+  STRIP_HEIGHT,
   TITLE_SLOTS,
   framedFace,
   titleBox,
   titleSlot,
   type CssBox,
 } from '../../src/scene/dungeonView';
-import { FOE_KINDS, foeKind, kindAtScale } from '../../src/scene/foes';
-import { dungeonScale } from '../../src/scene/scale';
-import { TILE } from '../../src/scene/tileMap';
+import { FIRST_KINDS, FOE_KINDS, foeKind, kindAtScale } from '../../src/scene/foes';
+import { dungeonScale, overlayFit, overlayRect, pixelFit } from '../../src/scene/scale';
 
-// Two faults in the fight's screen, and the dungeons made ready for the C
-// scale without moving them to it.
+// The fight's screen at the C scale: faces whole in their frames, the room's
+// name always read and never over anyone, the scale as data, and the
+// overlay that keeps words sharp.
 
 afterEach(() => vi.unstubAllGlobals());
 
+const GROTTO_IDS = Object.keys(GROTTO_CAST);
+
 describe('the target’s face', () => {
-  for (const dpr of [1, 2, 2.625, 3, 3.5])
-    it(`shows the whole portrait inside its frame at ${dpr}x, at whole device pixels`, () => {
+  // Phones' ratios. (At 1x, a desktop, the art lane's smallest face is 72 CSS pixels, more than
+  // the frame: noted for the art lane in docs/status/lane-c.md.)
+  for (const dpr of [2, 2.625, 3, 3.5])
+    it(`shows the whole portrait inside its frame at ${dpr}x, safe box and all`, () => {
       vi.stubGlobal('devicePixelRatio', dpr);
-      for (const id of ['deckhand', 'powder_monkey', 'giant_crab', 'ships_parrot', 'brinebeard']) {
-        expect(PORTRAIT_IDS).toContain(id);
+      for (const id of GROTTO_IDS) {
         const face = framedFace(id)!;
-        const w = parseFloat(face.style.width);
-        const h = parseFloat(face.style.height);
-        // Every one of its 48 x 48 art pixels is on the canvas, none cut by the frame.
-        expect(w, id).toBeLessThanOrEqual(FACE_FRAME + 1e-9);
-        expect(h, id).toBeLessThanOrEqual(FACE_FRAME + 1e-9);
-        const devicePerArt = Math.max(1, Math.floor((FACE_FRAME * dpr) / PORTRAIT_SIZE + 1e-9));
-        expect(Number.isInteger(devicePerArt)).toBe(true);
-        expect(face.width, id).toBeGreaterThanOrEqual(PORTRAIT_SIZE * devicePerArt);
-        // As big as fits: one more device pixel an art pixel would not.
-        expect((PORTRAIT_SIZE * (devicePerArt + 1)) / dpr).toBeGreaterThan(FACE_FRAME);
+        expect(face, id).not.toBeNull();
+        // The canvas the 48-pixel frame shows (`portraits2.css`): the whole 72-pixel face, never cut.
+        const mini = face.querySelector<HTMLCanvasElement>('.portrait2-mini')!;
+        expect(parseFloat(mini.style.width), id).toBeLessThanOrEqual(FACE_FRAME + 1e-9);
+        expect(parseFloat(mini.style.height), id).toBeLessThanOrEqual(FACE_FRAME + 1e-9);
+        const per = portraitScales2(dpr).mini;
+        expect(mini.width, id).toBeGreaterThanOrEqual(PORTRAIT2_SIZE * per);
+        // Everything that names the face lies inside the picture, so inside the frame.
+        const safe = PORTRAIT2_SAFE[id]!;
+        expect(safe.x + safe.w, id).toBeLessThanOrEqual(PORTRAIT2_SIZE);
+        expect(safe.y + safe.h, id).toBeLessThanOrEqual(PORTRAIT2_SIZE);
       }
       expect(framedFace('nobody')).toBeNull();
     });
@@ -47,69 +54,171 @@ describe('the room’s name', () => {
   const crosses = (a: CssBox, b: CssBox) =>
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
-  it('sits under the health bars, or above the ability bar', () => {
+  it('sits under the health bars, above the ability bar, or in the HUD’s strip', () => {
     expect(titleBox('top', view, banner)).toEqual({ x: 302, y: TITLE_SLOTS.top, w: 240, h: 36 });
     expect(titleBox('bottom', view, banner).y).toBe(390 - TITLE_SLOTS.bottom - 36);
+    const strip = titleBox('strip', view, banner);
+    // Inside the strip the HUD's top panels already take.
+    expect(strip.y).toBeGreaterThanOrEqual(0);
+    expect(strip.y + strip.h).toBeLessThanOrEqual(TITLE_SLOTS.strip + STRIP_HEIGHT);
   });
 
-  it('never covers anyone in the fight, wherever they stand: it moves, or waits unseen', () => {
+  it('is always shown, and over the room never covers anyone in the fight, wherever they stand', () => {
     // Every arrangement of a boss and two others over a grid of places on screen.
     const places: CssBox[] = [];
     for (let y = -20; y < view.height; y += 23)
-      for (let x = -20; x < view.width; x += 37) places.push({ x, y, w: 54, h: 84 });
-    let moved = 0;
-    let hidden = 0;
+      for (let x = -20; x < view.width; x += 37) places.push({ x, y, w: 54, h: 92 });
+    const used = { top: 0, bottom: 0, strip: 0 };
     for (let i = 0; i < places.length; i += 3)
       for (let j = 0; j < places.length; j += 11) {
         const fight = [places[i]!, places[j]!, places[(i + j) % places.length]!];
         for (const from of ['top', 'bottom'] as const) {
           const slot = titleSlot(fight, view, banner, from);
-          if (slot === null) {
-            hidden++;
+          // Never nowhere: a player who fights at every door still reads every room's name.
+          expect(slot).not.toBeNull();
+          used[slot]++;
+          if (slot === 'strip') {
+            // Only when both places over the room are taken.
+            for (const s of ['top', 'bottom'] as const)
+              expect(fight.some((c) => crosses(c, titleBox(s, view, banner)))).toBe(true);
             continue;
           }
-          if (slot !== from) moved++;
           for (const c of fight) expect(crosses(c, titleBox(slot, view, banner))).toBe(false);
         }
       }
-    expect(moved).toBeGreaterThan(0);
-    expect(hidden).toBeGreaterThan(0);
+    expect(used.top).toBeGreaterThan(0);
+    expect(used.bottom).toBeGreaterThan(0);
+    expect(used.strip).toBeGreaterThan(0);
   });
 
-  it('stays where it is while that is clear', () => {
+  it('stays where it is while that is clear, and once in the strip stays there for its moment', () => {
     expect(titleSlot([{ x: 0, y: 0, w: 10, h: 10 }], view, banner, 'bottom')).toBe('bottom');
     expect(titleSlot([], view, banner)).toBe('top');
+    expect(titleSlot([], view, banner, 'strip')).toBe('strip');
   });
 });
 
 describe('the dungeons’ scale, as data', () => {
-  it('is still the first scale: 270 across, 16-pixel tiles, every distance as it was', () => {
-    expect(DUNGEON).toBe(FIRST_SCALE);
-    expect(DUNGEON.scene.width).toBe(270);
-    expect(DUNGEON.tile).toBe(TILE);
-    expect(far(30)).toBe(30);
-    expect([MELEE_REACH, RANGED_REACH]).toEqual([30, 120]);
-    expect(foeKind('deckhand').speed).toBe(44);
-    expect(foeKind('brinebeard').heavy!.radius).toBe(58);
-    // On a phone on its side at 3x: as before.
-    expect(dungeonScale({ width: 2532, height: 1170 }, DUNGEON.scene.width)).toBe(4);
+  it('is the C scale: 360 across, 24-pixel tiles, every distance half as long again', () => {
+    expect(DUNGEON).toBe(C_SCALE);
+    expect(DUNGEON.scene.width).toBe(360);
+    expect(DUNGEON.tile).toBe(24);
+    expect(FIRST_SCALE.tile).toBe(16);
+    expect(far(30)).toBe(45);
+    expect([MELEE_REACH, RANGED_REACH, SWEEP_REACH, STEP_BACK]).toEqual([45, 180, 60, 60]);
+    // On a phone on its side at 3x: three device pixels an art pixel, as in town.
+    expect(dungeonScale({ width: 2532, height: 1170 }, DUNGEON.scene.width)).toBe(3);
   });
 
-  it('has the C scale ready: 360 across, 24-pixel tiles, distances half as long again', () => {
-    expect(C_SCALE).toMatchObject({ tile: 24, distance: 1.5 });
-    expect(C_SCALE.scene.width).toBe(360);
-    expect(dungeonScale({ width: 2532, height: 1170 }, C_SCALE.scene.width)).toBe(3);
-    const crab = kindAtScale(FOE_KINDS.giant_crab!, C_SCALE.distance);
-    expect(crab.speed).toBe(33);
-    expect(crab.heavy!.radius).toBe(69);
-    const boss = kindAtScale(FOE_KINDS.brinebeard!, C_SCALE.distance);
-    expect(boss.boss!.volleys.half).toBe(15);
-    expect(boss.boss!.volleys.gap).toBe(72);
-    expect(boss.heavy!.warnMs).toBe(FOE_KINDS.brinebeard!.heavy!.warnMs);
-    const parrot = kindAtScale(FOE_KINDS.ships_parrot!, C_SCALE.distance);
-    expect(parrot.rally!.radius).toBe(180);
-    expect(parrot.flies!.perchMs).toBe(FOE_KINDS.ships_parrot!.flies!.perchMs);
+  it('scales every foe’s distances and paces by 1.5, and leaves every time as it was', () => {
+    for (const [id, first] of Object.entries(FIRST_KINDS)) {
+      const now = FOE_KINDS[id]!;
+      expect(now.speed, id).toBe(first.speed * 1.5);
+      expect(now.notice, id).toBe(first.notice * 1.5);
+      expect(now.reach, id).toBe(first.reach * 1.5);
+      expect(now.keep, id).toBe(first.keep * 1.5);
+      if (first.shy !== undefined) expect(now.shy, id).toBe(first.shy * 1.5);
+      if (first.heavy) {
+        expect(now.heavy!.radius, id).toBe(first.heavy.radius * 1.5);
+        expect(now.heavy!.range, id).toBe(first.heavy.range * 1.5);
+        expect(now.heavy!.warnMs, id).toBe(first.heavy.warnMs);
+        expect(now.heavy!.everyMs, id).toBe(first.heavy.everyMs);
+        expect(now.heavy!.firstMs, id).toBe(first.heavy.firstMs);
+      }
+      if (first.flies) {
+        expect(now.flies!.speed, id).toBe(first.flies.speed * 1.5);
+        expect(now.flies!.perchMs, id).toBe(first.flies.perchMs);
+        expect(now.flies!.downMs, id).toBe(first.flies.downMs);
+      }
+      if (first.rally) expect(now.rally!.radius, id).toBe(first.rally.radius * 1.5);
+      if (first.boss) {
+        expect(now.boss!.volleys.half, id).toBe(first.boss.volleys.half * 1.5);
+        expect(now.boss!.volleys.gap, id).toBe(first.boss.volleys.gap * 1.5);
+        expect(now.boss!.volleys.phases, id).toEqual(first.boss.volleys.phases);
+        expect(now.boss!.volleys.firstMs, id).toBe(first.boss.volleys.firstMs);
+      }
+    }
+    expect(foeKind('giant_crab').speed).toBe(33);
+    expect(foeKind('brinebeard').heavy!.radius).toBe(87);
     // At the first scale a row is itself.
-    expect(kindAtScale(FOE_KINDS.deckhand!, 1)).toBe(FOE_KINDS.deckhand);
+    expect(kindAtScale(FIRST_KINDS.deckhand!, 1)).toBe(FIRST_KINDS.deckhand);
   });
+
+  it('takes each foe’s tap box from the art lane’s size table, never from a sprite', () => {
+    for (const id of GROTTO_IDS) expect(foeKind(id).box, id).toEqual(FOE2_SIZES[id]!.box);
+    for (const id of ['dock_rat', 'sand_crab', 'smuggler'])
+      expect(foeKind(id).box, id).toEqual(FOE2_SIZES[id]!.box);
+  });
+});
+
+describe('the overlay that keeps words sharp', () => {
+  it('is a device pixel a pixel over the room’s canvas of one pixel an art pixel', () => {
+    for (const [width, height, dpr] of [
+      [844, 390, 3],
+      [915, 412, 2.625],
+      [667, 375, 2],
+    ] as const) {
+      const fit = pixelFit({ width, height }, dpr, (d) => dungeonScale(d, DUNGEON.scene.width));
+      const top = overlayFit(fit.css, dpr, fit.device, fit.scale);
+      // The room's canvas holds one pixel an art pixel; the overlay every device pixel it covers.
+      expect(top.width).toBe(fit.device.width);
+      expect(top.height).toBe(fit.device.height);
+      expect(fit.art.width).toBe(fit.device.width / fit.scale);
+      // An art pixel on the overlay is exactly an art pixel of the room: no drift across the screen.
+      expect(top.perArt).toBe(fit.scale);
+      // A CSS pixel in art pixels, for sizes given in CSS pixels.
+      expect(top.k * top.perArt).toBeCloseTo(dpr, 9);
+    }
+  });
+
+  // Phones 360, 390 and 430 CSS pixels wide at 3x, sideways (as the grotto is played) and upright.
+  const PHONES = [
+    [780, 360],
+    [844, 390],
+    [932, 430],
+  ] as const;
+  for (const [long, short] of PHONES) {
+    for (const [width, height] of [
+      [long, short],
+      [short, long],
+    ] as const) {
+      it(`lands every word on the art pixel it names at ${width} x ${height} (3x)`, () => {
+        const dpr = 3;
+        const fit = pixelFit({ width, height }, dpr, (d) => dungeonScale(d, DUNGEON.scene.width));
+        const top = overlayFit(fit.css, dpr, fit.device, fit.scale);
+        expect(fit.scale).toBe(3);
+        expect(top.perArt).toBe(fit.scale);
+        expect(top.width).toBe(fit.device.width);
+        // A box of the scene (a foe's health bar, say) wherever the camera is: the overlay
+        // canvas is put down on whole device pixels, and an art point drawn on it lands on the
+        // device pixel the room's canvas shows that point on.
+        for (const camera of [
+          { x: 0, y: 0 },
+          { x: 37, y: 11 },
+          { x: 455.5, y: 61.25 },
+        ]) {
+          const box = { x: camera.x + 101.5, y: camera.y + 40.25, w: 30, h: 9 };
+          const at = overlayRect(box, camera, top.perArt, top, dpr)!;
+          expect(at).not.toBeNull();
+          // Put down on whole CSS pixels that are whole device pixels.
+          expect(Number.isInteger(at.x / dpr) && Number.isInteger(at.y / dpr)).toBe(true);
+          // An art point on the overlay: its canvas is put at `at` and drawn through
+          // `setTransform(per, 0, 0, per, -camera * per - at)` (`stage.ts`); on the room's
+          // canvas it is `(p - camera)` art pixels enlarged `scale` times. The same device pixel.
+          for (const p of [
+            { x: box.x, y: box.y },
+            { x: box.x + box.w, y: box.y + box.h },
+          ]) {
+            const overlay = { x: at.x + p.x * top.perArt - camera.x * top.perArt - at.x };
+            expect(overlay.x).toBeCloseTo((p.x - camera.x) * fit.scale, 9);
+          }
+          // ...and the overlay covers the whole box.
+          expect(at.x).toBeLessThanOrEqual((box.x - camera.x) * top.perArt);
+          expect(at.x + at.w).toBeGreaterThanOrEqual(
+            Math.min(top.width, (box.x + box.w - camera.x) * top.perArt),
+          );
+        }
+      });
+    }
+  }
 });
