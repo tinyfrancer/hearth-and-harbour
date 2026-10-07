@@ -21,27 +21,23 @@ a dusk mood for evenings and dungeons.
 
 ## Sizes
 
-| Thing                                                   | Size (art pixels)                                 |
-| ------------------------------------------------------- | ------------------------------------------------- |
-| One phone screen, portrait                              | 270 wide × about 360 tall                         |
-| Person                                                  | about 30 × 47, on a 38 × 48 canvas so weapons fit |
-| Head                                                    | 10–12 wide; eyes are 2 px each                    |
-| Item icon                                               | 24 × 24                                           |
-| Portrait (dialogue, character sheet, idle-combat enemy) | 48 × 48, shown at 3×                              |
-| Small prop (crate, barrel)                              | 11–13 wide                                        |
-| Building                                                | 96–150 wide                                       |
+The game is drawn at the C scale (next section, and its sizes table). _History: the first scale,
+approved in S0 with the mock-up, drew a screen 270 art pixels wide at 4 device pixels each, people
+about 30 × 47 on a 38 × 48 canvas, 48 × 48 portraits at 3x and 16 × 16 dungeon tiles; it was
+superseded by the C scale in waves 7 to 11 and its art retired in B12. The item and skill icons
+(24 × 24) and their palette are still the first scale's._
 
 Scaling: art pixels are always drawn at a whole number of device pixels (on a typical phone, 4
 device pixels each). Never scale by a fraction. A canvas is also padded, by under one CSS pixel on
 most phones, so its CSS size is a whole number: browsers stretch a canvas whose CSS size is
 fractional by a hair, and that blurs it.
 
-## The C scale (chosen 2026-10-05; drawn in B7, not yet swapped in)
+## The C scale (chosen 2026-10-05; the whole game since wave 11)
 
 After the scale study (four options on the same corner of town), Cody chose **option C** as the
-base for the whole game: "the details are great. For the town especially." The new town is built
-alongside the current art in `src/art/town2/`; the live game still uses everything above and below
-this section until lane C switches the scene. What made the difference, in Cody's order: buildings
+base for the whole game: "the details are great. For the town especially." The town is in
+`src/art/town2/`, the figures in `src/art/figure2/`, the dungeon in `src/art/dungeon2/`. What made
+the difference, in Cody's order: buildings
 to scale; every element shaded as a solid; cast and contact shadows; six-step ramps with cool
 shadows and warm lights; outlines in each material's own darkest tone.
 
@@ -113,7 +109,7 @@ pixel count picked to look right.
   its kerbs. The street has stones along its paths, a trodden way to the grove and stumps in it,
   drifts of wild flowers (a plant is a dark clump with two or three heads), long grass in clumps
   against posts and rocks, stones lying in twos and threes, a garden bed by your door. Each is
-  placed by hand in `town.ts`, never scattered by noise.
+  placed by hand in `town2/town.ts`, never scattered by noise.
 - **The ship and the rock** (B9): the ship has a stern castle (three gilded windows, a gallery, a
   taffrail with balusters, the stern lantern), shrouds with deadeyes and ratlines, a furled sail
   gathered in bunches, worn and salted planking with rust under the ports. The rock is planes
@@ -140,7 +136,7 @@ light and glow; the forge glows by day and more at dusk; `fire` never shifts. Gr
 **longer at dusk** (the town is composed per time of day: a building's wedge reaches about three
 times as far, trees' shadows stretch to the right), and the dusk shift leans them plum-cool.
 
-### Figures at the C scale (B8; not yet swapped in)
+### Figures at the C scale (B8)
 
 The hero and the townsfolk redrawn for the C-scale town, beside the current figures
 (`src/art/figure2/`, door `src/art/character2.ts`). Cody chose the study's H2 head ("Let's go h2,
@@ -438,7 +434,7 @@ the swing, the blow landing (frame 2, `STRIKE2_HIT_FRAME`), the recovery.
 - **The shield arm is braced**: raised a little toward the blow and held there. With a bow the
   shield is not drawn (both hands are on the bow); see the status file's weak list.
 
-### The dungeon at the C scale (B10a; not yet swapped in)
+### The dungeon at the C scale (B10a)
 
 Brinebeard's Grotto redrawn for a 64-pixel person (`src/art/dungeon2/`, doors
 `src/art/dungeonArt2.ts` and `src/art/portraits2.ts`), beside the first scale's dungeon, which the
@@ -570,19 +566,10 @@ said something, beards with a silhouette, a little caricature. B11 drew every fa
   and hoods, the hair at the temples under a brim; the head gear and the shirt and body garment
   worn. A likeable adventurer in every look.
 
-### What the swap supersedes
-
-When lane C switches the scene to the C-scale town, these parts of the guide above stop applying to
-the town (they stay for anything still drawn at the old scale until it is redrawn): the sizes table
-(screen 270 wide, person 30 × 47, buildings 96–150 wide, props 11–13 wide), "four device pixels per
-art pixel" for the town, the 3–4 step ramps and the single outline ink for town art, and the soft
-elliptical ground shadow as the only shadow. Portraits, icons and dungeons are not changed by this
-section. When the scene and the menus switch to the C-scale figures, the figure sizes above (38 × 48
-canvas, base 47) and the "Figures" section's code notes give way to "Figures at the C scale"; the
-Figures rules themselves (posed, arms doing something, mirrored eyes, gear readable, the hand rule,
-the ladder) all still hold.
-
 ## Colour
+
+_The first scale's palette (`src/art/palette.ts`), still the icons' and the menus' art; the C scale's
+seven-step ramps are above._
 
 - Every colour is a step on a named ramp of 3–4 steps (light, mid, dark). No one-off colours.
 - **Day palette** = the base ramps with saturation ×1.05, lightness ×0.88, and a 7% mix toward deep
@@ -629,16 +616,7 @@ These rules exist because the first drafts broke them.
    drawn to fit the posed body.
 6. Villains get attitude from silhouette (hat, coat, hook), not from gore.
 
-In code (`src/art/figure.ts`, `src/art/wardrobe.ts`): a figure is a posed body plus gear layers
-chosen by id, drawn as rows of characters on a 38 × 48 canvas. Each layer has a depth (cloak behind
-the body, clothes and armour on it, what is held and the shield in front), and the outline goes round
-the dressed figure. The standard body stands in linen smallclothes, left fist at the hip where a
-weapon goes and right hand on the hip where a shield goes; every new piece of gear is drawn to fit
-that pose. Its hero outfit is the mock-up's hero, pixel for pixel. Townsfolk whose pose differs
-(the pirate captain, the smith, the trader) each have a posed body of their own
-(`src/art/townsfolk.ts`), drawn only where it shows, with what they hold as gear.
-
-### The player's character (`src/art/character.ts`)
+### The player's character (B3, rules that carried to the C scale)
 
 Drawn in B3 and given a second pass in B3b after Cody's first look; the rules here are what it was
 drawn to.
@@ -679,7 +657,6 @@ drawn to.
   of a stick reads as a flag. An axe head is a solid wedge, never an outline: narrow where the
   haft passes through it, filling out to a cutting edge about as tall as the head is long; a
   thin bar hooking off the haft reads as a hook or a pick (B4 redrew the hatchet for this).
-  `tests/art/pieces.test.ts` holds these.
 - **An empty hand rests.** With nothing held, the character stands in `standard_at_ease`: the
   standard body with the weapon forearm bent up so the hand rests at the belt, instead of a closed
   fist hanging by the hip. Sleeves and the bracelet on that forearm have an at-ease version that
@@ -708,7 +685,7 @@ on every body and in every outfit, is layered round the hand in this order, back
 3. **The grip** (`GRIP`): the part of the weapon the hand closes on. It runs down through the
    fist's columns and the fingers cover all of it.
 4. **The fist** (`FIST`): four pixels wide and three deep, lit from the upper left, below the cuff
-   and the wrist (`FIST_PART` in `wardrobe.ts`). It is part of the standard body, so every weapon
+   and the wrist (`FIST2` in `figure2/body.ts`, 5 × 5 at the C scale). It is part of the standard body, so every weapon
    and the hero share one hand; the hand at rest (`standard_at_ease`) has none. It covers the grip
    and nothing else of the weapon.
 5. **Everything else of the weapon** (`HELD_FRONT`), in front of forearm and body: the blade,
@@ -727,10 +704,8 @@ or without something in the other hand.
 Small things on the weapon arm keep clear of the line: the bracelet's shells hang on the side of
 the cuff towards the body, where a blade passing in front of the forearm does not cover them.
 
-`tests/art/hands.test.ts` holds all of this for every held thing, in every outfit, with and
-without each shield, and holds that the hand shows in every look. The approved hero's sword hand
-changed for it, by 20 pixels (the blade's dark edge in front of the sleeve, a fist where the
-grip block was), at Cody's request; `tests/art/mockup.ts` lists them.
+At the C scale `tests/art/walk2.test.ts`, `layers2.test.ts` and `strike2.test.ts` hold the hand
+rule in every frame of every facing, walking and striking.
 
 The townsfolk keep their own approved poses: the pirate's hand rests on top of his cutlass's
 guard with the blade point down in front of his coat, and the trader's hand is over her basket.
@@ -755,7 +730,7 @@ What grows from rung to rung, and the rules that hold it:
 
 - **Metal on the body.** None, then a few cast pieces (cap, disc, boss) on leather, then mail over
   the torso and upper arms, then plate from head to knee. In tier 1 it is counted in pixels: each
-  rung covers more than the one below (`tests/art/ladder.test.ts`). From the knight on, metal
+  rung covers more than the one below. From the knight on, metal
   shares the body with paint and cloth (his shield is blue, his cloak red), so a higher rung
   shows heavier metal (plate over mail), not necessarily more of it.
 - **The silhouette.** Shields grow (a 10-pixel buckler, an 11 x 15 heater, the 11 x 19 kite);
@@ -858,17 +833,9 @@ every action card), so they follow the same hand as the town and the figures.
 
 ## Portraits
 
-- 48 × 48 bust on a dark tinted disc, in a gold-edged frame.
+- A bust on a dark tinted disc, in a gold-edged frame (72 × 72 at the C scale, above).
 - Iris centred in the eye; whites on both sides.
 - One clear expression per portrait (a smirk, a glare, a raised eyebrow).
-- Portraits were a first pass at approval time and are expected to improve; the hero's and
-  Brinebeard's faces need another round.
-
-In code (B5, `src/art/faces.ts` and `portraits.ts`): each face is rows of characters with a
-legend of its own on the 48 × 48 square, the bust outlined automatically and cut by the bottom
-edge, in front of a disc of radius 21.5 in a dark step of a ramp chosen per face, its upper-left
-rim one step lighter. Discs are darker than the face on them and never a step that lights at
-dusk (`glass` and `lamp` switch on). Faces are drawn for daylight; the menus have no dusk.
 
 - **Monsters** keep to the silhouette that names them at true size (round ears and a snout, eyes
   on stalks and a raised claw, a hooked beak, tusks and a snout disc, pricked ears and a long
@@ -884,11 +851,6 @@ dusk (`glass` and `lamp` switch on). Faces are drawn for daylight; the menus hav
   jersey, the powder monkey bald and grinning with his lit keg (a grown man, stubbled), the giant
   crab's barnacled shell and stalk eyes, the parrot side-on with one eye and its beak open,
   Brinebeard's tricorn and skull, brows and beard, filling the frame.
-- **How they are shown.** The fight screen frames a portrait at 3 CSS pixels per art pixel and
-  its lists at 2, and never resizes it. `portrait(id)` is told only the id, so it returns both
-  canvases, each a whole number of device pixels per art pixel (rounded down, so a face never
-  outgrows its frame at a fractional ratio), and a container query in `art.css` shows the one
-  that fits the frame.
 
 ## Scenery
 
@@ -898,22 +860,17 @@ dusk (`glass` and `lamp` switch on). Faces are drawn for daylight; the menus hav
 - Ground is textured (grass flecks, cobbles in offset rows, wheel ruts on roads), never flat fill.
 - A little menace in the background is welcome: a black flag, a wreck, a rock with a face.
 
-In code: buildings and props are in `src/art/scenery.ts` and `src/art/harbour.ts`, grounds (road,
-sand, cobbled square, quay wall, sea) are painters in `src/art/ground.ts`, and `src/art/town.ts`
-indexes every piece by id with its size, base line and walk-up spots, and assembles the mock-up's
-town from them, pixel for pixel.
-
 ## Dungeons
 
-Drawn in B6 for Brinebeard's Grotto; not yet reviewed by Cody. The first dungeon sets the look
-of the ones after it.
+Drawn in B6 for Brinebeard's Grotto at the first scale and redrawn at the C scale in B10a (above,
+which supersedes the sizes here); what follows is what still holds of the look.
 
 - **The same world, underground.** A dungeon is the town's stone, wood and sea in the dusk
   palette, lit by lanterns. Its own ramps are few: `cavesand` (greyer and cooler than the road's
   sand, so a cave floor stays calm under warm lantern light) and `shoal` (shallow water over
   sand, green-teal). Everything else is the town's: `stone` and `slate` for rock, `wood` for
   planks and frames, `sea` and `navy` for deep water, `metal` for iron.
-- **Tiles are 16 x 16 and join in any arrangement** (`src/art/grottoTiles.ts`). Nothing but a
+- **Tiles join in any arrangement.** Nothing but a
   single grain touches a floor's edge, and every edge is mostly the kind's base step, so tiles
   show no seam or grid. A kind with a pattern that runs across tiles (the wall's ledges, the
   planks' boards) keeps that pattern at the same rows on every wear's left and right edges.
@@ -935,7 +892,7 @@ of the ones after it.
   shining on it, which is how the tide's coming shows.
 - **Doors** are timber frames in the rock: open, the dark of the next cave with the floor going
   on into it; barred, iron bars and a band across.
-- **The cast** (`src/art/grottoCast.ts`), facing right, outlined, feet marked. Size carries
+- **The cast**, facing right, outlined, feet marked. Size carries
   threat: the rat is small, a deckhand and the smuggler the hero's height, the powder monkey a
   head shorter, the giant crab wider than the hero and low, Brinebeard a head taller and half as
   wide again. People are front-facing posed bodies like the townsfolk, eyes mirrored, with the
@@ -947,7 +904,7 @@ of the ones after it.
 - **Brinebeard is not the town's captain.** No patch, no peg leg, no red coat: a purple coat,
   a grey-green beard full of brine and shells, an anchor. Menace from his size, brows and anchor;
   the ridiculous from the beard and the hat.
-- **Props** (`src/art/grottoProps.ts`) are the town's barrels and crates' kin: a powder keg with
+- **Props** are the town's barrels and crates' kin: a powder keg with
   a painted skull and a fuse, a sea chest, the brig's bars, a ship's lantern on a post (lit at
   dusk), a spare anchor, a coil of rope, a cannon on its carriage.
 
