@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { GROUND2_SHADOW, lightGround2, roomKinds2 } from '../../src/art/dungeonArt2';
+import {
+  GROUND2_SHADOW,
+  aroundOf,
+  dungeonTile2,
+  lightGround2,
+  roomKinds2,
+} from '../../src/art/dungeonArt2';
 import { at, darker } from '../../src/art/town2/cells';
 import { buildDungeon } from '../../src/scene/dungeon';
 import { DUNGEON } from '../../src/scene/dungeonMetrics';
@@ -7,6 +13,7 @@ import { GROTTO } from '../../src/scene/grotto';
 import {
   LANTERN_FOOT,
   castShadow,
+  doorTile,
   groundCells,
   groundOnTheSpot,
   lightsOf,
@@ -38,6 +45,8 @@ describe('a room’s ground at the C scale', () => {
       planks: 'p',
       door_open: 'O',
       door_barred: 'D',
+      door_side_open: 'S',
+      door_side_barred: 'Z',
     };
     for (const room of Object.values(grotto.rooms))
       for (const level of [0, 3]) {
@@ -45,6 +54,46 @@ describe('a room’s ground at the C scale', () => {
         const rows = kinds.map((line) => line.map((k) => key[k]!).join(''));
         expect(kinds, `${room.id} ${level}`).toEqual(roomKinds2(rows));
       }
+  });
+
+  it('sets every door in a side wall as the art lane’s side-wall door, turned to its room', () => {
+    let doors = 0;
+    for (const room of Object.values(grotto.rooms)) {
+      const kinds = tileKindsAt(room, 0, false);
+      for (const d of room.doors) {
+        doors += 1;
+        const { col, row } = d.cell;
+        const where = `${room.id} ${d.letter}`;
+        expect([0, room.ground.cols - 1], where).toContain(col);
+        expect(kinds[row]![col], where).toBe('door_side_open');
+        expect(doorTile(room, col, true), where).toBe('door_side_barred');
+        // The room is on the side with open ground, which is how the art lane turns it.
+        const around = aroundOf(kinds, col, row);
+        const inward = col === 0 ? around.e : around.w;
+        const outward = col === 0 ? around.w : around.e;
+        expect(inward, where).not.toMatch(/^wall_|^door_/);
+        expect(outward, where).toBeNull();
+        // Seen from above as side walls are: rock's top above and below it, never a face.
+        expect(kinds[row - 1]![col], where).toBe('wall_top');
+        expect(kinds[row + 1]![col], where).toBe('wall_top');
+      }
+    }
+    expect(doors).toBe(8);
+  });
+
+  it('draws a side door one way for a room to its east and the other for a room to its west', () => {
+    const pools = grotto.rooms.pools!;
+    const store = grotto.rooms.store!;
+    const east = pools.doors[0]!.cell;
+    const west = store.doors.find((d) => d.cell.col === 0)!.cell;
+    const tile = (room: typeof pools, c: { col: number; row: number }) =>
+      dungeonTile2(
+        'door_side_open',
+        0,
+        aroundOf(tileKindsAt(room, 0, false), c.col, c.row),
+        { col: 0, row: 0 },
+      )!.grid.d;
+    expect(tile(pools, east)).not.toEqual(tile(store, west));
   });
 
   it('stands two tiles of wall over every room’s floor along its north side', () => {

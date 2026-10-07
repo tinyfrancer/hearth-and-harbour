@@ -119,7 +119,7 @@ describe('the grotto’s rooms and doors', () => {
 describe('how a room looks', () => {
   const pools = grotto.rooms.pools!;
 
-  it('stands its walls two tiles tall over the floor, and draws open doors as doorways', () => {
+  it('stands its walls two tiles tall over the floor, and draws its doors as side-wall doorways', () => {
     const kinds = tileKindsAt(pools, 0, false);
     // Rock with nothing open below it is the rock's top.
     expect(kinds[0]![0]).toBe('wall_top');
@@ -127,9 +127,9 @@ describe('how a room looks', () => {
     expect(kinds[1]![5]).toBe('wall_face');
     expect(kinds[0]![5]).toBe('wall_face_high');
     const door = pools.doors[0]!.cell;
-    expect(kinds[door.row]![door.col]).toBe('door_open');
-    // The rock over a door in a side wall is the upper half of a face, as the art lane's rule has it.
-    expect(kinds[door.row - 1]![door.col]).toBe('wall_face_high');
+    expect(kinds[door.row]![door.col]).toBe('door_side_open');
+    // The rock over a door in a side wall is seen from above, as the side wall is (the art lane's rule).
+    expect(kinds[door.row - 1]![door.col]).toBe('wall_top');
   });
 
   it('shows the tide: the sandbar dry at low water, shallows, then sea; wet before it floods', () => {
