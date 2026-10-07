@@ -33,6 +33,30 @@ export type Facing2 = 'down' | 'right' | 'left' | 'up';
 export interface Boned {
   readonly part: Part2;
   readonly bone: Bone;
+  /**
+   * What drew it, for the frames' provenance (`posedTagged`): 'held', 'grip',
+   * 'fist', 'shield', 'quiver', 'cloak', 'skirt', 'body', 'arm', 'hand', 'leg',
+   * 'foot', 'head', 'hair', 'hat'. Left out, it is worked out from the bone.
+   */
+  readonly tag?: string;
+}
+
+/** The tag of a part that does not say, from its bone and where a pixel lies. */
+function tagOf(b: Boned, bone: string, rig: Rig2, y: number): string {
+  if (b.tag) return b.tag === 'leg' && y > rig.ankle ? 'foot' : b.tag;
+  switch (bone) {
+    case 'legN':
+    case 'legF':
+      return y > rig.ankle ? 'foot' : 'leg';
+    case 'near':
+    case 'far':
+      return 'arm';
+    case 'nearHeld':
+    case 'farHeld':
+      return 'held';
+    default:
+      return bone;
+  }
 }
 
 /** Where a figure's joints are, standing. Rows and columns on the 56 x 72 canvas. */
@@ -484,15 +508,39 @@ const FAR_LEG_DEPTH = DEPTH.HAIR_BACK + 0.5;
  * cast shadow as in `stack`.
  */
 export function posed(boned: readonly Boned[], rig: Rig2, key: Key2): TGrid {
+  return posedTagged(boned, rig, key).grid;
+}
+
+/** A posed frame with, for every pixel, the tag of what drew it, and where each tag's parts lie whether seen or covered. */
+export interface Tagged {
+  readonly grid: TGrid;
+  /** The tag of what shows at each pixel (row by row), null where nothing is drawn. */
+  readonly tags: readonly (string | null)[];
+  /** Every pixel each tag's parts land on, covered or not. */
+  readonly cover: ReadonlyMap<string, Uint8Array>;
+}
+
+/** `posed`, keeping what drew each pixel (tests hold the layer order by it). */
+export function posedTagged(boned: readonly Boned[], rig: Rig2, key: Key2): Tagged {
   const w = FIG_W;
   const h = FIG_H;
   const { maps } = bend(rig, key);
-  type Px = { x: number; y: number; c: number; depth: number; casts: number; shaded: number };
+  type Px = {
+    x: number;
+    y: number;
+    c: number;
+    depth: number;
+    casts: number;
+    shaded: number;
+    tag: string;
+  };
   const all: { px: Px; order: number }[] = [];
   let order = 0;
-  for (const { part, bone } of boned) {
+  for (const one of boned) {
+    const { part, bone } = one;
     for (const [x, y, c] of pixels(part)) {
       const b = boneAt(bone, rig, x, y);
+      const tag = tagOf(one, b, rig, y);
       const rows = maps[b]!.get(y);
       if (!rows) continue;
       const leg = b === 'legN' || b === 'legF';
@@ -538,6 +586,7 @@ export function posed(boned: readonly Boned[], rig: Rig2, key: Key2): TGrid {
               depth,
               casts: part.cast === false ? 0 : 1,
               shaded: part.shaded === false ? 0 : 1,
+              tag,
             },
             order: order,
           });
@@ -549,9 +598,15 @@ export function posed(boned: readonly Boned[], rig: Rig2, key: Key2): TGrid {
   const depthAt = new Float32Array(w * h).fill(-1e9);
   const casts = new Uint8Array(w * h);
   const shaded = new Uint8Array(w * h);
+  const tags: (string | null)[] = Array<string | null>(w * h).fill(null);
+  const cover = new Map<string, Uint8Array>();
   for (const { px } of all) {
     if (px.x < 0 || px.y < 0 || px.x >= w || px.y >= h) continue;
     const i = px.y * w + px.x;
+    let c = cover.get(px.tag);
+    if (!c) cover.set(px.tag, (c = new Uint8Array(w * h)));
+    c[i] = 1;
+    tags[i] = px.tag;
     g.d[i] = px.c;
     depthAt[i] = px.depth;
     casts[i] = px.casts;
@@ -567,7 +622,7 @@ export function posed(boned: readonly Boned[], rig: Rig2, key: Key2): TGrid {
       if ((x > 0 && front(i - 1)) || (y > 0 && front(i - w))) out[i] = darker(c, 1);
     }
   g.d.set(out);
-  return g;
+  return { grid: g, tags, cover };
 }
 
 /** Posed and outlined: a frame ready to stand on the ground. */

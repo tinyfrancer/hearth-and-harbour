@@ -20,7 +20,7 @@ import { DAY2, paletteFor, type TimeOfDay } from './town2/ramps';
 import { town2Scale } from './town2/scale';
 import { FIG_H, FIG_W, AXIS, SOLE } from './figure2/body';
 import { bonedParts, figure2, slottedParts, WARDROBE2 } from './figure2/dress';
-import { backParts, frontWalkParts } from './figure2/views';
+import { backParts, frontWalkParts, taggedParts } from './figure2/views';
 import { recolour } from './figure2/engine';
 import { FOLK2, FOLK_HALF_STEP, folkBoned, folkGrid, folkRig, folkSwap } from './figure2/folk';
 import { HAIRSTYLES2 } from './figure2/hair';
@@ -39,7 +39,9 @@ import {
   WALK2_FRAMES,
   WALK2_STRIDE,
   posedFigure,
+  posedTagged,
   walkKey,
+  type Tagged,
   type Boned,
   type Facing2,
   type Key2,
@@ -312,7 +314,7 @@ function heroParts(
     body = 'standard_at_ease';
   }
   const shield = gear.some((id) => slotOf(id) === 'shield');
-  let boned: Boned[] = bonedParts(body, gear);
+  let boned: Boned[] = taggedParts(slottedParts(body, gear));
   let rig: Rig2 = HERO_RIG;
   if (facing === 'down') {
     boned = frontWalkParts(boned, shield);
@@ -322,6 +324,35 @@ function heroParts(
     rig = shield ? BACK_SHIELD_RIG : BACK_RIG;
   }
   return { boned, rig, swap: lookSwap(safe) };
+}
+
+/**
+ * For tests and review sheets: a walk (toward or away) or breathing frame
+ * before its outline, with what drew each pixel and where each thing's parts
+ * lie, seen or covered (walk.ts, `posedTagged`). Across, `sideWalkGrid` gives
+ * the same tags.
+ */
+export function characterFrameTagged2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  facing: 'down' | 'up' | 'idle',
+  frame: number,
+  extra: readonly string[] = [],
+): Tagged {
+  const m = heroParts(look, wornItemIds, extra, facing);
+  const key =
+    facing === 'idle' ? IDLE2[Math.abs(Math.floor(frame)) % IDLE2_FRAMES]! : walkKey(facing, frame);
+  return posedTagged(m.boned, m.rig, key);
+}
+
+/** A townsperson's frame with what drew each pixel, as `characterFrameTagged2`; null for an unknown id. */
+export function townsfolkFrameTagged2(
+  id: string,
+  facing: 'down' | 'up',
+  frame: number,
+): Tagged | null {
+  const m = facing === 'up' ? folkBackParts(id) : folkParts(id);
+  return m && posedTagged(m.boned, m.rig, walkKey(facing, frame, folkRig(id).half));
 }
 
 /** The character walking across in true profile (side.ts), or null if some gear has no side drawing. */

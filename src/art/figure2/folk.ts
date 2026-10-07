@@ -834,15 +834,20 @@ const PIRATE: Folk = {
     at(37, 37, 7, ['12', '34'], 'gold'),
     at(36, 39, 8, ['.sst.', 'osstv', 'tuuuw', 'sstuv', '.uvw.'], undefined, undefined, false),
     at(35, 44, 7, ['0122334'], 'gold'),
-    runs(
-      7,
-      Array.from({ length: 20 }, (_, i): [number, [number, string]] => {
-        const y = 45 + i;
-        const x = 37 + Math.floor(i / 8);
-        return [y, [x, i === 19 ? '1' : '013']];
-      }),
-      { mat: 'iron' },
-    ),
+    // The blade goes with the hand that holds it (B12: it reached below the
+    // hip, so it was taken for a leg and walked with the far leg).
+    {
+      ...runs(
+        7,
+        Array.from({ length: 20 }, (_, i): [number, [number, string]] => {
+          const y = 45 + i;
+          const x = 37 + Math.floor(i / 8);
+          return [y, [x, i === 19 ? '1' : '013']];
+        }),
+        { mat: 'iron' },
+      ),
+      bone: 'far',
+    },
     // Trousers; the near leg is tied off at the knee over a wooden peg, the far one in a boot.
     cloth(0, 'indigo', [...rows(48, 56, 21, 27), ...rows(48, 58, 29, 35)], { turn: 0.6 }),
     at(21, 56, 0.5, ['kkKKkkK'], undefined, { k: ['leather', 3], K: ['leather', 5] }),

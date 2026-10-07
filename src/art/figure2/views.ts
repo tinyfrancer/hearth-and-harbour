@@ -75,6 +75,14 @@ export function mirrored(part: Part2, axis: number): Part2 {
   return fromPixels(part, px);
 }
 
+/** A part with only its rows above `y`. */
+export function above(part: Part2, y: number): Part2 {
+  const px: [number, number, string][] = [];
+  for (const [row, cells] of rowsOf(part))
+    if (row < y) for (const [x, ch] of cells) px.push([x, row, ch]);
+  return fromPixels(part, px);
+}
+
 /** A part with only its rows from `y` down. */
 export function below(part: Part2, y: number): Part2 {
   const px: [number, number, string][] = [];
@@ -123,6 +131,57 @@ export const FAR_AXIS = 57;
 const isHand = (p: Part2) =>
   p === FIST2 || p === OPEN_HAND2 || (p.at === FIST2.at && p.rows === FIST2.rows);
 
+/** What a worn part is, for the frames' provenance (walk.ts, `Boned.tag`). */
+export function slotTag(part: Part2, bone: Bone, slot: string | null, gear: string | null): string {
+  if (part === FIST2) return 'fist';
+  if (part === OPEN_HAND2) return 'hand';
+  switch (slot) {
+    case 'weapon':
+      return part.depth === DEPTH.GRIP ? 'grip' : 'held';
+    case 'shield':
+      return gear === 'spyglass' ? 'held' : 'shield';
+    case 'back':
+      return 'quiver';
+    case 'cloak':
+      return bone === 'cloak' ? 'cloak' : 'body';
+    case 'feet':
+      return 'foot';
+    case 'legs':
+    case 'knees':
+      return 'leg';
+    case 'hair':
+      return 'hair';
+    case 'head':
+      return 'hat';
+  }
+  switch (bone) {
+    case 'head':
+      return 'head';
+    case 'legs':
+      return 'leg';
+    case 'near':
+    case 'far':
+      return 'arm';
+    case 'skirt':
+      return 'skirt';
+    case 'nearHeld':
+    case 'farHeld':
+      return 'hand';
+    default:
+      return 'body';
+  }
+}
+
+/** A dressed body's parts with their bones and tags (`slottedParts` with provenance). */
+export const taggedParts = (
+  slotted: readonly { part: Part2; bone: Bone; slot: string | null; gear: string | null }[],
+): Boned[] =>
+  slotted.map((s) => ({
+    part: s.part,
+    bone: s.bone,
+    tag: slotTag(s.part, s.bone, s.slot, s.gear),
+  }));
+
 /**
  * Toward the camera: the far arm, when it carries no shield, is the near
  * arm's drawing moved across, hanging with an open hand, so both arms swing.
@@ -132,8 +191,8 @@ export function frontWalkParts(boned: readonly Boned[], shield: boolean): Boned[
   const nearArm = boned.filter((b) => b.bone === 'near');
   return [
     ...boned.filter((b) => b.bone !== 'far' && b.bone !== 'farHeld'),
-    ...nearArm.map((b) => ({ part: flipLit(b.part, FAR_AXIS), bone: 'far' as Bone })),
-    { part: flipLit(OPEN_HAND2, FAR_AXIS), bone: 'far' as Bone },
+    ...nearArm.map((b) => ({ ...b, part: flipLit(b.part, FAR_AXIS), bone: 'far' as Bone })),
+    { part: flipLit(OPEN_HAND2, FAR_AXIS), bone: 'far' as Bone, tag: 'hand' },
   ];
 }
 
@@ -167,10 +226,44 @@ export function shieldBack(front: Part2): Part2 {
   };
 }
 
+/**
+ * From behind, what covers what (B12; Cody: "sword and shield are visible when
+ * character is facing away"). The body is between the viewer and anything
+ * held in front of it, so a weapon, a bow, a spyglass and a shield go behind
+ * everything of the person and show only where they reach past the body, the
+ * cloak, the head and the limbs: a blade above the shoulder, a pommel below
+ * the fist, a shield's rim at the elbow. What is worn on the back is in front:
+ * the quiver over the shirt, the cloak over the quiver, the arms and the hands
+ * that come out from under it, and long hair over the cloak.
+ */
+export const BACK_DEPTH = {
+  /** Anything held, behind the far leg (walk.ts pushes it to -14.5) and everything else. */
+  HELD: -40,
+  QUIVER: 56,
+  CLOAK: 58,
+  /** The hands, which come out from under a cloak's edge at the sides. */
+  HAND: 59,
+} as const;
+
+/**
+ * The shield arm from behind: the upper arm hangs at the side and the elbow
+ * comes out, but the forearm goes forward to the shield's straps in front of
+ * the body, so from this row down it is behind the body (and in front of the
+ * shield, whose back it is strapped to).
+ */
+export const BACK_FOREARM_ROW = 35;
+const forearmBehind = (p: Part2): Part2[] => [
+  above(p, BACK_FOREARM_ROW),
+  { ...below(p, BACK_FOREARM_ROW), depth: BACK_DEPTH.HELD + 5 + p.depth / 100 },
+];
+
+/** A held thing seen from behind: behind the person, its own parts kept in their order. */
+const heldBehind = (p: Part2): Part2 => ({ ...p, depth: BACK_DEPTH.HELD + p.depth / 100 });
+
 /** A quiver lying across the back: fletchings over the left shoulder, its foot at the right hip. */
 const quiverBack = (fletch: Mat): Part2 => ({
   at: [14, 13],
-  depth: 52,
+  depth: BACK_DEPTH.QUIVER,
   mat: 'leather',
   pins: { a: [fletch, 1], b: [fletch, 2], c: [fletch, 4], s: ['wood', 3], O: ['leather', 4] },
   rows: [
@@ -261,7 +354,7 @@ export function backParts(
   slotted: readonly { part: Part2; bone: Bone; slot: string | null; gear: string | null }[],
   hairStyle: string | null = null,
 ): Boned[] {
-  const out: Boned[] = [{ part: { ...HEAD_BACK, depth: 0 }, bone: 'head' }];
+  const out: Boned[] = [{ part: { ...HEAD_BACK, depth: 0 }, bone: 'head', tag: 'head' }];
   const done = new Set<string>();
   // Under a hat or helm the hair still shows behind, below its rim: the whole
   // style's back, cut off where the head gear starts (a cap covers the crown
@@ -269,26 +362,27 @@ export function backParts(
   if (hairStyle && slotted.some((s) => s.slot === 'head')) {
     done.add('hair');
     for (const p of HAIR_BACKS[hairStyle] ?? [])
-      out.push({ part: below(p, HEAD_BACK.at[1] + 4), bone: 'head' });
+      out.push({ part: below(p, HEAD_BACK.at[1] + 4), bone: 'head', tag: 'hair' });
   }
   const shield = slotted.find((s) => s.slot === 'shield');
   const nearArm = slotted.filter((s) => s.bone === 'near');
   for (const s of slotted) {
     const { part, bone, slot, gear } = s;
+    const tag = slotTag(part, bone, slot, gear);
     if (slot === null && bone === 'head') continue;
     if (slot === 'hair' || slot === 'head' || slot === 'feet') {
       if (done.has(gear!) || (slot === 'hair' && done.has('hair'))) continue;
       done.add(gear!);
-      if (slot === 'feet') out.push({ part: BOOTS_BACK, bone: 'legs' });
+      if (slot === 'feet') out.push({ part: BOOTS_BACK, bone: 'legs', tag });
       else
         for (const p of (slot === 'hair' ? HAIR_BACKS : HEADGEAR_BACK)[gear!] ?? [])
-          out.push({ part: p, bone: 'head' });
+          out.push({ part: p, bone: 'head', tag });
       continue;
     }
     if (slot === 'back') {
       if (part.depth === DEPTH.QUIVER) {
         const fletch = (part.pins?.a?.[0] ?? 'linen') as Mat;
-        out.push({ part: quiverBack(fletch), bone: 'body' });
+        out.push({ part: quiverBack(fletch), bone: 'body', tag });
       }
       continue;
     }
@@ -302,35 +396,45 @@ export function backParts(
       if (slot === 'shield') {
         if (index > 0 && gear !== 'spyglass') continue;
         out.push({
-          part: gear === 'spyglass' ? mirrored(p, BACK_AXIS) : { ...shieldBack(p), depth: p.depth },
+          part: heldBehind(gear === 'spyglass' ? mirrored(p, BACK_AXIS) : shieldBack(p)),
           bone: 'nearHeld',
+          tag,
         });
         continue;
       }
-      out.push({ part: flipLit(p, BACK_AXIS), bone: 'near' });
+      for (const half of forearmBehind(flipLit(p, BACK_AXIS)))
+        if (half.rows.length) out.push({ part: half, bone: 'near', tag });
       continue;
     }
     if (bone === 'near') {
-      out.push({ part: flipLit(p, BACK_AXIS), bone: 'far' });
+      out.push({ part: flipLit(p, BACK_AXIS), bone: 'far', tag });
       continue;
     }
     if (bone === 'nearHeld') {
       out.push({
-        part: isHand(p) ? flipLit(p, BACK_AXIS) : mirrored(p, BACK_AXIS),
+        part: isHand(p)
+          ? { ...flipLit(p, BACK_AXIS), depth: BACK_DEPTH.HAND }
+          : heldBehind(mirrored(p, BACK_AXIS)),
         bone: 'farHeld',
+        tag,
       });
       continue;
     }
     if (bone === 'cloak') {
-      out.push({ part: { ...flipLit(p, BACK_AXIS), depth: 51, cast: true }, bone: 'cloak' });
+      out.push({
+        part: { ...flipLit(p, BACK_AXIS), depth: BACK_DEPTH.CLOAK, cast: true },
+        bone: 'cloak',
+        tag,
+      });
       continue;
     }
-    out.push({ part: flipLit(p, BACK_AXIS), bone });
+    out.push({ part: flipLit(p, BACK_AXIS), bone, tag });
   }
   if (!shield) {
     // Both arms hang: the left one is the near arm's own drawing, with an open hand.
-    for (const s of nearArm) out.push({ part: s.part, bone: 'near' });
-    out.push({ part: OPEN_HAND2, bone: 'near' });
+    for (const s of nearArm)
+      out.push({ part: s.part, bone: 'near', tag: slotTag(s.part, s.bone, s.slot, s.gear) });
+    out.push({ part: { ...OPEN_HAND2, depth: BACK_DEPTH.HAND }, bone: 'near', tag: 'hand' });
   }
   return out;
 }
