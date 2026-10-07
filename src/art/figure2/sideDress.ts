@@ -501,14 +501,12 @@ export function sideDress(gearIds: readonly string[]): SideDress | null {
       continue;
     }
     const held = HELD2.find((g) => g.id === id) ?? KNIGHT2.find((g) => g.id === id);
-    if (held?.slot === 'weapon')
-      d.held.push(
-        ...carried(
-          id,
-          heldParts(id).map((p) => mirrored(p, FIST_AXIS)),
-        ),
-      );
-    else if (id === 'spyglass') d.offHeld = [moved(heldParts(id)[0]!, -18, 2)];
+    if (held?.slot === 'weapon') {
+      const upright = heldParts(id).map((p) => mirrored(p, FIST_AXIS));
+      d.held.push(...carried(id, upright));
+      d.heldUpright = upright;
+      d.heldId = id;
+    } else if (id === 'spyglass') d.offHeld = [moved(heldParts(id)[0]!, -18, 2)];
     else if (held?.slot === 'shield') d.shield.push(...heldParts(id));
     else return null;
   }

@@ -21,11 +21,19 @@ import { town2Scale } from './town2/scale';
 import { FIG_H, FIG_W, AXIS, SOLE } from './figure2/body';
 import { bonedParts, figure2, slottedParts, WARDROBE2 } from './figure2/dress';
 import { backParts, frontWalkParts, taggedParts } from './figure2/views';
-import { recolour } from './figure2/engine';
+import { outlineIn, recolour } from './figure2/engine';
 import { FOLK2, FOLK_HALF_STEP, folkBoned, folkGrid, folkRig, folkSwap } from './figure2/folk';
 import { HAIRSTYLES2 } from './figure2/hair';
 import { lookSwap } from './figure2/look';
 import { sideWalkGrid } from './figure2/side';
+import {
+  STRIKE_FRAMES,
+  STRIKE_HIT,
+  frontStrike,
+  sideStrikePose,
+  strikeKind,
+} from './figure2/strike';
+import { mirrored } from './figure2/views';
 import { sideDress } from './figure2/sideDress';
 import { FOLK_SIDE } from './figure2/sideFolk';
 import { folkBackParts } from './figure2/folkBack';
@@ -528,4 +536,147 @@ export function townsfolkCanvas2(id: string): HTMLCanvasElement | null {
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
   const width = typeof innerWidth === 'number' ? innerWidth : 390;
   return pixelCanvas2(pic, DAY2, c2Scale(width, dpr), dpr, townsfolkName2(id) ?? id);
+}
+
+// ------------------------------------------------------------------ the blow
+
+/** Frames in the hero's blow: the wind-up, the swing, the blow landing, the recovery. */
+export const STRIKE2_FRAMES = STRIKE_FRAMES;
+/** The frame where the blow lands (count the hit, flash the foe, then). */
+export const STRIKE2_HIT_FRAME = STRIKE_HIT;
+
+const strikeFrame = (frame: number) =>
+  (((Math.floor(frame) % STRIKE2_FRAMES) + STRIKE2_FRAMES) % STRIKE2_FRAMES) | 0;
+
+/**
+ * The hero's blow, frame `frame` (any whole number; it wraps at
+ * `STRIKE2_FRAMES`), in any facing: the same 56 x 72 picture and anchor as
+ * walking. Swung for a blade, an axe, the cudgel or the anchor; drawn and
+ * loosed for a bow; a punch with empty hands. Kept once drawn, until
+ * `forgetWalks2()`.
+ */
+export function characterStrikePicture2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  facing: Facing2,
+  frame: number,
+  extra: readonly string[] = [],
+): Picture2 {
+  const f = strikeFrame(frame);
+  const key = `strike ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`;
+  const kept = posedPics.get(key);
+  if (kept) return kept;
+  const safe: Look = { ...DEFAULT_LOOK, ...look };
+  let grid: TGrid | null = null;
+  try {
+    const gear = characterGear2(safe, wornItemIds, extra);
+    if (facing === 'right' || facing === 'left') {
+      const dress = sideDress(gear);
+      if (dress)
+        grid = sideWalkGrid(
+          dress,
+          f,
+          WALK2_STRIDE,
+          facing === 'left',
+          sideStrikePose(dress, f),
+        ).grid;
+    } else {
+      grid = frontStrikeGrid(safe, gear, wornItemIds, extra, facing, f);
+    }
+  } catch {
+    grid = null;
+  }
+  const pic: Picture2 = grid
+    ? { grid: recolour(grid, lookSwap(safe)), glows: [] }
+    : characterWalkPicture2(look, wornItemIds, facing, 0, extra);
+  posedPics.set(key, pic);
+  return pic;
+}
+
+/** The column a held thing turns about to be seen from behind: the fist's own middle. */
+const FIST_AXIS2 = 2 * (FIGURE2_ANCHOR_X - 12);
+
+/** A blow toward the camera or away (strike.ts, `frontStrike`), posed and outlined. */
+function frontStrikeGrid(
+  look: Look,
+  gear: readonly string[],
+  worn: readonly string[],
+  extra: readonly string[],
+  facing: 'down' | 'up',
+  f: number,
+): TGrid | null {
+  const t = frontStrikeTagged(look, gear, worn, extra, facing, f);
+  return t && outlineIn(t.grid);
+}
+
+function frontStrikeTagged(
+  look: Look,
+  gear: readonly string[],
+  worn: readonly string[],
+  extra: readonly string[],
+  facing: 'down' | 'up',
+  f: number,
+): Tagged | null {
+  const dress = sideDress(gear);
+  if (!dress) return null;
+  const weaponGear = gear.find((id) => slotOf(id) === 'weapon') ?? null;
+  const held = weaponGear ? (WARDROBE2.gear.find((g) => g.id === weaponGear)?.parts ?? []) : [];
+  const m = heroParts(look, worn, extra, facing);
+  const { boned, key } = frontStrike(
+    m.boned,
+    {
+      // Plate down the whole arm: across, the pauldron hides the upper arm; toward and away it shows.
+      arm: dress.shoulderCap
+        ? [
+            ...dress.arm,
+            { mat: dress.capMat ?? 'plate', from: 0, to: 8, pattern: 'plate', bulk: 1 },
+          ]
+        : dress.arm,
+      weaponArm: dress.weaponArm,
+      held: facing === 'up' ? held.map((p) => mirrored(p, FIST_AXIS2)) : held,
+      kind: strikeKind(weaponGear),
+      shield: gear.some((id) => slotOf(id) === 'shield'),
+    },
+    facing,
+    f,
+  );
+  return posedTagged(boned, m.rig, key);
+}
+
+/**
+ * For tests and review sheets: a frame of the blow with what drew each
+ * pixel (toward and away also with where each thing's parts lie, covered or
+ * not); null if the outfit has no side drawing.
+ */
+export function characterStrikeTagged2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  facing: Facing2,
+  frame: number,
+  extra: readonly string[] = [],
+): { tags: readonly (string | null)[]; cover?: Tagged['cover'] } | null {
+  const safe: Look = { ...DEFAULT_LOOK, ...look };
+  const gear = characterGear2(safe, wornItemIds, extra);
+  const f = strikeFrame(frame);
+  if (facing === 'down' || facing === 'up')
+    return frontStrikeTagged(safe, gear, wornItemIds, extra, facing, f);
+  const dress = sideDress(gear);
+  return dress && sideWalkGrid(dress, f, WALK2_STRIDE, facing === 'left', sideStrikePose(dress, f));
+}
+
+/** The blow on an offscreen canvas at one pixel per art pixel, kept like `characterWalk2`. */
+export function characterStrike2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  time: TimeOfDay,
+  facing: Facing2,
+  frame: number,
+  extra: readonly string[] = [],
+): HTMLCanvasElement {
+  const f = strikeFrame(frame);
+  return spriteCanvas(
+    `hero strike ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`,
+    characterStrikePicture2(look, wornItemIds, facing, f, extra),
+    paletteFor(time),
+  );
 }

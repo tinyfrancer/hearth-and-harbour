@@ -84,7 +84,7 @@ export const FEET2: Readonly<Record<string, Foot2>> = {
 };
 
 /** Where each foot is in its cycle: down from heel strike (0) to toe off (4), then the swing. */
-interface LegPhase {
+export interface LegPhase {
   /** Down: where the flat foot's ankle would be, from the hip, in art pixels. */
   readonly ground?: number;
   /** In the air: the ankle from the hip, and the foot's pose. */
@@ -213,6 +213,45 @@ export interface SideDress {
   capPins?: Readonly<Record<string, readonly [Mat, number]>>;
   /** What the off hand holds instead of a shield (a spyglass), about the fist. */
   offHeld?: Part2[];
+  /** The weapon as drawn, upright in the fist (before the carry), and its gear id: a strike turns it (strike.ts). */
+  heldUpright?: Part2[];
+  heldId?: string;
+}
+
+/**
+ * A pose that is not a step of the walk (strike.ts): where each flat foot
+ * stands, how far the hips drop and the body leans into the blow, where each
+ * wrist is from its shoulder, and what each hand holds.
+ */
+export interface SidePose {
+  /** Columns of each flat foot's ankle on the ground, near and far. */
+  readonly feet: readonly [near: number, far: number];
+  readonly bob: number;
+  /** Columns the hips, body and head move toward the blow. */
+  readonly lean: number;
+  readonly weapon: SideArm;
+  readonly off: SideArm;
+  /** The weapon drawn behind the body (cocked back over the shoulder). */
+  readonly heldBehind?: boolean;
+  /** Drawn after the arms, with where each wrist landed (a bowstring, an arrow). */
+  readonly extra?: (sheet: Sheet, at: { weapon: SideArmAt; off: SideArmAt }) => void;
+}
+
+/** One arm of a pose: the wrist from the shoulder, which way the elbow bends, the hand, what it holds. */
+export interface SideArm {
+  readonly wrist: Pt;
+  /** +1 the elbow toward the blow, -1 behind (the default). */
+  readonly bend?: 1 | -1;
+  readonly hand: 'fist' | 'open' | 'none';
+  readonly holds?: readonly Part2[];
+}
+
+/** Where a posed arm ended up, and its depth. */
+export interface SideArmAt {
+  readonly elbow: Pt;
+  readonly wrist: Pt;
+  readonly depth: number;
+  readonly near: boolean;
 }
 
 export interface SkirtSpec {
@@ -286,15 +325,19 @@ export function sideFrame(
   frame: number,
   stride: number,
   swap: boolean,
+  pose?: SidePose,
 ): SideFrame {
   const sheet = new Sheet();
   const f = ((frame % 8) + 8) % 8;
-  const bob = BOB[f]! + (dress.hipDrop ?? 0);
-  const body = dress.body ?? [0, 0];
+  const bob = (pose ? pose.bob : BOB[f]!) + (dress.hipDrop ?? 0);
+  const body0 = dress.body ?? [0, 0];
+  const body: Pt = pose ? [body0[0] + pose.lean, body0[1]] : body0;
   const hip: Pt = [SIDE_HIP[0] + body[0], SIDE_HIP[1] + bob];
   const phases = legPhases(stride);
-  const near = poseLeg(hip, phases[f]!);
-  const far = poseLeg(hip, phases[(f + 4) % 8]!);
+  // A pose plants each foot where it says; the foot takes the first pose its leg can reach.
+  const planted = (x: number): LegPhase => ({ ground: x - hip[0], foot: ['flat', 'rise', 'tip'] });
+  const near = poseLeg(hip, pose ? planted(pose.feet[0]) : phases[f]!);
+  const far = poseLeg(hip, pose ? planted(pose.feet[1]) : phases[(f + 4) % 8]!);
 
   // Legs: the far one a step darker and behind everything but the far arm and cloak.
   for (const [leg, depth, dark, isNear] of [
@@ -361,6 +404,13 @@ export function sideFrame(
     return { upper: 0, fore: 0.15, swing: 1, hand: 'open' };
   };
   const arm = (which: 'near' | 'far') => {
+    if (pose) {
+      const a = which === weaponArm ? pose.weapon : pose.off;
+      const job: ArmJob = { upper: 0, fore: 0, hand: a.hand, holds: a.holds };
+      const wrist: Pt = [shoulder[0] + a.wrist[0], shoulder[1] + a.wrist[1]];
+      const elbow = joint(shoulder, wrist, UPPER_ARM, FOREARM, a.bend ?? -1);
+      return { job, elbow, wrist };
+    }
     const job = jobOf(which);
     const s = (which === 'near' ? -swing : swing) * (job.swing ?? 0);
     const upper = job.upper + s * 0.5;
@@ -392,7 +442,7 @@ export function sideFrame(
     const isNear = which === 'near';
     const depth = isNear ? SIDE.NEAR_ARM : SIDE.FAR_ARM;
     const dark = isNear ? 0 : 1;
-    const weapon = hasWeapon && job.holds === dress.held;
+    const weapon = pose ? !!job.holds?.length : hasWeapon && job.holds === dress.held;
     const covers = weapon ? [...dress.arm, ...dress.weaponArm] : dress.arm;
     drawLimb(
       sheet,
@@ -423,7 +473,11 @@ export function sideFrame(
     const dx = fistAt[0] - FIST2.at[0];
     const dy = fistAt[1] - FIST2.at[1];
     if (job.hand === 'fist')
-      sheet.part(FIST2, dx, dy, { depth: depth + 5, tag: weapon ? 'fist' : 'hand', darken: dark });
+      sheet.part(FIST2, dx, dy, {
+        depth: depth + 5,
+        tag: weapon || pose ? 'fist' : 'hand',
+        darken: dark,
+      });
     else if (job.hand === 'open')
       sheet.part(OPEN_HAND2, dx, dy, { depth: depth + 5, tag: 'hand', darken: dark });
     else if (job.hand === 'hook')
@@ -432,9 +486,11 @@ export function sideFrame(
         depth: depth + 5,
         darken: dark,
       });
+    const behind = pose?.heldBehind && which === weaponArm;
     for (const p of job.holds ?? []) {
-      const d =
-        p.depth === DEPTH.GRIP
+      const d = behind
+        ? SIDE.BACK - 1 + p.depth / 1000
+        : p.depth === DEPTH.GRIP
           ? depth + 4
           : p.depth === DEPTH.HELD_BEHIND
             ? depth - 0.5
@@ -480,6 +536,19 @@ export function sideFrame(
     }
   }
   const weapon = arm(weaponArm);
+  if (pose?.extra) {
+    const at = (which: 'near' | 'far'): SideArmAt => {
+      const a = arm(which);
+      const isNear = which === 'near';
+      return {
+        elbow: a.elbow,
+        wrist: a.wrist,
+        depth: isNear ? SIDE.NEAR_ARM : SIDE.FAR_ARM,
+        near: isNear,
+      };
+    };
+    pose.extra(sheet, { weapon: at(weaponArm), off: at(weaponArm === 'near' ? 'far' : 'near') });
+  }
   return {
     sheet,
     fist: [Math.round(weapon.wrist[0]) - 2, Math.round(weapon.wrist[1])],
@@ -671,8 +740,9 @@ export function sideWalkGrid(
   frame: number,
   stride: number,
   left: boolean,
+  pose?: SidePose,
 ): { grid: TGrid; tags: readonly (string | null)[]; fist: Pt; weaponNear: boolean } {
-  const fr = sideFrame(dress, frame, stride, left);
+  const fr = sideFrame(dress, frame, stride, left, pose);
   const { grid, tags } = stackSheet(fr.sheet);
   if (!left) return { grid, tags, fist: fr.fist, weaponNear: fr.weaponNear };
   const w = grid.w;
