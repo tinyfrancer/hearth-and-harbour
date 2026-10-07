@@ -359,9 +359,9 @@ export class Hero2 {
     return this.painter.at(feet, pose, time);
   }
 
-  /** Paints one more of his poses ahead of need, if any are left: once a frame. */
-  warm(time: TimeOfDay): void {
-    this.painter.warm(POSES2, time);
+  /** Paints one more of his poses ahead of need (`poses`: the walk and breath unless said), once a frame. */
+  warm(time: TimeOfDay, poses: readonly Pose2[] = POSES2): void {
+    this.painter.warm(poses, time);
   }
 }
 

@@ -49,13 +49,13 @@ import {
   HERO_TALL,
   fightArtFor,
   fightExtra,
-  heroLunge,
+  heroStrikePose,
   liftOf,
   tapLift,
   tideStateOf,
   type FightArt,
 } from './fightArt';
-import { anchorOf, FIGURE2_SOLE_Y, heroPose } from './figures2';
+import { anchorOf, FIGURE2_SOLE_Y, heroPose, POSES2, STRIKE_POSES2 } from './figures2';
 import { wholeFace } from './face';
 import { abilityPicture, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
@@ -88,6 +88,9 @@ export const FOCUS_RISE_DUNGEON = 30;
 
 /** Half the width of the hero's contact shadow, as the art lane's figures are shaded (22 across). */
 export const HERO_SHADOW = 11;
+
+/** Every pose the hero takes in a fight, painted ahead a frame at a time: his walk, breath and blow. */
+const FIGHT_POSES = [...POSES2, ...STRIKE_POSES2];
 
 /** An empty figure: the stage's plain walker, never shown (the hero comes placed). */
 let empty: HTMLCanvasElement | null = null;
@@ -559,14 +562,14 @@ export function dungeonView(options: DungeonViewOptions): View {
         walkerAt: () => nobody(),
         walkerPlaced: (play, feet, _palette, now) => {
           const run = options.run();
-          const pose = heroPose(play, now);
+          // Striking, timed from the fight's state; otherwise walking or breathing as anywhere.
+          const pose = heroStrikePose(dungeon, run) ?? heroPose(play, now);
           const image = hero.at(feet, pose, 'dusk');
-          hero.warm('dusk');
-          const lean = run.battle ? heroLunge(run.battle, play.facing) : 0;
+          hero.warm('dusk', FIGHT_POSES);
           return (
             image && {
               image,
-              x: feet.x + lean - anchorOf(pose),
+              x: feet.x - anchorOf(pose),
               y: feet.y - FIGURE2_SOLE_Y,
               base: feet.y,
             }

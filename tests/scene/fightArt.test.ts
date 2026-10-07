@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { WALK2_STRIDE } from '../../src/art/character2';
+import { STRIKE2_FRAMES, STRIKE2_HIT_FRAME, WALK2_STRIDE } from '../../src/art/character2';
+import { DEFAULT_LOOK as DEFAULT_LOOK2 } from '../../src/art/character';
+import { POSES2, STRIKE_POSES2, heroFigure2, poseKey } from '../../src/scene/figures2';
 import { foeFrames2 } from '../../src/art/dungeonArt2';
-import {
-  TICK_MS,
-  advanceBattle,
-  type Battle,
-  type Foe,
-  type Telegraph,
-} from '../../src/scene/battle';
+import { TICK_MS, advanceBattle, type Foe, type Telegraph } from '../../src/scene/battle';
 import { GROTTO_CAST } from '../../src/scene/cast';
 import { advanceRun, placeOf, type Run } from '../../src/scene/dungeon';
 import {
@@ -19,7 +15,8 @@ import {
   fightArtFor,
   fightExtra,
   foePose,
-  heroLunge,
+  STRIKE2_FRAME_MS,
+  heroStrikePose,
   liftOf,
 } from '../../src/scene/fightArt';
 import { foeKind } from '../../src/scene/foes';
@@ -184,17 +181,42 @@ describe('who stands how', () => {
     expect(liftOf(bridge, { ...parrot, flight: { mode: 'down', perch: 0, until: 0 } })).toBe(0);
   });
 
-  it('leans the hero into his blow for a moment, toward the way he faces', () => {
+  it('strikes with lane B’s blow: its blow frame as the blow falls, then the recovery, then none', () => {
     const b = run.battle!;
-    const hit: Battle = {
-      ...b,
-      clock: 5000,
-      effects: [{ kind: 'hit', at: { x: 0, y: 0 }, amount: 3, on: 'foe', from: 5000 }],
+    const hit: Run = {
+      ...run,
+      battle: {
+        ...b,
+        clock: 5000,
+        target: null,
+        effects: [{ kind: 'hit', at: { x: 0, y: 0 }, amount: 3, on: 'foe', from: 5000 }],
+      },
     };
-    expect(heroLunge(hit, 'right')).toBeGreaterThan(0);
-    expect(heroLunge(hit, 'left')).toBeLessThan(0);
-    expect(heroLunge({ ...hit, clock: 6000 }, 'right')).toBe(0);
-    expect(heroLunge(b, 'right')).toBe(0);
+    const at = (clock: number) =>
+      heroStrikePose(GROTTO_DUNGEON, { ...hit, battle: { ...hit.battle!, clock } });
+    expect(at(5000)).toEqual({
+      walking: false,
+      striking: true,
+      facing: run.play.facing,
+      frame: STRIKE2_HIT_FRAME,
+    });
+    expect(at(5000 + STRIKE2_FRAME_MS)!.frame).toBe(STRIKE2_HIT_FRAME + 1);
+    expect(at(5000 + (STRIKE2_FRAMES - STRIKE2_HIT_FRAME) * STRIKE2_FRAME_MS)).toBeNull();
+    // No blow, no target: he walks or breathes.
+    expect(heroStrikePose(GROTTO_DUNGEON, run)).toBeNull();
+  });
+
+  it('draws each frame of the blow from lane B’s pictures, in every facing', () => {
+    const fig = heroFigure2(DEFAULT_LOOK2, ['iron_sword']);
+    const standing = fig.pixels({ walking: false, facing: 'right', frame: 0 }, 'day', []).data;
+    for (const pose of STRIKE_POSES2) {
+      const px = fig.pixels(pose, 'day', []);
+      expect([px.w, px.h]).toEqual([fig.w, fig.h]);
+      if (pose.frame === STRIKE2_HIT_FRAME && pose.facing === 'right')
+        expect(px.data).not.toEqual(standing);
+    }
+    expect(new Set(STRIKE_POSES2.map(poseKey)).size).toBe(STRIKE_POSES2.length);
+    expect(STRIKE_POSES2.map(poseKey).some((k) => POSES2.map(poseKey).includes(k))).toBe(false);
   });
 });
 

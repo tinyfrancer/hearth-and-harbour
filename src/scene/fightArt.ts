@@ -37,7 +37,7 @@ import {
   type Foe2Pose,
   type Foe2Size,
 } from '../art/dungeonArt2';
-import { WALK2_STRIDE } from '../art/character2';
+import { STRIKE2_FRAMES, STRIKE2_HIT_FRAME, WALK2_STRIDE, type Facing2 } from '../art/character2';
 import { addGlow, type Glow } from '../art/raster';
 import { cell, outlined, tgrid, type Picture2 } from '../art/town2/cells';
 import type { Mat } from '../art/town2/ramps';
@@ -47,6 +47,8 @@ import {
   TICK_MS,
   alive,
   held,
+  inReach,
+  mapOf,
   roomLocked,
   tideOf,
   type Battle,
@@ -58,7 +60,7 @@ import { shownApart, type Figure } from './apart';
 import type { Placed, Standing } from './draw';
 import { placeOf, type Dungeon, type Room, type Run } from './dungeon';
 import { DUNGEON, far } from './dungeonMetrics';
-import { breathFrame } from './figures2';
+import { breathFrame, type Pose2 } from './figures2';
 import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import {
@@ -104,9 +106,8 @@ const FLY_RISE = far(10);
  * hero's rig, by `WALK2_STRIDE`).
  */
 export const CREATURE_STRIDE = 6;
-/** How far the hero leans into a blow, in art pixels, and for how long. */
-export const LUNGE = 3;
-export const LUNGE_MS = 140;
+/** How long each frame of the hero's blow shows (lane B's `STRIKE2_FRAMES`, the blow on `STRIKE2_HIT_FRAME`). */
+export const STRIKE2_FRAME_MS = 80;
 
 const FONT = "'HH Digits', 'Pixelify Sans', ui-monospace, monospace";
 const WORDS = "'Pixelify Sans', ui-monospace, monospace";
@@ -222,19 +223,6 @@ export function liftOf(room: Room, foe: Foe): number {
   return Math.round(FLY_RISE + (seat - FLY_RISE) * k);
 }
 
-/** How far the hero leans toward his target as he strikes: his blows are the fight's 'hit' and 'miss' on foes. */
-export function heroLunge(battle: Battle, facing: Facing): number {
-  const last = battle.effects.reduce(
-    (t, e) => ((e.kind === 'hit' || e.kind === 'miss') && e.on === 'foe' ? Math.max(t, e.from) : t),
-    -Infinity,
-  );
-  const age = battle.clock - last;
-  if (!(age >= 0 && age < LUNGE_MS)) return 0;
-  // Out for the first half, back for the second.
-  const k = age < LUNGE_MS / 2 ? 1 : 0.5;
-  return Math.round(LUNGE * k) * (facing === 'left' ? -1 : 1);
-}
-
 /** When the hero last struck, on the run's clock: his blows are the fight's 'hit' and 'miss' on foes. */
 export function heroStruckAt(battle: Battle): number {
   return battle.effects.reduce(
@@ -277,14 +265,34 @@ export function heroStrikeFrame(
   return hit - Math.ceil(toGo / frameMs);
 }
 
-/** Whether the hero's blow is in its flash: the moment a weapon's glint is drawn. */
-export function heroSwinging(battle: Battle): number | null {
-  const last = battle.effects.reduce(
-    (t, e) => ((e.kind === 'hit' || e.kind === 'miss') && e.on === 'foe' ? Math.max(t, e.from) : t),
-    -Infinity,
-  );
-  const age = battle.clock - last;
-  return age >= 0 && age < LUNGE_MS ? age / LUNGE_MS : null;
+/** The hero's blow as lane B draws it: four frames, the blow on the third. */
+export const HERO_STRIKE: StrikeTiming = {
+  frames: STRIKE2_FRAMES,
+  hit: STRIKE2_HIT_FRAME,
+  frameMs: STRIKE2_FRAME_MS,
+};
+
+/**
+ * The hero's pose in a fight this moment if he is striking (`heroStrikeFrame`
+ * with lane B's blow), facing his target: across as he faces, or toward the
+ * camera or away when it is more above or below him than beside; null when
+ * he is not, and he walks or breathes as anywhere else.
+ */
+export function heroStrikePose(dungeon: Dungeon, run: Run): Pose2 | null {
+  const battle = run.battle;
+  if (!battle) return null;
+  const hero = run.play.walker.at;
+  const target = battle.foes.find((f) => f.key === battle.target && f.room === run.room) ?? null;
+  const place = placeOf(dungeon, run);
+  const coming =
+    !!target && !held(battle, place, target) && inReach(battle, mapOf(battle, place), hero, target);
+  const frame = heroStrikeFrame(battle, coming, HERO_STRIKE);
+  if (frame === null) return null;
+  const dx = target ? target.at.x - hero.x : 0;
+  const dy = target ? target.at.y - hero.y : 0;
+  const facing: Facing2 =
+    Math.abs(dy) > 1.5 * Math.abs(dx) ? (dy > 0 ? 'down' : 'up') : run.play.facing;
+  return { walking: false, striking: true, facing, frame };
 }
 
 /** A picture's pixels in one colour: how the hero looks for a moment when struck. Made once per picture. */
@@ -1256,9 +1264,8 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     } else if (e.kind === 'loot')
       boxes.push({ x: Math.floor(e.at.x) - 9, y: Math.floor(e.at.y) - 52, w: 19, h: 54 });
   }
-  // The hero's blow glinting, and a brace over his head.
-  const swing = heroSwinging(battle);
-  if (swing !== null || battle.braceUntil > clock)
+  // A brace over his head.
+  if (battle.braceUntil > clock)
     boxes.push({ x: Math.floor(hero.x) - 40, y: Math.floor(hero.y) - 90, w: 81, h: 96 });
   for (const p of battle.piles)
     if (p.room === run.room) {
@@ -1450,24 +1457,6 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         }
       }
       for (const e of battle.effects) drawEffectArt(ctx, e, clock);
-      if (swing !== null) {
-        // The blade's glint as he strikes: a bright arc out in front of him, there and gone.
-        const dir = run.play.facing === 'left' ? -1 : 1;
-        const cx = Math.round(hero.x) + dir * 14;
-        const cy = Math.round(hero.y) - 30;
-        ctx.globalAlpha = 1 - swing;
-        ctx.fillStyle = C.white;
-        for (let a = -60; a <= 60; a += 8) {
-          const r = (a * Math.PI) / 180;
-          ctx.fillRect(
-            cx + Math.round(Math.cos(r) * 14) * dir,
-            cy + Math.round(Math.sin(r) * 16),
-            2,
-            2,
-          );
-        }
-        ctx.globalAlpha = 1;
-      }
       if (battle.braceUntil > clock) {
         // Braced: a small shield over his head.
         const x = Math.round(hero.x);
