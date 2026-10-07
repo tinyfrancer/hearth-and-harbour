@@ -188,12 +188,12 @@ export function town2Stage(): {
     drive: (play, ms) => {
       folk = folkOn(folk, ms, play);
       // Nobody walks through anybody: he goes round them, and they give way to him.
-      const others = strolling(folk).map((s) => s.at);
+      const others = strolling(folk, play).map((s) => s.at);
       const walked = walkAmong((p, t) => advancePlay(scene, p, t), scene.map, play, ms, others);
       return faceStroller(play, walked, folk);
     },
     tap: (point, min, play) => {
-      const i = strollerAt(folk, scene, point, min);
+      const i = strollerAt(folk, scene, point, min, play);
       return i === null ? null : talkToStroller(scene, play, folk, i);
     },
   };

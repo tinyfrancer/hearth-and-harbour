@@ -166,12 +166,25 @@
   gap: 10px;
 }
 
-/* The face's frame: the art lane's portrait shows the whole face inside whatever square it is in. */
+/* The face's place beside the name: the face (`.scene-face`) is its own size, at least 48 across. */
 .scene-panel-face {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+/* A whole face at whole device pixels (`face.ts`): its frame is its own size, never stretched or cut. */
+.scene-face {
   display: block;
   flex: none;
-  width: 48px;
-  height: 48px;
+}
+
+.scene-face > canvas {
+  display: block;
+  image-rendering: pixelated;
 }
 
 .scene-panel-head h2 {
@@ -198,7 +211,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: min(100%, 336px);
+  width: min(100%, 364px);
   padding: 14px 16px 16px;
   background: var(--panel-raised);
   border: var(--px) solid var(--gold);
@@ -553,14 +566,15 @@
   will-change: transform;
 }
 
-/* The whole face at whole device pixels (`framedFace`), centred: never stretched or cut. */
+/* The whole face at whole device pixels (`framedFace`), centred: never stretched or cut. At least
+   48 across; a desktop screen (1x) has no whole scale under 72. */
 .fight-face {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
 }
 
 .fight-face > * {
@@ -916,29 +930,15 @@
   opacity: 0;
 }
 
+/* Up in the HUD's strip, in the target panel's place, when the fight fills both slots over the room. */
+.dungeon-title[data-slot='strip'] {
+  top: calc(8px + env(safe-area-inset-top));
+}
+
 /* Moved down above the ability bar when someone in the fight is under the top slot (`titleSlot`). */
 .dungeon-title[data-slot='bottom'] {
   top: auto;
   bottom: calc(88px + env(safe-area-inset-bottom));
-}
-
-.dungeon-title.shown {
-  animation: dungeon-title 2.8s ease-out forwards;
-}
-
-@keyframes dungeon-title {
-  0% {
-    opacity: 0;
-  }
-
-  12%,
-  70% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

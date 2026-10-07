@@ -112,18 +112,20 @@ function along(legs: readonly Leg[], d: number): { at: Point; leg: Leg } {
 
 /** Where a stroller is `clock` milliseconds into their own time (any number; the round repeats). */
 export function strollAt(round: Round, clock: number): Strolling {
+  return placeIn(round, clock).at;
+}
+
+/** Where a stroller is, and the stretch of route they are walking (null while resting). */
+function placeIn(round: Round, clock: number): { at: Strolling; leg: Leg | null } {
   const { stroll, out, back, length } = round;
   const home = out[0]?.from ?? centreOf(stroll.route[0]!, 1);
   const walkMs = (length * 1000) / stroll.speed;
   let t = (((clock + stroll.startMs) % round.ms) + round.ms) % round.ms;
-  if (!out.length) return { at: home, walking: false, walked: 0, way: 'across', side: 'right' };
-  const resting = (at: Point, side: Facing): Strolling => ({
-    at,
-    walking: false,
-    walked: 0,
-    way: 'across',
-    side,
+  const resting = (at: Point, side: Facing) => ({
+    at: { at, walking: false, walked: 0, way: 'across' as Way, side },
+    leg: null,
   });
+  if (!out.length) return resting(home, 'right');
   if (t < stroll.restMs) return resting(home, lastSide(back, 'right'));
   t -= stroll.restMs;
   for (const [legs, end] of [
@@ -133,7 +135,7 @@ export function strollAt(round: Round, clock: number): Strolling {
     if (t < walkMs) {
       const walked = (t * stroll.speed) / 1000;
       const { at, leg } = along(legs, walked);
-      return { at, walking: true, walked, way: leg.way, side: leg.side };
+      return { at: { at, walking: true, walked, way: leg.way, side: leg.side }, leg };
     }
     t -= walkMs;
     if (end === 'far') {
@@ -165,6 +167,59 @@ export function crowding(at: Point, other: Point): number {
   const a = (at.x - other.x) / PERSONAL.rx;
   const b = (at.y - other.y) / PERSONAL.ry;
   return a * a + b * b;
+}
+
+/**
+ * How far round someone a stroller steps, beyond their room: a tenth and a
+ * half more than its depth across the way they go, so she passes clear.
+ */
+export const PASS_ROOM = 1.15;
+
+/**
+ * Where a stroller walking her round is shown with someone standing at
+ * `other`: stepped aside from her route as she comes up to them, round them
+ * and back onto it, never into their room (`PERSONAL`). She steps to the side
+ * away from them (the side `open` allows, if it allows only one), by as much
+ * as their room needs at that point of her passing (and a little more),
+ * easing in before and out after. Resting, or with nobody in her way,
+ * she is where her round says. Null if neither side is open: she cannot get
+ * by, and waits (`strollPast`).
+ *
+ * Pure, and a smooth function of where both are, so it never jumps as either
+ * walks (but for someone crossing straight through her line while beside her).
+ */
+export function giveWay(
+  round: Round,
+  clock: number,
+  other: Point | null,
+  open: (p: Point) => boolean = () => true,
+): Strolling | null {
+  const { at: s, leg } = placeIn(round, clock);
+  if (!other || !leg || !s.walking || leg.length === 0) return s;
+  const u = { x: (leg.to.x - leg.from.x) / leg.length, y: (leg.to.y - leg.from.y) / leg.length };
+  const n = { x: -u.y, y: u.x };
+  const dx = other.x - s.at.x;
+  const dy = other.y - s.at.y;
+  const a = dx * u.x + dy * u.y;
+  const b = dx * n.x + dy * n.y;
+  // Their room along her way and across it (the routes run straight across or up and down).
+  const along = Math.abs(u.x) * PERSONAL.rx + Math.abs(u.y) * PERSONAL.ry;
+  const across = Math.abs(n.x) * PERSONAL.rx + Math.abs(n.y) * PERSONAL.ry;
+  // Eased over twice the room's length and its depth again, so the step aside is gentle even
+  // where the room is deep across her way (going up or down past him): it starts and ends level.
+  const k = a / (2 * along + across);
+  if (Math.abs(k) >= 1) return s;
+  const need = PASS_ROOM * across * (1 - k * k) ** 2;
+  if (Math.abs(b) >= need) return s;
+  // Away from them; straight at her, to the side her route's first choice is (its normal's).
+  const away = b > 0 ? -1 : 1;
+  const step = (o: number): Point => ({ x: s.at.x + n.x * o, y: s.at.y + n.y * o });
+  const near = step(away * (need - Math.abs(b)));
+  if (open(near)) return { ...s, at: near };
+  // That side is blocked: round them on theirs, further out.
+  const far = step(-away * (need + Math.abs(b)));
+  if (open(far)) return { ...s, at: far };
+  return null;
 }
 
 /** How long a stroller waits for someone in their way before turning back the way they came. */
@@ -222,10 +277,12 @@ function untilCrowding(at: (t: number) => Point, ms: number, other: Point): numb
 
 /**
  * A stroller's clock after `ms` with someone standing at `other` (null for
- * nobody): they walk their round, but stop at the edge of anyone's room in
- * their way, wait there, and after `TURN_MS` of waiting turn about and walk
- * back. `waited` is how long they have waited so far. However the time is
- * cut, they end in the same place (for someone who stays put).
+ * nobody): they walk their round, stepping round anyone in their way where
+ * the ground beside their route is `open` (`giveWay`); where it is not (or
+ * with no `open` given), they stop at the edge of that one's room, wait
+ * there, and after `TURN_MS` of waiting turn about and walk back. `waited` is
+ * how long they have waited so far. However the time is cut, they end in the
+ * same place (for someone who stays put).
  */
 export function strollPast(
   round: Round,
@@ -233,14 +290,18 @@ export function strollPast(
   ms: number,
   waited: number,
   other: Point | null,
+  open?: (p: Point) => boolean,
 ): { clock: number; waited: number } {
   if (!other) return { clock: clock + Math.max(0, ms), waited: 0 };
   let left = Math.max(0, ms);
   let c = clock;
   let w = waited;
+  // Where she is shown: stepping round him where she can (`giveWay`), on her route where she cannot.
+  const shownAt = (t: number): Point =>
+    (open ? giveWay(round, t, other, open) : null)?.at ?? strollAt(round, t).at;
   for (let turns = 0; turns < 4 && left > 0; turns++) {
     const from = c;
-    const go = untilCrowding((t) => strollAt(round, from + t).at, left, other);
+    const go = untilCrowding((t) => shownAt(from + t), left, other);
     c = from + go;
     left -= go;
     if (left <= 0) return { clock: c, waited: go > 0 ? 0 : w };

@@ -44,19 +44,22 @@ const T = DUNGEON.tile;
 /** A cell's variant, as the art lane asks for it: its index in the room, so neighbours differ. */
 export const cellVariant = (cols: number, col: number, row: number): number => row * cols + col;
 
+/** Whether a kind is a door, in a face or a side wall. */
+const isDoor = (k: Tile2Kind | 'rock' | undefined): boolean => !!k && k.startsWith('door_');
+
 /** Whether a kind is ground a wall's face looks out over: anything but rock and doors. */
 const open = (k: Tile2Kind | 'rock' | undefined): boolean =>
-  k !== undefined && k !== 'rock' && k !== 'door_open' && k !== 'door_barred';
+  k !== undefined && k !== 'rock' && !isDoor(k);
 
 /**
- * The tile a door is drawn with, open or barred. LANE B'S SIDE-WALL DOOR
- * PLUGS IN HERE: a door in a side wall (the room's first or last column)
- * will take lane B's side-wall door tiles once they are on `main`; until
- * then every door is the back wall's.
+ * The tile a door is drawn with, open or barred: a door in a side wall (the
+ * room's first or last column) is the art lane's side-wall door, seen from
+ * above as side walls are, and turned to the room by the open ground beside
+ * it (`around`); any other is set in the face of the wall the viewer faces.
  */
 export function doorTile(room: Room, col: number, barred: boolean): Tile2Kind {
   const side = col === 0 || col === room.ground.cols - 1;
-  void side;
+  if (side) return barred ? 'door_side_barred' : 'door_side_open';
   return barred ? 'door_barred' : 'door_open';
 }
 
@@ -406,6 +409,18 @@ export interface RoomLook {
    * can be painted).
    */
   stillAt(level: number, warn: boolean): StillPicture | null;
+  /**
+   * The nearest state to this one whose ground is in (the same, if it is;
+   * else the nearest level of the water), or null if none of the room's is:
+   * shown for the moment the exact one is still being painted, so the room
+   * is never dark while its ground comes.
+   */
+  nearestIn(level: number, warn: boolean): TideState | null;
+  /**
+   * Works a state out here and now, before returning, if it is not in yet:
+   * for a moment when a pause cannot be seen (the dark of a door).
+   */
+  paintNow(level: number, warn: boolean): void;
   /** The cells of the ground at a state of the tide, lit; null until worked out. */
   cellsAt(level: number, warn: boolean): TGrid | null;
   /** The tile kinds at a state of the tide. */
@@ -513,6 +528,29 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       const s = stateOf(room, level, warn);
       ask(s, true);
       return done.get(key(s))?.still ?? null;
+    },
+    nearestIn(level, warn) {
+      const s = stateOf(room, level, warn);
+      if (done.has(key(s))) return s;
+      let best: TideState | null = null;
+      let far = Infinity;
+      for (const o of states) {
+        if (!done.has(key(o))) continue;
+        // The nearest water first; a warning's darkened sand only breaks a tie.
+        const d = Math.abs(o.level - s.level) * 2 + (o.warn === s.warn ? 0 : 1);
+        if (d < far) {
+          far = d;
+          best = o;
+        }
+      }
+      return best;
+    },
+    paintNow(level, warn) {
+      const s = stateOf(room, level, warn);
+      const k = key(s);
+      if (done.has(k)) return;
+      asked.add(k);
+      groundOnTheSpot.paint(room, s, true, (cells, data) => arrive(s, cells, data));
     },
     cellsAt(level, warn) {
       return done.get(key(stateOf(room, level, warn)))?.cells ?? null;

@@ -570,6 +570,7 @@ describe('a run with something to fight', () => {
         coins: 7,
         kills: 2,
         killed: { dock_rat: 2 },
+        dropped: {},
         eaten: 2,
         shot: 9,
       },

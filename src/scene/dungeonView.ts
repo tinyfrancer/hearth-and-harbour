@@ -10,7 +10,6 @@
 import { DAY } from '../art/palette';
 import { pixelCanvas } from '../art/canvas';
 import { itemIcon, skillIcon } from '../art/icons';
-import { portrait2 } from '../art/portraits2';
 import { PLAYER_ATTACK_MS } from '../core/combat';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
@@ -50,13 +49,14 @@ import {
   HERO_TALL,
   fightArtFor,
   fightExtra,
-  heroLunge,
+  heroStrikePose,
   liftOf,
   tapLift,
   tideStateOf,
   type FightArt,
 } from './fightArt';
-import { anchorOf, FIGURE2_SOLE_Y, heroPose } from './figures2';
+import { anchorOf, FIGURE2_SOLE_Y, heroPose, POSES2, STRIKE_POSES2 } from './figures2';
+import { wholeFace } from './face';
 import { abilityPicture, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
@@ -88,6 +88,9 @@ export const FOCUS_RISE_DUNGEON = 30;
 
 /** Half the width of the hero's contact shadow, as the art lane's figures are shaded (22 across). */
 export const HERO_SHADOW = 11;
+
+/** Every pose the hero takes in a fight, painted ahead a frame at a time: his walk, breath and blow. */
+const FIGHT_POSES = [...POSES2, ...STRIKE_POSES2];
 
 /** An empty figure: the stage's plain walker, never shown (the hero comes placed). */
 let empty: HTMLCanvasElement | null = null;
@@ -152,6 +155,21 @@ export interface CssBox {
  */
 export const TITLE_SLOTS = { top: 72, bottom: 88, strip: 8 } as const;
 export type TitleSlot = keyof typeof TITLE_SLOTS;
+
+/** How long a room's name shows, on the run's clock: in, held, and out. */
+export const TITLE_MS = 2800;
+
+/**
+ * How seen a room's name is `ms` into its moment, 0 to 1 (in over the first
+ * eighth, held to seven tenths, out by the end); null once it is over.
+ */
+export function titleOpacity(ms: number): number | null {
+  if (ms >= TITLE_MS || ms < 0) return null;
+  const t = ms / TITLE_MS;
+  if (t < 0.12) return t / 0.12;
+  if (t <= 0.7) return 1;
+  return (1 - t) / 0.3;
+}
 
 /** The HUD's strip at the top, the target panel's place: as tall as that panel, in CSS pixels. */
 export const STRIP_HEIGHT = 60;
@@ -232,20 +250,14 @@ export function combatantBoxes(
   return boxes;
 }
 
-/** The frame a face is shown in at the top of a fight, in CSS pixels (`.fight-face` in `scene.css`). */
-export const FACE_FRAME = 48;
-
 /**
  * A foe's whole face for the target panel, or null if the art lane has
- * none: its C-scale portrait, which shows the whole of its 72-pixel face in
- * whatever square frame it is put in (in the 48-pixel frame, two device
- * pixels an art pixel on a 3x phone), so everything in its safe box
- * (`PORTRAIT2_SAFE`) shows, hat to chin.
+ * none: its portrait at whole device pixels, as large as fits the top strip,
+ * in a frame its own size (`face.ts`), so everything in its safe box
+ * (`PORTRAIT2_SAFE`) shows, hat to chin, at any screen.
  */
 export function framedFace(id: string): Element | null {
-  const face = portrait2(id);
-  face?.setAttribute('aria-hidden', 'true');
-  return face;
+  return wholeFace(id);
 }
 
 /** A picture for a button, two CSS pixels to the art pixel. */
@@ -486,19 +498,30 @@ export function dungeonView(options: DungeonViewOptions): View {
   let art: FightArt = fightArtFor(look);
   /** The room's ground as last shown: kept on screen while the tide's next one is still being painted. */
   let lastStill: StillPicture | null = null;
-  /** Whether the room's ground is in: until it is, the room stays dark and the run waits. */
+  /**
+   * Whether the room's ground is in: any state of its tide will do for the
+   * moment the exact one is still being painted (`stillFor`). A room is
+   * shown with its ground or not at all: it is painted ahead while the room
+   * before is up, and at the latest in the dark of the door (`showRoom`).
+   */
   const roomIn = (run: Run): boolean => {
     const s = tideStateOf(dungeon, run);
-    return look.ready(s.level, s.warn) || lastStill !== null;
+    return lastStill !== null || look.nearestIn(s.level, s.warn) !== null;
   };
   const playing = (): boolean => sideways(size) && !options.run().finished && roomIn(options.run());
 
-  /** The room as the tide has it now, darkening where it is about to come in. */
+  /**
+   * The room as the tide has it now, darkening where it is about to come in;
+   * until that is painted, the ground as last shown, or the nearest state of
+   * the tide that is in.
+   */
   const stillFor = (run: Run): StillPicture | null => {
     const s = tideStateOf(dungeon, run);
     const still = look.stillAt(s.level, s.warn);
     if (still) lastStill = still;
-    return still ?? lastStill;
+    if (still ?? lastStill) return still ?? lastStill;
+    const near = look.nearestIn(s.level, s.warn);
+    return near && look.stillAt(near.level, near.warn);
   };
 
   /** The hero's contact shadow, cut from the room's ground under his feet. */
@@ -523,6 +546,10 @@ export function dungeonView(options: DungeonViewOptions): View {
     }
     art = fightArtFor(look);
     lastStill = null;
+    // Never a dark room: if none of its ground is in yet, it is worked out now, in the dark of the
+    // door (or, rowing out, after the town has waited for the worker as long as it will).
+    const tide = tideStateOf(dungeon, run);
+    if (!look.nearestIn(tide.level, tide.warn)) look.paintNow(tide.level, tide.warn);
     look.lock.map = groundNow(dungeon, run);
     given = run.play;
     roomShown = run.room;
@@ -535,14 +562,14 @@ export function dungeonView(options: DungeonViewOptions): View {
         walkerAt: () => nobody(),
         walkerPlaced: (play, feet, _palette, now) => {
           const run = options.run();
-          const pose = heroPose(play, now);
+          // Striking, timed from the fight's state; otherwise walking or breathing as anywhere.
+          const pose = heroStrikePose(dungeon, run) ?? heroPose(play, now);
           const image = hero.at(feet, pose, 'dusk');
-          hero.warm('dusk');
-          const lean = run.battle ? heroLunge(run.battle, play.facing) : 0;
+          hero.warm('dusk', FIGHT_POSES);
           return (
             image && {
               image,
-              x: feet.x + lean - anchorOf(pose),
+              x: feet.x - anchorOf(pose),
               y: feet.y - FIGURE2_SOLE_Y,
               base: feet.y,
             }
@@ -611,19 +638,43 @@ export function dungeonView(options: DungeonViewOptions): View {
     });
     room.replaceChildren(roomView.el);
     lookedAt = null;
-    if (here.title) {
-      title.textContent = here.title;
-      // Unseen until the first frame says where everyone is.
-      title.style.visibility = 'hidden';
-      title.dataset.slot = 'top';
-      // Played again from the start for each room.
-      title.classList.remove('shown');
-      void title.offsetWidth;
+    // The room's name waits until the room is seen (`showTitle`).
+    titleFrom = null;
+    titleWaiting = here.title !== null;
+    title.classList.remove('shown');
+    title.style.opacity = '0';
+    title.textContent = here.title ?? '';
+    title.dataset.slot = 'top';
+  };
+
+  /** When, on the run's own clock, the room's name began to show; null while it is not showing. */
+  let titleFrom: number | null = null;
+  /** Whether the room's name is still to show: the room has not been seen yet. */
+  let titleWaiting = false;
+
+  /**
+   * The room's name, shown for its moment once the room is seen (sideways,
+   * out of the door's dark, its ground in) and timed on the run's clock,
+   * which stops behind the prompt to turn the phone and while the page is
+   * away: so it is never played to a dark room or a covered screen.
+   */
+  const showTitle = (run: Run, visible: boolean): void => {
+    if (titleWaiting && visible) {
+      titleWaiting = false;
+      titleFrom = run.ms;
       title.classList.add('shown');
     }
+    if (titleFrom === null) return;
+    const opacity = titleOpacity(run.ms - titleFrom);
+    if (opacity === null) {
+      titleFrom = null;
+      title.classList.remove('shown');
+      title.style.opacity = '0';
+      return;
+    }
+    const value = String(Math.round(opacity * 100) / 100);
+    if (title.style.opacity !== value) title.style.opacity = value;
   };
-  // The name's moment is over: it goes, and the strip is the target panel's again.
-  title.addEventListener('animationend', () => title.classList.remove('shown'));
 
   /** Where the camera was for the last frame drawn, and the size of an art pixel on screen. */
   let lookedAt: { camera: Point; cssPerArt: number } | null = null;
@@ -828,6 +879,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         options.finished();
       }
       showFight(after);
+      showTitle(after, playing() && !after.doorway);
       placeTitle(after);
       // Dark through a door, and until the room's ground is in.
       fade.style.opacity = String(roomIn(after) ? doorwayDark(after.doorway) : 1);

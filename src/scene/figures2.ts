@@ -22,9 +22,11 @@ import {
   FIGURE2_W as W,
   IDLE2_FRAME_MS,
   IDLE2_FRAMES,
+  STRIKE2_FRAMES,
   WALK2_FRAMES,
   WALK2_STRIDE,
   characterIdlePicture2,
+  characterStrikePicture2,
   characterWalkPicture2,
   facingLeft2,
   townsfolkIdlePicture2,
@@ -66,13 +68,16 @@ export interface Raw {
 
 /**
  * How a figure stands this frame: walking (a frame of lane B's stride, in
- * one of its facings) or standing (a frame of the breath, facing left or
- * right, the left the mirror of the right).
+ * one of its facings), striking (a frame of the hero's blow, in one of its
+ * facings), or standing (a frame of the breath, facing left or right, the
+ * left the mirror of the right).
  */
 export interface Pose2 {
   readonly walking: boolean;
   readonly facing: Facing2;
   readonly frame: number;
+  /** A frame of the hero's blow (`STRIKE2_FRAMES`), not of the walk or the breath. */
+  readonly striking?: boolean;
 }
 
 /** Standing as drawn: facing right, breath out. */
@@ -88,8 +93,20 @@ export const POSES2: readonly Pose2[] = [
   ),
 ];
 
+/** Every frame of the hero's blow, in each facing: what a fight warms ahead as well. */
+export const STRIKE_POSES2: readonly Pose2[] = (['right', 'left', 'down', 'up'] as const).flatMap(
+  (facing) =>
+    Array.from({ length: STRIKE2_FRAMES }, (_, frame) => ({
+      walking: false,
+      facing,
+      frame,
+      striking: true,
+    })),
+);
+
 /** A pose as a short key, for keeping its pictures. */
-export const poseKey = (p: Pose2): string => `${p.walking ? 'w' : 's'}${p.facing}${p.frame}`;
+export const poseKey = (p: Pose2): string =>
+  `${p.striking ? 'k' : p.walking ? 'w' : 's'}${p.facing}${p.frame}`;
 
 /** The column of the canvas the soles' middle is on, in this pose. */
 export const anchorOf = (p: Pose2): number => (p.facing === 'left' ? W - 1 - ANCHOR_X : ANCHOR_X);
@@ -166,10 +183,11 @@ export interface Figure2 {
   pixels(pose: Pose2, time: TimeOfDay, glows: readonly Glow[]): Raw;
 }
 
-/** Where a figure's pictures come from, pose by pose: lane B's walk and breath, for one person. */
+/** Where a figure's pictures come from, pose by pose: lane B's walk and breath (and blow), for one person. */
 interface Poser {
   walk(facing: Facing2, frame: number): Picture2 | null;
   idle(frame: number): Picture2 | null;
+  strike?(facing: Facing2, frame: number): Picture2 | null;
 }
 
 /** The player's character in their look and gear, as the C-scale town shows them. */
@@ -177,6 +195,7 @@ export function heroFigure2(look: Look, worn: readonly string[]): Figure2 {
   return figureOf({
     walk: (facing, frame) => characterWalkPicture2(look, worn, facing, frame),
     idle: (frame) => characterIdlePicture2(look, worn, frame),
+    strike: (facing, frame) => characterStrikePicture2(look, worn, facing, frame),
   })!;
 }
 
@@ -197,7 +216,8 @@ function figureOf(poser: Poser): Figure2 | null {
     const key = poseKey(pose);
     let pic = pictures.get(key);
     if (!pic) {
-      if (pose.walking) pic = poser.walk(pose.facing, pose.frame) ?? right;
+      if (pose.striking) pic = poser.strike?.(pose.facing, pose.frame) ?? right;
+      else if (pose.walking) pic = poser.walk(pose.facing, pose.frame) ?? right;
       else {
         const still = poser.idle(pose.frame) ?? right;
         pic = pose.facing === 'left' ? facingLeft2(still) : still;

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FOE2_SIZES } from '../../src/art/dungeonArt2';
-import { PORTRAIT2_SAFE, PORTRAIT2_SIZE, portraitScales2 } from '../../src/art/portraits2';
+import { PORTRAIT2_SAFE, PORTRAIT2_SIZE } from '../../src/art/portraits2';
 import { MELEE_REACH, RANGED_REACH, STEP_BACK, SWEEP_REACH } from '../../src/scene/battle';
 import { GROTTO_CAST } from '../../src/scene/cast';
+import { FACE_MOST, faceScale } from '../../src/scene/face';
 import { C_SCALE, DUNGEON, FIRST_SCALE, far } from '../../src/scene/dungeonMetrics';
 import {
-  FACE_FRAME,
   STRIP_HEIGHT,
   TITLE_SLOTS,
   framedFace,
@@ -25,21 +25,34 @@ afterEach(() => vi.unstubAllGlobals());
 const GROTTO_IDS = Object.keys(GROTTO_CAST);
 
 describe('the target’s face', () => {
-  // Phones' ratios. (At 1x, a desktop, the art lane's smallest face is 72 CSS pixels, more than
-  // the frame: noted for the art lane in docs/status/lane-c.md.)
-  for (const dpr of [2, 2.625, 3, 3.5])
-    it(`shows the whole portrait inside its frame at ${dpr}x, safe box and all`, () => {
+  // A desktop (1x) and phones' ratios: the whole face at whole device pixels, as large as fits.
+  const sizes: Record<number, number> = {
+    1: 72,
+    2: 36,
+    2.625: 72 * (2 / 2.625),
+    3: 48,
+    3.5: 72 * (2 / 3.5),
+  };
+  for (const dpr of [1, 2, 2.625, 3, 3.5])
+    it(`shows the whole portrait, its frame its own size, at ${dpr}x`, () => {
       vi.stubGlobal('devicePixelRatio', dpr);
       for (const id of GROTTO_IDS) {
-        const face = framedFace(id)!;
+        const face = framedFace(id) as HTMLElement;
         expect(face, id).not.toBeNull();
-        // The canvas the 48-pixel frame shows (`portraits2.css`): the whole 72-pixel face, never cut.
-        const mini = face.querySelector<HTMLCanvasElement>('.portrait2-mini')!;
-        expect(parseFloat(mini.style.width), id).toBeLessThanOrEqual(FACE_FRAME + 1e-9);
-        expect(parseFloat(mini.style.height), id).toBeLessThanOrEqual(FACE_FRAME + 1e-9);
-        const per = portraitScales2(dpr).mini;
-        expect(mini.width, id).toBeGreaterThanOrEqual(PORTRAIT2_SIZE * per);
-        // Everything that names the face lies inside the picture, so inside the frame.
+        const canvas = face.querySelector('canvas')!;
+        // Every art pixel a whole number of device pixels: the 72-pixel face, all of it (the
+        // canvas padded to a whole CSS pixel by under one).
+        const per = faceScale(dpr);
+        expect(Number.isInteger(per)).toBe(true);
+        expect(canvas.width, id).toBeGreaterThanOrEqual(PORTRAIT2_SIZE * per);
+        expect(canvas.width, id).toBeLessThan(PORTRAIT2_SIZE * per + Math.ceil(dpr) + 1);
+        expect(canvas.height).toBe(canvas.width);
+        // Its frame is the canvas's own size, so nothing is cut.
+        expect(face.style.width).toBe(canvas.style.width);
+        expect(face.style.height).toBe(canvas.style.height);
+        expect(Math.abs(parseFloat(canvas.style.width) - sizes[dpr]!)).toBeLessThan(2);
+        // Inside the strip's room wherever a whole scale allows.
+        if (dpr > 1) expect(parseFloat(canvas.style.width)).toBeLessThanOrEqual(FACE_MOST + 1);
         const safe = PORTRAIT2_SAFE[id]!;
         expect(safe.x + safe.w, id).toBeLessThanOrEqual(PORTRAIT2_SIZE);
         expect(safe.y + safe.h, id).toBeLessThanOrEqual(PORTRAIT2_SIZE);

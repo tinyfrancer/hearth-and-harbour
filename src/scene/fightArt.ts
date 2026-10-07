@@ -37,15 +37,17 @@ import {
   type Foe2Pose,
   type Foe2Size,
 } from '../art/dungeonArt2';
-import { WALK2_STRIDE } from '../art/character2';
+import { STRIKE2_FRAMES, STRIKE2_HIT_FRAME, WALK2_STRIDE, type Facing2 } from '../art/character2';
 import { addGlow, type Glow } from '../art/raster';
-import { cell, outlined, tgrid, type Picture2 } from '../art/town2/cells';
 import type { Mat } from '../art/town2/ramps';
 import {
   EFFECT_MS,
   SAY_MS,
+  TICK_MS,
   alive,
   held,
+  inReach,
+  mapOf,
   roomLocked,
   tideOf,
   type Battle,
@@ -53,10 +55,11 @@ import {
   type Foe,
   type Telegraph,
 } from './battle';
+import { shownApart, type Figure } from './apart';
 import type { Placed, Standing } from './draw';
 import { placeOf, type Dungeon, type Room, type Run } from './dungeon';
 import { DUNGEON, far } from './dungeonMetrics';
-import { breathFrame } from './figures2';
+import { breathFrame, type Pose2 } from './figures2';
 import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import {
@@ -102,9 +105,13 @@ const FLY_RISE = far(10);
  * hero's rig, by `WALK2_STRIDE`).
  */
 export const CREATURE_STRIDE = 6;
-/** How far the hero leans into a blow, in art pixels, and for how long. */
-export const LUNGE = 3;
-export const LUNGE_MS = 140;
+/**
+ * How long each frame of the hero's blow shows (lane B's `STRIKE2_FRAMES`, the
+ * blow on `STRIKE2_HIT_FRAME`: about 90 to 110 ms reads well, lane B says),
+ * and how much longer the recovery is held before he stands again.
+ */
+export const STRIKE2_FRAME_MS = 100;
+export const STRIKE2_HOLD_MS = 150;
 
 const FONT = "'HH Digits', 'Pixelify Sans', ui-monospace, monospace";
 const WORDS = "'Pixelify Sans', ui-monospace, monospace";
@@ -220,27 +227,80 @@ export function liftOf(room: Room, foe: Foe): number {
   return Math.round(FLY_RISE + (seat - FLY_RISE) * k);
 }
 
-/** How far the hero leans toward his target as he strikes: his blows are the fight's 'hit' and 'miss' on foes. */
-export function heroLunge(battle: Battle, facing: Facing): number {
-  const last = battle.effects.reduce(
+/** When the hero last struck, on the run's clock: his blows are the fight's 'hit' and 'miss' on foes. */
+export function heroStruckAt(battle: Battle): number {
+  return battle.effects.reduce(
     (t, e) => ((e.kind === 'hit' || e.kind === 'miss') && e.on === 'foe' ? Math.max(t, e.from) : t),
     -Infinity,
   );
-  const age = battle.clock - last;
-  if (!(age >= 0 && age < LUNGE_MS)) return 0;
-  // Out for the first half, back for the second.
-  const k = age < LUNGE_MS / 2 ? 1 : 0.5;
-  return Math.round(LUNGE * k) * (facing === 'left' ? -1 : 1);
 }
 
-/** Whether the hero's blow is in its flash: the moment a weapon's glint is drawn. */
-export function heroSwinging(battle: Battle): number | null {
-  const last = battle.effects.reduce(
-    (t, e) => ((e.kind === 'hit' || e.kind === 'miss') && e.on === 'foe' ? Math.max(t, e.from) : t),
-    -Infinity,
-  );
-  const age = battle.clock - last;
-  return age >= 0 && age < LUNGE_MS ? age / LUNGE_MS : null;
+/** A strike as drawn: how many frames, which one is the blow, and how long each shows. */
+export interface StrikeTiming {
+  readonly frames: number;
+  readonly hit: number;
+  readonly frameMs: number;
+  /** How much longer the last frame (the recovery) is held. */
+  readonly holdMs?: number;
+}
+
+/**
+ * Which frame of his strike the hero shows now, or null for none: timed so
+ * that the blow's frame (`hit`) shows exactly when the blow falls on the
+ * fight's clock. The frames before it play as his next blow comes due (when
+ * `coming`: a target in reach), from where the fight's state says it will
+ * fall (the next tick his swing timer reaches nothing); the frames after it
+ * play from when it fell. Drawn from the state and the time alone: nothing
+ * here changes when a blow falls, and a blow that does not come (the target
+ * steps out of reach at the last) just ends the wind-up.
+ */
+export function heroStrikeFrame(
+  battle: Battle,
+  coming: boolean,
+  timing: StrikeTiming,
+): number | null {
+  const { frames, hit, frameMs, holdMs = 0 } = timing;
+  const clock = battle.clock;
+  const age = clock - heroStruckAt(battle);
+  if (age >= 0 && age < (frames - hit) * frameMs + holdMs)
+    return Math.min(frames - 1, hit + Math.floor(age / frameMs));
+  if (!coming || battle.over || battle.wash || battle.blowMs <= 0) return null;
+  // His swing timer moves on ticks: the blow falls on the tick it reaches nothing.
+  const due = Math.floor(clock / TICK_MS + 1e-9) * TICK_MS + battle.blowMs;
+  const toGo = due - clock;
+  if (toGo <= 0 || toGo > hit * frameMs) return null;
+  return hit - Math.ceil(toGo / frameMs);
+}
+
+/** The hero's blow as lane B draws it: four frames, the blow on the third, the recovery held. */
+export const HERO_STRIKE: StrikeTiming = {
+  frames: STRIKE2_FRAMES,
+  hit: STRIKE2_HIT_FRAME,
+  frameMs: STRIKE2_FRAME_MS,
+  holdMs: STRIKE2_HOLD_MS,
+};
+
+/**
+ * The hero's pose in a fight this moment if he is striking (`heroStrikeFrame`
+ * with lane B's blow), facing his target: across as he faces, or toward the
+ * camera or away when it is more above or below him than beside; null when
+ * he is not, and he walks or breathes as anywhere else.
+ */
+export function heroStrikePose(dungeon: Dungeon, run: Run): Pose2 | null {
+  const battle = run.battle;
+  if (!battle) return null;
+  const hero = run.play.walker.at;
+  const target = battle.foes.find((f) => f.key === battle.target && f.room === run.room) ?? null;
+  const place = placeOf(dungeon, run);
+  const coming =
+    !!target && !held(battle, place, target) && inReach(battle, mapOf(battle, place), hero, target);
+  const frame = heroStrikeFrame(battle, coming, HERO_STRIKE);
+  if (frame === null) return null;
+  const dx = target ? target.at.x - hero.x : 0;
+  const dy = target ? target.at.y - hero.y : 0;
+  const facing: Facing2 =
+    Math.abs(dy) > 1.5 * Math.abs(dx) ? (dy > 0 ? 'down' : 'up') : run.play.facing;
+  return { walking: false, striking: true, facing, frame };
 }
 
 /** A picture's pixels in one colour: how the hero looks for a moment when struck. Made once per picture. */
@@ -675,6 +735,7 @@ function drawFoeOver(
   ctx: CanvasRenderingContext2D,
   battle: Battle,
   foe: Foe,
+  shownX: number,
   lift: number,
   targeted: boolean,
   k: number,
@@ -682,7 +743,7 @@ function drawFoeOver(
   const def = battle.monsters[foe.monster]!;
   const kind = foeKind(foe.monster);
   const w = Math.max(24, Math.min(54, kind.box.w));
-  const x = foe.at.x - w / 2;
+  const x = shownX - w / 2;
   const y = Math.round(foe.at.y - lift - standsOf(foe.monster) - 8);
   const bar = 4 * k;
   if (!kind.boss) {
@@ -704,7 +765,7 @@ function drawFoeOver(
   if (foe.rallied) {
     // Egged on by the parrot: a pair of bold green chevrons over his head, flickering.
     const on = Math.floor(battle.clock / 200) % 2 === 0;
-    const cx = foe.at.x + w / 2 + 4 * k;
+    const cx = shownX + w / 2 + 4 * k;
     const cy = y - 12 * k;
     const s = 2 * k;
     ctx.fillStyle = C.ink;
@@ -720,9 +781,9 @@ function drawFoeOver(
   if (foe.heavy) {
     // Winding up something big.
     const blink = Math.floor(battle.clock / 120) % 2 === 0;
-    label(ctx, '!', foe.at.x, y - 3 * k, 18, blink ? C.fire1 : C.fire2, k);
+    label(ctx, '!', shownX, y - 3 * k, 18, blink ? C.fire1 : C.fire2, k);
   } else if (targeted) {
-    const tx = foe.at.x;
+    const tx = shownX;
     const ty = y - 5 * k;
     ctx.fillStyle = C.ink;
     ctx.fillRect(tx - 6 * k, ty - 6 * k, 13 * k, 3 * k);
@@ -906,42 +967,21 @@ function drawRipples(ctx: CanvasRenderingContext2D, cells: readonly Cell[], cloc
   ctx.globalAlpha = 1;
 }
 
-/** A sack of loot on the floor, with a glint of coin: this scene's own, until the art lane draws one. */
-const LOOT: Picture2 = (() => {
-  const g = tgrid(14, 13);
-  const W = 14;
-  for (let y = 3; y < 12; y++)
-    for (let x = 1; x < W - 1; x++) {
-      const dx = (x - 6.5) / 5.5;
-      const dy = (y - 7.5) / 4.5;
-      if (dx * dx + dy * dy > 1) continue;
-      // Lit from the upper left, as everything is.
-      const lit = dx + dy;
-      g.d[y * W + x] = cell('linen', lit < -0.6 ? 1 : lit < 0.2 ? 2 : lit < 0.8 ? 3 : 4);
-    }
-  for (const [x, y] of [
-    [5, 1],
-    [6, 1],
-    [7, 1],
-    [6, 2],
-  ] as const)
-    g.d[y * W + x] = cell('linen', 3);
-  for (const [x, y] of [
-    [5, 3],
-    [6, 3],
-    [7, 3],
-  ] as const)
-    g.d[y * W + x] = cell('leather', 3);
-  for (const [x, y, t] of [
-    [10, 10, 1],
-    [11, 10, 2],
-    [10, 11, 3],
-    [11, 11, 3],
-  ] as const)
-    g.d[y * W + x] = cell('gold', t);
-  return { grid: outlined(g), glows: [] };
-})();
-const LOOT_FEET = { x: 7, y: 13 };
+/** Loot on the floor as drawn: its picture, and where on it the floor is. */
+export interface LootArt {
+  readonly image: HTMLCanvasElement;
+  readonly feet: Point;
+}
+
+/**
+ * Loot on the floor: the art lane's `loot_pile` prop (`dungeonProp2`), stood
+ * on its foot, in the cave's dusk. Null where nothing can be painted.
+ */
+export function lootArt(): LootArt | null {
+  const pile = dungeonProp2('loot_pile');
+  const image = pile && dungeonPropSprite2('loot_pile', CAVE_DUSK);
+  return pile && image ? { image, feet: { x: pile.foot, y: pile.base } } : null;
+}
 
 /** The half-width of a lit fuse's glow on its canvas. */
 const FUSE_R = Math.ceil(FUSE_LIGHT2.radius);
@@ -984,7 +1024,7 @@ function fuseGlow(strength: number): HTMLCanvasElement | null {
 export interface FightArt {
   readonly foes: FoePictures;
   readonly shadows: Map<string, CaveShadow>;
-  readonly loot: HTMLCanvasElement | null;
+  readonly loot: LootArt | null;
   /** Each door's barred tile, on a canvas, by the door's letter. */
   readonly bars: Map<string, HTMLCanvasElement | null>;
 }
@@ -994,7 +1034,7 @@ export function fightArtFor(look: RoomLook): FightArt {
   return {
     foes: new FoePictures(look.glows),
     shadows: new Map(),
-    loot: paintCells(LOOT),
+    loot: lootArt(),
     bars: new Map(),
   };
 }
@@ -1024,6 +1064,56 @@ export function tideStateOf(dungeon: Dungeon, run: Run): { level: number; warn: 
 /** How tall the hero stands above his feet, for what floats over him. */
 export const HERO_TALL = 66;
 
+/** Half the hero's body across, in art pixels, as `apart.ts` reckons him: his box, less its edge. */
+export const HERO_HALF = 13;
+
+/**
+ * Everyone fighting in a run's room as `shownApart` reckons them: the hero,
+ * and each foe standing on the ground (or falling, counting less as it
+ * goes), its body either side of its feet from the art lane's sizes. A bird
+ * in the air, someone behind bars, and a crew that has fled are left out.
+ */
+export function fightFigures(dungeon: Dungeon, run: Run): Figure[] {
+  const battle = run.battle;
+  const hero: Figure = {
+    key: 'hero',
+    at: run.play.walker.at,
+    left: HERO_HALF,
+    right: HERO_HALF,
+    rank: 0,
+    weight: 1,
+  };
+  if (!battle) return [hero];
+  const place = placeOf(dungeon, run);
+  const out: Figure[] = [hero];
+  for (const foe of battle.foes) {
+    if (foe.room !== run.room || foe.fled || held(battle, place, foe)) continue;
+    if (foe.flight && foe.flight.mode !== 'down') continue;
+    const weight = alive(foe) ? 1 : Math.max(0, 1 - (battle.clock - foe.diedAt!) / FALL_MS);
+    if (weight <= 0) continue;
+    const size = sizeOf(foe.monster);
+    const half = size.box.w / 2;
+    // The body ahead of the feet and behind them, less a weapon held clear of it.
+    const front = Math.min(size.front, half + 8);
+    const back = Math.min(size.back, half + 8);
+    const right = foe.facing === 'right';
+    out.push({
+      key: foe.key,
+      at: foe.at,
+      left: right ? back : front,
+      right: right ? front : back,
+      rank: foeKind(foe.monster).boss || size.box.w >= 48 ? 2 : 1,
+      weight,
+    });
+  }
+  return out;
+}
+
+/** How far to the side each figure in a run's room is drawn from its feet, by key (`'hero'` for him). */
+export function fightApart(dungeon: Dungeon, run: Run): Map<string, number> {
+  return shownApart(fightFigures(dungeon, run));
+}
+
 /**
  * Everything a run's fight adds to the stage this frame: the cast standing,
  * their shadows, what lies on the ground, what is over them in art pixels,
@@ -1042,6 +1132,9 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
   const here = battle.foes.filter(
     (f) => f.room === run.room && !f.fled && (alive(f) || clock - f.diedAt! < FALL_MS),
   );
+  // Drawn a little apart where two would be painted over each other; nobody's place in the fight moves.
+  const apart = fightApart(dungeon, run);
+  const shownX = (foe: Foe): number => foe.at.x + (apart.get(foe.key) ?? 0);
   const actors: Standing[] = [];
   const shadows: Placed[] = [];
   const fuses: Point[] = [];
@@ -1054,7 +1147,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     const kind = foeKind(foe.monster);
     const shown = foePose(foe, clock, def?.speedMs ?? 2000, kind);
     const lift = liftOf(room, foe);
-    const feet = { x: Math.round(foe.at.x), y: Math.round(foe.at.y) - lift };
+    const feet = { x: Math.round(shownX(foe)), y: Math.round(foe.at.y) - lift };
     const drawn = art.foes.at(foe.monster, foe.key, shown, feet);
     const size = sizeOf(foe.monster);
     if (drawn) {
@@ -1099,7 +1192,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     }
     // The rings at its feet.
     const rx = Math.round(kind.box.w / 2) + 6;
-    boxes.push(around({ x: foe.at.x, y: feet.y }, rx + 2));
+    boxes.push(around({ x: shownX(foe), y: feet.y }, rx + 2));
     const t = foe.heavy;
     if (t) {
       boxes.push(markBox(t));
@@ -1114,7 +1207,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         });
       }
     }
-    if (kind.rally) boxes.push(around({ x: foe.at.x, y: feet.y - 12 }, 54));
+    if (kind.rally) boxes.push(around({ x: shownX(foe), y: feet.y - 12 }, 54));
   }
   for (const t of battle.volleys) boxes.push(markBox(t));
   for (const e of battle.effects) {
@@ -1139,13 +1232,23 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     } else if (e.kind === 'loot')
       boxes.push({ x: Math.floor(e.at.x) - 9, y: Math.floor(e.at.y) - 52, w: 19, h: 54 });
   }
-  // The hero's blow glinting, and a brace over his head.
-  const swing = heroSwinging(battle);
-  if (swing !== null || battle.braceUntil > clock)
+  // A brace over his head.
+  if (battle.braceUntil > clock)
     boxes.push({ x: Math.floor(hero.x) - 40, y: Math.floor(hero.y) - 90, w: 81, h: 96 });
   for (const p of battle.piles)
-    if (p.room === run.room)
-      boxes.push({ x: Math.floor(p.at.x) - 9, y: Math.floor(p.at.y) - 16, w: 18, h: 18 });
+    if (p.room === run.room) {
+      // Its picture where it lies, and the pixel it bobs.
+      const w = art.loot?.image.width ?? 18;
+      const h = art.loot?.image.height ?? 18;
+      const fx = art.loot?.feet.x ?? 9;
+      const fy = art.loot?.feet.y ?? 16;
+      boxes.push({
+        x: Math.floor(p.at.x) - fx - 1,
+        y: Math.floor(p.at.y) - fy - 2,
+        w: w + 2,
+        h: h + 3,
+      });
+    }
 
   // A cell's bars stand in the room until the cell opens, in front of whoever waits behind them.
   const barsArt = dungeonProp2('brig_bars');
@@ -1217,6 +1320,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     actors,
     boxes,
     overlayBox,
+    walkerOffset: apart.get('hero') ?? 0,
     walker: (image) => {
       if (flashing(battle.struckAt, clock)) return flashOf(image, C.white);
       // Down: he blinks red until the tide takes him.
@@ -1243,9 +1347,9 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         if (p.room !== run.room || !art.loot) continue;
         const bobbed = Math.floor(clock / 400) % 2;
         ctx.drawImage(
-          art.loot,
-          Math.round(p.at.x) - LOOT_FEET.x,
-          Math.round(p.at.y) - LOOT_FEET.y - bobbed,
+          art.loot.image,
+          Math.round(p.at.x) - art.loot.feet.x,
+          Math.round(p.at.y) - art.loot.feet.y - bobbed,
         );
       }
       for (const foe of here) {
@@ -1256,11 +1360,11 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         if (foe.rallied) {
           // The parrot's work, at his feet too: a green ring, pulsing.
           ctx.fillStyle = Math.floor(clock / 200) % 2 === 0 ? C.green : C.greenDark;
-          oval(ctx, foe.at.x, feet, rx + 4, 6);
+          oval(ctx, shownX(foe), feet, rx + 4, 6);
         }
         if (foe.key === battle.target) {
           ctx.fillStyle = C.gold;
-          oval(ctx, foe.at.x, feet, rx + 2, 5);
+          oval(ctx, shownX(foe), feet, rx + 2, 5);
         }
       }
       for (const foe of here)
@@ -1287,7 +1391,7 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         const k = (clock % 500) / 500;
         ctx.globalAlpha = 0.9 * (1 - k);
         ctx.fillStyle = C.green;
-        ring(ctx, foe.at.x, foe.at.y - liftOf(room, foe) - 12, 9 + k * 36, 2);
+        ring(ctx, shownX(foe), foe.at.y - liftOf(room, foe) - 12, 9 + k * 36, 2);
         ctx.globalAlpha = 1;
       }
     },
@@ -1321,24 +1425,6 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         }
       }
       for (const e of battle.effects) drawEffectArt(ctx, e, clock);
-      if (swing !== null) {
-        // The blade's glint as he strikes: a bright arc out in front of him, there and gone.
-        const dir = run.play.facing === 'left' ? -1 : 1;
-        const cx = Math.round(hero.x) + dir * 14;
-        const cy = Math.round(hero.y) - 30;
-        ctx.globalAlpha = 1 - swing;
-        ctx.fillStyle = C.white;
-        for (let a = -60; a <= 60; a += 8) {
-          const r = (a * Math.PI) / 180;
-          ctx.fillRect(
-            cx + Math.round(Math.cos(r) * 14) * dir,
-            cy + Math.round(Math.sin(r) * 16),
-            2,
-            2,
-          );
-        }
-        ctx.globalAlpha = 1;
-      }
       if (battle.braceUntil > clock) {
         // Braced: a small shield over his head.
         const x = Math.round(hero.x);
@@ -1355,7 +1441,15 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
     overlay(ctx, k) {
       for (const foe of here)
         if (alive(foe) && !held(battle, place, foe))
-          drawFoeOver(ctx, battle, foe, liftOf(room, foe), foe.key === battle.target, k);
+          drawFoeOver(
+            ctx,
+            battle,
+            foe,
+            shownX(foe),
+            liftOf(room, foe),
+            foe.key === battle.target,
+            k,
+          );
       // Numbers landing together on one spot (a double shot) stand side by side.
       const together = new Map<string, number>();
       for (const e of battle.effects) {

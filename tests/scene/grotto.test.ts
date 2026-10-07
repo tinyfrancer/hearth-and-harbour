@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONTENT } from '../../src/data';
-import { GROTTO_CAST } from '../../src/scene/cast';
+import { GROTTO_CAST, GROTTO_ID } from '../../src/scene/cast';
 import { buildDungeon, type Room } from '../../src/scene/dungeon';
 import { FOE_KINDS } from '../../src/scene/foes';
 import { groundMap, standable, type RoomTile } from '../../src/scene/ground';
@@ -273,5 +273,11 @@ describe('Brinebeard’s Grotto, room by room', () => {
         expect(fixed.includes(item) || item in CONTENT.items, item).toBe(true);
       for (const item of def.pick?.items ?? []) expect(fixed).toContain(item);
     }
+  });
+
+  it('fights by the very rows in the game’s tables, the dungeon given as their area', () => {
+    const table = CONTENT.dungeons!.brinebeards_grotto!.cast!;
+    expect(Object.keys(GROTTO_CAST).sort()).toEqual(table.map((f) => f.id).sort());
+    for (const foe of table) expect(GROTTO_CAST[foe.id]).toEqual({ ...foe, area: GROTTO_ID });
   });
 });

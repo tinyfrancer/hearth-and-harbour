@@ -403,7 +403,7 @@ describe('loot and spoils', () => {
     expect(none.seed).toBe(all.seed);
   });
 
-  it('gives the kills by monster and, for a clear, the dungeon cleared', () => {
+  it('gives the kills and drops by monster and, for a clear, the dungeon cleared', () => {
     const b: Battle = {
       ...battle(fighter(), []),
       tally: {
@@ -412,6 +412,7 @@ describe('loot and spoils', () => {
         coins: 0,
         kills: 3,
         killed: { deckhand: 2, brinebeard: 1 },
+        dropped: { deckhand: ['doubloon', 'pirate_cutlass'], brinebeard: ['doubloon'] },
         eaten: 1,
         shot: 0,
       },
@@ -421,7 +422,10 @@ describe('loot and spoils', () => {
       cleared: 'brinebeards_grotto',
       loot: { doubloon: 3 },
       foodEaten: 1,
+      dropped: { deckhand: ['doubloon', 'pirate_cutlass'], brinebeard: ['doubloon'] },
     });
     expect(spoilsOf(b)).not.toHaveProperty('cleared');
+    // Nothing seen to drop: no word of it.
+    expect(spoilsOf({ ...b, tally: { ...b.tally, dropped: {} } })).not.toHaveProperty('dropped');
   });
 });
