@@ -320,14 +320,27 @@ the far hand stayed on the hip. What replaced it:
   held out beyond the chest. Walking left his left side is toward the viewer: the shield's face is
   on the near forearm over the body and the sword is in the far hand behind it, its blade showing
   above and ahead. The left walk is drawn as the right with the arms' jobs swapped and then
-  mirrored, so light comes from the upper right walking left, as it does when the standing sprite
-  is mirrored; nothing held changes hands. Toward the camera the sword is on the viewer's left;
+  mirrored, and then **re-lit from the left** (B11, `figure2/relight.ts`): along each row, every
+  run of one material has its steps put back in their order before the mirror, so a sleeve, a
+  face or a skirt is lit on its left again while its shape stays mirrored; nothing held changes
+  hands. Townsfolk walking left are their right walk mirrored and re-lit the same way. Toward the camera the sword is on the viewer's left;
   from behind, on the viewer's right. Townsfolk carry no weapon, so their left walk is their right
   mirrored.
 - **Held things in profile** are the front drawing turned about the fist's own middle column, so
-  the blade leans toward the walk and the guard, knuckle bow and haft keep their places round the
-  fingers; the hand rule holds by construction (the grip under the fist, the rest in front of it).
-  A long blade never lifts the hand above where it hangs standing, so its tip stays on the canvas.
+  the guard, knuckle bow and haft keep their places round the fingers.
+- **The weapon-carry rule** (B11; Cody: "Sword goes through head on knight right image"): walking
+  across, **nothing held ever overlaps the head, hair or hat in any frame of any facing**, and no
+  shield covers the face. A blade, an axe or a cudgel is carried low (`figure2/carry.ts`): turned
+  point-down about the fist (exactly, row for row) and leant forward by sliding each row sideways
+  (the way the rig bends a limb, so a blade's edge and midrib stay unbroken), foreshortened by
+  dropping rows where it is longer than the hip-to-ground (a knight's long sword points partly
+  toward the viewer). A bow is tilted forward from the top. The grip shows only under the fingers
+  and nothing is drawn over them, so the fist is whole and the line still runs through it; the
+  weapon arm swings a third as far as a free one (a weapon has weight) and the hand never goes so
+  far that the weapon leaves the canvas. A tall shield is slung low on the forearm, its top below
+  the chin and the neck. Toward the camera, away and standing, weapons stand beside the body as
+  drawn and already clear the head. A test holds every held thing in every frame of every facing,
+  bare-headed and under the widest hats and long hair.
 - **From behind** (`views.ts`, `folkBack.ts`): the front figure mirrored (the figure's right is
   now the viewer's right) and re-lit so each row is still lit on its left (`flipLit`), with the
   back of everything in place of its front: the back of the head (a step darker than a face and
@@ -336,14 +349,23 @@ the far hand stayed on the hip. What replaced it:
   buckle, a jerkin without its disc or laces, a coat closed, the quiver across the back, a shield's
   planks and straps, the cloak over all. With no shield both arms hang.
 - **Toward the camera** the free foot comes up past the planted one with the knee toward the
-  viewer (the thigh foreshortened, the foot lifted seven rows), the foot behind sits two rows up the
-  screen at each contact, the body rides a column over the foot that bears the weight, a skirt's hem
+  viewer (the thigh foreshortened, the foot lifted seven rows), the planted foot climbs the screen
+  two rows a frame as the walker passes over it (B11: it stepped on the spot and slid; the whole
+  stride would need the feet 28 rows apart, more than the canvas has, so this is a quarter of it)
+  and the free foot leaves from where it ends and lands where it began, so the lowest sole may sit
+  up to four rows above the anchor's row mid-stride, the body rides a column over the foot that bears the weight, a skirt's hem
   is pushed up over the knee that comes forward, and with no shield the far arm hangs and swings
   like the near one (the near arm's own drawing moved across). Walking away is the same keys with
   the lifted sole showing.
 - **Timing**: eight frames, 80 ms each for the hero (stride 7, so 87.5 art px/s against the scene's
   88), 100 ms for townsfolk (stride 4); unchanged from B9. The step (28 art pixels) is long for the
-  figures' short legs, which is why the hips drop two rows at contact.
+  figures' legs; B11 gave the thigh a pixel more (12) and the hips a gentler bob (down one row at
+  contact, up one passing, instead of down two), which is as far as the stride allows.
+- **Backs are drawn, not turned** (B11): from behind, the market woman's shawl is a point down her
+  back (its knot is in front), the smith's apron strings are tied in a bow at the small of his
+  back, a bald head shows its crown's light, the backs of both ears and the cords of the neck,
+  and long hair has a sheen across it and lit strands so black hair is not a dark mass.
+- **Boots**: the heel striking with the toe turned up has its sole as a dark line rising to the toe.
 
 ### The dungeon at the C scale (B10a; not yet swapped in)
 
@@ -366,6 +388,15 @@ sets the look of the ones after it.
   wet sand, land over water with a broken line of foam, shallows over the deep), floors darken
   under a wall's foot and beside a deck. A wear's occasional detail (a shell, a pool, weed) keeps
   off the tile's edges, so every wear meets its neighbours as the plain tile does.
+- **Doors in side walls** (B11, `door_side_open`, `door_side_barred`): every grotto door is in a
+  side wall, which is seen from above, so a door there is the passage cut through the rock's top,
+  the floor running out of the room into the dark beyond, the jamb above showing a sliver of dark
+  face and the one below a lit lip, the frame's posts and lintel at the room's edge; barred, an iron
+  grille along the lintel. It turns to face the room by its neighbours. A face's door
+  (`door_open`, `door_barred`) is for a door in the wall the viewer faces.
+- **Water against a wall**: where water runs into a bottom wall the shore beside it widens toward
+  the rock so it curves round into the wall's foot, and a broken wash of foam lies along the foot
+  (B11; it met the rock in a square 24-pixel step).
 - **Walls stand two tiles tall** (B6's one-tile wall was a third of a person): the upper face
   rounds over from the rock's top at a ragged lip that catches a little light, the face is lumps
   of rock lit by the floor below, then the tide's mark (barnacles, weed in clumps) and a wet dark
@@ -377,7 +408,8 @@ sets the look of the ones after it.
   the ground is lifted a step at the heart and left as drawn in a ring; beyond every pool it is a
   step darker, and two past the far corners. Edges break in clumps. The lantern's warm glow is
   added as the town's lamps' are. So a cave is pools of its own colours in the dark, never a grey
-  wash, and the same tiles serve a lit room and an unlit one.
+  wash, and the same tiles serve a lit room and an unlit one. Planks are not lifted at a pool's
+  heart (B11): warm wood under the warm glow read orange.
 - **Foes stand as the hero's peers.** People are on the hero's 56 × 72 canvas and anchor, built on
   the figure engine and the H2 head, and walk and breathe on its rig; the powder monkey a head
   shorter, the goblin shorter still. Creatures and the captain have canvases of their own with
@@ -389,34 +421,83 @@ sets the look of the ones after it.
   the same stuff (a troll's head on his shoulders, a boar's cheek on his neck), and features
   placed by hand: the boar's wedge, crest of bristles with brambles in it, snout disc and tusks;
   the wolf's pricked ears, long muzzle, ruff and low brush; the troll's hunch, knuckle-dragging
-  fists, brow like a ledge and underbite.
+  fists, brow like a ledge and underbite. B11 added the detail a pixel artist would place on top:
+  the crabs' eyes as white balls with pupils on thick stalks under hard lids (a pixel-wide stalk
+  read as a hair), the M of grooves across a carapace, its lit front rim, teeth inside a pincer;
+  the boar's glinting red-rimmed eye, the light along his hump, cloven hooves; the wolf lighter
+  than the cave floor at dusk, on legs four pixels wide at the top, a pale throat; the wyrm's belly
+  plates in segments, a brow over its slit eye, a nostril.
+- **People turn into a blow** (B11; B10a's was an arm drawn over a standing body): winding up, the
+  weight goes onto the back foot, the shoulders lean away and the free arm comes forward;
+  striking, the lead foot steps out toward the one struck, its knee bent, the back heel up, the
+  hips down and the body and head forward over the lead foot, the free arm flung back.
 - **Every foe has the poses a fight shows**: standing (two breaths), walking, the wind-up a blow is
   telegraphed by (a weapon cocked back over the shoulder, claws or fists raised, the keg drawn back),
   the blow (the weapon driven out along the line of it, so it reaches toward whoever is struck),
   the recoil, the recoil in the flash of a blow (every step lifted three toward its glint, the
   outline kept: the figure blazes in its own colours rather than going white), and the fall:
   buckling, then down, on its back (crabs, birds), its belly (four-footed things, the wyrm) or its
-  side (people, the troll). Left is the mirror of right.
+  side (people). The troll is drawn lying on his back (B11; a turned standing troll read as a
+  heap): head to the left, jaw and tusks to the sky, eyes shut, the belly a mound, a knee up, an
+  arm flung out along the ground. Left is the mirror of right.
 - **The powder monkey** is a small, wiry grown man, never a child: bald and stubbled, a gap-toothed
   grin with the brows up, an open vest over a bare chest, a red kerchief, ragged breeches, bare
   feet, the keg over his head in both hands with a painted skull and a lit fuse. **Brinebeard's
   coat is purple**, as the item says.
 
-#### Portraits at the C scale (B10a)
+#### Portraits at the C scale (B10a, redrawn in B11)
 
-- **72 × 72**, the head about three times the figures' H2 head (eyes seven wide with the iris
-  centred and whites either side, brows a row above), drawn at that size, never scaled from a
-  sprite; a bust on a dark disc, each face in the colours of its figure.
-- **Never cropped**: shown at 2, 4/3 and 2/3 CSS pixels per art pixel, a face fills the fight
-  screen's frame and the lists' and fits the dungeon's 48-pixel panel whole. Everything that names a
-  face (head, hat, ears, horns, whiskers, the gesture beside it) lies above row 56, inside its
-  declared safe box; below it only shoulders and beard ends, which the frame's bottom cuts.
-- **Animals keep the silhouette that names them** (the boar's snout and tusks under a bristle
-  crest, the wolf's ears and muzzle, the rat's round ears and whiskers, the gull side-on with its
-  stolen chip, the parrot's hooked beak in a squawk) and an expression in the brows and mouth.
-- **The hero's** is drawn in the look worn: skin, hair and its colour under any head gear, brows in
-  the hair's colour at the step that stands clear of the skin (as the figures' are), the head gear
-  and the body garment worn.
+Cody, on B10a's faces: "Honestly the character portraits freak me out." They were one built head
+for everyone (a tall, narrow egg), small evenly spaced features in it, a blank straight stare, a
+neck like a column and beards of stippled noise: a mannequin. The first scale's 48-pixel faces,
+simpler, had what they lacked: big chunky shapes filling the frame, strong brows, eyes that
+said something, beards with a silhouette, a little caricature. B11 drew every face again to that.
+
+- **72 × 72**, drawn at that size and never scaled from a sprite; a bust on a dark disc, each face
+  in the colours of its figure. Shown at 2, 4/3 and 2/3 CSS pixels per art pixel (144, 96, 48):
+  **never cropped**, whole in the dungeon's 48-pixel panel; everything that names a face above row
+  56, inside its safe box (`PORTRAIT2_SAFE`, data, measured from the drawings).
+- **Every person is their own head**, drawn by hand (`src/art/dungeon2/folkFaces.ts`): their own
+  shape as a ring of hand-placed points (a broad dome for the smith, a heart for the trader, a
+  square jaw for the docker, a cannonball for the powder monkey, a long face with high cheekbones
+  for the market woman), their own eyes, brows, nose and mouth as rows of characters. The tools
+  (`heads.ts`) only shade what was drawn: a rounded solid in clean bands, a cast shadow, a stroke.
+  Nothing in them decides what a face looks like.
+- **What makes a face appealing here:**
+  - It **fills the frame** as the first scale's did: a head about 40 pixels across on the 72
+    square, a face at least 30 across, the chin near row 52, shoulders filling the bottom.
+  - **Broad, appealing head shapes**, a jaw and cheekbones with some width, never a tall oval.
+  - **Eyes big enough to act**: about eight wide and three or four open, a dark lash line thicker
+    at the outer corner, the iris centred (three wide) with a dark pupil and a white catch-light,
+    whites either side, a crease above and a lid line below. Brows two to four rows thick, dark,
+    shaped by the expression. A sideways glance only as a deliberate expression (the footpad
+    sizing up a purse, the powder monkey eyeing his fuse).
+  - **One expression a viewer can name**: the smith steady and proud, the trader's knowing smile
+    with one brow up, the captain's gold-toothed grin, the alewife laughing with her eyes shut, the
+    market woman's "well, are you buying?", the docker's lazy grin, the old man's crinkled smile,
+    the footpad's sly glance, the smuggler's narrowed eye and smirk, the deckhand's snarl, the
+    powder monkey's gap-toothed delight, Brinebeard's glower under his hat, the goblin's spite.
+    Friendly people look friendly; rogues look roguish, never dead-eyed.
+  - **Hair and beards are solid shaded masses** with a few deliberate locks: a parting, three or
+    four strokes down a beard, lit tips. Stubble is one darker tone over the jaw with a broken
+    edge, never a speckle.
+  - A neck under the jaw in shadow, not a column; proper shoulders and collar.
+  - Hats frame faces without burying them: brims and helm rims sit above the brows; a tricorn is
+    cocked into three points, the front one a V over the brow.
+- **Don't:** a stipple beard; a mannequin oval; a shared head with features swapped; dot eyes or a
+  stare without lids; a face floating small in the frame; features evenly spaced on a blank.
+- **Animals keep the silhouette that names them** and an expression in the brows and mouth (the
+  boar's snout and tusks under a bristle crest, the wolf's ears and muzzle, the rat's round ears,
+  whiskers, brows slanted in and crooked grin, the gull side-on with its stolen chip). Where the
+  first scale's had more character it was restored (`beastFaces.ts`): the crabs' furious eyes on
+  thick stalks under hard lids and their raised claws, the troll's great tusks, ears out like jug
+  handles and weed for hair, the parrot's big ringed eye under a lowered brow.
+- **The hero's** (`heroFace.ts`) is the H2 head at three times its size: round, a little wider than
+  tall, open eyes with the iris centred and a catch-light, soft brows in the hair's colour at the
+  step that stands clear of the skin, a broken fringe, a small easy smile. Five hairstyles each
+  with their own silhouette and volume, the hang (long hair's curtains, the braid) worn under helms
+  and hoods, the hair at the temples under a brim; the head gear and the shirt and body garment
+  worn. A likeable adventurer in every look.
 
 ### What the swap supersedes
 

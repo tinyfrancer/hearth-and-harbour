@@ -15,6 +15,7 @@ import { cloth, moved, runs, type Extent, type Part2, type Pins } from './engine
 import { FIST2 } from './body';
 import { HELD2 } from './held';
 import { mirrored } from './views';
+import { carried } from './carry';
 import { KNIGHT2 } from './knight';
 import { HAIR_VIEWS, HEAD_SIDE, HEADGEAR_SIDE } from './sideHeads';
 import { SIDE, type SideDress, type SkirtSpec } from './side';
@@ -496,7 +497,13 @@ export function sideDress(gearIds: readonly string[]): SideDress | null {
       continue;
     }
     const held = HELD2.find((g) => g.id === id) ?? KNIGHT2.find((g) => g.id === id);
-    if (held?.slot === 'weapon') d.held.push(...heldParts(id).map((p) => mirrored(p, FIST_AXIS)));
+    if (held?.slot === 'weapon')
+      d.held.push(
+        ...carried(
+          id,
+          heldParts(id).map((p) => mirrored(p, FIST_AXIS)),
+        ),
+      );
     else if (id === 'spyglass') d.offHeld = [moved(heldParts(id)[0]!, -18, 2)];
     else if (held?.slot === 'shield') d.shield.push(...heldParts(id));
     else return null;

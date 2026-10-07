@@ -1,8 +1,39 @@
 # Lane B: art
 
-**Next session:** Cody's review of wave 10's two halves, B10a (the dungeon at the C scale) and
-B10b (the walk in four facings, the weak spots, the tab icons), and whatever it asks for. The
-faces for `goblin_poacher` and `bramble_wyrm` landed in B10a; the five tab icons in B10b.
+**Next session:** Cody's review of B11 (the portraits redrawn, the weapon carry, the walk's and
+the dungeon's weak spots), and whatever it asks for; then deleting the first scale's portraits
+and dungeon art once lanes A and C have switched off them (the list is under "Notes").
+
+## Portraits redrawn, the carry, the weak spots, for lanes A and C (B11)
+
+**No door renamed or re-signed, no constant changed** (`WALK2_FRAMES` 8, `WALK2_FRAME_MS` 80,
+`WALK2_STRIDE` 7, `TOWNSFOLK2_STRIDE` 4, `TOWNSFOLK2_FRAME_MS` 100; `PORTRAIT2_SIZE` 72, the three
+display sizes, `portrait2(id)`, `heroPortrait2(look, worn)` all as they were). What changed behind
+them, and what a caller may notice:
+
+- **Faces** (`portrait2`, `heroPortrait2`): every person redrawn by hand as their own head, the
+  hero's rebuilt, nine creatures reviewed and five restored. Same 72 × 72, same element, same
+  three canvases. `PORTRAIT2_SAFE` re-measured from the new drawings: they fill the square now, so
+  every box is wider (most 56 to 72 across, still above row 56); `HERO_PORTRAIT2_SAFE` is
+  `{ x: 3, y: 0, w: 66, h: 56 }` (the hats' brims kept 3 pixels in from each side, where the
+  header's 48-pixel frame crops a face; `tests/ui/faces.test.ts` holds it). `HeroBust` gained an optional
+  `shirt` (the hero's portrait shows the linen or the everyday teal tunic under a jerkin).
+- **New tile ids, for lane C**: `door_side_open` and `door_side_barred` (`dungeonTile2`, 24 × 24,
+  one wear each): a door in a **side** wall, seen from above as side walls are. Use them for every
+  grotto door in a left or right wall (all of them today); `door_open`/`door_barred` stay for a
+  door in the wall the viewer faces. Pass `around` and it turns to the room (the side with open
+  ground; east if neither or both); the rock above and below it is `wall_top`, not a face
+  (`roomKinds2` does this for the sample key, letters `S` and `Z`).
+- **Foe sizes, for lane C**: two numbers in `FOE2_SIZES` changed with their drawings (the test
+  holds them): `deckhand.strike` 26 → 27 and `goblin_poacher.strike` 24 → 26, because a person now
+  steps into the blow. Nothing else in the table changed (canvases, feet, boxes, shadows). The
+  troll's fall frame 1 is a new drawing on its own 98 × 50 canvas, `feet` (46, 48); as before, a
+  fallen frame's size differs from the standing canvas and its feet are always right.
+- **The walk**: walking across, long weapons are carried low and forward (no frame of any facing
+  puts a held pixel on the head); walking left is re-lit from the left; walking down or up the
+  planted foot climbs (or falls) two rows a frame, so the lowest sole may be up to **4 rows above
+  the anchor row** mid-stride toward or away from the camera (the anchor and the 22 × 4 contact
+  shadow are unchanged; across and standing the soles are still on row 70).
 
 ## Walking in four facings, for lane C; tab icons, for lane A (B10b)
 
@@ -564,6 +595,55 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Done
 
+- **B11: Cody's review of wave 10 — the portraits, the sword through the head, the weak spots.**
+  Review sheets outside the repo in `/home/claude/lane-shots/w11-b/`: `portraits.png` (each face:
+  the first scale at its list size, last wave and now in the lists' 100 px frame, last wave and now
+  in the 48 px panel), `hero-portraits.png` (sixteen looks and head gear, last wave against now,
+  the 48 px panel and the figure), `portraits-true-size.png` (every face as it sits in a mock list
+  row and the dungeon's panel on a 390-wide 3x phone), `walk-weapons.png` (every weapon in each
+  facing's worst frame, before and after), `walk-knight-4way.gif`, `walk-hero-4way.gif`,
+  `foes-fixes.png`, `tiles-fixes.png`, and the gallery's faces at 390 × 844 and 844 × 390
+  (`gallery-portrait-faces*.png`, `gallery-landscape-faces*.png`). (Sheets an earlier attempt left
+  in that folder are moved to `earlier-attempt/`.)
+  - **Portraits** (`dungeon2/folkFaces.ts`, `heads.ts`, `heroFace.ts`, `beastFaces.ts`): the
+    thirteen people drawn again by hand, each its own head shape (hand-placed rings of points),
+    eyes, brows, nose and mouth (rows of characters per person), hair and beards as solid masses
+    with a few locks; B10a's built head (`bust.ts`) is gone but for the square and the disc. Each
+    has one expression (style guide, "Portraits at the C scale"). The hero's rebuilt on the H2
+    head: round, open eyes with a catch-light, soft brows by hair colour, a broken fringe, five
+    hairstyles with volume, every head gear above the brows. Creatures: the crabs' furious stalk
+    eyes and raised claws, the troll's tusks, ears and weed hair, the parrot's ringed eye
+    restored; the rat given brows and a crooked grin, the boar bigger angry eyes; the gull, wolf
+    and wyrm kept. Four critique rounds, each asking of every face whether it would unsettle and
+    what its personality is, against the old one at true size.
+  - **The carry** (`figure2/carry.ts`): the sword through the knight's head fixed for every held
+    thing (see "the weapon-carry rule" in the style guide); tall shields slung below the chin.
+  - **The walk**: thighs a pixel longer and a gentler bob; the planted foot climbs toward and away;
+    the left walk re-lit (`figure2/relight.ts`); the buckler's edge shows its boss; the toe-up boot
+    redrawn; long hair's sheen and strands in profile and from behind; a bald back of the head with
+    crown light, ears and neck; the market woman's shawl drawn from behind, the smith's apron bow.
+  - **The dungeon**: people's wind-up and strike keys move the whole body; the troll down drawn
+    lying on his back; the wolf lifted and on sturdier legs; detail on the giant crab, boar, wolf and
+    wyrm; the side-wall door tiles; water curving into a bottom wall with a wash of foam; planks
+    not lifted at a lantern's heart.
+  - **Gallery**: the faces section shows the hero in a dozen looks; the tiles plate shows the side
+    doors; the foes plate the new poses.
+  - **Tests**: `tests/art/dungeonArt2.test.ts` — faces that do not unsettle (every person its own
+    head, no two alike; faces at least 30 px across; catch-lights on open eyes; no stipple below
+    the eyes; the hero's two eyes open with white, iris and catch-light in every look and head
+    gear), the mended weak spots (strikes widen the stance and bring the head forward; the troll
+    lies long and low with shut eyes; crab eyes white with pupils; the wolf lighter, no leg under
+    three pixels; the shore curving into a bottom wall; planks unlifted), the side door (turned to
+    the room, the rock either side a top, the grille only when barred). `tests/art/walk2.test.ts` —
+    nothing held crosses the head (across: no weapon pixel on any head, hair or hat pixel and no
+    shield pixel on the face, by the frames' tags, every held thing and shield, every frame, both
+    ways, bare and under four hats, short and long hair; toward, away and standing: the head drawn
+    the same with and without the held thing), walking left is lit from the left, the planted foot
+    keeps its ground toward and away. **Expectations changed on purpose**: `TILE2_KINDS` gains the
+    two side doors; `PORTRAIT2_SAFE`/`HERO_PORTRAIT2_SAFE` values; `FOE2_SIZES` deckhand and goblin
+    `strike`; the anchor rule toward and away allows the lowest sole up to 4 rows above row 70; the
+    townsfolk's left walk is their right mirrored **and re-lit** (it was the plain mirror).
+
 - **B10a: the dungeon at the C scale** (doors above). Review sheets outside the repo in
   `/home/claude/lane-shots/w10-b-dungeon/`: `room-landscape.png` and `room-landscape-pools.png`
   (2532 × 1170, a 3x phone held sideways, the store and the pools re-cut with the hero and the
@@ -1080,6 +1160,31 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Deferred
 
+- **Not done in B11**, and why:
+  - **The standing hero's three-quarter turn** (still B9's one column): it needs every face, hair
+    and hat drawn again at that angle; the brief left it.
+  - **Feet toward and away still slide**, less: the planted foot now climbs two rows a frame, a
+    quarter of the seven the walker moves. Matching it would need the feet 28 rows apart on the
+    56 × 72 canvas, or lane C moving the contact shadow with the planted foot.
+  - **The stride itself** (28 art px against the legs): the hips now dip one row, not two, but the
+    contact frames are still wide; a shorter step needs a slower walker or more frames (a constant
+    change, not made).
+- **B11, weaker than it should be** (for Cody's review), weakest first:
+  - The lying troll reads as a troll on his back but his near arm along the ground merges with his
+    side, and his loincloth is a brown strip.
+  - The weapons carried low point at the ground in front of the feet; the boarding axe's head and the
+    knight's sword tip come close to the near boot in the forward-swing frames, and the turned
+    drawings keep their front-view light (lit from below on the blade once turned point-down).
+  - The side door is small in the rock's top and reads best by its posts and the dark beyond; at
+    true size it is a doorway, not much of a door.
+  - Faces: the market woman's mouth pulled aside can read as sour rather than wry; the captain's
+    face is dark between his hat, patch and beard; the hero's portraits all share one expression
+    (a small smile), as the figure does; the powder monkey's eyes, glancing at his fuse, can look a
+    little wild.
+  - The wolf is lighter but still a grey on a grey floor; the pale throat is a few pixels.
+  - Walking left re-lit run by run: where a run of one material spans two things (a hand against a
+    face) their light is shared; it has not shown in any frame looked at.
+
 - **Not done in B10a**, and why:
   - **No side-wall door tile.** Doors are drawn for a wall's face; set in a side wall (as every
     grotto door is) the frame reads as a small dark box. A side door is another tile kind.
@@ -1258,6 +1363,14 @@ from world position, so painting in pieces still lines up; only flecks and wear 
 
 ## Needs from another lane
 
+- **Lane C, for B11** (nothing breaks if you do nothing): use `door_side_open` /
+  `door_side_barred` for the grotto's doors in side walls, with `around`, and keep the rock above
+  and below them `wall_top`; take `FOE2_SIZES` as data as before (deckhand and goblin `strike`
+  changed); expect a walker's lowest sole up to 4 rows above the anchor mid-stride walking down or
+  up. Optional, for the last of the slide toward and away: move the contact shadow with the
+  planted foot (it climbs two rows a frame from the anchor over frames 0 to 3 and 4 to 7).
+- **Lane A, for B11**: nothing; `portrait2`, `heroPortrait2` and their sizes are unchanged.
+
 - **Lane C, to switch the dungeon to the C scale (B10a)** — the doors and signatures are under
   "The dungeon at the C scale" above. In order:
   1. Tiles: `TileMap` at 24 (`DUNGEON2_TILE`); re-cut the rooms as your plan says (the sample
@@ -1376,6 +1489,27 @@ worn, 'dusk')` is identical under it.
   - `tests/ui` that look for the character canvas by its size will need the new size.
 
 ## Notes for this lane's next session
+
+- **What can be deleted next wave**, once lane A's `src/ui/face.ts` and lane C's
+  `src/scene/panel.ts`, `dungeonView.ts`, `foes.ts` and `grottoArt.ts` no longer import the first
+  scale's portraits and dungeon (check with `grep -rn "art/portraits'\|art/dungeonArt'\|art/grottoRoom'" src`):
+  `src/art/portraits.ts`, `src/art/faces.ts`, `src/art/dungeonArt.ts`, `src/art/grottoTiles.ts`,
+  `src/art/grottoCast.ts`, `src/art/grottoProps.ts`, `src/art/grottoRoom.ts`; their tests
+  `tests/art/portraits.test.ts` and `tests/art/dungeonArt.test.ts`; the "first scale's doors" block
+  in `tests/art/dungeonArt2.test.ts`; the gallery's first-scale "Brinebeard's Grotto" and
+  "Portraits" parts (`src/art/gallery.ts`, and the titles in `tests/art/gallery.test.ts`); the old
+  portrait CSS in `art.css`. Keep `grottoIcons.ts` (item icons) and `ground.ts` (the scene still
+  imports it). The first scale's figures (`figure.ts`, `wardrobe.ts`, `armoury.ts`, `townsfolk.ts`,
+  `hair.ts`, `plates.ts`, `scenery.ts`, `harbour.ts`, `town.ts`) wait until no `src/ui` or
+  `src/scene` file imports them (today `characterScreen.ts`, `createScreen.ts`, `town2.ts` and
+  the town's scene files still do); `character.ts` keeps the `Look` types the C scale uses.
+- **Faces** are drawn in `src/art/dungeon2/folkFaces.ts` with the tools in `heads.ts`: a head is
+  `blob([...points])` shaded by `form`, features are `marks(rows, pinsFor(...))`. Iterate on PNG
+  dumps from a `.shots/` vitest (no browser) at 4 and 2 device pixels per art pixel beside the
+  first scale's, and judge at true size in a mock list row; a 10x enlargement with a grid finds
+  the pixels. `pinsFor` gives digits for the skin, `b`/`B` for brows, `K W w C I i` for eyes.
+- **A new held thing** needs a row in `CARRY` (`figure2/carry.ts`) if it is taller than the
+  shoulder, or the carry test fails.
 
 - **B10, the dungeon at the C scale: what it needs.** Lane C's plan (its status, "The dungeons at
   the C scale") re-cuts the rooms on 24-pixel tiles in the same metres (a person 2.7 tiles tall;

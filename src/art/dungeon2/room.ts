@@ -28,17 +28,21 @@ const KEY: Readonly<Record<string, Tile2Kind | 'rock'>> = {
   p: 'planks',
   D: 'door_barred',
   O: 'door_open',
+  Z: 'door_side_barred',
+  S: 'door_side_open',
 };
 
-/** Open ground a wall's face looks out over: a floor or water, not a door (which is set in the face). */
+/** Open ground a wall's face looks out over: a floor or water, not a door (which is set in a wall). */
 const ground = (k: Tile2Kind | 'rock' | undefined) =>
-  k !== undefined && k !== 'rock' && k !== 'door_barred' && k !== 'door_open';
+  k !== undefined && k !== 'rock' && !k.startsWith('door_');
 
 /**
- * Every cell's tile kind. Rock with open ground (a floor, water or a door)
- * below it is the face (`wall_face`); rock above a face is the face's upper
- * half (`wall_face_high`), so a wall stands two tiles tall; all other rock is
- * the top (`wall_top`). The rule for lane C, in one place.
+ * Every cell's tile kind. Rock with open ground (a floor, water or a door in
+ * a face) below it is the face (`wall_face`); rock above a face is the face's
+ * upper half (`wall_face_high`), so a wall stands two tiles tall; all other
+ * rock is the top (`wall_top`), including the rock either side of a door in a
+ * side wall (`door_side_open`, `door_side_barred`), which is seen from above
+ * as the side walls are. The rule for lane C, in one place.
  */
 export function roomKinds2(rows: readonly string[]): Tile2Kind[][] {
   const raw = rows.map((r) => [...r].map((ch) => KEY[ch] ?? 'rock'));

@@ -15,6 +15,7 @@ import { pixelCanvas2, repaint2 } from '../town2/raster';
 import { town2Scale } from '../town2/scale';
 import { foePicture2, foeFrames2, FOE2_IDS, FOE2_POSES, type Foe2Facing } from '../dungeonArt2';
 import { heroPortrait2, portrait2, PORTRAIT2_IDS } from '../portraits2';
+import type { Look } from '../character';
 import { CAVE_DAY, CAVE_DUSK } from './cave';
 import { prop2, PROP2_IDS } from './props';
 import { roomPicture2 } from './room';
@@ -60,6 +61,50 @@ const JOINS: readonly string[] = [
   '############',
 ];
 
+/** The hero's face in a dozen looks and head gear, for the faces section (B11). */
+const HERO_LOOKS: readonly [string, Partial<Look>, readonly string[]][] = [
+  ['in iron', {}, HERO],
+  ['short brown hair, linen', {}, ['linen_tunic']],
+  [
+    'long auburn hair, the tricorn',
+    { hair: 'long', hairColour: 'auburn', skin: 'brown' },
+    ['tricorn', 'captains_coat'],
+  ],
+  [
+    'blonde braid, deep skin',
+    { hair: 'braid', hairColour: 'blonde', skin: 'deep' },
+    ['linen_tunic'],
+  ],
+  ['shaggy chestnut hair', { hair: 'shaggy', hairColour: 'chestnut', skin: 'golden' }, []],
+  ['bald, pale', { hair: 'bald', skin: 'pale' }, []],
+  ['grey hair, the feathered hat', { hairColour: 'grey' }, ['feathered_hat']],
+  [
+    'black braid, the velvet cap',
+    { hair: 'braid', hairColour: 'black', skin: 'deep' },
+    ['velvet_cap'],
+  ],
+  [
+    'long blonde hair, the bronze cap',
+    { hair: 'long', hairColour: 'blonde', skin: 'pale' },
+    ['bronze_helmet', 'bronze_breastplate'],
+  ],
+  [
+    'the leather cap',
+    { hair: 'shaggy', hairColour: 'black', skin: 'golden' },
+    ['leather_cap', 'leather_jerkin'],
+  ],
+  [
+    'the linen hood',
+    { hair: 'braid', hairColour: 'blonde', skin: 'brown' },
+    ['linen_hood', 'linen_tunic'],
+  ],
+  [
+    'long black hair, the nasal helm',
+    { hair: 'long', hairColour: 'black', skin: 'deep' },
+    ['iron_helmet', 'iron_breastplate'],
+  ],
+];
+
 /** A foe in every pose and frame, facing one way, the hero first for scale. */
 function foePlate(id: string, facing: Foe2Facing, phase = 1): Picture2 {
   const counts = foeFrames2(id)!;
@@ -88,11 +133,11 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
   const section = el('div', 'gallery-town2');
   section.id = 'dungeon2';
   section.append(
-    el('h3', 'gallery-subhead', 'The dungeon at the finer scale (B10a), not yet approved'),
+    el('h3', 'gallery-subhead', 'The dungeon at the finer scale (B10a, B11), not yet approved'),
     el(
       'p',
       'gallery-caption muted',
-      'Brinebeard’s Grotto redrawn to scale with a 64-pixel person: two of its rooms re-cut on 24-pixel tiles, lit by their lanterns, the hero and the cast standing in them; every tile, every prop, every foe in every pose beside the hero, the captain’s three phases, and every face in the three frames the game shows faces in. The dungeon is played at dusk; one button shows it by day.',
+      'Brinebeard’s Grotto redrawn to scale with a 64-pixel person: two of its rooms re-cut on 24-pixel tiles, lit by their lanterns, the hero and the cast standing in them; every tile (the doors in side walls among them), every prop, every foe in every pose beside the hero, the captain’s three phases, and every face in the three frames the game shows faces in, each person drawn by hand as their own head, and the hero in a dozen looks. The dungeon is played at dusk; one button shows it by day.',
     ),
   );
   const toggle = el('button', 'btn', 'Show it by day') as HTMLButtonElement;
@@ -155,19 +200,10 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
     // A fresh element for every frame: a canvas's pixels do not survive cloning.
     const faces: [string, () => Element | null][] = [
       ...PORTRAIT2_IDS.map((id): [string, () => Element | null] => [id, () => portrait2(id)]),
-      ['the hero, in iron', () => heroPortrait2({}, HERO)],
-      [
-        'the hero, long auburn hair, the tricorn',
-        () =>
-          heroPortrait2({ hair: 'long', hairColour: 'auburn', skin: 'brown' }, [
-            'tricorn',
-            'captains_coat',
-          ]),
-      ],
-      [
-        'the hero, blonde, deep skin, bare-headed',
-        () => heroPortrait2({ hair: 'braid', hairColour: 'blonde', skin: 'deep' }, ['linen_tunic']),
-      ],
+      ...HERO_LOOKS.map(([name, look, worn]): [string, () => Element | null] => [
+        `the hero, ${name}`,
+        () => heroPortrait2(look, worn),
+      ]),
     ];
     for (const [id, face] of faces) {
       const cell = el('figure', 'portrait-cell');

@@ -30,10 +30,12 @@ import { FIST2, GRIP_X } from '../../src/art/figure2/body';
 import { WARDROBE2 } from '../../src/art/figure2/dress';
 import { pixels } from '../../src/art/figure2/engine';
 import { FEET2, sideFrame, sideWalkGrid } from '../../src/art/figure2/side';
+import { WALK_DOWN2, WALK_UP2 } from '../../src/art/figure2/walk';
+import { mirrorLit } from '../../src/art/figure2/relight';
 import { SIDE_GEAR, sideDress } from '../../src/art/figure2/sideDress';
 import { FOLK_SIDE } from '../../src/art/figure2/sideFolk';
 import { flipLit, BACK_AXIS } from '../../src/art/figure2/views';
-import { mirror, type TGrid } from '../../src/art/town2/cells';
+import { matOf, mirror, type TGrid } from '../../src/art/town2/cells';
 
 // The walk at the C scale (docs/style-guide.md, "Figures at the C scale",
 // "Walking"): toward the camera, across in true profile, and away; every look
@@ -63,20 +65,28 @@ function box(g: TGrid) {
   return { x0, x1, y0, y1 };
 }
 
-/** A frame stands on the canvas: inside it, the soles' line the lowest row, a sole near the walker. */
-function standsOnAnchor(g: TGrid, what: string) {
+/**
+ * A frame stands on the canvas: inside it, a sole near the walker on the
+ * soles' line, the lowest row. Toward the camera and away (B11) the planted
+ * foot climbs the screen as the walker passes over it, so there the lowest
+ * sole may be up to `DEPTH_STEP` rows above the line, never below it.
+ */
+const DEPTH_STEP = 4;
+function standsOnAnchor(g: TGrid, what: string, depth = 0) {
   const b = box(g);
   expect([g.w, g.h], what).toEqual([56, 72]);
   expect(b.x0, `${what} left`).toBeGreaterThanOrEqual(0);
   expect(b.x1, `${what} right`).toBeLessThanOrEqual(55);
   expect(b.y0, `${what} top`).toBeGreaterThanOrEqual(0);
-  expect(b.y1, `${what} feet`).toBe(FIGURE2_SOLE_Y);
-  const sole = [...Array(56).keys()].filter((x) => at(g, x, FIGURE2_SOLE_Y));
+  expect(b.y1, `${what} feet`).toBeLessThanOrEqual(FIGURE2_SOLE_Y);
+  expect(b.y1, `${what} feet`).toBeGreaterThanOrEqual(FIGURE2_SOLE_Y - depth);
+  const sole = [...Array(56).keys()].filter((x) => at(g, x, b.y1));
   expect(
     sole.some((x) => Math.abs(x - FIGURE2_ANCHOR_X) <= 20),
     `${what} planted`,
   ).toBe(true);
 }
+const depthOf = (facing: Facing2) => (facing === 'down' || facing === 'up' ? DEPTH_STEP : 0);
 
 /** Every wearable as worn alone, the knight, and the iron rung whole. */
 const OUTFITS: readonly { name: string; items: string[]; extra: readonly string[] }[] = [
@@ -178,6 +188,7 @@ describe('the hero walking', () => {
             standsOnAnchor(
               characterWalkPicture2(DEFAULT_LOOK, o.items, facing, f, o.extra).grid,
               `${o.name} ${facing} ${f}`,
+              depthOf(facing),
             );
     },
   );
@@ -196,6 +207,7 @@ describe('the hero walking', () => {
                   f,
                 ).grid,
                 `${skin.id} ${hair.id} ${hairColour.id} ${facing} ${f}`,
+                depthOf(facing),
               );
   });
 
@@ -322,6 +334,170 @@ describe('the hero walking', () => {
   });
 });
 
+/**
+ * Cody, on B10b: "Sword goes through head on knight right image." Nothing
+ * held may cross the head: across, the frame's dots say what drew them (the
+ * head's are tagged `head`, a weapon's `held` and `grip`, a shield's
+ * `shield`), so any pixel both draw is an overlap, whichever was in front;
+ * a shield is held only off the face (skin, eyes, brows).
+ * Toward the camera, away and standing, the frame is drawn with and without
+ * the held thing: a pixel above the shoulders (row 21 and up, where only the
+ * head, hair and hat are) that the head drew and the held thing changes is
+ * an overlap.
+ */
+describe('nothing held crosses the head', () => {
+  const HEADS: readonly (readonly string[])[] = [
+    [],
+    ['feathered_hat'],
+    ['tricorn'],
+    ['iron_helmet'],
+    ['linen_hood'],
+  ];
+  const LOOKS = [DEFAULT_LOOK, { ...DEFAULT_LOOK, hair: 'long' }];
+  const things = [
+    ...HELD.map((h) => ({ id: h.id, item: itemFor(h.id) })),
+    ...SHIELDS.flatMap((s) => (s ? [{ id: s.id, item: itemFor(s.id) }] : [])),
+  ];
+  const overHead = (full: TGrid, bare: TGrid) => {
+    let n = 0;
+    for (let y = 0; y <= 21; y++)
+      for (let x = 0; x < full.w; x++) {
+        const i = y * full.w + x;
+        if (bare.d[i] && full.d[i] !== bare.d[i]) n++;
+      }
+    return n;
+  };
+
+  it(
+    'across: no weapon pixel on a head, hair or hat pixel, and no shield pixel on the face, in any frame either way',
+    SLOW,
+    () => {
+      for (const t of things)
+        for (const look of LOOKS)
+          for (const hat of HEADS) {
+            const items = [...(t.item ? [t.item] : []), ...hat];
+            const dress = sideDress(characterGear2(look, items, t.item ? [] : [t.id]))!;
+            for (const left of [false, true])
+              for (let f = 0; f < WALK2_FRAMES; f++) {
+                const dots = sideFrame(dress, f, WALK2_STRIDE, left).sheet.dots;
+                const heads = dots.filter((d) => d.tag === 'head');
+                const head = new Set(heads.map((d) => d.y * 99 + d.x));
+                // The face: skin and eye (a shield may pass a hood's cape at the shoulder, never the face).
+                const face = new Set(
+                  heads
+                    .filter((d) => ['skin', 'eye', 'brow'].includes(matOf(d.c) ?? ''))
+                    .map((d) => d.y * 99 + d.x),
+                );
+                expect(head.size).toBeGreaterThan(100);
+                expect(face.size).toBeGreaterThan(20);
+                const crossing = dots.filter(
+                  (d) =>
+                    (['held', 'grip'].includes(d.tag) && head.has(d.y * 99 + d.x)) ||
+                    (d.tag === 'shield' && face.has(d.y * 99 + d.x)),
+                );
+                expect(
+                  crossing.length,
+                  `${t.id} ${look.hair} ${hat[0] ?? 'bare'} ${left ? 'left' : 'right'} ${f}`,
+                ).toBe(0);
+              }
+          }
+    },
+  );
+
+  it(
+    'toward the camera, away and standing: the head drawn the same with and without what is held',
+    SLOW,
+    () => {
+      for (const t of things)
+        for (const look of LOOKS)
+          for (const hat of HEADS) {
+            const items = [...(t.item ? [t.item] : []), ...hat];
+            const extra = t.item ? [] : [t.id];
+            for (const facing of ['down', 'up'] as const)
+              for (let f = 0; f < WALK2_FRAMES; f++)
+                expect(
+                  overHead(
+                    characterWalkPicture2(look, items, facing, f, extra).grid,
+                    characterWalkPicture2(look, hat, facing, f).grid,
+                  ),
+                  `${t.id} ${look.hair} ${hat[0] ?? 'bare'} ${facing} ${f}`,
+                ).toBe(0);
+            for (let f = 0; f < IDLE2_FRAMES; f++)
+              expect(
+                overHead(
+                  characterIdlePicture2(look, items, f, extra).grid,
+                  characterIdlePicture2(look, hat, f).grid,
+                ),
+                `${t.id} ${look.hair} ${hat[0] ?? 'bare'} standing ${f}`,
+              ).toBe(0);
+          }
+    },
+  );
+});
+
+/** Along each row, runs of one material: how many are lit on their left end, and how many on their right. */
+function litSides(g: TGrid): { left: number; right: number } {
+  let left = 0;
+  let right = 0;
+  for (let y = 0; y < g.h; y++) {
+    let x = 0;
+    while (x < g.w) {
+      const c = g.d[y * g.w + x]!;
+      if (!c || (c & 7) === 6) {
+        x++;
+        continue;
+      }
+      let end = x;
+      while (
+        end + 1 < g.w &&
+        g.d[y * g.w + end + 1]! >> 3 === c >> 3 &&
+        (g.d[y * g.w + end + 1]! & 7) !== 6
+      )
+        end++;
+      if (end - x >= 3) {
+        const a = g.d[y * g.w + x]! & 7;
+        const b = g.d[y * g.w + end]! & 7;
+        if (a < b) left++;
+        else if (b < a) right++;
+      }
+      x = end + 1;
+    }
+  }
+  return { left, right };
+}
+
+describe('walking left is lit from the left', () => {
+  it('lights most runs of a material on their left end, walking right and walking left alike', () => {
+    for (const o of OUTFITS.slice(0, 16))
+      for (const facing of ['right', 'left'] as const)
+        for (const f of [0, 3, 6]) {
+          const lit = litSides(
+            characterWalkPicture2(DEFAULT_LOOK, o.items, facing, f, o.extra).grid,
+          );
+          expect(lit.left, `${o.name} ${facing} ${f}`).toBeGreaterThan(lit.right);
+        }
+  });
+});
+
+describe('toward the camera and away, the planted foot keeps its ground', () => {
+  it('climbs the screen two rows a frame walking down, falls two walking up, and the free foot lands where it began', () => {
+    for (const [keys, dir] of [
+      [WALK_DOWN2, 1],
+      [WALK_UP2, -1],
+    ] as const)
+      for (const start of [0, 4]) {
+        // In each half of the cycle one leg is planted: the far leg first, then the near.
+        const leg = start === 0 ? 'far' : 'near';
+        const other = start === 0 ? 'near' : 'far';
+        for (let f = start + 1; f < start + 4; f++)
+          expect(keys[f]![leg].lift - keys[f - 1]![leg].lift, `${dir} ${f}`).toBe(2 * dir);
+        // The free foot leaves from where the planted one ends and lands where it began.
+        expect(keys[start]![other].lift).toBe(keys[(start + 7) % 8]![other].lift);
+        expect(keys[(start + 4) % 8]![other].lift).toBe(keys[start]![leg].lift);
+      }
+  });
+});
+
 describe('the side walk never slides', () => {
   it('moves a planted foot back exactly the stride each frame, heel to toe', () => {
     for (const [stride, dress] of [
@@ -359,17 +535,20 @@ describe('the townsfolk walking', () => {
         const frames = [...Array(WALK2_FRAMES).keys()].map(
           (f) => townsfolkWalkPicture2(id, facing, f)!.grid,
         );
-        frames.forEach((g, f) => standsOnAnchor(g, `${id} ${facing} ${f}`));
+        frames.forEach((g, f) => standsOnAnchor(g, `${id} ${facing} ${f}`, depthOf(facing)));
         expect(new Set(frames.map((g) => g.d.join())).size, `${id} ${facing}`).toBe(WALK2_FRAMES);
       }
   });
 
-  it('walks across in profile and away from behind, and left mirrors right (they carry no weapon)', () => {
+  it('walks across in profile and away from behind, and left mirrors right, re-lit (they carry no weapon)', () => {
     for (const id of TOWNSFOLK2_IDS) {
       expect(FOLK_SIDE[id], id).toBeDefined();
       for (let f = 0; f < WALK2_FRAMES; f++) {
         const r = townsfolkWalkPicture2(id, 'right', f)!.grid;
-        expect(same(townsfolkWalkPicture2(id, 'left', f)!.grid, mirror(r))).toBe(true);
+        const l = townsfolkWalkPicture2(id, 'left', f)!.grid;
+        // The same shape and materials as the mirror; only the light moved back to the left.
+        expect(same(l, mirrorLit(r))).toBe(true);
+        expect(l.d.every((c, i) => c >> 3 === mirror(r).d[i]! >> 3)).toBe(true);
         expect(eyes(townsfolkWalkPicture2(id, 'up', f)!.grid), `${id} up`).toBe(0);
         expect(eyes(r), `${id} right`).toBeGreaterThan(0);
       }

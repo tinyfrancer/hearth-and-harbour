@@ -14,6 +14,7 @@
 import { DEFAULT_LOOK, LOOK_CHOICES, type Look } from './character';
 import type { Cell, Picture2, TGrid } from './town2/cells';
 import { mirror } from './town2/cells';
+import { mirrorLit } from './figure2/relight';
 import { pixelCanvas2, spriteCanvas } from './town2/raster';
 import { DAY2, paletteFor, type TimeOfDay } from './town2/ramps';
 import { town2Scale } from './town2/scale';
@@ -441,10 +442,10 @@ export function townsfolkWalkPicture2(id: string, facing: Facing2, frame: number
     if (kept) return kept;
     const dress = FOLK_SIDE[id]?.();
     if (!dress) return null;
-    // Townsfolk carry no weapon, so walking left is the right walk mirrored.
+    // Townsfolk carry no weapon, so walking left is the right walk mirrored, re-lit from the left.
     const { grid } = sideWalkGrid(dress, f, TOWNSFOLK2_STRIDE, false);
     const pic = {
-      grid: recolour(facing === 'left' ? mirror(grid) : grid, folkSwap(id)),
+      grid: recolour(facing === 'left' ? mirrorLit(grid) : grid, folkSwap(id)),
       glows: [],
     };
     posedPics.set(key, pic);
