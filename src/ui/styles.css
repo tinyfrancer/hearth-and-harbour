@@ -995,11 +995,11 @@ button.card:active {
 }
 
 /*
- * The header's: 48 square, a thumb's tap. The art's smallest face is 48 CSS
- * pixels on a 3x phone, so the frame's border takes two from each side and
- * two more off the foot; set to the top, all it loses is the disc's edge and
- * the shoulders, never anything inside the hero's safe box
- * (`HERO_PORTRAIT2_SAFE`, held by tests/ui/faces.test.ts).
+ * The header's: sized by `headerFaceSize` (src/ui/face.ts) to the face at a
+ * whole number of device pixels per art pixel, at least 48 across: the whole
+ * face where that fits 56 down, else the hero's safe box
+ * (`HERO_PORTRAIT2_SAFE`), set to its top-left. The sizes are written on the
+ * frame and the face; 48 here only until they are.
  */
 .portrait.mini {
   width: 48px;
@@ -1008,6 +1008,7 @@ button.card:active {
 
 .portrait.mini .portrait2-art {
   align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .portrait.blank > span {
