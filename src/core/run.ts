@@ -1,5 +1,5 @@
 import { comeRound, hurt, maxHp } from './combat';
-import type { Content } from './content';
+import type { Content, DungeonFoe, MonsterDef } from './content';
 import type { GameState, MonsterRecord } from './state';
 
 /**
@@ -30,6 +30,14 @@ export interface RunSpoils {
    */
   kills?: Readonly<Record<string, number>>;
   /**
+   * What each foe was seen to drop in the run, by monster id: the item ids,
+   * in any order. Kept in the bestiary as an idle fight keeps what it sees,
+   * so the bestiary names a drop only once that foe has dropped it. Counted
+   * only for a known foe and an item its own row says it can drop; anything
+   * else counts for nothing.
+   */
+  dropped?: Readonly<Record<string, readonly string[]>>;
+  /**
    * The dungeon's id, if the run cleared it (reached the end with the boss
    * down). Kept in the save as a clear (S16 unlocks by them). An id the
    * dungeon tables do not hold counts for nothing.
@@ -40,14 +48,30 @@ export interface RunSpoils {
 }
 
 /**
- * Whether kills of `id` are kept: a monster of the tables, or one of a
- * dungeon's cast. Own rows only: an id like `constructor` is no monster.
+ * A foe's row, from the monster tables or a dungeon's cast; undefined for
+ * anything else. Own rows only: an id like `constructor` is no monster.
  */
+export function foeRow(content: Content, id: string): MonsterDef | DungeonFoe | undefined {
+  if (content.monsters && Object.hasOwn(content.monsters, id)) return content.monsters[id];
+  for (const dungeon of Object.values(content.dungeons ?? {})) {
+    const foe = dungeon.cast?.find((row) => row.id === id);
+    if (foe) return foe;
+  }
+  return undefined;
+}
+
+/** Whether kills of `id` are kept: a monster of the tables, or one of a dungeon's cast. */
 export function knownFoe(content: Content, id: string): boolean {
-  if (content.monsters && Object.hasOwn(content.monsters, id)) return true;
-  return Object.values(content.dungeons ?? {}).some((dungeon) =>
-    dungeon.cast?.some((foe) => foe.id === id),
-  );
+  return foeRow(content, id) !== undefined;
+}
+
+/** Every item a foe's own row says it can drop: always, rare, and one-thing-or-another. */
+export function foeDrops(foe: MonsterDef | DungeonFoe): string[] {
+  return [
+    ...foe.always.map((drop) => drop.item),
+    ...foe.rare.map((drop) => drop.item),
+    ...(('pick' in foe && foe.pick?.items) || []),
+  ];
 }
 
 const whole = (value: number | undefined): number =>
@@ -115,6 +139,22 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
     // As in an idle fight: kills count while the bounty is held, up to what it asks.
     if (bounty?.monster === monster && bounty.done < bounty.count) {
       bounty = { ...bounty, done: Math.min(bounty.count, bounty.done + killed) };
+    }
+  }
+  for (const [monster, items] of Object.entries(spoils.dropped ?? {})) {
+    const row = content && foeRow(content, monster);
+    if (!row || !Array.isArray(items)) continue;
+    const can = foeDrops(row);
+    const known: MonsterRecord = bestiary[monster] ?? { kills: 0, seen: [] };
+    const fresh = items.filter(
+      (item, at) =>
+        typeof item === 'string' &&
+        can.includes(item) &&
+        !known.seen.includes(item) &&
+        items.indexOf(item) === at,
+    );
+    if (fresh.length > 0) {
+      bestiary = { ...bestiary, [monster]: { ...known, seen: [...known.seen, ...fresh] } };
     }
   }
   if (bestiary !== state.bestiary) settled.bestiary = bestiary;

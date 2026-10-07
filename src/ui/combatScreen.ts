@@ -13,6 +13,7 @@ import {
 } from '../core/combat';
 import type { Content, DungeonFoe, MonsterDef } from '../core/content';
 import type { FightEnd } from '../core/fight';
+import { foeDrops } from '../core/run';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
@@ -67,21 +68,18 @@ export function dropsText(monster: MonsterDef, state: GameState, content: Conten
 }
 
 /**
- * What one of a dungeon's cast drops. A run does not say who dropped what,
- * so a thing is named once it is in the collection log (it has been held,
- * from anywhere) and is "?" until then; what is one thing or another
- * (`pick`) shows each.
+ * What one of a dungeon's cast drops, from its own row in the dungeon's data
+ * (`src/data/dungeons.ts`): a thing by name once this foe has been seen to
+ * drop it (the run says who dropped what), "?" until then, as a table
+ * monster's are. What is one thing or another (`pick`) shows each. Never
+ * from the collection log: a pearl from a sand crab says nothing of the
+ * giant crab's.
  */
 export function castDropsText(foe: DungeonFoe, state: GameState, content: Content): string {
-  const found = new Set(state.collection);
-  const ids = [
-    ...foe.always.map((drop) => drop.item),
-    ...foe.rare.map((drop) => drop.item),
-    ...(foe.pick?.items ?? []),
-  ];
+  const seen = new Set(state.bestiary[foe.id]?.seen ?? []);
   const names = [
     ...(foe.coins[1] > 0 ? ['Coins'] : []),
-    ...ids.map((id) => (found.has(id) ? itemName(content, id) : '?')),
+    ...foeDrops(foe).map((id) => (seen.has(id) ? itemName(content, id) : '?')),
   ];
   return names.join(', ');
 }

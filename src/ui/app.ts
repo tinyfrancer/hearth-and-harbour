@@ -1,6 +1,4 @@
 import { tabIcon } from '../art/icons';
-import { TAB_ICONS } from '../art/tabIcons';
-import { pixelSvg } from '../art/pixelSvg';
 import { takeStock } from '../core/achievements';
 import { advance, missingInput, startAction, stopAction } from '../core/actions';
 import { catchUp, type AwayReport } from '../core/away';
@@ -120,9 +118,25 @@ export function scrollToShow(screen: DOMRect, el: DOMRect): number {
   return Math.max(0, Math.min(below, el.top - VIEW_MARGIN - screen.top));
 }
 
-/** Scrolls the screen to show `el`, gliding unless the player asked for less motion. */
-function bringIntoView(screen: HTMLElement, el: HTMLElement): void {
-  const by = scrollToShow(screen.getBoundingClientRect(), el.getBoundingClientRect());
+/**
+ * How far to scroll for a slot's choices under a doll that sticks to the
+ * screen's top while they are open: as `scrollToShow` would, but never past
+ * the doll's top reaching the screen's top. From there the doll stays put
+ * and the choices scroll beneath it, so they are never hidden behind it.
+ */
+export function scrollToChoose(screen: DOMRect, doll: DOMRect, choices: DOMRect): number {
+  return Math.min(scrollToShow(screen, choices), Math.max(0, doll.top - screen.top));
+}
+
+/**
+ * Scrolls the screen to show `el`, gliding unless the player asked for less
+ * motion; with `under`, a doll that sticks above it (`scrollToChoose`).
+ */
+function bringIntoView(screen: HTMLElement, el: HTMLElement, under?: HTMLElement | null): void {
+  const box = screen.getBoundingClientRect();
+  const by = under
+    ? scrollToChoose(box, under.getBoundingClientRect(), el.getBoundingClientRect())
+    : scrollToShow(box, el.getBoundingClientRect());
   if (by <= 0) return;
   const top = screen.scrollTop + by;
   const still =
@@ -599,7 +613,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             panel === 'look' ? '[data-look-picker]' : '[data-picker]',
           );
           const screen = root.querySelector<HTMLElement>('#screen');
-          if (opened && screen) bringIntoView(screen, opened);
+          const doll = panel === 'look' ? null : root.querySelector<HTMLElement>('.doll');
+          if (opened && screen) bringIntoView(screen, opened, doll);
         },
         equip: (itemId) => {
           sheetPanel = null;
@@ -680,25 +695,24 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       h('header', { class: 'topbar' }, [
         h('h1', { text: current.label }),
         h('span', { class: 'who', text: state.name }),
-        // Their own face beside their name, in what they wear: a tap opens the sheet.
-        // Not in town, where the hero himself is on screen below it (and the
-        // scene's tests take the page's first canvas to be the town's).
-        tab !== 'town' &&
-          h(
-            'button',
-            {
-              class: 'who-face',
-              attrs: { type: 'button', 'aria-label': `${state.name}: the character sheet` },
-              on: {
-                click: () => {
-                  tab = 'character';
-                  records = null;
-                  render();
-                },
+        // Their own face beside their name, in what they wear, on every tab: a tap
+        // opens the sheet. (The scene's tests tap the scene's own canvas, so a
+        // canvas in the header is no trouble to them.)
+        h(
+          'button',
+          {
+            class: 'who-face',
+            attrs: { type: 'button', 'aria-label': `${state.name}: the character sheet` },
+            on: {
+              click: () => {
+                tab = 'character';
+                records = null;
+                render();
               },
             },
-            [headerFace(state)],
-          ),
+          },
+          [headerFace(state)],
+        ),
       ]),
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
       awards,
@@ -748,8 +762,11 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
                 },
               },
             },
-            // Art's own picture for the tab when it has drawn one; the old glyph until then.
-            [tabIcon(id) ?? pixelSvg(TAB_ICONS[id]!), h('span', { text: label })],
+            // Art's own picture for the tab; an empty place of the same kind if it ever has none.
+            [
+              tabIcon(id) ?? h('span', { class: 'tab-icon', attrs: { 'aria-hidden': 'true' } }),
+              h('span', { text: label }),
+            ],
           ),
         ),
       ),

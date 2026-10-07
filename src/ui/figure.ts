@@ -1,4 +1,3 @@
-import type { Look } from '../art/character';
 import {
   FIGURE2_H,
   FIGURE2_W,
@@ -6,7 +5,8 @@ import {
   IDLE2_FRAME_MS,
   characterIdle2,
 } from '../art/character2';
-import { iconScale, itemIcon } from '../art/icons';
+import { iconScale, itemIcon, itemIconPicture } from '../art/icons';
+import type { DrawnLook } from './look';
 
 /**
  * The hero drawn large for a menu, breathing: lane B's breath frames
@@ -20,7 +20,7 @@ export interface HeroFigure {
   /** Shows the breath due at `ms` on the app's clock (passed in, never read). */
   breathe(ms: number): void;
   /** Draws a new look or outfit on the same canvas, at the breath it is on. */
-  dress(look: Look, worn: readonly string[]): void;
+  dress(look: DrawnLook, worn: readonly string[]): void;
 }
 
 /** Which breath is due at `ms`: the frames alternate every `IDLE2_FRAME_MS`. */
@@ -38,7 +38,7 @@ export const deviceScale = (cssScale: number, dpr: number): number =>
 const ratio = (): number =>
   typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 
-export function heroFigure(look: Look, worn: readonly string[], cssScale: number): HeroFigure {
+export function heroFigure(look: DrawnLook, worn: readonly string[], cssScale: number): HeroFigure {
   const dpr = ratio();
   const scale = deviceScale(cssScale, dpr);
   const canvas = document.createElement('canvas');
@@ -89,27 +89,59 @@ export function heroFigure(look: Look, worn: readonly string[], cssScale: number
 }
 
 /**
- * CSS pixels to an art pixel for what is worn, in the doll's squares. The
- * menus' usual 32px icon is a third of a CSS pixel finer than one and leaves
- * the 56px squares half empty beside a hero at three; two fills a square's
- * 48px inside with a 24-pixel icon and comes nearer the hero's own pixels.
+ * CSS pixels to an art pixel for what is worn, in the doll's squares, unless
+ * told otherwise: the hero's own grain beside them (`sheetScale`, which
+ * passes its own), so the squares and the figure read as one picture. A
+ * 24-pixel icon is 72 CSS pixels at three.
  */
-export const DOLL_ICON_SCALE = 2;
+export const DOLL_ICON_SCALE = 3;
 
 /**
- * An item's icon for the doll: art's own canvas (`itemIcon`), shown at a whole
- * number of device pixels per art pixel near `DOLL_ICON_SCALE`, so every art
- * pixel stays a crisp square (6 at 3x, 4 at 2x, 5 at 2.625x). Null when art
- * has not drawn the item. Its art size is read off the canvas, not assumed.
+ * Art pixels across an item icon. The icons door draws them all at 24 x 24
+ * (a test holds it); the doll's squares are sized from it before any icon is
+ * drawn, and each icon is still drawn at its own picture's size.
  */
-export function dollIcon(itemId: string): HTMLCanvasElement | null {
-  const icon = itemIcon(itemId);
-  if (!(icon instanceof HTMLCanvasElement)) return null;
+export const ICON_ART = 24;
+
+/** The doll's square border, each side (`--px`). */
+const SLOT_BORDER = 2;
+
+/** A doll square's side in CSS pixels: an icon at `cssScale`, whole on the device, and its border. */
+export const dollSlotSize = (dpr: number = ratio(), cssScale = DOLL_ICON_SCALE): number =>
+  (ICON_ART * deviceScale(cssScale, dpr)) / dpr + 2 * SLOT_BORDER;
+
+/**
+ * An item's icon for the doll, on a canvas of its own exactly the picture's
+ * size at a whole number of device pixels per art pixel near `cssScale`
+ * (at three: 9 at 3x, 6 at 2x, 8 at 2.625x): art's own icon canvas
+ * (`itemIcon`) copied across pixel for pixel, smoothing off. Art pads its
+ * canvas at the right and foot to a whole CSS pixel, so showing that canvas
+ * itself sat the picture off the square's centre at 2.625x; this one holds
+ * the picture alone, so it centres at every ratio. Null when art has not
+ * drawn the item.
+ */
+export function dollIcon(itemId: string, cssScale = DOLL_ICON_SCALE): HTMLCanvasElement | null {
+  const art = itemIcon(itemId);
+  const pic = itemIconPicture(itemId);
+  if (!(art instanceof HTMLCanvasElement) || !pic) return null;
   const dpr = ratio();
-  const per = deviceScale(DOLL_ICON_SCALE, dpr);
+  const per = deviceScale(cssScale, dpr);
   const drawn = iconScale(dpr);
-  icon.style.width = `${((icon.width / drawn) * per) / dpr}px`;
-  icon.style.height = `${((icon.height / drawn) * per) / dpr}px`;
-  icon.classList.add('doll-icon');
-  return icon;
+  const { w, h } = pic.grid;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'icon pixel-art doll-icon';
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.width = w * per;
+  canvas.height = h * per;
+  canvas.style.width = `${canvas.width / dpr}px`;
+  canvas.style.height = `${canvas.height / dpr}px`;
+  canvas.dataset.per = String(per);
+  canvas.dataset.item = itemId;
+  // jsdom has no pixels; the sizes above are what it can check.
+  const ctx = typeof ImageData === 'undefined' ? null : canvas.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(art, 0, 0, w * drawn, h * drawn, 0, 0, canvas.width, canvas.height);
+  }
+  return canvas;
 }

@@ -1,10 +1,17 @@
-import { LOOK_CHOICES, type Look as DrawnLook } from '../art/character';
+import { LOOK_CHOICES2 } from '../art/character2';
 import type { Look } from '../core/state';
 import { h } from './dom';
 
 /**
+ * A look made whole for drawing: one choice for every part the art offers.
+ * Named from the C-scale door's own choices, so the menus need nothing from
+ * the first scale's modules.
+ */
+export type DrawnLook = { [Part in keyof typeof LOOK_CHOICES2]: string };
+
+/**
  * The parts of a look, in the order they are chosen. Which choices each part
- * has is the art's to say (`LOOK_CHOICES`), and it adds to them over time, so
+ * has is the art's to say (`LOOK_CHOICES2`), and it adds to them over time, so
  * nothing here names one.
  */
 const PARTS: readonly { part: keyof DrawnLook; label: string }[] = [
@@ -19,7 +26,7 @@ const PARTS: readonly { part: keyof DrawnLook; label: string }[] = [
  */
 export function fullLook(look: Look): DrawnLook {
   const pick = (part: keyof DrawnLook): string => {
-    const choices = LOOK_CHOICES[part];
+    const choices = LOOK_CHOICES2[part];
     const id = look[part];
     return choices.some((choice) => choice.id === id) ? id! : (choices[0]?.id ?? '');
   };
@@ -34,7 +41,7 @@ export function fullLook(look: Look): DrawnLook {
 export function lookPicker(start: DrawnLook, onChange: (look: DrawnLook) => void): HTMLElement {
   let look = start;
   const rows = PARTS.map(({ part, label }) => {
-    const choices = LOOK_CHOICES[part];
+    const choices = LOOK_CHOICES2[part];
     const shown = h('span', { class: 'look-choice' });
     const show = (): void => {
       shown.textContent = choices.find((choice) => choice.id === look[part])?.name ?? '';

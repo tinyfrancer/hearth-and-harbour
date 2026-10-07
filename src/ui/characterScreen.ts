@@ -1,4 +1,3 @@
-import type { Look as DrawnLook } from '../art/character';
 import { FIGURE2_W } from '../art/character2';
 import { itemIcon } from '../art/icons';
 import { type Content, type Slot } from '../core/content';
@@ -8,8 +7,8 @@ import { button, h, titled } from './dom';
 import { formatNumber } from './format';
 import { SLOT_NAMES, gearText, statName } from './gear';
 import { recordsEntry } from './logScreen';
-import { dollIcon, heroFigure } from './figure';
-import { fullLook, lookPicker } from './look';
+import { deviceScale, dollIcon, dollSlotSize, heroFigure } from './figure';
+import { fullLook, lookPicker, type DrawnLook } from './look';
 import type { View } from './view';
 
 /** What is open under the sheet: one slot's choices, the look, or nothing. */
@@ -25,21 +24,29 @@ export interface SheetActions {
   records(page: 'log' | 'achievements'): void;
 }
 
-/**
- * What the doll leaves the figure, across, on a screen `width` CSS pixels
- * wide: the screen's and the sheet's padding and borders, the two columns of
- * 56-pixel squares and their gaps, and the frame's own border.
- */
-const DOLL_TAKES = 32 + 4 + 20 + 112 + 16 + 4;
+/** The screen's side padding, less what the doll reaches into it (`.doll`'s margin), both sides. */
+const DOLL_GUTTERS = 2 * 16 - 2 * 6;
+/** The two gaps between the squares and the figure's room, and the room's border. */
+const DOLL_GAPS = 2 * 6 + 2 * 2;
+
+const screenRatio = (): number =>
+  typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 
 /**
- * CSS pixels to an art pixel for the figure on the sheet: three wherever the
- * doll leaves room for him whole (every phone from 356 wide), so he fills his
- * frame from the floor to just under its top; two on anything narrower.
+ * CSS pixels to an art pixel for the figure on the sheet and the icons in
+ * the doll's squares, one grain for both: three wherever two squares and the
+ * hero at three fit across, on the device's own whole pixels (every phone
+ * from 356 wide at 2x and 3x, 361 at 2.625x), so he fills his room from the
+ * floor up; two on anything narrower, squares and all.
  */
-export function sheetScale(width = typeof innerWidth === 'number' ? innerWidth : 390): number {
-  const room = Math.min(width, 480) - DOLL_TAKES;
-  return Math.max(2, Math.min(3, Math.floor(room / FIGURE2_W)));
+export function sheetScale(
+  width = typeof innerWidth === 'number' ? innerWidth : 390,
+  dpr = screenRatio(),
+): number {
+  const fits = (css: number): boolean =>
+    (FIGURE2_W * deviceScale(css, dpr)) / dpr <=
+    Math.min(width, 480) - DOLL_GUTTERS - DOLL_GAPS - 2 * dollSlotSize(dpr, css) + 1e-9;
+  return fits(3) ? 3 : 2;
 }
 
 /** The three totals combat will read, named for the style the weapon fights in. */
@@ -93,16 +100,23 @@ function slotPicker(
       ],
     );
   });
+  // Kept short above the choices, with Close at the top beside the slot's name,
+  // so on a short phone the first choice shows under the doll straight away.
   return h('section', { class: 'panel stack slot-picker', attrs: { 'data-picker': slot } }, [
-    h('h2', { text: SLOT_NAMES[slot] }),
+    h('div', { class: 'picker-head' }, [
+      h('h2', { text: SLOT_NAMES[slot] }),
+      button('Close', () => actions.open(null), 'small-btn'),
+    ]),
     worn &&
       h('div', { class: 'stack tight worn' }, [
         h('p', {}, [
           `Wearing ${wornDef?.name ?? worn.item}`,
           worn.qty > 1 ? ` × ${formatNumber(worn.qty)}` : '',
         ]),
-        wornDef?.equip && h('p', { class: 'small muted', text: gearText(wornDef.equip) }),
-        button('Take off', () => actions.unequip(slot)),
+        h('div', { class: 'worn-row' }, [
+          h('p', { class: 'small muted', text: wornDef?.equip ? gearText(wornDef.equip) : '' }),
+          button('Take off', () => actions.unequip(slot), 'small-btn'),
+        ]),
       ]),
     slot === 'off_hand' &&
       heldDef?.equip?.twoHanded &&
@@ -113,7 +127,6 @@ function slotPicker(
     ...choices,
     choices.length === 0 &&
       h('p', { class: 'muted small', text: 'Nothing in the bank goes here yet.' }),
-    button('Close', () => actions.open(null)),
   ]);
 }
 
@@ -129,25 +142,26 @@ const slotWord = (slot: Slot): string => (slot === 'ammo' ? 'Ammo' : SLOT_NAMES[
 /**
  * What is worn, by name, at a glance: two columns under the doll in the
  * doll's own order (the body's slots on the left, what is held and carried
- * on the right), a line each, so nothing needs a tap to be read. An empty
- * slot says which it is, dimmed. Screen readers have all this from the
- * squares already, so it is hidden from them.
+ * on the right), a line each, so nothing needs a tap to be read. Laid out row
+ * by row, so a long name that wraps to a second line keeps its neighbour
+ * level with it rather than being cut. An empty slot says which it is,
+ * dimmed. Screen readers have all this from the squares already, so it is
+ * hidden from them.
  */
 function wornList(state: GameState, content: Content): HTMLElement {
-  const column = (slots: readonly Slot[]): HTMLElement =>
-    h(
-      'ul',
-      { class: 'worn-list' },
-      slots.map((slot) => {
-        const worn = state.equipment[slot];
-        return h('li', {
-          class: worn ? '' : 'empty',
-          text: worn ? (content.items[worn.item]?.name ?? worn.item) : `${slotWord(slot)}: nothing`,
-          attrs: { 'data-worn-slot': slot },
-        });
-      }),
-    );
-  return h('div', { class: 'worn-lists', attrs: { 'aria-hidden': 'true' } }, DOLL.map(column));
+  const rows = DOLL[0]!.flatMap((left, at) => [left, DOLL[1]![at]!]);
+  return h(
+    'ul',
+    { class: 'worn-lists', attrs: { 'aria-hidden': 'true' } },
+    rows.map((slot) => {
+      const worn = state.equipment[slot];
+      return h('li', {
+        class: worn ? '' : 'empty',
+        text: worn ? (content.items[worn.item]?.name ?? worn.item) : `${slotWord(slot)}: nothing`,
+        attrs: { 'data-worn-slot': slot },
+      });
+    }),
+  );
 }
 
 /**
@@ -166,8 +180,13 @@ export function characterView(
   actions: SheetActions,
 ): View {
   const updates: ((state: GameState, now?: number) => void)[] = [];
-  const figure = heroFigure(fullLook(state.look), wornItemIds(state), sheetScale());
-  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [figure.el]);
+  const scale = sheetScale();
+  const figure = heroFigure(fullLook(state.look), wornItemIds(state), scale);
+  // The name heads the figure's room, in the air above him, so the doll is the sheet's top.
+  const stage = h('div', { class: 'figure stage', attrs: { 'data-figure': '' } }, [
+    h('h2', { class: 'sheet-name', text: state.name }),
+    figure.el,
+  ]);
   updates.push((_, now) => {
     if (now !== undefined) figure.breathe(now);
   });
@@ -176,7 +195,7 @@ export function characterView(
     const worn = state.equipment[slot];
     const name = worn ? (content.items[worn.item]?.name ?? worn.item) : 'Nothing';
     const open = panel === slot;
-    const icon = worn ? dollIcon(worn.item) : null;
+    const icon = worn ? dollIcon(worn.item, scale) : null;
     const count = worn && slot === 'ammo' ? h('span', { class: 'slot-qty qty' }) : null;
     if (count) {
       // Arrows go as they are shot, with the sheet open.
@@ -211,13 +230,19 @@ export function characterView(
   // An open slot's choices come straight under the doll, where the thumb that opened it is.
   const picker =
     panel && panel !== 'look' ? slotPicker(state, panel, content, actions, updates) : null;
-  const head = h('section', { class: 'panel stack sheet' }, [
-    h('h2', { class: 'sheet-name', text: state.name }),
-    h('div', { class: 'doll' }, [
+  // While a slot's choices are open the doll stays at the screen's top as they
+  // scroll beneath it, so what is tried on is seen on him.
+  const doll = h(
+    'div',
+    { class: 'doll', attrs: { style: `--slot: ${dollSlotSize(screenRatio(), scale)}px` } },
+    [
       h('div', { class: 'doll-side' }, DOLL[0]!.map(square)),
       stage,
       h('div', { class: 'doll-side' }, DOLL[1]!.map(square)),
-    ]),
+    ],
+  );
+  const head = h('section', { class: `stack sheet${picker ? ' choosing' : ''}` }, [
+    doll,
     picker ?? wornList(state, content),
     totals(state, content),
     lookOpen

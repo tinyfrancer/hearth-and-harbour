@@ -1,8 +1,8 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 11's menus** (the sheet, the creator, the faces), then the
-Milestone A review (`docs/lanes.md`, "The order of work"). Ready to build when scheduled: the
-run's save (designed under the notes, "A run that survives a reload"), with lane C.
+**Next: Cody's review of waves 11 and 12's menus** (the sheet, the header's face, the bestiary),
+then the Milestone A review (`docs/lanes.md`, "The order of work"). Ready to build when lane C's
+half lands: the run's save (designed under the notes, "A run that survives a reload").
 
 ## Done
 
@@ -529,8 +529,78 @@ run's save (designed under the notes, "A run that survives a reload"), with lane
     close-up with Skills, Bank and Character open, and the Skills, Bank and Character screens,
     at 360, 390 and 430 (and 320 after).
 
+- Wave 12: polish and weak spots (Cody: "Go for the cleanup and the weak spots you
+  mentioned"; branch `lane-a/w12-polish`). **No save change** (still 8).
+  - **Character sheet** (`characterScreen.ts`, `figure.ts`, `styles.css`): the worn items are
+    at the hero's grain now. Each square's inside is exactly a 24-pixel icon at the sheet's
+    scale (72 CSS pixels at three; `dollSlotSize`, written on the doll as `--slot`), and the
+    icon is a canvas of its own holding the picture alone (`dollIcon` copies art's icon canvas
+    across pixel for pixel; art pads its own at the right and foot, which is what sat the
+    picture 2 pixels off centre at 2.625x). Centred at every ratio; one grain for hero and
+    squares at every width (`sheetScale` picks three only where two squares and the hero at
+    three fit, so at 320 wide both are two, 52-pixel squares). To make the room at 360 the
+    sheet lost its panel (the squares, the room, the names and the totals keep their own
+    frames) and the doll reaches 6 pixels into the screen's side padding; the name heads the
+    figure's room instead of sitting above the doll. **An open slot keeps the doll in view**:
+    the doll sticks to the screen's top (`.sheet.choosing`) and the choices scroll beneath it;
+    opening scrolls only until the doll reaches the top (`scrollToChoose`), never past it.
+    Close sits beside the slot's name and Take off beside what is worn, so the first choice
+    shows under the doll on a 360 x 740 phone. **Worn names** are laid out row by row and wrap
+    rather than being cut ("Brinebeard’s / anchor" at 360; one line at 412).
+  - **Header face** (`face.ts`, `headerFaceSize`): drawn at the fewest whole device pixels per
+    art pixel that make it at least 48 CSS across, never fewer than the art's mini face
+    (`portraitScales2`): 2 at 3x (48 whole), 2 at 2.625x (54.9 whole), 2 at 2x and 1 at 1x
+    (72, cropped to the hero's safe box, 66 x 56, since the next step down is 36). The art's
+    mini canvas is shown at that many device pixels a block, pixelated; the frame is sized to
+    what it shows. The header is 66 tall at 3x, 73 at 2.625x, 74 at 2x (62 before). **On the
+    Town tab too**: lane C's `tap()` already takes `canvas.scene-canvas`, and `npm run check`
+    passes with the face there.
+  - **Bestiary drops** (`src/core/run.ts`, `combatScreen.ts`): `RunSpoils.dropped` (new,
+    optional): item ids by foe, what each was seen to drop. `settleRun` keeps them in the
+    foe's bestiary `seen`, only for a known foe and an item its own row can drop
+    (`foeRow`/`foeDrops`). A grotto foe's drops are listed from its row in
+    `src/data/dungeons.ts` (the single source of the cast's levels, numbers and drops) and
+    named only once that foe has dropped them, "?" until then, as a table monster's are. Never
+    from the collection log: a pearl from a sand crab no longer names the giant crab's. Until
+    lane C fills `dropped`, every grotto drop shows "?" (honest, and what it should be).
+  - **Thieving marks' faces**: unchanged code (`faceIfDrawn(mark)`, `portrait2(id)`); now tested
+    both ways: a door that gives nothing leaves the card whole with no frame; a door that gives
+    a face shows it in the lists' frame beside the name. Lane B's faces need no change here.
+  - **Old art imports moved**: `src/ui/look.ts` takes `LOOK_CHOICES2` from `character2` and
+    names the look's type itself (`DrawnLook`); `characterScreen.ts`, `createScreen.ts`,
+    `face.ts` and `figure.ts` take that type from `./look` instead of `art/character`;
+    `app.ts` no longer imports `art/tabIcons` (`TAB_ICONS`) or `art/pixelSvg` (the tab bar's
+    placeholder glyph; an empty `.tab-icon` place if art ever has no icon);
+    `tests/ui/app.test.ts` uses `LOOK_CHOICES2`; `tests/ui/look.test.ts` mocks `character2`.
+    Nothing in `src/ui`, `src/main.ts` or `tests/ui` imports `art/character`, `art/portraits`,
+    `art/town`, `art/dungeonArt`, `art/tabIcons` or `art/pixelSvg` now.
+  - **Checked in Chromium** at 390 x 844 @3, 360 x 740 @2 and @3, 412 x 915 @2.625 (and 320 x
+    568 @2 for the sheet), touch: `/home/claude/lane-shots/w12-a/before/` and `after/` (sheet,
+    slot open, slot open part-way down the choices, header and its face on Skills and Town,
+    the bestiary's grotto, Thieving, the town). **Crispness**, screenshot against canvas: the
+    header face and the doll's icons are only their own colours, and every colour change falls
+    on a whole block of the expected device pixels (2 for the face, 9/6/8 for the icons) at 1x,
+    2x, 2.625x and 3x. Not checked in Safari.
+  - **Tests**: `tests/ui/figure.test.ts` (icons at three, 216 device pixels at 3x, the square
+    76; 6 and 8 device pixels at 2x and 2.625x, the canvas the picture alone; squares and hero
+    at two on 320; art's icons 24 square; sheet scale per ratio; worn names row by row; the
+    scroll under the doll; `scrollToChoose`; no stickiness for the look), `tests/ui/faces.test.ts`
+    (header sizes at 1x to 3x, the sizes written on the frame, marks with and without a face,
+    the face on Town), `tests/ui/combat.test.ts` (drops from what that foe dropped, not the
+    collection log; a run's `dropped` named), `tests/core/run.test.ts` (`dropped` kept only for
+    a known foe and its own items, `foeDrops`). **Expectations changed on purpose**: the doll's
+    icon at 3x is 216 device / 72 CSS (was 96 / 48), and 6 and 8 device pixels an art pixel at
+    2x and 2.625x (was 4 and 5); worn names are one list in row order (was two lists); opening
+    a slot scrolls until the doll reaches the top (was until the choices' top did); the
+    header's face is on Town (was absent); the header crop test is replaced by the size test;
+    "the grotto foe's drops named once in the collection log" now reads the foe's own `seen`
+    (the captain's doubloon in the log no longer names his); the tab bar test wants art's
+    canvas (was "svg or canvas", the old glyph). `tests/data/pacing.test.ts` untouched.
+
 ## Deferred
 
+- Wave 12: **the run's save**, not built: lane C's pure serialise/restore for a run has not
+  landed on `main` (the brief said build only if it had). The design below stands.
 - Wave 11: **saving a dungeon run** is designed below ("A run that survives a reload"), not
   built: it needs the scene to hand a run over and take it back, which is lane C's half, and a
   save field with nothing yet to fill it would only be churn. Not built: faces for the thieving
@@ -546,30 +616,31 @@ run's save (designed under the notes, "A run that survives a reload"), with lane
 
 ## Needs from another lane
 
-- **For lane C (wave 11), the grotto's numbers.** `src/data/dungeons.ts` now holds the cast's
-  full rows (`DungeonDef.cast: DungeonFoe[]`, the `MonsterDef` shape less `area`, `bounty` and
+- **For lane C (wave 12), who dropped what.** Fill `RunSpoils.dropped` when a run is settled:
+  by foe id, the item ids that foe dropped in the run (any order, repeats fine), e.g.
+  `{ deckhand: ['doubloon', 'pirate_cutlass'] }`. The bestiary names a grotto foe's drops from
+  it; until then they all show "?". Only items the foe's row in `src/data/dungeons.ts` lists
+  count.
+- **For lane C, the grotto's numbers.** `src/data/dungeons.ts` holds the cast's full rows
+  (`DungeonDef.cast: DungeonFoe[]`, the `MonsterDef` shape less `area`, `bounty` and
   `bountyOnly`, plus `pick`; `PickDrop` is in `src/core/content.ts`). Proposed: `cast.ts` stops
   keeping its own table and reads them, e.g. `GROTTO_CAST = Object.fromEntries(
 DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID }]))`, with
   `CastDef`/`PickDrop` from core; then a number is changed in one place, and the drift test in
   `tests/data/content.test.ts` becomes trivially true (lane A deletes it after). Until then, a
   change to a cast row in `cast.ts` must be made in `dungeons.ts` too, or that test says so.
-- **For lane C:** `tests/scene/run.test.ts`'s `tap()` takes `root.querySelector('canvas')`, the
-  page's first canvas. The header now holds the hero's face (canvases) on every tab but Town, so
-  it is left out on Town for now; scoping the test to the scene's own canvas (`.scene canvas`
-  or the stage's) would let the header be the same everywhere.
 - **For lane C, the run's save** (the design below): `snapshotRun`/`restoreRun` and the two shell
   calls, when it is scheduled.
-- **For lane B (wave 11b), optional:** the doll shows item icons at 2 CSS pixels an art pixel
-  now (48 CSS), next to the hero at 3. Nothing looks wrong at that size; the necklaces and
-  bracelets use about the middle third of their 24-pixel grid, so they read smaller in their
-  squares than the helmet or the tunic, and could be drawn to fill more of it if wanted.
-- **For lane B (wave 11):** faces for the five thieving marks, if wanted (`steal_fisherman`,
-  `steal_fish_stall`, `steal_sailor`, `steal_pedlar`, `steal_strongbox`); the cards show
-  `portrait2(id)` the moment it gives one. `portraitScales2(2.625).mini` is 1 device pixel, so
-  the header's face is 27 CSS pixels on a 2.625x phone against 48 at 3x (it sits small in its
-  48 frame); a 2 there (55 CSS) would be cropped by the 48 frame at most 3.5 px a side, still
-  outside the safe box, if art would rather round than floor for the mini face.
+- **For lane B (wave 12), nothing blocking.** The old-scale doors can go: nothing in
+  `src/ui`, `src/main.ts` or `tests/ui` imports `art/character`, `art/portraits`, `art/town`,
+  `art/dungeonArt`, `art/tabIcons` or `art/pixelSvg`. The menus still use `art/icons`
+  (`itemIcon`, `itemIconPicture`, `iconScale`, `skillIcon`, `tabIcon`), `art/character2`,
+  `art/portraits2` and `art/gallery`; `portraits2.ts` and `character2.ts` themselves import
+  `Look`, `DEFAULT_LOOK` and `LOOK_CHOICES` from `art/character`, so those must move with it.
+  Optional: the doll's squares now show icons at the hero's grain (72 CSS); the necklaces and
+  bracelets still use about the middle third of their 24-pixel grid. The marks' faces
+  (`steal_fisherman`, `steal_fish_stall`, `steal_sailor`, `steal_pedlar`, `steal_strongbox`)
+  appear the moment `portrait2(id)` gives them.
 - Done since wave 9: the five tab icons arrived (B10b) and the bar shows them.
 - Nothing blocking. **For lane B, ids with no picture yet** (all look tidy without one): the
   eight grotto items (icons; worn layers for the six wearables), `velvet_cap` (icon and a worn
@@ -588,14 +659,21 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 ## Notes for this lane's next session
 
 - Save is version 8. The next shape change is 9.
-- The character sheet is a paper doll (wave 9). The doll's squares are 56px and the figure's room
-  takes what is left, so a 320px phone still fits. The figure is `heroFigure` (`src/ui/figure.ts`,
-  wave 11) at `sheetScale()` CSS pixels an art pixel; what it shows is written on its canvas
-  (`data-look`, `data-worn`, `data-breath`, `data-draws`), which the tests read.
+- The character sheet is a paper doll (wave 9). Since wave 12 the squares and the figure share
+  one grain, `sheetScale()` (three from 356 wide, two below): a square is a 24-pixel icon at that
+  scale plus its border (`dollSlotSize`, set on the doll as `--slot`), and the figure's room takes
+  what is left. The figure is `heroFigure` (`src/ui/figure.ts`, wave 11); what it shows is written
+  on its canvas (`data-look`, `data-worn`, `data-breath`, `data-draws`), which the tests read.
+  While a slot is open the sheet has `.choosing` and the doll is sticky.
 - `View.update(state, now?)`: `now` is the app's clock for the frame. Anything on a menu that
   moves by time alone takes it from there.
 
 ### A run that survives a reload (design, wave 11; not built)
+
+Wave 12: still waiting on lane C's half (a pure `snapshotRun`/`restoreRun` for a run, with the
+round-trip test below). Nothing changed in the design. When it lands: the save goes to 9 with
+`run: SavedRun | null`, a migration step (`run: null`), a `saveProblem` check and a test for
+each, exactly as below; `savedAt` keeps its meaning.
 
 Today a run lives in `townView`'s closure; a reload or a dropped page loses it, and whatever
 was picked up with it (nothing is settled until the run ends).
@@ -634,28 +712,27 @@ was picked up with it (nothing is settled until the run ends).
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
 
-### Weak list (wave 11)
+### Weak list (wave 12)
 
-- The doll's icons are 2 CSS pixels an art pixel beside a hero at 3: closer than before, not the
-  same grain (3 would be 72 pixels, wider than the squares). At 2.625x art pads the icon's
-  canvas to a whole CSS step, so the picture sits about 2 pixels up and left of the square's
-  centre there.
-- The tab bar's shares are a few pixels unequal at 360 and below (Character is wider).
-
-- Opening a slot with many choices on a short phone scrolls the doll out of view: the choices
-  start at the screen's top, so the figure is not seen while choosing (it shows the new thing as
-  soon as one is tapped and the sheet comes back).
-- The header's face is 48 CSS pixels at 3x but 36 at 2x and 27 at 2.625x (the art's smallest
-  face floors its scale); it sits small in its frame there. It is left out on the Town tab, partly
-  for lane C's test (see Needs).
+- With a slot open on a 360 x 740 phone the doll (about 330 pixels) leaves roughly 250 pixels
+  for the choices under it: one card and a half at a time. A smaller doll while choosing
+  would give more, at the cost of a figure that changes size; not done.
+- The header is 74 pixels tall at 2x (62 before) and 73 at 2.625x: whole pixels leave a face
+  of 36 or 72 at 2x, and 36 was the complaint. At 2x and 1x the face is cropped to its safe box
+  (the disc's edge and the shoulders go).
+- A grotto foe's drops are all "?" until lane C fills `RunSpoils.dropped`.
+- The sheet has no panel round it any more; the doll reaches 6 pixels into the screen's side
+  padding (10 pixels from the screen's edge at 360).
+- The figure's room is taller than the hero by about 90 pixels at three (the squares set its
+  height); the name sits in that air.
+- At 2.625x an icon is 73.14 CSS pixels in a 77.14 square: the square's edge falls between
+  device pixels, so its border's outer row is blended (the icon itself is exact).
 - The header's face keeps the old look while "Change look" is open; it catches up on Done.
-- A grotto foe's drops are named once the thing is in the collection log from anywhere, so a
-  pearl from a sand crab names the giant crab's pearl too (a run does not say who dropped what).
 - The cast's rows live in two places until lane C reads them from `src/data/dungeons.ts`; the
   drift test is what keeps them honest.
-- The creator fits Begin on a 360 × 740 screen only by trimming the title's air; "I have a
+- The creator fits Begin on a 360 x 740 screen only by trimming the title's air; "I have a
   save" is below the fold there (as before).
-- A long worn name ("Brinebeard’s anchor") is cut with an ellipsis in its column at 360.
+- The tab bar's shares are a few pixels unequal at 360 and below (Character is wider).
 - Not looked at in Safari; no WebKit here.
 - **Prices are held by `tests/data/pacing.test.ts`**, through `tests/data/economy.ts`: a new
   gathered thing is priced by the hour of its skill, a new made thing by the chain behind it

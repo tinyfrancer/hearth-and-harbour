@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FIGURE2_H, FIGURE2_W, IDLE2_FRAME_MS, LOOK_CHOICES2 } from '../../src/art/character2';
-import { iconScale } from '../../src/art/icons';
+import { itemIconPicture } from '../../src/art/icons';
 import { newGame } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
-import { mountApp, scrollToShow, type App } from '../../src/ui/app';
+import { mountApp, scrollToChoose, scrollToShow, type App } from '../../src/ui/app';
 import { sheetScale } from '../../src/ui/characterScreen';
 import { creatorScale } from '../../src/ui/createScreen';
-import { breathAt, deviceScale } from '../../src/ui/figure';
+import { ICON_ART, breathAt, deviceScale, dollSlotSize } from '../../src/ui/figure';
 
 // The character drawn large in the menus: lane B's C-scale figure, breathing,
 // at a whole number of device pixels to an art pixel, in the creator and on
@@ -17,7 +17,7 @@ import { breathAt, deviceScale } from '../../src/ui/figure';
 // itself, its size from the canvas, and where things sit on a phone from the
 // order they are built in and from rectangles given to it. That the pixels
 // are crisp, and how it all looks at 360 and 390 wide, is checked by
-// screenshot (docs/status/lane-a.md, wave 11).
+// screenshot (docs/status/lane-a.md, waves 11 and 12).
 
 let root: HTMLElement;
 let clock: number;
@@ -95,6 +95,13 @@ describe('the figure’s scale', () => {
     expect(sheetScale(320)).toBe(2);
     // No bigger on a wide screen: the app is never wider than 480.
     expect(sheetScale(1024)).toBe(3);
+    // On the phones checked, beside squares at the same grain.
+    expect(sheetScale(360, 2)).toBe(3);
+    expect(sheetScale(360, 3)).toBe(3);
+    expect(sheetScale(412, 2.625)).toBe(3);
+    // At 2.625x three is 3.05 CSS pixels and the squares 77.1: 361 wide is the least.
+    expect(sheetScale(361, 2.625)).toBe(3);
+    expect(sheetScale(360, 2.625)).toBe(2);
   });
 
   it('breathes in and out every IDLE2_FRAME_MS', () => {
@@ -257,16 +264,20 @@ describe('the character sheet', () => {
     expect(q('[data-slot="wrist"]').textContent).toBe('Wrist');
   });
 
-  it('fills a square with what is worn, at two CSS pixels an art pixel, whole on the device', () => {
-    // At 3x art draws its icon at 4 device pixels an art pixel (32 CSS); the doll shows it
-    // at 6 (48 CSS, a square's inside); the bank's choices under the doll stay at 32.
+  it('fills a square with what is worn at the hero’s grain, three CSS pixels an art pixel', () => {
+    // At 3x the doll shows the 24-pixel icon at 9 device pixels an art pixel (72 CSS, the
+    // square's inside, as the hero beside it); the bank's choices under the doll stay at 32.
     vi.stubGlobal('devicePixelRatio', 3);
     try {
       geared({ iron_sword: 1, iron_helmet: 1 });
       wear('main_hand', 'iron_sword');
       const sword = q<HTMLCanvasElement>('[data-slot="main_hand"] canvas.doll-icon');
-      expect([sword.width, sword.height]).toEqual([96, 96]);
-      expect([sword.style.width, sword.style.height]).toEqual(['48px', '48px']);
+      expect([sword.width, sword.height]).toEqual([216, 216]);
+      expect([sword.style.width, sword.style.height]).toEqual(['72px', '72px']);
+      expect(sword.dataset.per).toBe(String(deviceScale(3, 3)));
+      // The square is the icon and its 2-pixel border, so the icon fills it, centred.
+      expect(q('.doll').style.getPropertyValue('--slot')).toBe('76px');
+      expect(dollSlotSize(3)).toBe(76);
       q<HTMLButtonElement>('[data-slot="head"]').click();
       const choice = q<HTMLCanvasElement>('[data-equip="iron_helmet"] canvas.icon');
       expect(choice.style.width).toBe('32px');
@@ -276,24 +287,48 @@ describe('the character sheet', () => {
     }
   });
 
-  it('keeps the doll’s icons whole at 2x and at 2.625x', () => {
-    // Device pixels an art pixel: 4 at 2x (48 CSS), 5 at 2.625x (art pads its canvas to a
-    // whole CSS step there, so the element is a little wider than the picture).
-    for (const [dpr, perArtPixel] of [
-      [2, 4],
-      [2.625, 5],
+  it('keeps the doll’s icons whole and centred at 2x and at 2.625x', () => {
+    // Device pixels an art pixel: 6 at 2x (72 CSS), 8 at 2.625x (73.14 CSS). The canvas
+    // holds the picture alone (art pads its own at the right and foot there), and the
+    // square is sized to it, so it sits in the middle.
+    for (const [dpr, per] of [
+      [2, 6],
+      [2.625, 8],
     ] as const) {
       vi.stubGlobal('devicePixelRatio', dpr);
       try {
         geared({ iron_sword: 1 });
         wear('main_hand', 'iron_sword');
         const sword = q<HTMLCanvasElement>('[data-slot="main_hand"] canvas.doll-icon');
-        const shownDevicePx = parseFloat(sword.style.width) * dpr;
-        const drawnDevicePx = sword.width;
-        expect((shownDevicePx / drawnDevicePx) * iconScale(dpr)).toBeCloseTo(perArtPixel, 9);
+        expect([sword.width, sword.height]).toEqual([ICON_ART * per, ICON_ART * per]);
+        expect(parseFloat(sword.style.width) * dpr).toBeCloseTo(ICON_ART * per, 9);
+        expect(dollSlotSize(dpr)).toBeCloseTo((ICON_ART * per) / dpr + 4, 9);
       } finally {
         vi.unstubAllGlobals();
       }
+    }
+  });
+
+  it('keeps the squares at the hero’s grain on a 320-wide phone too, two to one', () => {
+    vi.stubGlobal('innerWidth', 320);
+    vi.stubGlobal('devicePixelRatio', 2);
+    try {
+      geared({ iron_sword: 1 });
+      wear('main_hand', 'iron_sword');
+      expect(figure().style.width).toBe(`${FIGURE2_W * 2}px`);
+      const sword = q<HTMLCanvasElement>('[data-slot="main_hand"] canvas.doll-icon');
+      expect(sword.style.width).toBe(`${ICON_ART * 2}px`);
+      // 52-pixel squares: still more than a thumb's 48.
+      expect(q('.doll').style.getPropertyValue('--slot')).toBe('52px');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('sizes the squares from art’s own icons', () => {
+    for (const id of ['iron_sword', 'iron_helmet', 'shell_necklace', 'bronze_arrows']) {
+      const pic = itemIconPicture(id)!;
+      expect([pic.grid.w, pic.grid.h], id).toEqual([ICON_ART, ICON_ART]);
     }
   });
 
@@ -303,15 +338,17 @@ describe('the character sheet', () => {
     wear('ammo', 'bronze_arrows');
     wear('head', 'linen_hood');
     expect(root.querySelector('[data-picker]')).toBeNull();
-    const lines = (side: number): (string | null)[] =>
-      [...root.querySelectorAll('.worn-list')[side]!.querySelectorAll('li')].map(
-        (li) => li.textContent,
-      );
-    expect(lines(0)).toEqual(['Linen hood', 'Neck: nothing', 'Body: nothing', 'Legs: nothing']);
-    expect(lines(1)).toEqual([
+    // Row by row, the body's slot then what is held beside it, so a name that wraps keeps
+    // its neighbour level with it.
+    const lines = [...q('.worn-lists').querySelectorAll('li')].map((li) => li.textContent);
+    expect(lines).toEqual([
+      'Linen hood',
       'Oak shortbow',
+      'Neck: nothing',
       'Off hand: nothing',
+      'Body: nothing',
       'Wrist: nothing',
+      'Legs: nothing',
       'Bronze arrows',
     ]);
     // Straight under the doll, and dimmed where empty; the squares already say it all to a screen reader.
@@ -330,26 +367,58 @@ describe('the character sheet', () => {
     expect(q('.doll').nextElementSibling!.matches('.worn-lists')).toBe(true);
   });
 
-  it('brings an opened slot’s choices into view on a 360 x 740 phone, from where the sheet was', () => {
+  it('brings an opened slot’s choices into view on a 360 x 740 phone, under the doll', () => {
     geared({ iron_helmet: 1, bronze_helmet: 1, leather_cap: 1 });
     // The screen between the bars on a 360 x 740 phone, scrolled down a little by the
-    // player; the choices open low on it and run past its foot.
+    // player; the choices open under the doll and run past the screen's foot.
     const screen = (): HTMLElement => q('#screen');
     screen().scrollTop = 40;
     const rects: Record<string, Partial<DOMRect>> = {
-      screen: { top: 62, bottom: 678 },
-      picker: { top: 470, bottom: 1100 },
+      screen: { top: 74, bottom: 678 },
+      doll: { top: 90, bottom: 420 },
+      picker: { top: 430, bottom: 1100 },
     };
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
       const r =
-        this.id === 'screen' ? rects.screen : this.matches('[data-picker]') ? rects.picker : {};
+        this.id === 'screen'
+          ? rects.screen
+          : this.matches('[data-picker]')
+            ? rects.picker
+            : this.matches('.doll')
+              ? rects.doll
+              : {};
       return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, ...r } as DOMRect;
     });
     q<HTMLButtonElement>('[data-slot="head"]').click();
-    // Kept where the player had it, then moved just far enough for the choices to start at its top.
-    expect(screen().scrollTop).toBe(40 + (470 - 8 - 62));
+    // Kept where the player had it, then moved only until the doll reaches the screen's top,
+    // where it stays while the choices scroll beneath it.
+    expect(screen().scrollTop).toBe(40 + (90 - 74));
+    expect(q('.sheet').classList).toContain('choosing');
+    // Already at the top (stuck there): left alone.
+    rects.doll = { top: 74, bottom: 404 };
+    screen().scrollTop = 300;
+    q<HTMLButtonElement>('[data-slot="neck"]').click();
+    expect(screen().scrollTop).toBe(300);
+  });
+
+  it('does not keep the doll at the top while the look is changed or nothing is open', () => {
+    geared({});
+    expect(q('.sheet').classList).not.toContain('choosing');
+    press('Change look');
+    expect(q('.sheet').classList).not.toContain('choosing');
+  });
+
+  it('scrolls for choices under the doll no further than the doll reaching the top', () => {
+    const r = (top: number, bottom: number) => ({ top, bottom }) as DOMRect;
+    // The choices fit below the doll once scrolled a little: just that.
+    expect(scrollToChoose(r(74, 678), r(100, 420), r(430, 690))).toBe(690 + 8 - 678);
+    // They do not: the doll to the top, no further.
+    expect(scrollToChoose(r(74, 678), r(100, 420), r(430, 1500))).toBe(100 - 74);
+    // In view already, or the doll already at the top: nothing.
+    expect(scrollToChoose(r(74, 678), r(100, 420), r(430, 600))).toBe(0);
+    expect(scrollToChoose(r(74, 678), r(74, 404), r(414, 1500))).toBe(0);
   });
 
   it('scrolls no further than it must, and never up', () => {

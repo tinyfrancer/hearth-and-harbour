@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The art lane's real choices grow over time; these stand in for a list with
 // several of one part and one of another, so the picker is tested either way.
-vi.mock('../../src/art/character', () => ({
-  LOOK_CHOICES: {
+vi.mock('../../src/art/character2', () => ({
+  LOOK_CHOICES2: {
     skin: [
       { id: 's1', name: 'Pale' },
       { id: 's2', name: 'Tan' },
@@ -14,11 +14,6 @@ vi.mock('../../src/art/character', () => ({
       { id: 'c1', name: 'Brown' },
       { id: 'c2', name: 'Red' },
     ],
-  },
-  characterCanvas: (look: { skin: string }) => {
-    const canvas = document.createElement('canvas');
-    canvas.dataset.skin = look.skin;
-    return canvas;
   },
 }));
 
