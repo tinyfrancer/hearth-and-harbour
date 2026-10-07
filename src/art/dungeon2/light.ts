@@ -19,7 +19,7 @@
  * a lantern hangs about a metre and a half up, so its pool is on the floor
  * in front of the wall, not on the rock above it.
  */
-import { darker, hash, type TGrid } from '../town2/cells';
+import { darker, hash, isMat, type TGrid } from '../town2/cells';
 import { noise } from '../town2/texture';
 import type { Glow } from '../raster';
 
@@ -89,7 +89,8 @@ export function lightGround2(ground: TGrid, lights: readonly Light2[]): TGrid {
       const rag = (noise(x, y, 4, 211) - 0.5) * 2 * L.ragged + (hash(x, y, 7) - 0.5) * 0.04;
       const u = t + rag;
       let steps = 0;
-      if (u < L.heart) steps = -L.heartSteps;
+      // Planks are not lifted at the heart (B11: their warm wood under the warm glow read orange).
+      if (u < L.heart) steps = isMat(c, 'wood') ? 0 : -L.heartSteps;
       else if (u < 1) steps = -L.ringSteps;
       else if (u > L.deep) steps = L.darkSteps + 1;
       else steps = L.darkSteps;

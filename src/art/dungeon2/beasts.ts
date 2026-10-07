@@ -16,6 +16,7 @@ import { cell } from './cave';
 import type { Mat2 as Mat } from './cave';
 import { outlineIn } from '../figure2/engine';
 import { furTex, litBy, lim, paint, poly, rod, seam, shaped, shifted, sprite } from './kit';
+import { blob, form, marks, stroke, tone, type Pts } from './heads';
 
 /** How far each bone moves in a frame, and a few frame-wide flags. */
 export interface BeastPose {
@@ -261,13 +262,62 @@ function crabBody(
         put(g, x, Math.round(cy + 3 * s) + j, cell('weed', 3 + (j % 2)));
     }
   }
-  // Eyes on stalks.
+  // Eyes on stalks (B11: B10a's stalks were a pixel wide with a bead on top): thick stalks lit on
+  // the near side, white eyeballs with the pupil toward the foe, and a hard lid slanting down to the
+  // middle, so even the sand crab glares.
   for (const side of [-1, 1]) {
-    const x = Math.round(cx + bx + side * 3 * s);
-    const top = Math.round(cy - 7 * s - 4 * s);
-    for (let y = top + 2; y < Math.round(cy - 5 * s); y++) put(g, x, y, cell('crab', 3));
-    eye(g, x, top);
+    const x = cx + bx + side * 3.2 * s;
+    const r = Math.max(1.6, 1.75 * s);
+    const ey = cy - 7 * s - 3.4 * s;
+    rod(
+      g,
+      x - side * 0.4 * s,
+      cy - 5 * s,
+      x,
+      ey + r,
+      Math.max(2, Math.round(1.25 * s)),
+      'crab',
+      [2, 3, 4],
+    );
+    const ball = (px: number, py: number) => Math.hypot(px + 0.5 - x, py + 0.5 - ey) < r;
+    paint(
+      g,
+      Math.floor(x - r - 1),
+      Math.floor(ey - r - 1),
+      Math.ceil(r * 2) + 3,
+      Math.ceil(r * 2) + 3,
+      (px, py) => {
+        if (!ball(px, py)) return 0;
+        const lid = py + 0.5 < ey - r * 0.2 - (px + 0.5 - x) * side * 0.6;
+        if (lid) return cell('crab', py + 0.5 < ey - r * 0.6 ? 1 : 3);
+        return cell('sail', px + 0.5 < x - r * 0.3 ? 1 : 2);
+      },
+    );
+    // The pupil, toward the way it faces (right) and a little low; a glint.
+    const pr = Math.max(1, Math.round(r * 0.45));
+    paint(g, Math.round(x + r * 0.3 - pr / 2), Math.round(ey - pr / 2 + r * 0.15), pr, pr, () =>
+      cell('eye', 4),
+    );
+    put(g, Math.round(x - r * 0.45), Math.round(ey + r * 0.2), cell('eye', 0));
   }
+  // The carapace's grooves, an M across the shell's front, and its lit front rim.
+  for (const side of [-1, 1])
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8;
+      put(
+        g,
+        Math.round(cx + bx + side * (1 + t * R * 0.55)),
+        Math.round(cy - 3 * s + Math.sin(t * Math.PI) * -2 * s + t * 3 * s),
+        cell('crab', 4),
+      );
+    }
+  for (let i = -8; i <= 8; i++)
+    put(
+      g,
+      Math.round(cx + bx + (i * R) / 10),
+      Math.round(cy + 5.6 * s - Math.abs(i) * 0.25 * s),
+      cell('crab', 1),
+    );
   // A mouth that works.
   if (p.open)
     paint(g, Math.round(cx + bx - 2), Math.round(cy + 3 * s), 4, 2, () => cell('shade', 3));
@@ -311,6 +361,16 @@ function crabBody(
       [2, 4],
     );
     put(g, Math.round(fx + side * 2 * s), Math.round(fy - 3 * s * big), cell('cream', 1));
+    // Teeth along the fixed finger's inner edge, and the dark crease where the fingers hinge.
+    for (let k = 1; k <= Math.round(2 * s); k++)
+      put(
+        g,
+        Math.round(fx - side * 0.6 * s),
+        Math.round(fy - k * 1.1),
+        cell('cream', k % 2 ? 1 : 3),
+      );
+    put(g, Math.round(fx - side * 0.5), Math.round(fy + 1), cell('crab', 5));
+    put(g, Math.round(fx - side * 0.5 + 1), Math.round(fy + 1), cell('crab', 5));
   }
 }
 
@@ -479,10 +539,12 @@ function hoofLeg(g: TGrid, x: number, y: number, ground: number, near: boolean, 
       put(g, x + i - Math.floor(w / 2), y + j, cell('umber', lim(s, 1, 5)));
     }
   }
-  sprite(g, x - 1, y + len, ['aab', 'bcc'], {
-    a: ['tar', near ? 2 : 3],
-    b: ['tar', 4],
-    c: ['tar', 5],
+  // A cloven hoof: lit on its front, the split between the toes dark.
+  sprite(g, x - 1, y + len, ['aab', 'bdc'], {
+    a: ['tar', near ? 1 : 2],
+    b: ['tar', 3],
+    c: ['tar', 4],
+    d: ['tar', 6],
   });
 }
 
@@ -511,6 +573,13 @@ const BOAR: Beast = {
     });
     // The belly's shadow and the dark under the chest.
     shade(g, 29 + bx, 34 + by, 16, 2.2, 1);
+    // Grizzled light along the top of the hump, where the bristles' tips catch it.
+    for (let x = 18; x <= 42; x += 2) {
+      const t = (x - 12) / 34;
+      const top = Math.round(by + 20 - 12 * Math.sin(t * Math.PI * 0.62)) + 2;
+      put(g, x + bx, top, cell('umber', 1));
+      if (x % 4 === 0) put(g, x + bx + 1, top + 1, cell('umber', 1));
+    }
     // A crest of bristles down the spine, standing up in tufts.
     for (let x = 12; x <= 46; x++) {
       const t = (x - 12) / 34;
@@ -575,10 +644,11 @@ const BOAR: Beast = {
       c: ['cream', 3],
     });
     // A small, mean eye under a hard brow.
-    sprite(g, 50 + hx, 17 + hy, ['aaab.', '.acda', '..ee.'], {
+    sprite(g, 49 + hx, 16 + hy, ['aaaab.', '.acgda', '.acdda', '..eee.'], {
       a: ['tar', 4],
       b: ['tar', 3],
-      c: ['gold', 1],
+      c: ['crimson', 2],
+      g: ['eye', 0],
       d: ['eye', 4],
       e: ['umber', 4],
     });
@@ -651,7 +721,7 @@ function pawLeg(g: TGrid, x: number, y: number, ground: number, near: boolean, h
   const len = ground - y;
   for (let j = 0; j < len; j++) {
     const k = j / len;
-    const w = k < 0.35 ? 3 : 2;
+    const w = k < 0.35 ? 4 : 3;
     // A hind leg bends back at the hock.
     const dx = hock
       ? Math.round(
@@ -660,8 +730,8 @@ function pawLeg(g: TGrid, x: number, y: number, ground: number, near: boolean, h
         )
       : 0;
     for (let i = 0; i < w; i++) {
-      const s = (near ? 2 : 3) + (i === 0 ? -1 : i === w - 1 ? 1 : 0) + (k > 0.4 ? 1 : 0);
-      put(g, x + i - 1 - dx, y + j, cell('fur', lim(s - 1, 1, 5)));
+      const s = (near ? 1 : 3) + (i === 0 ? -1 : i === w - 1 ? 1 : 0) + (k > 0.4 ? 1 : 0);
+      put(g, x + i - 1 - dx, y + j, cell('fur', lim(s - 1, 0, 5)));
     }
   }
   sprite(g, x - 2, ground - 1, ['abbc', '.ccd'], {
@@ -693,15 +763,15 @@ const WOLF: Beast = {
     pawLeg(g, 15 + kx, 26 + by, 43 + ky, false, 3);
     // The body: grey, a dark saddle along the back, the belly and chest pale.
     shaped(g, poly(shifted(WOLF_BODY, bx, by)), 'fur', {
-      base: 1.6,
-      contrast: 1.8,
+      base: 0.7,
+      contrast: 1.5,
       radius: 6,
       tex: (x, y, t) => {
         const ly = y - by;
         const lx = x - bx;
         const saddle = ly < 21 - (lx > 36 ? 3 : 0) ? 1 : 0;
         const belly = ly > 25 + (lx < 30 ? 1 : 0) || (lx > 43 && ly > 22) ? -1 : 0;
-        if (belly) return lim(t - 1, 0, 2);
+        if (belly) return lim(t - 1.5, 0, 1);
         return furTex(5, 0.8, 0.18)(lx, ly, t + saddle + belly);
       },
     });
@@ -717,8 +787,8 @@ const WOLF: Beast = {
     pawLeg(g, 47 + fx, 28 + by, 43 + fy, true);
     // The head, long, the muzzle paler beneath.
     shaped(g, poly(shifted(WOLF_HEAD, hx, hy)), 'fur', {
-      base: 1.5,
-      contrast: 1.9,
+      base: 0.6,
+      contrast: 1.6,
       radius: 4,
       tex: (x, y, t) =>
         y - hy > 19 && x - hx > 52 ? t - 1 : furTex(8, 0.2, 0.12)(x - hx, y - hy, t),
@@ -754,6 +824,19 @@ const WOLF: Beast = {
       c: ['eye', 4],
     });
     if (p.down) sprite(g, 57 + hx, 13 + hy, ['aaa'], { a: ['fur', 5] });
+    // A pale throat and chest under the jaw, as a grey wolf has, catching the lantern light.
+    for (const [x, y, n] of [
+      [50, 21, 5],
+      [49, 22, 6],
+      [48, 23, 6],
+      [47, 24, 5],
+      [47, 25, 4],
+      [47, 26, 3],
+    ] as const)
+      for (let i = 0; i < n; i++)
+        if (g.d[(y + hy) * g.w + x + i + hx])
+          put(g, x + i + hx, y + hy, cell('cream', i === 0 ? 2 : 3));
+    put(g, 57 + hx, 12 + hy, cell('eye', 0));
     // The nose, black, at the muzzle's tip.
     sprite(g, 65 + hx, 16 + hy, ['ab', 'bb'], { a: ['tar', 2], b: ['tar', 4] });
     // The mouth: the lip drawn back over teeth, open when it bites.
@@ -1044,8 +1127,11 @@ const WYRM: Beast = {
     }
     for (const [x, y, r] of pts)
       mass(g, x, y, r, r * 0.8, 'pine', { base: 3, k: 2, tex: 'scale', k2: Math.round(x) });
-    // Its belly plates, pale, underneath.
-    for (const [x, y, r] of pts) put(g, Math.round(x), Math.round(y + r * 0.7), cell('ochre', 3));
+    // Its belly plates, pale, underneath, each its own plate with a dark seam between.
+    pts.forEach(([x, y, r], i) => {
+      put(g, Math.round(x), Math.round(y + r * 0.7), cell('ochre', i % 3 === 0 ? 4 : 2));
+      put(g, Math.round(x), Math.round(y + r * 0.7) - 1, cell('ochre', i % 3 === 0 ? 4 : 3));
+    });
     // Thorns along its spine, with brambles wound through them.
     pts.forEach(([x, y, r], i) => {
       if (i % 4 || i < 4) return;
@@ -1073,9 +1159,15 @@ const WYRM: Beast = {
       a: ['bark', 1],
       b: ['bark', 3],
     });
-    eye(g, 83 + hx, 17 + hy, 'gold');
-    put(g, 82 + hx, 16 + hy, cell('pine', 5));
-    put(g, 84 + hx, 16 + hy, cell('pine', 5));
+    // A slit gold eye under a hard brow ridge, a nostril at the snout's end.
+    sprite(g, 81 + hx, 15 + hy, ['aaaab', '.cdc.', '.ced.'], {
+      a: ['pine', 5],
+      b: ['pine', 4],
+      c: ['gold', 1],
+      d: ['eye', 4],
+      e: ['gold', 3],
+    });
+    put(g, 92 + hx, 20 + hy, cell('pine', 6));
     if (p.open) {
       paint(g, 84 + hx, 24 + hy, 10, 3, (_x, y) => cell(y === 24 + hy ? 'crimson' : 'shade', 3));
       sprite(g, 85 + hx, 24 + hy, ['a.a.a.a'], { a: ['cream', 0] });
@@ -1142,6 +1234,259 @@ function lowest(g: TGrid): number {
   return 0;
 }
 
+/**
+ * The troll down (B11; B10a turned his standing picture a quarter and it read
+ * as a heap): drawn lying on his back, head to the left with his jaw and
+ * tusks to the sky and his eyes shut, the great belly a mound, one knee up,
+ * the near arm flung out along the ground with its fist open, weed spilling
+ * from his head. On a canvas of its own, his middle on the ground.
+ */
+function trollLying(): { grid: TGrid; feet: { x: number; y: number } } {
+  const g = tgrid(98, 50);
+  const T = (pts: Pts, base: number, light: readonly [number, number] = [20, 10]) =>
+    form(g, blob(pts), 'troll', {
+      cx: light[0],
+      cy: light[1],
+      rx: 40,
+      ry: 30,
+      base,
+      k: 1.5,
+      rim: 4,
+    });
+  // The far leg, straight along the ground behind, in shade.
+  T(
+    [
+      [62, 38],
+      [80, 40],
+      [92, 41],
+      [92, 47],
+      [70, 47],
+      [60, 45],
+    ],
+    3.4,
+  );
+  // The torso: his back on the ground, the belly a mound.
+  T(
+    [
+      [20, 42],
+      [22, 31],
+      [31, 21],
+      [45, 15],
+      [58, 16],
+      [67, 25],
+      [70, 37],
+      [67, 47],
+      [24, 47],
+    ],
+    2.4,
+    [40, 10],
+  );
+  tone(
+    g,
+    blob([
+      [34, 20],
+      [48, 16],
+      [58, 20],
+      [56, 28],
+      [40, 28],
+    ]),
+    -1,
+    ['troll'],
+  );
+  put(g, 47, 22, cell('troll', 5));
+  // The loincloth on its rope at his hips.
+  form(
+    g,
+    blob([
+      [60, 22],
+      [68, 28],
+      [70, 40],
+      [64, 44],
+      [60, 34],
+    ]),
+    'hide',
+    { cx: 60, cy: 20, rx: 12, ry: 20, base: 2.6, k: 1.2, rim: 1 },
+  );
+  // The near leg, the knee up, the foot flat.
+  T(
+    [
+      [62, 30],
+      [72, 20],
+      [80, 18],
+      [84, 24],
+      [76, 30],
+      [68, 38],
+    ],
+    2.2,
+  );
+  T(
+    [
+      [78, 19],
+      [84, 22],
+      [88, 34],
+      [88, 42],
+      [82, 42],
+      [80, 30],
+    ],
+    2.6,
+  );
+  T(
+    [
+      [80, 41],
+      [94, 41],
+      [97, 45],
+      [96, 47],
+      [79, 47],
+    ],
+    2.6,
+  );
+  // The head, back on the ground, the face to the sky.
+  T(
+    [
+      [4, 44],
+      [3, 34],
+      [7, 26],
+      [16, 22],
+      [25, 27],
+      [27, 38],
+      [22, 47],
+      [6, 47],
+    ],
+    2.1,
+    [8, 18],
+  );
+  // The ear, drooping to the ground.
+  T(
+    [
+      [6, 36],
+      [0, 40],
+      [1, 46],
+      [7, 44],
+    ],
+    3,
+  );
+  // Weed spilling from his crown onto the ground.
+  for (let i = 0; i < 6; i++)
+    stroke(
+      g,
+      [
+        [3 + i, 30 + i * 2],
+        [-1 + i, 47],
+      ],
+      'weed',
+      2 + (i % 3),
+    );
+  // The jaw jutting up, two tusks to the sky, the brow's ledge, the eyes shut, a lump of a nose.
+  form(
+    g,
+    blob([
+      [8, 26],
+      [14, 20],
+      [22, 21],
+      [24, 26],
+      [16, 28],
+    ]),
+    'troll',
+    { cx: 10, cy: 18, rx: 12, ry: 8, base: 2, k: 1.4, rim: 2 },
+  );
+  marks(g, 11, 15, ['a....a', 'ab...ab', 'ab...ab', 'bc...bc'], {
+    a: ['cream', 0],
+    b: ['cream', 2],
+    c: ['cream', 3],
+  });
+  stroke(
+    g,
+    [
+      [12, 24],
+      [21, 25],
+    ],
+    'shade',
+    3,
+  );
+  stroke(
+    g,
+    [
+      [19, 28],
+      [24, 34],
+    ],
+    'troll',
+    5,
+  );
+  marks(g, 17, 30, ['KK..', '..KK'], { K: ['troll', 6] });
+  marks(g, 20, 35, ['KK.', '.KK'], { K: ['troll', 6] });
+  form(
+    g,
+    blob([
+      [22, 29],
+      [26, 30],
+      [26, 34],
+      [23, 34],
+    ]),
+    'troll',
+    {
+      cx: 22,
+      cy: 28,
+      rx: 4,
+      ry: 4,
+      base: 1.6,
+      k: 1.6,
+      rim: 1,
+    },
+  );
+  // Moss on the shoulder.
+  form(
+    g,
+    blob([
+      [25, 28],
+      [30, 25],
+      [33, 29],
+      [28, 31],
+    ]),
+    'moss',
+    {
+      cx: 25,
+      cy: 24,
+      rx: 6,
+      ry: 5,
+      base: 2.2,
+      k: 1.5,
+      rim: 1,
+    },
+  );
+  // The near arm flung out along the ground, the fist fallen open.
+  T(
+    [
+      [26, 32],
+      [34, 30],
+      [40, 42],
+      [34, 46],
+    ],
+    2.2,
+  );
+  T(
+    [
+      [34, 41],
+      [52, 42],
+      [54, 47],
+      [34, 47],
+    ],
+    2.4,
+  );
+  T(
+    [
+      [52, 40],
+      [60, 39],
+      [63, 44],
+      [61, 47],
+      [52, 47],
+    ],
+    2.2,
+  );
+  for (const x of [55, 58, 61]) put(g, x, 41, cell('troll', 1));
+  const out = outlineIn(g);
+  return { grid: out, feet: { x: 46, y: lowest(out) } };
+}
+
 /** A creature down, from its buckling pose: its picture and where it lies (its feet point, on the ground). */
 export function fallenBeast(
   id: string,
@@ -1153,6 +1498,7 @@ export function fallenBeast(
     const g = upturned(beastGrid(id, buckle)!);
     return { grid: g, feet: { x: b.anchor.x, y: lowest(g) } };
   }
+  if (id === 'marsh_troll') return trollLying();
   if (f.how === 'side') {
     const g = beastGrid(id, buckle)!;
     // A quarter turn anticlockwise: the head to the left, the back on the ground.

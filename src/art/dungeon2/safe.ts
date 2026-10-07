@@ -50,31 +50,32 @@ export function heroBust2Grid(o: HeroBust): TGrid {
   return outlineIn(heroBustPicture(o, false).grid);
 }
 
-// Written out by `measureSafe2` (B10a); keep in step with the drawings.
+// Written out by `measureSafe2` (B11, from the redrawn faces, which fill the square as the
+// first scale's did); keep in step with the drawings.
 export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
-  smith: { x: 16, y: 9, w: 37, h: 47 },
-  trader: { x: 12, y: 6, w: 42, h: 50 },
-  pirate: { x: 10, y: 3, w: 52, h: 53 },
-  alewife: { x: 8, y: 8, w: 45, h: 48 },
-  market: { x: 16, y: 2, w: 37, h: 54 },
-  docker: { x: 15, y: 6, w: 46, h: 50 },
-  elder: { x: 16, y: 9, w: 37, h: 47 },
+  smith: { x: 5, y: 4, w: 62, h: 52 },
+  trader: { x: 5, y: 1, w: 57, h: 55 },
+  pirate: { x: 0, y: 0, w: 72, h: 56 },
+  alewife: { x: 7, y: 6, w: 56, h: 50 },
+  market: { x: 6, y: 0, w: 62, h: 56 },
+  docker: { x: 3, y: 5, w: 66, h: 51 },
+  elder: { x: 11, y: 6, w: 50, h: 50 },
   dock_rat: { x: 5, y: 5, w: 62, h: 51 },
-  sand_crab: { x: 1, y: 7, w: 66, h: 49 },
+  sand_crab: { x: 3, y: 3, w: 68, h: 53 },
   thieving_gull: { x: 2, y: 10, w: 68, h: 46 },
   bramble_boar: { x: 3, y: 2, w: 66, h: 54 },
-  footpad: { x: 11, y: 5, w: 56, h: 51 },
+  footpad: { x: 6, y: 2, w: 64, h: 54 },
   grey_wolf: { x: 6, y: 3, w: 60, h: 53 },
-  smuggler: { x: 16, y: 5, w: 38, h: 51 },
-  marsh_troll: { x: 0, y: 4, w: 72, h: 52 },
-  goblin_poacher: { x: 5, y: 7, w: 63, h: 49 },
+  smuggler: { x: 5, y: 0, w: 62, h: 56 },
+  marsh_troll: { x: 0, y: 3, w: 72, h: 53 },
+  goblin_poacher: { x: 0, y: 3, w: 71, h: 53 },
   bramble_wyrm: { x: 5, y: 3, w: 64, h: 53 },
-  deckhand: { x: 11, y: 7, w: 42, h: 49 },
-  powder_monkey: { x: 15, y: 9, w: 57, h: 47 },
-  giant_crab: { x: 2, y: 9, w: 68, h: 47 },
-  ships_parrot: { x: 6, y: 8, w: 61, h: 48 },
-  brinebeard: { x: 2, y: 0, w: 65, h: 56 },
+  deckhand: { x: 5, y: 2, w: 62, h: 54 },
+  powder_monkey: { x: 6, y: 7, w: 65, h: 49 },
+  giant_crab: { x: 0, y: 0, w: 72, h: 56 },
+  ships_parrot: { x: 5, y: 8, w: 63, h: 48 },
+  brinebeard: { x: 0, y: 0, w: 72, h: 56 },
 };
 
 /** The hero's safe box: the union over every hairstyle and head gear. */
-export const HERO_PORTRAIT2_SAFE: Box2 = { x: 8, y: 0, w: 56, h: 56 };
+export const HERO_PORTRAIT2_SAFE: Box2 = { x: 3, y: 0, w: 66, h: 56 };

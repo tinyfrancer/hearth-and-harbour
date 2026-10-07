@@ -272,12 +272,28 @@ function frontStep(lead: 'near' | 'far', away: boolean): Key2[] {
     return lead === 'near' ? { armNear: back, armFar: fwd } : { armNear: fwd, armFar: back };
   };
   const hem = (n: number): readonly [number, number] => (lead === 'near' ? [0, n] : [n, 0]);
-  // Toward the camera the trailing foot is the one further away; walking away, the leading one.
-  const far = { dx: 0, lift: 2, knee: 0 };
+  // The planted foot climbs the screen as the body comes down it (it stays on the ground while the
+  // walker passes over it), two rows a frame: a foot further away is higher up the screen. Walking
+  // away, the reverse. The free foot leaves from where the planted one ended and lands where it began.
+  const planted = away ? [6, 4, 2, 0] : [0, 2, 4, 6];
+  const free: LegKey[] = away
+    ? [
+        { dx: 0, lift: 0, knee: 0, tilt: 2 },
+        { dx: 0, lift: 3, knee: 0 },
+        { dx: 0, lift: 6, knee: 0, kneeUp: 1 },
+        { dx: 0, lift: 8, knee: 0 },
+      ]
+    : [
+        { dx: 0, lift: 6, knee: 0, tilt: 2 },
+        { dx: 0, lift: 9, knee: 0, kneeUp: 2 },
+        { dx: 0, lift: 7, knee: 0, kneeUp: 3 },
+        { dx: 0, lift: 2, knee: 0, kneeUp: 1 },
+      ];
+  const down = (i: number): LegKey => ({ dx: 0, lift: planted[i]!, knee: 0 });
   return [
     {
       bob: 1,
-      ...(away ? leg(far, { ...still, tilt: 2 }) : leg(still, { ...far, tilt: 2 })),
+      ...leg(down(0), free[0]!),
       ...arms(1, 2),
       sway: 0,
       cloak: 0,
@@ -286,7 +302,7 @@ function frontStep(lead: 'near' | 'far', away: boolean): Key2[] {
     },
     {
       bob: 1,
-      ...leg(still, { dx: 0, lift: 4, knee: 0, kneeUp: away ? 0 : 2 }),
+      ...leg(down(1), free[1]!),
       ...arms(2, 3),
       sway: side,
       cloak: side,
@@ -296,7 +312,7 @@ function frontStep(lead: 'near' | 'far', away: boolean): Key2[] {
     },
     {
       bob: 0,
-      ...leg(still, { dx: 0, lift: 7, knee: 0, kneeUp: away ? 1 : 3 }),
+      ...leg(down(2), free[2]!),
       ...arms(1, 1),
       sway: side,
       cloak: side,
@@ -306,7 +322,7 @@ function frontStep(lead: 'near' | 'far', away: boolean): Key2[] {
     },
     {
       bob: -1,
-      ...leg(still, { dx: 0, lift: 3, knee: 0, kneeUp: away ? 0 : 1 }),
+      ...leg(down(3), free[3]!),
       ...arms(0, 0),
       sway: 0,
       cloak: 0,

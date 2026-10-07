@@ -23,7 +23,7 @@ import { HAIR_BACKS, HEAD_BACK, HEADGEAR_BACK } from './sideHeads';
 import type { Boned } from './walk';
 
 /** Every pixel of a part, by row, as (x, character). */
-function rowsOf(part: Part2): Map<number, [number, string][]> {
+export function rowsOf(part: Part2): Map<number, [number, string][]> {
   const out = new Map<number, [number, string][]>();
   part.rows.forEach((row, j) => {
     for (let i = 0; i < row.length; i++) {
@@ -38,7 +38,7 @@ function rowsOf(part: Part2): Map<number, [number, string][]> {
 }
 
 /** A part from (x, y, character) pixels. */
-function fromPixels(base: Part2, px: readonly (readonly [number, number, string])[]): Part2 {
+export function fromPixels(base: Part2, px: readonly (readonly [number, number, string])[]): Part2 {
   if (!px.length) return { ...base, rows: [] };
   const x0 = Math.min(...px.map((p) => p[0]));
   const y0 = Math.min(...px.map((p) => p[1]));

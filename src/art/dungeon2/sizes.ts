@@ -129,7 +129,8 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     tall: 70,
     front: 15,
     back: 21,
-    strike: 26,
+    // B11: 27 (was 26), the body stepping into the blow carries the boathook a column further.
+    strike: 27,
     box: { w: 24, h: 70 },
     shadow: 11,
     hover: 0,
@@ -249,7 +250,8 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     tall: 55,
     front: 15,
     back: 18,
-    strike: 24,
+    // B11: 26 (was 24), the body stepping into the shot.
+    strike: 26,
     box: { w: 29, h: 55 },
     shadow: 14,
     hover: 0,

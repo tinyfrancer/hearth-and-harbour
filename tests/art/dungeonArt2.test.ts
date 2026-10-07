@@ -118,6 +118,9 @@ describe('dungeon tiles at the C scale', () => {
       ...TILE_KINDS.slice(0, 5),
       'wall_face_high',
       ...TILE_KINDS.slice(5),
+      // B11: the doors set in a side wall.
+      'door_side_barred',
+      'door_side_open',
     ]);
     for (const kind of TILE2_KINDS)
       for (let v = 0; v < 30; v++) {
@@ -126,6 +129,41 @@ describe('dungeon tiles at the C scale', () => {
         expect([t.grid.w, t.grid.h]).toEqual([24, 24]);
         expect(drawn(t.grid), kind).toBe(24 * 24);
       }
+  });
+
+  it('sets a door in a side wall, seen from above, turned to the room, the rock either side a top', () => {
+    // A door in each side wall of a little room: the rock above and below each stays the top.
+    const kinds = roomKinds2(['#####', 'S...Z', '#####']);
+    expect(kinds[1]![0]).toBe('door_side_open');
+    expect(kinds[1]![4]).toBe('door_side_barred');
+    expect(kinds[0]![0]).toBe('wall_top');
+    expect(kinds[2]![4]).toBe('wall_top');
+    const at = { col: 0, row: 1 };
+    const east = dungeonTile2(
+      'door_side_open',
+      0,
+      { e: 'sand', n: 'wall_top', s: 'wall_top' },
+      at,
+    )!.grid;
+    const west = dungeonTile2(
+      'door_side_open',
+      0,
+      { w: 'sand', n: 'wall_top', s: 'wall_top' },
+      at,
+    )!.grid;
+    // The frame stands at the room's edge and the dark beyond is on the far side: turned round for a room to the west.
+    const woodAt = (g: TGrid, x: number) =>
+      [...Array(24).keys()].filter((y) => matOf2(g.d[y * 24 + x]!) === 'wood').length;
+    expect(woodAt(east, 17)).toBeGreaterThan(8);
+    expect(woodAt(west, 6)).toBeGreaterThan(8);
+    const shadeAt = (g: TGrid, x: number) =>
+      [...Array(24).keys()].filter((y) => matOf2(g.d[y * 24 + x]!) === 'shade').length;
+    expect(shadeAt(east, 1)).toBeGreaterThan(8);
+    expect(shadeAt(west, 22)).toBeGreaterThan(8);
+    // Barred, an iron grille along the frame; open, none.
+    const iron = (g: TGrid) => [...g.d].filter((c) => matOf2(c) === 'iron').length;
+    expect(iron(dungeonTile2('door_side_barred', 0, { e: 'sand' }, at)!.grid)).toBeGreaterThan(20);
+    expect(iron(east)).toBe(0);
   });
 
   it('answers null for anything else, and the same tile for the same ask', () => {
@@ -485,6 +523,103 @@ describe('the sample rooms', () => {
   });
 });
 
+describe('the weak spots of B10a, mended (B11)', () => {
+  const count = (g: TGrid, f: (c: number) => boolean) => [...g.d].filter((c) => c && f(c)).length;
+
+  it('turns a person’s body into the blow: the stance wider and the head forward of standing', () => {
+    for (const id of ['deckhand', 'smuggler', 'footpad']) {
+      const stand = foePicture2(id, 'idle')!.picture.grid;
+      const blow = foePicture2(id, 'strike')!.picture.grid;
+      const span = (g: TGrid, y0: number, y1: number) => {
+        const xs: number[] = [];
+        for (let y = y0; y <= y1; y++)
+          for (let x = 0; x < g.w; x++) if (g.d[y * g.w + x]) xs.push(x);
+        return [Math.min(...xs), Math.max(...xs)] as const;
+      };
+      const [s0, s1] = span(stand, 64, 70);
+      const [b0, b1] = span(blow, 64, 70);
+      expect(b1 - b0, `${id} stance`).toBeGreaterThan(s1 - s0 + 4);
+      // The head goes forward over the lead foot.
+      expect(span(blow, 6, 14)[1], `${id} head`).toBeGreaterThan(span(stand, 6, 14)[1]);
+    }
+  });
+
+  it('lays the fallen troll out on his back: long and low, his eyes shut', () => {
+    const stand = foePicture2('marsh_troll', 'idle')!.picture.grid;
+    const down = foePicture2('marsh_troll', 'fall', 'right', 1)!;
+    expect(down.picture.grid.w).toBeGreaterThan(down.picture.grid.h * 1.6);
+    expect(down.picture.grid.h).toBeLessThan(stand.h * 0.6);
+    expect(count(down.picture.grid, (c) => matOf2(c) === 'eye')).toBe(0);
+    expect(count(down.picture.grid, (c) => matOf2(c) === 'cream')).toBeGreaterThan(8);
+    expect(down.feet.y).toBeGreaterThan(down.picture.grid.h - 4);
+  });
+
+  it('gives the crabs eyes on stalks that glare: white eyeballs, pupils, at true size', () => {
+    for (const [id, white] of [
+      ['giant_crab', 40],
+      ['sand_crab', 6],
+    ] as const) {
+      const g = foePicture2(id, 'idle')!.picture.grid;
+      expect(
+        count(g, (c) => matOf2(c) === 'sail'),
+        id,
+      ).toBeGreaterThan(white);
+      expect(
+        count(g, (c) => matOf2(c) === 'eye'),
+        id,
+      ).toBeGreaterThan(id === 'giant_crab' ? 8 : 2);
+    }
+  });
+
+  it('lifts the wolf against the cave floor and stands it on sturdier legs', () => {
+    const g = foePicture2('grey_wolf', 'idle')!.picture.grid;
+    const fur = [...g.d].filter((c) => matOf2(c) === 'fur' && stepOf(c) < 6);
+    const mean = fur.reduce((a, c) => a + stepOf(c), 0) / fur.length;
+    expect(mean).toBeLessThan(2.4);
+    // Every leg at least three pixels wide where it meets the paw, across the lowest rows.
+    let narrow = 0;
+    for (let y = g.h - 9; y < g.h - 4; y++) {
+      let run = 0;
+      for (let x = 0; x <= g.w; x++) {
+        const c = x < g.w ? g.d[y * g.w + x]! : 0;
+        if (c && stepOf(c) < 6) run++;
+        else {
+          if (run > 0 && run < 3) narrow++;
+          run = 0;
+        }
+      }
+    }
+    expect(narrow).toBe(0);
+  });
+
+  it('curves the shore round into a bottom wall instead of a square step, and leaves planks unlifted under a lantern', () => {
+    const t = dungeonTile2(
+      'deep_water',
+      0,
+      { e: 'sand', s: 'wall_top', w: 'deep_water', n: 'deep_water' },
+      { col: 4, row: 4 },
+    )!.grid;
+    const land = (y0: number, y1: number) => {
+      let n = 0;
+      for (let y = y0; y <= y1; y++)
+        for (let x = 0; x < 24; x++) if (matOf2(t.d[y * 24 + x]!) === 'cavesand') n++;
+      return n;
+    };
+    expect(land(20, 23)).toBeGreaterThan(land(0, 3) + 12);
+    // Planks in a lantern's heart stay as drawn; sand there is lifted.
+    const deck = dungeonTile2('planks', 0, undefined, { col: 0, row: 0 })!.grid;
+    const lit = lightGround2(deck, [
+      { x: 12, y: -34, radius: 66, strength: 0.5, drop: 46, pool: 70, flicker: 0 },
+    ]);
+    expect([...deck.d].filter((c, i) => matOf2(c) === 'wood' && lit.d[i] !== c)).toHaveLength(0);
+    const sand = dungeonTile2('sand', 0, undefined, { col: 0, row: 0 })!.grid;
+    const litSand = lightGround2(sand, [
+      { x: 12, y: -34, radius: 66, strength: 0.5, drop: 46, pool: 70, flicker: 0 },
+    ]);
+    expect(differ(sand, litSand)).toBeGreaterThan(200);
+  });
+});
+
 describe('portraits at the C scale', () => {
   it('draws a face for every face the first scale has, the villagers, and every monster', () => {
     expect(PORTRAIT2_SIZE).toBe(72);
@@ -560,6 +695,107 @@ describe('portraits at the C scale', () => {
     expect(heroPortraitPicture2({ skin: 'teal' as never }, ['nothing']).grid.w).toBe(72);
     expect(heroPortrait2({}, ['tricorn']).querySelectorAll('canvas')).toHaveLength(3);
   });
+});
+
+/**
+ * The people's faces (B11; docs/style-guide.md, "Portraits at the C scale"):
+ * each its own head, filling the frame, eyes with a catch-light, beards and
+ * hair as solid masses, never stipple; the hero's alive in every look.
+ */
+describe('faces that do not unsettle', () => {
+  const HUMANS = [
+    'smith',
+    'trader',
+    'pirate',
+    'alewife',
+    'market',
+    'docker',
+    'elder',
+    'footpad',
+    'smuggler',
+    'deckhand',
+    'powder_monkey',
+    'brinebeard',
+    'goblin_poacher',
+  ];
+  const SKINS = ['skin', 'skinpale', 'skingolden', 'skinbrown', 'skindeep', 'goblin'];
+  const HAIRS = ['hair', 'hairblack', 'chestnut', 'auburn', 'hairgrey', 'hairblonde'] as const;
+  const isSkin = (c: number) => SKINS.includes(matOf2(c) ?? '');
+  /** The widest run of skin on any row of the face (between the brows and the chin). */
+  const faceWidth = (g: TGrid) => {
+    let best = 0;
+    for (let y = 18; y < 44; y++) {
+      const xs = [...Array(g.w).keys()].filter((x) => isSkin(g.d[y * g.w + x]!));
+      if (xs.length) best = Math.max(best, Math.max(...xs) - Math.min(...xs) + 1);
+    }
+    return best;
+  };
+
+  it('draws every person as their own head: no two the same shape', () => {
+    const shapes = HUMANS.map((id) => {
+      const g = portraitBust2(id)!;
+      return [...g.d].map((c) => (isSkin(c) ? '1' : '0')).join('');
+    });
+    expect(new Set(shapes).size).toBe(HUMANS.length);
+    // And no two near alike: every pair differs in a good many pixels of skin.
+    for (let i = 0; i < shapes.length; i++)
+      for (let j = i + 1; j < shapes.length; j++) {
+        let d = 0;
+        for (let k = 0; k < shapes[i]!.length; k++) if (shapes[i]![k] !== shapes[j]![k]) d++;
+        expect(d, `${HUMANS[i]} and ${HUMANS[j]}`).toBeGreaterThan(120);
+      }
+  });
+
+  it('fills the frame as the first scale did: a face at least 30 pixels across', () => {
+    for (const id of HUMANS) expect(faceWidth(portraitBust2(id)!), id).toBeGreaterThanOrEqual(30);
+  });
+
+  it('gives open eyes a catch-light, and draws beards and hair as solid masses, not stipple', () => {
+    const shut = new Set(['alewife', 'elder', 'footpad']);
+    for (const id of HUMANS) {
+      const g = portraitBust2(id)!;
+      const at = (x: number, y: number) =>
+        x < 0 || y < 0 || x >= g.w || y >= g.h ? 0 : g.d[y * g.w + x]!;
+      if (!shut.has(id))
+        expect(
+          [...g.d].some((c) => matOf2(c) === 'eye' && stepOf(c) === 0),
+          `${id} catch-light`,
+        ).toBe(true);
+      // Stipple: a pixel of hair alone among skin, below the eyes where beards and stubble are
+      // (a brow's arc may end in a single pixel above). A solid mass has none, or almost none.
+      let lone = 0;
+      for (let y = 34; y < g.h; y++)
+        for (let x = 0; x < g.w; x++) {
+          const c = at(x, y);
+          if (!(HAIRS as readonly string[]).includes(matOf2(c) ?? '')) continue;
+          const n = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)];
+          if (n.every((m) => isSkin(m))) lone++;
+        }
+      expect(lone, `${id} stipple`).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it(
+    'gives the hero an open, alive face in every look and under every head gear',
+    { timeout: 120_000 },
+    () => {
+      // Every skin under every head gear in every style, and every hair colour bare-headed.
+      for (const skin of ['skin', 'skinpale', 'skingolden', 'skinbrown', 'skindeep'] as const)
+        for (const hair of HAIRS)
+          for (const style of ['short', 'long', 'braid', 'shaggy', 'bald'] as const)
+            for (const head of [null, ...HEADGEAR2.map((g) => g.id)]) {
+              if (hair !== 'hair' && (head !== null || skin !== 'skin')) continue;
+              const g = heroBust2Grid({ skin, hair, style, head, body: null, neck: null });
+              const what = `${skin} ${hair} ${style} ${head}`;
+              expect(faceWidth(g), what).toBeGreaterThanOrEqual(30);
+              const eye = [...g.d].filter((c) => matOf2(c) === 'eye');
+              // Two eyes, each with its white, iris and catch-light, none hidden by hair or a helm.
+              expect(eye.filter((c) => stepOf(c) === 0).length, what).toBe(2);
+              expect(eye.filter((c) => stepOf(c) === 1).length, what).toBeGreaterThanOrEqual(8);
+              expect(eye.filter((c) => stepOf(c) === 4).length, what).toBeGreaterThanOrEqual(10);
+            }
+    },
+  );
 });
 
 describe('the first scale’s doors', () => {

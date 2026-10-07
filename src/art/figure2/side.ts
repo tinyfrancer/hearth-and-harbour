@@ -12,10 +12,12 @@
  * ahead for a flat foot to reach.
  */
 import { DEPTH } from '../depth';
-import { cell, mirror, type TGrid } from '../town2/cells';
+import { cell, type TGrid } from '../town2/cells';
+import { mirrorLit } from './relight';
 import type { Mat } from '../town2/ramps';
 import { FIST2, OPEN_HAND2 } from './body';
 import type { Part2 } from './engine';
+import { LEGEND2 } from './legend';
 import {
   along,
   drawLimb,
@@ -32,7 +34,7 @@ import {
 
 /** The hip joint standing, the leg's bones, the ankle's row with the foot flat. */
 export const SIDE_HIP: Pt = [28, 44];
-export const THIGH = 11;
+export const THIGH = 12;
 export const SHIN = 11;
 export const ANKLE_ROW = 65;
 /** The shoulder joint standing, and the arm's bones. */
@@ -59,8 +61,9 @@ export const FEET2: Readonly<Record<string, Foot2>> = {
     ankle: [2, 0],
     ground: [0, 4],
   },
+  // The heel striking, the toe turned up: the sole a dark line rising to the toe (B11: B10b's was a blob).
   heel: {
-    rows: ['.1223..3.', '.1222334.', '012222345', '0122245..', '555......'],
+    rows: ['.1223....', '.12223345', '012222355', '0122255..', '555......'],
     ankle: [2, 0],
     ground: [0, 4],
   },
@@ -110,7 +113,7 @@ function legPhases(stride: number): LegPhase[] {
 }
 
 /** How far the hips drop (+) or rise in each frame: lowest as the weight lands, highest passing. */
-const BOB = [2, 1, 0, 0, 2, 1, 0, 0];
+const BOB = [1, 0, -1, -1, 1, 0, -1, -1];
 
 interface PosedLeg {
   readonly hip: Pt;
@@ -331,7 +334,7 @@ export function sideFrame(
   // The torso and head, rigid with the hips' bob; the head leads by a column.
   const head = dress.headAt ?? [0, 0];
   for (const p of dress.torso) sheet.part(p, body[0], by);
-  for (const p of dress.head) sheet.part(p, body[0] + 1 + head[0], by + head[1]);
+  for (const p of dress.head) sheet.part(p, body[0] + 1 + head[0], by + head[1], { tag: 'head' });
   for (const p of dress.back) sheet.part(p, body[0], by, { depth: SIDE.BACK });
 
   // Arms swing against the legs: the near arm is back when the near leg is forward.
@@ -350,8 +353,9 @@ export function sideFrame(
       return { upper: 0.05, fore: 0.35, swing: 0.5, hand: 'fist', holds: dress.offHeld };
     if (hasShield && which !== weaponArm)
       return { upper: 0.28, fore: 1.25, swing: 0.12, hand: 'none' };
+    // A weapon carried low swings less than a free hand: it has weight, and its point stays clear of the feet.
     if (hasWeapon && which === weaponArm)
-      return { upper: 0.1, fore: 0.5, swing: 0.5, hand: 'fist', holds: dress.held };
+      return { upper: 0.05, fore: 0.4, swing: 0.32, hand: 'fist', holds: dress.held };
     return { upper: 0, fore: 0.15, swing: 1, hand: 'open' };
   };
   const arm = (which: 'near' | 'far') => {
@@ -370,6 +374,14 @@ export function sideFrame(
       const bottom = Math.max(...job.holds.flatMap((p) => p.rows.map((_, j) => p.at[1] + j)));
       const lowest = FIST2.at[1] + (68 - bottom);
       if (wrist[1] > lowest) wrist = [wrist[0], lowest];
+      // Nor go so far forward or back that a weapon carried low leaves the canvas.
+      const xs = job.holds.flatMap((p) =>
+        p.rows.flatMap((r, _j) => [p.at[0], p.at[0] + r.length - 1]),
+      );
+      const ahead = FIST2.at[0] + 2 + (54 - Math.max(...xs));
+      const behind = FIST2.at[0] + 2 + (1 - Math.min(...xs));
+      if (wrist[0] > ahead) wrist = [ahead, wrist[1]];
+      if (wrist[0] < behind) wrist = [behind, wrist[1]];
     }
     return { job, elbow, wrist };
   };
@@ -437,9 +449,12 @@ export function sideFrame(
       const mid: Pt = isNear
         ? [(elbow[0] + wrist[0]) / 2, (elbow[1] + wrist[1]) / 2]
         : [wrist[0] + 1, (elbow[1] + wrist[1]) / 2];
+      // A tall shield is slung lower on the forearm, its top below the chin and the neck (B11).
+      const CHIN = 26 + by;
       for (const p of isNear ? dress.shield : edgeOn(dress.shield)) {
         const box = extent(p);
-        sheet.part(p, Math.round(mid[0] - box.cx), Math.round(mid[1] - box.cy), {
+        const dy = Math.round(mid[1] - box.cy);
+        sheet.part(p, Math.round(mid[0] - box.cx), Math.max(dy, CHIN - box.y0), {
           depth: depth + 10,
           tag: 'shield',
           darken: dark,
@@ -536,10 +551,18 @@ function edgeOn(parts: readonly Part2[]): Part2[] {
   if (!main) return [];
   const w = Math.max(...main.rows.map((r) => r.length));
   const pick = [0, Math.floor(w / 3), Math.floor(w / 2), w - 1];
+  // A boss in the middle stands proud of the rim, toward the walk (B11: the buckler's edge read as a plank).
+  const metal = (ch: string) => {
+    const pin = main.pins?.[ch] ?? LEGEND2[ch];
+    return !!pin && ['bronze', 'iron', 'gold', 'plate'].includes(pin[0]);
+  };
   return [
     {
       ...main,
-      rows: main.rows.map((r) => pick.map((i) => r[i] ?? '.').join('')),
+      rows: main.rows.map((r) => {
+        const mid = r[Math.floor(w / 2)] ?? '.';
+        return pick.map((i) => r[i] ?? '.').join('') + (metal(mid) ? mid : '.');
+      }),
     },
   ];
 }
@@ -636,7 +659,7 @@ function drawCloak(sheet: Sheet, mat: Mat, bob: number, f: number): void {
   }
 }
 
-/** One frame of the side walk, stacked and outlined; `left` swaps the arms' jobs and mirrors. */
+/** One frame of the side walk, stacked and outlined; `left` swaps the arms' jobs, mirrors and re-lights from the left. */
 export function sideWalkGrid(
   dress: SideDress,
   frame: number,
@@ -649,7 +672,7 @@ export function sideWalkGrid(
   const w = grid.w;
   const mtags = tags.map((_, i) => tags[Math.floor(i / w) * w + (w - 1 - (i % w))]!);
   return {
-    grid: mirror(grid),
+    grid: mirrorLit(grid),
     tags: mtags,
     fist: [w - 1 - fr.fist[0] - 4, fr.fist[1]],
     weaponNear: fr.weaponNear,

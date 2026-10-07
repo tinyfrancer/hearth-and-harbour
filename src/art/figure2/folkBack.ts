@@ -221,9 +221,48 @@ const HEADS: Readonly<Record<string, readonly Part2[]>> = {
   ],
 };
 
-/** What shows from behind that the front drawing never needed: the smith's thighs, under the apron at the front. */
+/**
+ * What shows from behind that the front drawing never needed: the smith's
+ * thighs, under the apron at the front, and the apron's strings tied in a bow
+ * at the small of his back; the market woman's shawl, a point down her back
+ * (B11: the front drawing turned round still showed its knot).
+ */
 const EXTRA: Readonly<Record<string, readonly Part2[]>> = {
+  market: [
+    {
+      at: [18, 22],
+      depth: 4,
+      rows: [
+        '..QQQQzzzzzzzzzxxX...',
+        '.QQQQzzzzzzzzzzzxxX..',
+        '.QQQzzzzzzxzzzzzzxX..',
+        '..QQzzzzzzxzzzzzxX...',
+        '...Qzzzzzzxzzzzzx....',
+        '....Qzzzzzxzzzzx.....',
+        '.....Qzzzzxzzzx......',
+        '......Qzzzzzzx.......',
+        '.......Qzzzzx........',
+        '........Qzzx.........',
+        '.........zx..........',
+        '.........QX..........',
+        '..........X..........',
+      ],
+      pins: { Q: ['ochre', 1], z: ['ochre', 2], x: ['ochre', 3], X: ['ochre', 4] },
+    },
+  ],
   smith: [
+    {
+      at: [21, 36],
+      depth: 7,
+      rows: [
+        'aaaaaabbcbbaaaaaaa',
+        'cccccbbacabbcccccc',
+        '.......bcb........',
+        '......ba.ab.......',
+        '......b...b.......',
+      ],
+      pins: { a: ['leather', 3], b: ['leather', 2], c: ['leather', 4] },
+    },
     cloth(
       0,
       'umber',
@@ -249,7 +288,8 @@ const BEHIND: Readonly<Record<string, (p: Part2, i: number) => Part2 | null>> = 
           ? rechar(p, { g: 'x', G: 'X' })
           : p,
   alewife: (p, i) => (i <= 1 ? null : p.mat === 'cream' && p.depth === 5 ? null : p),
-  market: (p, i) => (i <= 1 ? null : p),
+  // The shawl is crossed and knotted in front; from behind it is a point down the back (EXTRA).
+  market: (p, i) => (i <= 1 || i === 7 ? null : p),
   docker: (p, i) => (i === 0 || i === 3 ? null : p),
   elder: (p, i) => (i === 0 || i === 1 ? null : i === 2 ? rechar(filled(p, '2'), { '5': '3' }) : p),
 };

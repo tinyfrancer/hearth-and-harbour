@@ -395,9 +395,36 @@ function personFrame(id: string, key: Key2, pose: PersonPose): { grid: TGrid; gl
   return { grid, glows: [] };
 }
 
-/** The poses each person has, as keys on the hero's rig. */
-const WINDUP: Key2 = { ...STAND2, lean: -1, bob: 0 };
-const STRIKE: Key2 = { ...STAND2, lean: 2, bob: 1 };
+/**
+ * The poses each person has, as keys on the hero's rig. The body turns into
+ * a blow (B11; B10a's was an arm drawn over a standing body): winding up, the
+ * weight goes back onto the near foot (the viewer's left, behind), the
+ * shoulders lean away and the free arm comes forward to balance; striking,
+ * the far foot steps out toward the one struck with its knee bent, the back heel lifts, the hips drop and the
+ * body and head go forward over the lead foot, the free arm flung back.
+ */
+const WINDUP: Key2 = {
+  ...STAND2,
+  bob: 0,
+  near: { dx: -3, lift: 0, knee: -1 },
+  far: { dx: 1, lift: 1, knee: 1 },
+  armFar: { dx: 3, dy: -3 },
+  lean: -2,
+  shift: -2,
+  sway: -1,
+  cloak: 1,
+};
+const STRIKE: Key2 = {
+  ...STAND2,
+  bob: 2,
+  near: { dx: -4, lift: 1, knee: -1, tilt: 2 },
+  far: { dx: 6, lift: 0, knee: 3, tilt: -1 },
+  armFar: { dx: -3, dy: -1 },
+  lean: 3,
+  shift: 2,
+  sway: 1,
+  cloak: -1,
+};
 const HURT: Key2 = {
   ...STAND2,
   armNear: { dx: -3, dy: -2 },

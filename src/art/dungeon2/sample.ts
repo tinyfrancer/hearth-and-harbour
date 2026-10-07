@@ -69,7 +69,7 @@ export const STORE2: readonly string[] = [
 export function roomAtTide(rows: readonly string[], level: number, warn = false): string[] {
   return rows.map((row) =>
     [...row]
-      .map((ch) => {
+      .map((ch, col) => {
         const c = GROUND_UNDER[ch] ?? ch;
         if (c >= '0' && c <= '3') {
           // One level over a tile is shallows, two is deep (src/scene/tide.ts).
@@ -92,7 +92,9 @@ export function roomAtTide(rows: readonly string[], level: number, warn = false)
           case ',':
             return '~';
           default:
-            return c >= 'a' && c <= 'z' ? 'O' : '#';
+            // A door in the first or last column is in a side wall (B11): the side door.
+            if (c >= 'a' && c <= 'z') return col === 0 || col === row.length - 1 ? 'S' : 'O';
+            return '#';
         }
       })
       .join(''),

@@ -99,6 +99,7 @@ export function heroBust2(look: Partial<Look>, wornItemIds: readonly string[]): 
     head: inSlot('head'),
     body: inSlot('body'),
     neck: inSlot('neck'),
+    shirt: inSlot('shirt'),
   };
 }
 
