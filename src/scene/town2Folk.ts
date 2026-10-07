@@ -13,6 +13,7 @@ import { facingToward, walkUp, type Facing, type Play } from './play';
 import {
   PERSONAL,
   crowding,
+  giveWay,
   roundOf,
   strollAt,
   strollPast,
@@ -22,8 +23,8 @@ import {
 import { route } from './path';
 import type { TileMap } from './tileMap';
 import { grown, type Box, type Scene } from './things';
-import { cellAt, type Point } from './tileMap';
-import { personTap, standBeside, STROLLERS2, talkGap } from './town2';
+import { cellAt, isSolid, type Point } from './tileMap';
+import { personTap, standBeside, STROLLERS2, talkGap, town2Scene } from './town2';
 import type { Walking } from './town2Art';
 
 const T = TOWN2_TILE;
@@ -45,10 +46,14 @@ export const startFolk = (): FolkClocks => STROLLERS2.map(() => 0);
 export const talkingTo = (play: Play, id: string): boolean =>
   play.heading === id || play.open === id;
 
+/** Whether a stroller may step onto ground beside her route: anywhere the town lets anyone walk. */
+const walkable = (p: Point): boolean => !isSolid(town2Scene().map, cellAt(p, T));
+
 /**
  * The clocks after `ms`: each runs on unless its stroller is being talked
  * to, and gives way to the hero (`strollPast`): a stroller he stands in the
- * way of stops at the edge of his room, waits, and turns back.
+ * way of steps round him (`giveWay`), or where the ground beside her way is
+ * blocked, stops at the edge of his room, waits, and turns back.
  */
 export function folkOn(clocks: FolkClocks, ms: number, play: Play): FolkClocks {
   if (ms <= 0) return clocks;
@@ -58,7 +63,7 @@ export function folkOn(clocks: FolkClocks, ms: number, play: Play): FolkClocks {
       waited.push(0);
       return c;
     }
-    const went = strollPast(ROUNDS[i]!, c, ms, clocks.waited?.[i] ?? 0, play.walker.at);
+    const went = strollPast(ROUNDS[i]!, c, ms, clocks.waited?.[i] ?? 0, play.walker.at, walkable);
     waited.push(went.waited);
     return went.clock;
   });
@@ -131,9 +136,17 @@ export function walkAmong(
   return { ...stopped, walker: { at: stopped.walker.at, path: last } };
 }
 
-/** Where each stroller is now, by their clocks. */
-export const strolling = (clocks: FolkClocks): Strolling[] =>
-  ROUNDS.map((r, i) => strollAt(r, clocks[i] ?? 0));
+/**
+ * Where each stroller is now, by their clocks, stepping round the hero (at
+ * `play`) as they pass him (`giveWay`); not round him once he is coming to
+ * talk to them, when they have stopped for him.
+ */
+export const strolling = (clocks: FolkClocks, play?: Play): Strolling[] =>
+  ROUNDS.map((r, i) => {
+    const clock = clocks[i] ?? 0;
+    if (!play || talkingTo(play, STROLLERS2[i]!.id)) return strollAt(r, clock);
+    return giveWay(r, clock, play.walker.at, walkable) ?? strollAt(r, clock);
+  });
 
 /** How out of step a stroller's breath is with the townsfolk who stand. */
 const PHASE = 450;
@@ -144,7 +157,7 @@ const toward = (at: Point, hero: Point, side: Facing): Facing =>
 
 /** Each stroller as the town draws them this frame: walking a stride, or standing and breathing. */
 export function strollersNow(clocks: FolkClocks, play: Play, now: number): Walking[] {
-  return strolling(clocks).map((s, i) => {
+  return strolling(clocks, play).map((s, i) => {
     const p = STROLLERS2[i]!;
     const talking = talkingTo(play, p.id);
     const pose: Pose2 =
@@ -167,7 +180,8 @@ const inside = (b: Box, p: Point): boolean =>
   p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h;
 
 /**
- * Which stroller, if any, a tap at `point` picks: one whose own box holds it
+ * Which stroller, if any, a tap at `point` picks, where they are drawn
+ * (stepping round the hero at `play`, if given): one whose own box holds it
  * (the nearer the front, where two do), or failing that one whose box grown
  * to a thumb (`min`) does, unless the tap is inside something else's own box.
  */
@@ -176,8 +190,9 @@ export function strollerAt(
   scene: Scene,
   point: Point,
   min: number,
+  play?: Play,
 ): number | null {
-  const now = strolling(clocks);
+  const now = strolling(clocks, play);
   let best: number | null = null;
   now.forEach((s, i) => {
     if (inside(personTap(s.at), point) && (best === null || s.at.y >= now[best]!.at.y)) best = i;
