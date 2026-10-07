@@ -258,7 +258,8 @@ describe('the way into the grotto', () => {
     expect(shell.calls).toEqual([
       'full:true',
       'pause:true',
-      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20,"kills":{}}',
+      // With how long the run took, for a best time.
+      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20,"kills":{},"timeMs":150}',
       'full:false',
       'pause:false',
     ]);
@@ -334,6 +335,12 @@ describe('the way into the grotto', () => {
     expect(spoils.kills.brinebeard).toBe(1);
     expect(spoils.kills.giant_crab).toBe(2);
     expect(spoils.xp.melee).toBeGreaterThan(0);
+    // Who dropped what, each item once (the captain always drops doubloons), and the time taken.
+    expect(spoils.dropped.brinebeard).toContain('doubloon');
+    expect(spoils.dropped.giant_crab).toContain('doubloon');
+    for (const items of Object.values(spoils.dropped) as string[][])
+      expect(new Set(items).size).toBe(items.length);
+    expect(spoils.timeMs).toBeGreaterThan(0);
     expect(shell.calls.slice(-3, -2)[0]).toMatch(/^settle:/);
     expect(shell.calls.slice(-2)).toEqual(['full:true', 'pause:false']);
     expect(view.el.querySelector<HTMLElement>('.dungeon-leave')!.hidden).toBe(true);

@@ -227,7 +227,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (!run?.battle || settled) return;
     settled = true;
     // A clear is the boss down and the end reached: the run ended by itself, cleared.
-    shell?.settleRun(spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined));
+    // With how long it took, for the dungeon's best time.
+    shell?.settleRun({
+      ...spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined),
+      timeMs: run.ms,
+    });
   };
 
   /**

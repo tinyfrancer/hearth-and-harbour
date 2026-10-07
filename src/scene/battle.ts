@@ -277,6 +277,8 @@ export interface Tally {
   readonly kills: number;
   /** Kills by monster id. */
   readonly killed: Readonly<Record<string, number>>;
+  /** What each kind of foe was seen to drop, by monster id: each item id once. */
+  readonly dropped: Readonly<Record<string, readonly string[]>>;
   readonly eaten: number;
   readonly shot: number;
 }
@@ -385,7 +387,7 @@ export function startBattle(
     ebb: null,
     volleys: [],
     effects: [],
-    tally: { xp: {}, loot: {}, coins: 0, kills: 0, killed: {}, eaten: 0, shot: 0 },
+    tally: { xp: {}, loot: {}, coins: 0, kills: 0, killed: {}, dropped: {}, eaten: 0, shot: 0 },
     over: null,
   };
 }
@@ -552,11 +554,11 @@ export function foeAt(
 
 /**
  * What a run has come to, as `settleRun` takes it: XP, loot, coins, what was
- * eaten and shot, the hit points left, the kills by monster, and the
- * dungeon's id if the run cleared it.
+ * eaten and shot, the hit points left, the kills by monster, what each kind
+ * of foe was seen to drop, and the dungeon's id if the run cleared it.
  */
 export function spoilsOf(battle: Battle, cleared?: string): RunSpoils {
-  const { xp, loot, coins, eaten, shot, killed } = battle.tally;
+  const { xp, loot, coins, eaten, shot, killed, dropped } = battle.tally;
   // The hit points come home too: 0 is a knock-out, and the character comes round as from any other.
   return {
     xp,
@@ -566,6 +568,8 @@ export function spoilsOf(battle: Battle, cleared?: string): RunSpoils {
     arrowsUsed: shot,
     hp: battle.hp,
     kills: killed,
+    // Who dropped what, so the bestiary can name a foe's drops (a snapshot from before it was kept has none).
+    ...(dropped && Object.keys(dropped).length > 0 ? { dropped } : {}),
     ...(cleared ? { cleared } : {}),
   };
 }
@@ -592,6 +596,7 @@ interface Work extends Writable<
     xp: Record<string, number>;
     loot: Record<string, number>;
     killed: Record<string, number>;
+    dropped: Record<string, readonly string[]>;
   };
   ready: Record<Cooldown, number>;
   piles: Pile[];
@@ -608,6 +613,7 @@ function working(b: Battle): Work {
       xp: { ...b.tally.xp },
       loot: { ...b.tally.loot },
       killed: { ...b.tally.killed },
+      dropped: { ...b.tally.dropped },
     },
     ready: { ...b.ready },
     opened: { ...b.opened },
@@ -678,6 +684,10 @@ function fall(w: Work, dice: Dice, foe: Writable<Foe>, place: Place): void {
     if (dice.next() * def.pick.oneIn < 1)
       add(def.pick.items[dice.between(0, def.pick.items.length - 1)]!, 1);
   }
+  // Seen to drop, for the bestiary: each item once a kind of foe, whether or not it is picked up.
+  const had = w.tally.dropped[foe.monster] ?? [];
+  const fresh = Object.keys(loot).filter((item) => !had.includes(item));
+  if (fresh.length > 0) w.tally.dropped[foe.monster] = [...had, ...fresh];
   if (coins > 0 || Object.keys(loot).length > 0) {
     // Something that falls over water drops what it had on the nearest shore, where it can be picked up.
     const map = mapOf(w, place);
