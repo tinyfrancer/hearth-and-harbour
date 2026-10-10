@@ -285,8 +285,18 @@ export type AchievementRule =
   | { kind: 'total'; level: number }
   /** Mastery of any one action at a level. */
   | { kind: 'mastery'; level: number }
-  /** `count` of these items in the collection log (all of them if left out). */
+  /**
+   * `count` of these items in the collection log (all of them if left out):
+   * for owning a thing, however it came. A skill's own firsts are `made`.
+   */
   | { kind: 'found'; items: readonly string[]; count?: number }
+  /**
+   * Done, by the character's own hand, an action that gives one of these
+   * items: read from mastery, which only doing an action earns, so a sand
+   * crab's shells or a fish bought from the store do not count as foraging
+   * or cooking. A theft is never one (its loot is chance, not what it gives).
+   */
+  | { kind: 'made'; items: readonly string[] }
   /** So many different things in the collection log, of those the tables hold. */
   | { kind: 'collected'; count: number }
   /** Kills of a monster, or of any monster at all, in the bestiary. */

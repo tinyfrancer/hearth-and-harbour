@@ -77,6 +77,43 @@ describe('what an achievement asks', () => {
     expect(check({ kind: 'collected', count: 3 }, state)).toBe(false);
   });
 
+  it('reads things made by doing, from mastery, never from owning them', () => {
+    const doing: Content = {
+      ...content,
+      actions: {
+        dig: {
+          id: 'dig',
+          skill: 'digging',
+          name: 'Dig',
+          level: 1,
+          durationMs: 1000,
+          xp: 1,
+          gives: [{ item: 'mud', qty: 1 }],
+        },
+        rob: {
+          id: 'rob',
+          skill: 'digging',
+          name: 'Rob',
+          level: 1,
+          durationMs: 1000,
+          xp: 1,
+          gives: [{ item: 'gem', qty: 1 }],
+          steal: { description: '', difficulty: 1, stunMs: 1, coins: [0, 0], loot: [] },
+        },
+      },
+    };
+    const made = (state: GameState, items: string[]) =>
+      meets(state, { kind: 'made', items }, doing);
+    // Mud in the bank, the log full of it, and still nothing dug.
+    const given = at({ bank: { mud: 5 }, collection: ['mud'] });
+    expect(made(given, ['mud'])).toBe(false);
+    // One dig is enough, whatever became of the mud.
+    expect(made(at({ mastery: { dig: 12 } }), ['mud'])).toBe(true);
+    expect(made(at({ mastery: { dig: 12 } }), ['hat'])).toBe(false);
+    // A theft never counts as making what it names.
+    expect(made(at({ mastery: { rob: 12 } }), ['gem'])).toBe(false);
+  });
+
   it('reads kills, of one monster or all together', () => {
     const state = at({
       bestiary: { rat: { kills: 60, seen: [] }, crab: { kills: 45, seen: [] } },

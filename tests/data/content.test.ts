@@ -500,6 +500,16 @@ describe('the content tables', () => {
         for (const item of rule.items)
           expect(CONTENT.items[item], `${def.id}: ${item}`).toBeDefined();
       }
+      if (rule.kind === 'made') {
+        for (const item of rule.items) {
+          expect(
+            Object.values(CONTENT.actions).some(
+              (action) => !action.steal && action.gives.some((g) => g.item === item),
+            ),
+            `${def.id}: nothing makes ${item}`,
+          ).toBe(true);
+        }
+      }
       if (rule.kind === 'level') {
         if (rule.skill) expect(CONTENT.skills[rule.skill], def.id).toBeDefined();
         if (rule.group) {
@@ -519,6 +529,31 @@ describe('the content tables', () => {
       // Nobody has one at the start.
       expect(meets(newGame('Cody', 0), rule, CONTENT), def.id).toBe(false);
     }
+  });
+
+  // Cody's Milestone A review: the first foraging achievement came from a sand
+  // crab's shells. A skill's achievements are for doing it; one that reads
+  // the collection log is about owning a thing, so it may name only what no
+  // skill makes (a monster's prize, the grotto's loot).
+  it('earns a skill’s achievements by doing it, never by owning what it makes', () => {
+    const made = new Set(
+      Object.values(CONTENT.actions)
+        .filter((action) => !action.steal)
+        .flatMap((action) => action.gives.map(({ item }) => item)),
+    );
+    for (const def of Object.values(CONTENT.achievements!)) {
+      if (def.rule.kind !== 'found') continue;
+      for (const item of def.rule.items) expect(made.has(item), `${def.id}: ${item}`).toBe(false);
+    }
+    const firsts = [
+      'first_log',
+      'first_catch',
+      'first_ore',
+      'first_find',
+      'first_meal',
+      'first_bar',
+    ];
+    for (const id of firsts) expect(CONTENT.achievements![id]!.rule.kind, id).toBe('made');
   });
 
   it('feeds Crafting with hides, and gives leather a small set of armour', () => {

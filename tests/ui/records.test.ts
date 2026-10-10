@@ -165,6 +165,8 @@ describe('achievements', () => {
       ...newGame('Cody', clock),
       version: 7,
       bank: { pine_logs: 4 },
+      // The logs prove they were held; the mastery proves they were cut.
+      mastery: { chop_pine: 36 },
       coins: 12,
     } as Record<string, unknown>;
     for (const key of ['collection', 'achievements', 'dungeons', 'stats', 'perks']) delete old[key];

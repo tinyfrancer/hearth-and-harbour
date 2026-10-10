@@ -1,6 +1,6 @@
 import type { AchievementDef, AchievementRule, Content } from './content';
 import { noteFinds } from './collection';
-import { masteryLevel, skillLevel, stat, type GameState } from './state';
+import { masteryLevel, masteryXp, skillLevel, stat, type GameState } from './state';
 
 /**
  * Achievements: each is a rule that reads the state (AchievementRule in
@@ -28,6 +28,15 @@ export function meets(state: GameState, rule: AchievementRule, content: Content)
       const found = new Set(state.collection);
       const have = rule.items.filter((item) => found.has(item)).length;
       return have >= (rule.count ?? rule.items.length);
+    }
+    case 'made': {
+      const wanted = new Set(rule.items);
+      return Object.values(content.actions).some(
+        (action) =>
+          !action.steal &&
+          masteryXp(state, action.id) > 0 &&
+          action.gives.some(({ item }) => wanted.has(item)),
+      );
     }
     case 'collected':
       return state.collection.filter((id) => Object.hasOwn(content.items, id)).length >= rule.count;
