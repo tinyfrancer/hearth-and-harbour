@@ -1,8 +1,25 @@
 # Lane C: scenes
 
-**Next session: S16, dungeon progression and replay** (brief to come in `docs/lanes.md`; what it
-needs from the scene is under Notes, "For S16", and "More dungeons" below). Wave 14 wired lane
-B's three-tile doors and the run kept through a reload, and dealt with wave 12's weak spots.
+**Next session: Cody's review of wave 15** (the harbour chart, the Tidepool Cave and its lessons,
+the boat made plain in town), and whatever it asks for. Wave 15 made the dungeon scene general (a
+dungeon by id), built the cave, the chart and the town's markers; the third dungeon is now a plan
+module and a row ("Adding a dungeon", below).
+
+## The cave's map
+
+Three rooms in `src/scene/tidepool.ts`, each 26 x 10 tiles (624 x 240 art pixels: the whole room
+in view on a phone 740 wide on its side, no camera travel), no tide, drawn in lane B's
+`'tidepool'` theme (its tiles, doors, day light and palette; every `L` is a shaft of sun, not a
+lantern). Lessons in `src/scene/lessons.ts` (`CAVE_LESSONS`), in this order.
+
+| Room      | Who (col, row)                                                                         | Found                                   | Lessons                                         |
+| --------- | -------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------- |
+| `landing` | dock rat (20, 4), far enough off to be met only after the walk                         | 4 cooked shrimp at (8, 3), by the crate | walk; attack; door                              |
+| `pools`   | four rats under the pool (12–15, 6–8); two sand crabs by the far door (22, 4), (21, 7) |                                         | wide swing; heavy blow (brace or step out); eat |
+| `snapper` | Old Snapper (16, 5); the end (14, 2)                                                   |                                         | eat (at the latest); the boss                   |
+
+Props (B15 letters, `ground.ts`): `P` rock pool, `G` kelp, `S` starfish, `E` anemones, `W`
+driftwood, `H` a boat's ribs; each solid on its tile.
 
 ## The town's map
 
@@ -30,6 +47,9 @@ Everything is in art pixels; walking tiles are 24 (`TOWN2_TILE`). The town is la
   (34, 52) and east to (41, 52), 30 px/s, resting 5 s. Never solid, tapped where they are, their
   shadows cut from the ground as they walk; nobody else is sent to stand on their tiles.
 - Start: lane B's `TOWN2_START` (26, 56); the boat lands him at (18, 59).
+- The way out (wave 15): the ferryman stands at (16, 59), talked to from (18, 59); the boat's sign
+  stands on (14, 59) and the bow lantern rides in the boat, both placed by this scene
+  (`STAND_IN_PIECES`). The boat, the ferryman and the sign open the harbour chart.
 - Scenery only (no tap, no words): forest pines with nowhere to stand beside them. `buoy-far`
   (moved by lane B to foot (840, 2084)) is tapped like the near buoy, looked at from (30, 77).
 
@@ -70,6 +90,81 @@ target (`doorUnder`), and a tap or a held finger anywhere on it walks to that ce
   each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 15: the harbour chart, the Tidepool Cave, and the boat made plain** (Cody: the dungeon was
+  more fun than expected; a chart at the boat for every dungeon; a level-1 learning dungeon; "make
+  it more apparent we need to click the boat"). Built against stand-ins behind two seams
+  (`fromLaneA.ts`, `fromLaneB.ts`) and swapped to the real thing as lane A's #61/#64 and lane B's
+  #63/#65 landed: nothing here is a stand-in any more but the pieces this scene places itself.
+  No grotto fight position, reach, pace, event or number changed: `scaleTimeline.test.ts`,
+  `grottoRun.test.ts`, `grottoRules.test.ts` and every balance test pass untouched. Review sheets
+  in `/home/claude/lane-shots/w15-c/`.
+  - **A dungeon by id.** `dungeons.ts` is the registry: each dungeon's plan (`plans.ts`, the
+    worker's lean copy), its words (results card, the turn-your-phone lines, a boss's shouts), any
+    cast row the tables lack, and its lessons. `dungeonById(id)`, `castOf(content, id)` (the
+    tables' monsters, then `content.dungeons[id].cast` as that dungeon's own), `healsOf`,
+    `sayingOf`. The worker paints a room by both ids (`GroundRequest.dungeon`; `Room.dungeon`).
+    `DungeonPlan` gains `finds` (things lying on a floor from the start) and `theme`; a `Room`
+    carries both. `BossRules` with no volley phases fights with its own blows only.
+  - **Food found in a run** (`battle.ts`): a plan's finds start as piles and are picked up as loot
+    is; food among them (anything with `heals`, `RunSetup.heals`) can be eaten in the run, the
+    least filling first and before the food slot's own; it leaves the loot it was picked up into
+    (`Tally.ateFound`) and never counts as eaten from the slot (`foodEaten` stays the slot's). The
+    food button shows for a dungeon with food to find, empty until some is picked up.
+  - **The Tidepool Cave** (`tidepool.ts`, map above): lane A's cast numbers; this lane's rooms,
+    counts and places. Old Snapper's moves in `foes.ts`: slow (16), one plain slam (radius 50,
+    warned 2.2 s, every 7 s, first after 4 s, twice his max hit), a boss with no cannon and nobody
+    to call. Results card and words of its own.
+  - **Lessons** (`lessons.ts`): data per dungeon: words, a ring (on a place in the room, or a
+    pulsing button), due and done read off the run. The first lesson due shows; one that blocks
+    holds the run still (`playing()` false: no time passes, so nothing notices or lands) until the
+    player does it, taps and presses still counting; done is never shown again this run or page;
+    "Skip tips" puts them all away; a player who has cleared the dungeon sees none. Kept in the
+    run (`Run.lessons`), so a reload keeps them. The heavy-blow lesson rings Brace, not the mark
+    (a tap on the mark's middle is a tap on its maker, and walking up to him stays in it).
+  - **The harbour chart** (`chart.ts`, `chartPanel.ts`): lane B's map at whole device pixels
+    (cropped at its sides on a phone narrower than 380, never shrunk below a CSS pixel an art
+    pixel), every dungeon of `dungeonsInOrder` at its landing (a landing to come at the next spare
+    `unknown_`), its marker by `dungeonStatus` and its emblem (flat ink while locked), the one
+    picked ringed, a dotted route laid out from home over 1.4 s with the rowboat at its head
+    (`chartRoute2`). A 48 px button over each landing. Under the map: name and line (a silhouette
+    says "Uncharted waters" and what opens it), the level it is meant for against the character's
+    combat level, a plain warning 5 or more levels under, clears and best time, what to bring, and
+    "Row out" held at the foot of the sheet. Opens on the first open landing never cleared. Picking
+    a landing paints its first room ahead. Opened by walking up to the boat, the ferryman (with a
+    word from him first) or the sign, and by `shell.takeRequest()` giving `'chart'` (the hero put on
+    the quay by the boat, the chart open, once); `shell.chartOpened()` each time. The old boat panel
+    is gone (`Use.chart`; the stage's `ownPanel`).
+  - **The town says what can be tapped** (`townMarks.ts` decides, `townExtras.ts` draws, lane B's
+    pictures): a marker over people (talk), doors and the bank's crate (enter), trees, bushes and
+    boulders (gather), the boat, ferryman and sign (travel), only within four tiles of the hero;
+    the boat's always, from anywhere, with lane B's sparkle beside it and a beacon spreading on the
+    water round it while an open dungeon has never been rowed to; none over the hero or an open
+    panel. A ring under the nearest thing worth walking up to within a tile and a half, and its name
+    with what a tap does in a label over it, clear of the hero, kept on the screen ("Rowing boat —
+    tap to open the chart"). Barrels, lamps and benches stay tappable but get no marker, ring or
+    label. The boat's tap box takes in its lantern and the water up to the quay (`BOAT_TAP`).
+  - **The ferryman** (lane B's figure, words here) at (16, 59), talked to from where the boat is
+    boarded; **the boat's sign** at (14, 59) and **the bow lantern** in the boat, placed by this scene
+    (`STAND_IN_PIECES`: the layout does not hold them), drawn as standing actors, lit at dusk.
+  - **The first visit**: the first time the town shows painted to a save that has never rowed out,
+    the camera pans to the boat and back (4 s, `panFocus`, eased), skipped by any tap; once a page.
+  - **Tests**: `chart.test.ts` (statuses for a new save, mid-game and all cleared, the route, the
+    scale and crop), `harbour.test.ts` (the boat, ferryman and sign open the chart; the request opens
+    it once; rowing out with lessons and without; no Row out for a landing to come; the pan once,
+    skipped by a tap, never for a save that has rowed out), `townMarks.test.ts`, `lessons.test.ts`,
+    `dungeons.test.ts` (the registry, the casts, found food), `caveRun.test.ts` (the novice's
+    balance, below). Boat-panel steps in `run.test.ts`, `runKeep.test.ts`, `townView.test.ts` and
+    `town2.test.ts` now go through the chart; nothing else in them changed.
+  - **The novice's balance** (`caveBot.ts`: level 1, linen, no weapon, no food; 0.6 s to notice, 1.2
+    s to read a lesson; twelve fixed seeds): cleared 12/12 bracing and 12/12 never bracing, 1:36 to
+    2:00 of run (median about 1:50), a few seconds of reading on top; the lessons show in their
+    written order on every bracing seed; with the first clear's bronze sword, under 90 s every time
+    (lane A's Quick Study is in reach). Played by tapping in the browser, following only the
+    lessons: cleared in 2:03, every lesson in order.
+  - Checked in headless Chromium at 390 x 844 (town, chart) and 844 x 390 (the cave), 3x, touch,
+    on a production build of the app with screenshot hooks: town 59 fps at 4x CPU throttle, day
+    and dusk, standing by the boat and walking the quay, no frame over 40 ms.
 
 - **Wave 14: the doors as the way onward, the run kept through a reload, beards, the weak spots**
   (Cody's Milestone A feedback #22, "dungeon doors to new areas too small", and lane A's save
@@ -980,44 +1075,44 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 14)
+## Weak spots, honestly (wave 15)
 
-- **A reload lands on the Skills tab.** The app opens on Skills after any load; the kept run is
-  taken up only when the Town tab is built. Until the player taps Town the run sits in the save
-  (and the idle game runs meanwhile, as on any tab); if they tap Town more than a minute after
-  it was kept, the scene settles it rather than resuming it (`TAKE_UP_MS`, on the app's clock).
-  A shell that opened Town when it offers a run back would make resuming automatic (lane A,
-  under Needs).
-- **What a reload takes back is up to a frame old**, and a page killed without `pagehide` or
-  `visibilitychange` (a crash) loses up to 3 s of run: the last kept snapshot comes back with its
-  own dice, so the same taps give the same blows from there.
-- **The open door's passage past the room's edge** shows only the lit (or dark) passage and its
-  jambs, hanging into the backdrop beyond the room, with no rock round it out there: a doorway
-  into the dark at the room's end, but a hard-edged shape where the camera shows past the edge
-  (only in the HUD's side insets).
-- **The way onward's edge arrow** is placed from the previous frame's camera, so for a frame after
-  a big camera move it can sit a few pixels off; it is inside the HUD's side inset.
-- **A tap on a barred door** walks him to the cell inside it (as near as the ground allows if a
-  foe stands there); "Barred" is drawn over the door for 1.2 s over whatever is there.
-- **Drawn apart is still partial for the crab's claws**: every pair may touch by 4 px, and the
-  crab's claw tips, drawn beyond its declared front in some frames of its walk and blow, can
-  reach over the hero's sword arm by a few pixels. He is drawn up to 14 px (was 12) from where a
-  slam or a volley line would find him. The strike's facing still follows the target each frame.
-- **Strollers still overlap the hero when passing behind him**: 26 px behind, her head shows over
-  his and her body is behind his, two figures in a street. Where both sides beside her way are
-  shut there, she stops and turns back as before.
-- **Rowing out on a very slow worker** (over 8 s) still works the room out on the spot, a pause
-  with the town held still; under 8 s the town is up and moving under the rowing-out card.
-- **The loading card at the town's grain** shows 330 of the harbour's 432 art pixels on a 390-wide
-  phone; the open water at its left is cut.
-- **The 1x face** is cut to its safe box's height; the crab's and the captain's safe boxes are the
-  portrait's full width, so at 1x the face is 72 CSS px wide in the 200 px panel.
-- Frame rates and timings are headless Chromium in software on a sandbox shared with the other
-  lanes' test runs (load about 4 while measuring), not a phone. Not checked in WebKit or Safari
-  (none here), nor on the live site (unreachable from here).
+- **The cave is shorter than asked.** On lane A's numbers the scripted novice clears it in about
+  1:50 (the brief asked two to three minutes), and is barely hurt (lowest 15 to 20 of 20 hit
+  points): the cast's attack (1 or 2) against a level-1 character's defence lands one blow in ten.
+  So the eat lesson usually comes at the boss's door with a scratch, not when it matters. This
+  lane added rats and a crab (five rats, two crabs, over lane A's tuned two and two) to get to 1:50;
+  more would only be more of the same. Numbers that give two and a half minutes and a real need
+  to eat are under Needs (lane A).
+- **The tap-script player in the browser fell twice before it learned to tap the boss again** after
+  stepping out of a slam: the hero keeps his target but does not walk back to it by himself (as in
+  the grotto). A real new player who steps out and waits gets hit and never hits back. The boss
+  lesson says to tap it; nothing says to tap it again.
+- **Bracing is worse than stepping out** in the cave: the scripted player who braces ends lower
+  than one who never does (he stands in the slam and takes half). The lesson offers both.
+- **Lessons that block can only be ended by doing them or "Skip tips"**: a player who cannot see
+  what to do is held until they skip.
+- **The first visit's pan is remembered for the page only** (no place in the save): a new save
+  that reloads before rowing out sees it again. A save that has cleared anything never does.
+- **Markers are lane B's quiet 14 x 16**: the boat reads by its badge, sparkle and beacon; the
+  others are small by design. The label can sit over a marker of something just behind the thing
+  named (the smith's, by the anvil).
+- **The town's label is placed by the last frame's camera**, a frame behind after a big move, and
+  only once the town is painted (no label in jsdom tests: its words are tested pure).
+- **The chart's route** draws over the landing markers' poles for the first frames; the boat token
+  sits at home until the route starts. The map is day only (lane B's).
+- From wave 14, still so: a reload lands where the app opens it (lane A now opens Town for a kept
+  run); what a reload takes back is up to a frame old; the way onward's edge arrow is a frame late;
+  a tap on a barred door walks him to the cell inside it; strollers overlap the hero passing
+  behind; the 1x face is cut to its safe box.
+- Frame rates and timings are headless Chromium in software on a shared sandbox, not a phone. Not
+  checked in WebKit or Safari, nor on the live site (unreachable from here).
 
 ## Deferred
 
+- From wave 15: the lessons and the first visit's pan remembered beyond the page (needs a place in
+  the save, lane A); a hero who steps out of a slam walking back to his target by himself (a rule
+  change for every dungeon, Cody's decision); the town's ship, boat and buoys still do not bob.
 - The overlap's balance-changing fix (stand the hero off by the foe's body instead of a fixed
   36 px), Cody's decision. With lane B's narrowed captain and the 14 px cap, the hero no longer
   stands inside either wide foe: he touches each by the 4 px every pair is allowed
@@ -1042,52 +1137,53 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Needs from another lane
 
-- **Lane A:** (1) **open the Town tab when a run is offered back after a reload** (in
-  `mountApp`, when `state.run` is kept and the gap is under a minute): today the app opens on
-  Skills and the run is taken up only when the player taps Town; the scene then resumes it, or
-  settles it if more than a minute has passed by then. (2) Nothing else blocking: `keepRun` and
-  `savedRun` are called as designed; the scene hands over `null` on settling as well, a snapshot
-  over 256 KB goes with its spoils and an empty `data`, and each snapshot carries `$keptAt` (the
-  app's clock) beside the run, which `restoreRun` leaves out (`scene` stays 1). (3) Later wish,
-  as before: the notice board could open `openBounties`.
-- **Lane B:** (1) Nothing blocking: the doors are wired as B13 says. If the open side door's
-  passage past the room's edge should read as cut into rock out there, the piece's rock beyond
-  the room would need a ragged edge rather than a square block (this lane shows only where the
-  barred and open pieces differ, and 4 px of jamb). (2) The giant crab's claw tips reach past its
-  declared `front` (41) in some walk and blow frames; a `front` that holds the claws, or claws
-  kept within it, would let the drawn-apart rule clear them exactly. (3) The foes' blades look
-  right as drawn (Brinebeard's cutlass, point up, in both facings); nothing in the scene flips
-  one. As before, say if the blow wants another pace than 100 ms a frame and 150 ms held.
-- **Lane B, for the town** (unchanged): lights in `town2Facts` would let a cold open skip
-  drawing every piece to find them.
+- **Lane A:** (1) **The cave's numbers**, if two to three minutes and a reason to eat are wanted:
+  dock rat hp 6 / attack 4, sand crab hp 6 / attack 5, Old Snapper hp 18 / attack 5 / max hit 2
+  (defences and speeds as now) give the scripted novice 2:28 to 2:51, lowest health 7 to 15 of 20,
+  every seed cleared bracing or not (probe in this lane's history, `caveBot.ts` with `rows`). Under
+  90 s with the bronze sword would want checking again. (2) **A place in the save** for "has opened
+  the chart" (the first visit's pan) and for lessons done, if they should outlast the page; today
+  the pan is skipped for any save with a dungeon record and lessons for a save that has cleared the
+  cave. (3) As before, later: the notice board could open `openBounties`.
+- **Lane B:** nothing blocking. (1) The ferryman stands at (16, 59), not your suggested (17, 59): the
+  barrel at (19, 59) leaves too little room to talk to him from the landing without overlap
+  (`stroll.test.ts`). The sign is at (14, 59), not (18, 58), which is the way down to the boat. (2)
+  If the town's markers should be easier to see from across the square, the boat's in particular, a
+  larger `travel` would do it; this lane adds the beacon on the water meanwhile.
 
-## More dungeons: what the scene code gives, and what it would need (a plan, no work)
+## Adding a dungeon (the steps, now that the scene is general)
 
-- **Reusable as is**: `DungeonPlan` and `buildDungeon` (rooms as rows, doors by letter, foes,
-  perches, spawns, titles, own tide, stone tide, every plan checked as it is read); `Run`,
-  `advanceRun`, the doorway, `startRun`; the whole fight (`battle.ts`, foes as `FOE_KINDS` rows,
-  heavy attacks as data, seeded dice); `runSave.ts` and the run kept through a reload (any
-  dungeon `dungeons(id)` knows); a room's look and painter (`roomLook`, `groundCells`, door
-  pieces in a side wall or, through `doorTile`, a face door `door_open`/`door_barred`);
-  `dungeonView` (HUD, way onward, resume, results); `apart.ts`; the balance harness
-  (`grottoBot.ts`, `grottoRun.test.ts`) and the scale proof (`scaleTimeline.test.ts`), written
-  against `GROTTO_DUNGEON` and easy to point at another plan.
-- **Grotto-specific, to generalise first**: (1) `grottoWorker.ts` builds only `GROTTO`: its
-  request should carry the plan's id, looked up in a table of plans. (2) `dungeons(id)` in
-  `townView.ts` knows only the grotto and its cast (`GROTTO_CAST`): a table of plans and casts by
-  id. (3) The boat's panel (`town2.ts`) is the one way in, to one dungeon: a choice there, or
-  another door in town, is Cody's #8. (4) The results card's words and `CAPTAIN_SAYS`
-  (`grottoWords.ts`) are the grotto's: words per plan. (5) The tiles and props are lane B's
-  grotto set; a dungeon of another kind needs its own from lane B, through the same doors. (6)
-  The tide: rows without `0`-`3` have none, so a dry dungeon needs nothing new.
-- **A small level-1 learning dungeon** (Cody's #21): two or three short rooms, one sideways
-  screen each (15 to 17 tiles across, no camera travel), one rat-weight foe from the tables per
-  room, no heavy attack (or one, slowly telegraphed, to teach the marks), no tide, doors that open
-  with the way onward marked, an end spot (`x`) for the results. Everything above serves it once
-  (1) to (4) are done; what is new is teaching: a small hint layer in `dungeonView`, keyed on the
-  run's state, saying the tap (target, ability, eat) the first time each is useful.
+1. **Lane A** adds its row to `src/data/dungeons.ts` (name, description, order, recommended level,
+   unlock and its text, loot, cast with numbers). The chart shows it from then on (at a spare
+   `unknown_` landing until lane B gives it its own).
+2. **Lane B** gives it a landing in `harbourChart2`, an emblem, any new foes' pictures and sizes,
+   and a theme if it is not the grotto's or the cave's.
+3. **This lane** writes `src/scene/<name>.ts`: a `DungeonPlan` (rows per room, foes, finds, titles,
+   perches, spawns, own tide, theme) and any boss words; adds it to `DUNGEON_PLANS` (`plans.ts`)
+   and a row to `DUNGEON_SCENES` (`dungeons.ts`: plan, words, lessons if any); adds a `FIRST_KINDS`
+   row (`foes.ts`) for each new monster's moves (an unknown one moves as a rat). New prop letters
+   go in `PROP_LETTERS` (`ground.ts`).
+4. Tests: its balance in the style of `grottoRun.test.ts` / `caveRun.test.ts` (a bot in
+   `tests/scene/`), its scale if it has new distances (`scaleTimeline.test.ts`), and the registry
+   test's list (`dungeons.test.ts`).
+5. Nothing else: the worker, the painter, the fight, keeping the run through a reload, the results
+   card, the chart and the boat take any dungeon the registry knows.
 
 ## Notes for this lane's next session
+
+- **Wave 15's pieces:** `dungeons.ts` (registry), `plans.ts`, `tidepool.ts`, `lessons.ts`,
+  `chart.ts`, `chartPanel.ts`, `townMarks.ts`, `townExtras.ts`, `fromLaneA.ts` and `fromLaneB.ts`
+  (what this scene takes from the other lanes, in one place each); `themeOf(room)` and
+  `RoomLook.theme` (`grottoArt.ts`); `withRing` and `dungeonCamera()` (`dungeonView.ts`);
+  `townCamera()` (`townView.ts`); the stage's `ownPanel`, `outside` and `lookAt`; `Battle.larder`,
+  `Tally.ateFound`, `foundFood`, `nextFood`; `Run.lessons`.
+- **Measuring (wave 15):** the scratch `.shots/` harness as before, with `hooks.ts` putting
+  `toScreen` (town points to the page, by `townCamera()`), `roomToScreen` and `lesson()` on
+  `window.hh`. Saves for scripts are written by a scratch vitest file into the session's own
+  scratch folder. Use a folder of your own in the scratchpad (it is shared with other sessions):
+  moving `.shots` aside under a common name once landed it inside another session's folder.
+- A lesson's `due` gets the lessons done this run, for ordering (eat waits for the heavy blow
+  unless the hero is badly hurt or at a boss's door).
 
 - **Wave 14's pieces:** `doorPieces`, `doorPaints`, `groundWithDoors`, `doorUnder`,
   `openGlowsOf` and `RoomLook.doorsAt` (`grottoArt.ts`); `doorsOpen`, `wayOnward`, `wayMarks`,

@@ -7,6 +7,7 @@ import { cellAt, centreOf, isSolid, mapSize } from '../../src/scene/tileMap';
 import {
   BOAT_LANDING2,
   STANDING2,
+  STAND_IN_PIECES,
   STROLLERS2,
   TOWN2_START_CELL,
   TOWNSFOLK2_AT,
@@ -32,7 +33,13 @@ describe('the C-scale town scene', () => {
 
   it('is solid exactly where lane B’s walking map is, and where the townsfolk who stand stand', () => {
     const walk = town2Walk();
-    const folk = new Set(STANDING2.map((p) => `${p.at.col},${p.at.row}`));
+    // ...and where the pieces this scene places until lane B's layout has them stand (the sign).
+    const folk = new Set([
+      ...STANDING2.map((p) => `${p.at.col},${p.at.row}`),
+      ...things
+        .filter((t) => STAND_IN_PIECES.some((p) => p.piece.id === t.id))
+        .flatMap((t) => t.footprint.map((c) => `${c.col},${c.row}`)),
+    ]);
     for (let row = 0; row < walk.rows; row++)
       for (let col = 0; col < walk.cols; col++) {
         const solid = isSolid(map, { col, row });
@@ -113,7 +120,11 @@ describe('the C-scale town scene', () => {
     expect(byId('anvil').use!.button!.opens).toEqual({ skill: 'smithing' });
     expect(byId('stall').panelOf).toBe('trader');
     expect(byId('crate-yours').use!.button!.opens).toEqual({ tab: 'bank' });
-    expect(byId('rowboat').use!.button!.opens).toEqual({ dungeon: 'brinebeards_grotto' });
+    // The boat opens the harbour chart now (wave 15), as do the ferryman and the sign.
+    expect(byId('rowboat').use!.chart).toBe(true);
+    expect(byId('rowboat').use!.button).toBeUndefined();
+    expect(byId('ferryman').use!.chart).toBe(true);
+    expect(byId('boat_sign').use!.chart).toBe(true);
     expect(byId('lamp-west').use!.duskLines!.length).toBeGreaterThan(0);
     expect(byId('crate-cargo-1').use).toBe(byId('crate-cargo-6').use);
     expect(byId('barrel-stall').use).toBe(byId('barrel-quay-1').use);

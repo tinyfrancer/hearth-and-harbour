@@ -1,18 +1,20 @@
 /*
  * Works out a dungeon room's ground off the main thread: asked for a room
- * of the grotto at a state of the tide, it answers with the ground's lit
+ * of a dungeon (by both ids) at a state of the tide, it answers with the ground's lit
  * cells (for contact shadows) and its pixels in the cave's dusk, both handed
  * over without copying. Painting a room's ground (every tile told its
  * neighbours, the lanterns' pools, a third of a megapixel of colour) takes a
  * tenth of a second or more; done here, a fight never stops for the tide.
  */
 import { buildDungeon, type Dungeon } from './dungeon';
-import { GROTTO } from './grotto';
 import { groundPixels } from './grottoArt';
+import { planOf } from './plans';
 
-/** What the page asks: a room of the grotto, at a state of the tide. */
+/** What the page asks: a room of a dungeon, at a state of the tide. */
 export interface GroundRequest {
   readonly id: number;
+  /** The dungeon's id (`plans.ts`); the grotto's when absent. */
+  readonly dungeon?: string;
   readonly room: string;
   readonly level: number;
   readonly warn: boolean;
@@ -39,11 +41,19 @@ const scope = self as unknown as {
   postMessage(message: GroundAnswer, transfer?: Transferable[]): void;
 };
 
-let dungeon: Dungeon | null = null;
+/** Each dungeon asked for, read once. */
+const dungeons = new Map<string, Dungeon>();
 
 scope.onmessage = (event) => {
   const { id, room, level, warn } = event.data;
-  dungeon ??= buildDungeon(GROTTO);
+  const which = event.data.dungeon ?? 'brinebeards_grotto';
+  let dungeon = dungeons.get(which);
+  if (!dungeon) {
+    const plan = planOf(which);
+    if (!plan) return;
+    dungeon = buildDungeon(plan);
+    dungeons.set(which, dungeon);
+  }
   const r = dungeon.rooms[room];
   if (!r) return;
   const { cells, data, doors } = groundPixels(r, level, warn);

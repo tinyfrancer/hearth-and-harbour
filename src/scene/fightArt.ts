@@ -23,6 +23,7 @@
  */
 import {
   CAVE_DUSK,
+  type CavePalette,
   FOE2_SIZES,
   FUSE_LIGHT2,
   dungeonPropSprite2,
@@ -61,7 +62,8 @@ import { breathFrame, type Pose2 } from './figures2';
 import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import { CaveShadow, glowsIn, paintCells, perchLift, type RoomLook } from './grottoArt';
-import { CAPTAIN_SAYS } from './grottoWords';
+import { sayingOf } from './dungeons';
+import { foeArtId } from './fromLaneB';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';
 import type { Box } from './things';
@@ -160,7 +162,7 @@ const isPerson = (monster: string): boolean => {
 export function foePose(foe: Foe, clock: number, speedMs: number, kind: FoeKind): FoeShown {
   const facing = foe.facing;
   const phase = Math.max(1, foe.phase);
-  const frames = foeFrames2(foe.monster);
+  const frames = foeFrames2(foeArtId(foe.monster));
   const count = (pose: Foe2Pose): number => Math.max(1, frames?.[pose] ?? 1);
   const shown = (pose: Foe2Pose, frame = 0): FoeShown => ({ pose, frame, facing, phase });
   if (foe.diedAt !== null) return shown('fall', clock - foe.diedAt < FALL_MS / 3 ? 0 : 1);
@@ -185,7 +187,7 @@ export function foePose(foe: Foe, clock: number, speedMs: number, kind: FoeKind)
 /** How a foe's sizes are known: the art lane's table, or a guess for one it has not drawn. */
 function sizeOf(monster: string): Foe2Size {
   return (
-    foeSize2(monster) ?? {
+    foeSize2(foeArtId(monster)) ?? {
       w: 40,
       h: 40,
       anchor: { x: 20, y: 39 },
@@ -335,8 +337,11 @@ const LIT_KEPT = 32;
 export class FoePictures {
   private readonly lit = new Map<string, Map<string, HTMLCanvasElement | null>>();
   private readonly glows: readonly Glow[];
-  constructor(glows: readonly Glow[]) {
+  private readonly palette: CavePalette;
+  /** Lit by `glows`, in a cave's palette (the grotto's dusk unless said). */
+  constructor(glows: readonly Glow[], palette: CavePalette = CAVE_DUSK) {
     this.glows = glows;
+    this.palette = palette;
   }
 
   /** The foe drawn as `shown` with its feet at `feet`: its canvas and where its feet are on it. */
@@ -346,22 +351,16 @@ export class FoePictures {
     shown: FoeShown,
     feet: Point,
   ): { image: HTMLCanvasElement; feet: Point; glows: readonly Glow[] } | null {
-    const pic = foePicture2(monster, shown.pose, shown.facing, shown.frame, shown.phase);
+    const art = foeArtId(monster);
+    const pic = foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
     if (!pic) return null;
-    const plain = foeSprite2(
-      monster,
-      shown.pose,
-      shown.facing,
-      shown.frame,
-      shown.phase,
-      CAVE_DUSK,
-    );
+    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, this.palette);
     if (!plain) return null;
     const qx = Math.round(feet.x / LIGHT_STEP) * LIGHT_STEP;
     const qy = Math.round(feet.y / LIGHT_STEP) * LIGHT_STEP;
     const { w, h } = pic.picture.grid;
     const box = { x: qx - pic.feet.x, y: qy - pic.feet.y, w, h };
-    const local = glowsIn(this.glows, box);
+    const local = glowsIn(this.glows, box, this.palette);
     if (local.length === 0) return { image: plain, feet: pic.feet, glows: pic.picture.glows };
     let mine = this.lit.get(key);
     if (!mine) {
@@ -372,10 +371,11 @@ export class FoePictures {
     let image = mine.get(k);
     if (image === undefined) {
       if (mine.size >= LIT_KEPT) mine.delete(mine.keys().next().value!);
-      image = paintCells({
-        grid: pic.picture.grid,
-        glows: [...pic.picture.glows, ...local],
-      });
+      image = paintCells(
+        { grid: pic.picture.grid, glows: [...pic.picture.glows, ...local] },
+        undefined,
+        this.palette,
+      );
       mine.set(k, image);
     } else {
       // Shown again: last to go.
@@ -1025,7 +1025,7 @@ export interface FightArt {
 /** What a fight in a room draws with, made once for the room's look. */
 export function fightArtFor(look: RoomLook): FightArt {
   return {
-    foes: new FoePictures(look.glows),
+    foes: new FoePictures(look.glows, look.theme.palette),
     shadows: new Map(),
     loot: lootArt(),
     doorsDrawn: { opening: -1, shown: null },
@@ -1304,7 +1304,7 @@ export function fightExtra(
         shadow = new CaveShadow();
         art.shadows.set(foe.key, shadow);
       }
-      const placed = shadow.at(cells, kinds, look.glows, feet, size.shadow);
+      const placed = shadow.at(cells, kinds, look.glows, feet, size.shadow, look.theme.palette);
       if (placed) {
         shadows.push(placed);
         boxes.push({
@@ -1606,19 +1606,14 @@ export function fightExtra(
         }
         drawEffectOver(ctx, e, clock, hero, HERO_TALL, k, nudge * 14);
       }
-      // What the captain shouts, over his head.
+      // What a boss shouts, over its head: the dungeon's own words for it.
       for (const e of battle.effects) {
         if (e.kind !== 'say' || clock - e.from >= SAY_MS) continue;
         const who = battle.foes.find((f) => f.key === e.who);
         if (!who || who.room !== run.room) continue;
-        speech(
-          ctx,
-          CAPTAIN_SAYS[e.line],
-          who.at.x,
-          who.at.y - standsOf(who.monster) - 14,
-          viewWidth,
-          k,
-        );
+        const words = sayingOf(run.dungeon, who.monster, e.line);
+        if (!words) continue;
+        speech(ctx, words, who.at.x, who.at.y - standsOf(who.monster) - 14, viewWidth, k);
       }
     },
   };

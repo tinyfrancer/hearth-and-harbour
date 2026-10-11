@@ -47,6 +47,7 @@ import {
   type Run,
 } from './dungeon';
 import {
+  FIGHT_COLOURS,
   HERO_TALL,
   doorsOpen,
   fightArtFor,
@@ -57,7 +58,17 @@ import {
   tideStateOf,
   type FightArt,
 } from './fightArt';
+import { dungeonScene } from './dungeons';
+import { foeArtId } from './fromLaneB';
 import { anchorOf, FIGURE2_SOLE_Y, heroPose, POSES2, STRIKE_POSES2 } from './figures2';
+import {
+  lessonBlocks,
+  shownLesson,
+  skipLessons,
+  stepLessons,
+  type Lesson,
+  type LessonRing,
+} from './lessons';
 import { wholeFace } from './face';
 import { abilityPicture, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
@@ -75,7 +86,7 @@ import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { dungeonScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
-import { stage, type Insets, type StillPicture } from './stage';
+import { stage, type Insets, type StageExtra, type StillPicture } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
 
@@ -245,7 +256,7 @@ export function combatantBoxes(
   const room = dungeon.rooms[run.room];
   for (const foe of run.battle?.foes ?? []) {
     if (foe.room !== run.room || !alive(foe)) continue;
-    const size = foeSize2(foe.monster);
+    const size = foeSize2(foeArtId(foe.monster));
     const box = foeKind(foe.monster).box;
     const lift = room ? liftOf(room, foe) : 0;
     boxes.push(
@@ -329,8 +340,68 @@ function resultLine(icon: Element | null, name: string, amount: string): HTMLEle
   ]);
 }
 
+/** Where the room's camera was for the last frame drawn, and CSS pixels an art pixel. For scripts. */
+let lastLook: { camera: Point; cssPerArt: number } | null = null;
+export function dungeonCamera(): { camera: Point; cssPerArt: number } | null {
+  return lastLook;
+}
+
+/** How long a lesson's ring takes to pulse out and fade, on the page's clock. */
+export const LESSON_PULSE_MS = 1100;
+
+/**
+ * A lesson's ring on a place in the room, laid over the fight's own overlay:
+ * a gold ring round it and one pulsing out from it, at the screen's
+ * resolution. Its box joins the overlay's, so the overlay canvas covers it.
+ */
+export function withRing(extra: StageExtra, ring: LessonRing, now: number): StageExtra {
+  if (!ring || ring.kind !== 'at') return extra;
+  const { at, r } = ring;
+  const grow = 14;
+  const half = r + grow + 4;
+  const box = { x: at.x - half, y: at.y - half, w: 2 * half, h: 2 * half };
+  const was = extra.overlayBox ?? null;
+  const overlayBox = was
+    ? {
+        x: Math.min(was.x, box.x),
+        y: Math.min(was.y, box.y),
+        w: Math.max(was.x + was.w, box.x + box.w) - Math.min(was.x, box.x),
+        h: Math.max(was.y + was.h, box.y + box.h) - Math.min(was.y, box.y),
+      }
+    : box;
+  return {
+    ...extra,
+    overlayBox,
+    overlay(ctx, k) {
+      extra.overlay?.(ctx, k);
+      const p = (((now % LESSON_PULSE_MS) + LESSON_PULSE_MS) % LESSON_PULSE_MS) / LESSON_PULSE_MS;
+      ctx.save();
+      ctx.lineWidth = 4 * k;
+      ctx.strokeStyle = LESSON_INK;
+      ctx.beginPath();
+      ctx.ellipse(at.x, at.y, r, r * 0.8, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.lineWidth = 2 * k;
+      ctx.strokeStyle = LESSON_GOLD;
+      ctx.stroke();
+      ctx.globalAlpha = 1 - p;
+      ctx.beginPath();
+      ctx.ellipse(at.x, at.y, r + p * grow, (r + p * grow) * 0.8, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    },
+  };
+}
+
+/** The lesson ring's colours: the fight's own gold, edged in its ink. */
+const LESSON_GOLD = FIGHT_COLOURS.gold;
+const LESSON_INK = FIGHT_COLOURS.ink;
+
 export function dungeonView(options: DungeonViewOptions): View {
   const { dungeon, hero, content } = options;
+  const own = dungeonScene(dungeon.id);
+  const words = own?.words ?? null;
+  const lessons: readonly Lesson[] = own?.lessons ?? [];
   const room = h('div', { class: 'dungeon-room' });
   const fade = h('div', { class: 'dungeon-fade', attrs: { 'aria-hidden': 'true' } });
 
@@ -409,7 +480,7 @@ export function dungeonView(options: DungeonViewOptions): View {
   const bossFace = h('span', { class: 'fight-face' });
   const bossPanel = h(
     'div',
-    { class: 'fight-target fight-boss', attrs: { 'aria-label': 'The captain' } },
+    { class: 'fight-target fight-boss', attrs: { 'aria-label': 'The boss' } },
     [
       bossFace,
       h('span', { class: 'fight-target-body' }, [
@@ -439,6 +510,33 @@ export function dungeonView(options: DungeonViewOptions): View {
   /** The room's name, shown for a moment as the hero comes in. */
   const title = h('div', { class: 'dungeon-title', attrs: { 'aria-live': 'polite' } });
 
+  /* ----- A lesson for a new player: a line of words, a ring, and a way to put them all away ----- */
+
+  const lessonWords = h('p', { class: 'lesson-words' });
+  const lessonCard = h(
+    'section',
+    { class: 'lesson', attrs: { 'aria-live': 'polite', 'aria-label': 'Tip' } },
+    [
+      lessonWords,
+      h('button', {
+        class: 'lesson-skip',
+        text: 'Skip tips',
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            const run = options.run();
+            if (run.lessons)
+              options.keep({ ...run, lessons: skipLessons(run.lessons, run.dungeon) });
+            showLesson();
+          },
+        },
+      }),
+    ],
+  );
+  lessonCard.hidden = true;
+  /** The button a lesson rings, if any: it pulses. */
+  let ringedButton: HTMLElement | null = null;
+
   /* ----- The buttons under the left thumb ----- */
 
   const battleOf = (): Battle | null => options.run().battle;
@@ -462,8 +560,16 @@ export function dungeonView(options: DungeonViewOptions): View {
   const abilityButtons = abilities.map((a, i) =>
     fightButton(a.name, buttonPicture(a.id), '', () => press(i as 0 | 1)),
   );
-  const food = battleOf()?.fighter.food ?? null;
-  const foodButton = food ? fightButton('Eat', itemIcon(food.item), 'fight-food', eatOne) : null;
+  // The food button, for food carried or food to be found (a crate's fish): shown empty until there is some.
+  const firstBattle = battleOf();
+  const larder = firstBattle?.larder ?? {};
+  const foodItem =
+    firstBattle?.fighter.food?.item ??
+    (dungeon.finds ?? [])
+      .flatMap((f) => Object.keys(f.loot))
+      .find((item) => (larder[item] ?? 0) > 0) ??
+    null;
+  const foodButton = foodItem ? fightButton('Eat', itemIcon(foodItem), 'fight-food', eatOne) : null;
   const bar = h('div', { class: 'fight-bar' }, [
     ...abilityButtons.map((b) => b.el),
     foodButton?.el ?? null,
@@ -475,6 +581,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     tidePanel,
     title,
     bar,
+    lessonCard,
   ]);
   if (!battleOf()) hud.hidden = true;
 
@@ -547,7 +654,12 @@ export function dungeonView(options: DungeonViewOptions): View {
     return lastStill !== null || look.nearestIn(s.level, s.warn) !== null;
   };
   const playing = (): boolean =>
-    !waiting && sideways(size) && !options.run().finished && roomIn(options.run());
+    !waiting &&
+    sideways(size) &&
+    !options.run().finished &&
+    roomIn(options.run()) &&
+    // A lesson that waits for the player holds the run still: nothing moves until it is done.
+    !lessonBlocks(options.run().lessons, lessons);
 
   /**
    * The room as the tide has it now, darkening where it is about to come in;
@@ -621,8 +733,10 @@ export function dungeonView(options: DungeonViewOptions): View {
           const run = options.run();
           // Striking, timed from the fight's state; otherwise walking or breathing as anywhere.
           const pose = heroStrikePose(dungeon, run) ?? heroPose(play, now);
-          const image = hero.at(feet, pose, 'dusk');
-          hero.warm('dusk', FIGHT_POSES);
+          // By the room's light: the grotto's dusk, the tide-pool cave's day.
+          const time = look.theme.figureTime;
+          const image = hero.at(feet, pose, time);
+          hero.warm(time, FIGHT_POSES);
           return (
             image && {
               image,
@@ -644,6 +758,7 @@ export function dungeonView(options: DungeonViewOptions): View {
             open ? look.openGlows : look.glows,
             feet,
             HERO_SHADOW,
+            look.theme.palette,
           );
           return (
             placed && {
@@ -654,8 +769,8 @@ export function dungeonView(options: DungeonViewOptions): View {
         },
         life: look.flicker,
       },
-      // A sea cave at dusk, lit by its lanterns.
-      time: 'dusk',
+      // A sea cave at dusk, lit by its lanterns; or the tide-pool cave by day.
+      time: look.theme.figureTime,
       play: run.play,
       keep: () => {},
       press: () => {},
@@ -700,12 +815,18 @@ export function dungeonView(options: DungeonViewOptions): View {
         if (!door) return point;
         return centreOf(runLocked(run) ? door.inside : door.cell, DUNGEON.tile);
       },
-      extra: () => fightExtra(dungeon, options.run(), look, art, { view: viewBox(), barredTap }),
+      extra: (now) => {
+        const run = options.run();
+        const extra = fightExtra(dungeon, run, look, art, { view: viewBox(), barredTap });
+        const lesson = run.doorway ? null : shownLesson(run.lessons, lessons);
+        return lesson ? withRing(extra, lesson.ring(dungeon, run), now) : extra;
+      },
       seen: (camera, cssPerArt) => {
         lookedAt = { camera, cssPerArt };
+        lastLook = lookedAt;
       },
-      label: 'A sea cave. Tap the ground to walk there, or something to fight it.',
-      fallback: 'The grotto needs a browser that can draw on a canvas.',
+      label: words?.label ?? 'A sea cave. Tap the ground to walk there, or something to fight it.',
+      fallback: 'The dungeon needs a browser that can draw on a canvas.',
     });
     room.replaceChildren(roomView.el);
     lookedAt = null;
@@ -785,23 +906,21 @@ export function dungeonView(options: DungeonViewOptions): View {
     const run = options.run();
     const tally: Tally | null = run.battle?.tally ?? null;
     const fell = run.ending === 'fell';
+    const said = fell ? words?.fell : words?.cleared;
     const title = !run.battle
       ? 'You reached the end'
-      : fell
-        ? 'Washed back to town'
-        : 'The grotto is cleared';
+      : (said?.title ?? (fell ? 'Back in town' : 'Cleared'));
     const line = !run.battle
       ? 'Nothing down here yet but a damp floor and a good echo. Someone will be along to fill it.'
-      : fell
-        ? 'The tide put you back on the quay, damp but whole. Everything you picked up came with you.'
-        : 'The captain has been seen off, and his crew with him. Their belongings have come with you.';
+      : (said?.line ?? 'Everything you picked up came with you.');
     const facts: HTMLElement[] = [
       h('p', { class: 'dungeon-time', text: `Time taken: ${runTime(run.ms)}` }),
     ];
     const earned: HTMLElement[] = [];
     if (tally) {
       facts.push(h('p', { text: `Kills: ${tally.kills}` }));
-      if (tally.eaten > 0) facts.push(h('p', { text: `Eaten: ${tally.eaten}` }));
+      const ate = tally.eaten + Object.values(tally.ateFound ?? {}).reduce((a, b) => a + b, 0);
+      if (ate > 0) facts.push(h('p', { text: `Eaten: ${ate}` }));
       if (tally.shot > 0) facts.push(h('p', { text: `Arrows shot: ${tally.shot}` }));
       for (const [skill, xp] of Object.entries(tally.xp)) {
         earned.push(
@@ -849,6 +968,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       if (bossShown !== boss.monster) {
         bossShown = boss.monster;
         setText(bossName, def.name);
+        bossPanel.setAttribute('aria-label', def.name);
         const face = framedFace(boss.monster);
         bossFace.replaceChildren(...(face ? [face] : []));
         bossFace.hidden = !face;
@@ -925,6 +1045,40 @@ export function dungeonView(options: DungeonViewOptions): View {
     }
   };
 
+  /**
+   * The lessons brought up to date for this frame (`stepLessons`), and the
+   * one showing put on screen: its words, and the button it rings pulsing.
+   * Not behind the turn-your-phone prompt or a Resume, nor through a door.
+   */
+  function showLesson(): void {
+    let run = options.run();
+    if (run.lessons && !run.lessons.off && sideways(size) && !waiting && roomIn(run)) {
+      const next = stepLessons(run.lessons, lessons, dungeon, run);
+      if (next !== run.lessons) {
+        run = { ...run, lessons: next };
+        options.keep(run);
+      }
+    }
+    const lesson = run.finished || run.doorway ? null : shownLesson(run.lessons, lessons);
+    lessonCard.hidden = !lesson;
+    if (lesson) setText(lessonWords, lesson.text(dungeon, run));
+    const ring = lesson?.ring(dungeon, run) ?? null;
+    const which = ring?.kind === 'button' ? ring.which : null;
+    const button =
+      which === 'food'
+        ? (foodButton?.el ?? null)
+        : which === 'first'
+          ? (abilityButtons[0]?.el ?? null)
+          : which === 'second'
+            ? (abilityButtons[1]?.el ?? null)
+            : null;
+    if (button !== ringedButton) {
+      ringedButton?.classList.remove('lesson-ringed');
+      button?.classList.add('lesson-ringed');
+      ringedButton = button;
+    }
+  }
+
   showRoom();
   if (options.run().finished) showResults();
 
@@ -936,8 +1090,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       prompt.hidden = ready || before.finished;
       promptLine.textContent =
         before.ms > 0
-          ? 'The grotto will wait. Nothing in it is going anywhere.'
-          : 'The grotto is wide and low. So, to be fair, is the boat.';
+          ? (words?.turn.during ?? 'The dungeon will wait.')
+          : (words?.turn.before ?? 'The dungeon is wide and low.');
       look.lock.map = groundNow(dungeon, before);
       hero.wear(state);
       // An open door's light from beyond lights him too as he goes by it.
@@ -951,7 +1105,8 @@ export function dungeonView(options: DungeonViewOptions): View {
         showResults();
         options.finished();
       }
-      showFight(after);
+      showLesson();
+      showFight(options.run());
       showTitle(after, playing() && !after.doorway);
       placeTitle(after);
       // Dark through a door, and until the room's ground is in.

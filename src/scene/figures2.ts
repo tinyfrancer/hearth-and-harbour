@@ -56,6 +56,7 @@ export const TOWNSFOLK2 = [
   'market',
   'docker',
   'elder',
+  'ferryman',
 ] as const;
 export type Townsfolk2 = (typeof TOWNSFOLK2)[number];
 

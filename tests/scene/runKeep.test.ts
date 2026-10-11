@@ -144,11 +144,17 @@ const click = (root: ParentNode, text: string): void =>
     .find((b) => b.textContent === text)!
     .click();
 
+/** In the harbour chart (wave 15: the boat opens it), picks a landing and rows out. */
+function rowTo(root: ParentNode, id: string): void {
+  root.querySelector<HTMLButtonElement>(`.chart-landing[data-id="${id}"]`)!.click();
+  click(root, 'Row out');
+}
+
 function rowOut(view: View): void {
   const box = town2Scene().things.find((t) => t.id === 'rowboat')!.tap!;
   tapTown(view.el, { x: box.x + box.w / 2, y: box.y + box.h / 2 });
   wait(view, 6000);
-  click(view.el, 'Row out to Brinebeard’s Grotto');
+  rowTo(view.el, 'brinebeards_grotto');
   resize(844, 390);
   wait(view, 100);
 }
@@ -345,7 +351,7 @@ describe('rowing out with a slow worker', () => {
     const box = town2Scene().things.find((t) => t.id === 'rowboat')!.tap!;
     tapTown(view.el, { x: box.x + box.w / 2, y: box.y + box.h / 2 });
     wait(view, 6000);
-    click(view.el, 'Row out to Brinebeard’s Grotto');
+    rowTo(view.el, 'brinebeards_grotto');
     wait(view, 100);
     // Still in town, nothing said yet.
     expect(runNow()).toBeNull();

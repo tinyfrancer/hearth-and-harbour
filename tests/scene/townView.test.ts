@@ -338,9 +338,12 @@ describe('the Town tab', () => {
   it('rows out to the grotto from the boat and lands back beside it', () => {
     const shell = shellSpy();
     const view = shown(shell);
-    const panel = walkUpTo(view, 'rowboat')!;
-    expect(panel.querySelector('h2')!.textContent).toBe('Rowing boat');
-    press(panel, 'Row out to Brinebeard’s Grotto');
+    // The boat opens the harbour chart (wave 15), not a panel of its own.
+    expect(walkUpTo(view, 'rowboat')).toBeNull();
+    const chart = view.el.querySelector<HTMLElement>('.chart')!;
+    expect(chart.querySelector('h2')!.textContent).toBe('The harbour chart');
+    chart.querySelector<HTMLButtonElement>('.chart-landing[data-id="brinebeards_grotto"]')!.click();
+    press(chart, 'Row out');
     expect(shell.calls).toEqual(['full:true', 'pause:true']);
     expect(heroNow()).not.toBeNull();
     view.el.querySelector<HTMLButtonElement>('.dungeon-leave')!.click();

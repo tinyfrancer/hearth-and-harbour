@@ -37,7 +37,8 @@ import {
   type TileKind,
   type TileMap,
 } from './tileMap';
-import { ALEWIFE, CAPTAIN, DOCKER, ELDER, MARKET, SMITH, TRADER } from './townsfolk';
+import { ALEWIFE, CAPTAIN, DOCKER, ELDER, FERRYMAN, MARKET, SMITH, TRADER } from './townsfolk';
+import { BOAT_LANTERN, BOAT_SIGN, FERRYMAN_FIGURE, type StandInPiece } from './fromLaneB';
 import { FIGURE2_ANCHOR_X, FIGURE2_W, townsfolkFigure2, type Townsfolk2 } from './figures2';
 
 const T = TOWN2_TILE;
@@ -125,18 +126,19 @@ const NET: Use = {
   name: 'Fishing net',
   lines: ['Spread out to dry. It dries in the sun and in the rain at about the same speed.'],
 };
+/** The rowing boat: walking up to it (or anything by it) opens the harbour chart. */
 const ROWBOAT: Use = {
   name: 'Rowing boat',
-  lines: [
-    'Tied up and bailed out, mostly. The name has worn off; it answers to “oi”.',
-    'Round the point is Brinebeard’s Grotto, where the tide comes and goes as it likes.',
-    'Take iron, at least, and a good stack of cooked fish. Mind the water: it moves.',
-  ],
-  button: {
-    label: 'Row out to Brinebeard’s Grotto',
-    opens: { dungeon: 'brinebeards_grotto' },
-  },
+  lines: ['Tied up and bailed out, mostly. The name has worn off; it answers to “oi”.'],
+  chart: true,
 };
+/** The sign on the quay by the mooring. */
+const BOAT_SIGN_USE: Use = {
+  name: 'Ferry sign',
+  lines: ['FERRY. Caves, coves and points beyond. Ask the ferryman, or just get in.'],
+  chart: true,
+};
+
 const SHIP: Use = {
   name: 'The ship',
   lines: [
@@ -297,6 +299,15 @@ export const TOWNSFOLK2_AT: readonly Townsperson2[] = [
   },
   // The docker on the quay beside the east cargo.
   { id: 'docker', figure: 'docker', at: { col: 38, row: 58 }, sides: [1], use: DOCKER },
+  // The ferryman at the mooring, beside the boat's stern, talked to from where the boat is
+  // boarded: he opens the harbour chart, as the boat does.
+  {
+    id: 'ferryman',
+    figure: FERRYMAN_FIGURE,
+    at: { col: 16, row: 59 },
+    sides: [1],
+    use: FERRYMAN,
+  },
   // The old man by the bench east of the well, who takes a slow turn above it toward the smithy.
   {
     id: 'elder',
@@ -408,6 +419,13 @@ function tapOf(p: Placement2): Placement2['tap'] {
   return { x: p.tap.x + Math.round((p.tap.w - w) / 2), y: p.tap.y + p.tap.h - h, w, h };
 }
 
+/**
+ * The boat's tap box: its own, grown to take in its bow lantern and the
+ * water up to the quay's edge, so a thumb anywhere about the mooring finds
+ * it. The boat is the way out of town; it must never be missed.
+ */
+export const BOAT_TAP = { x: 440, y: 1440, w: 160, h: 90 } as const;
+
 function thingOf(p: Placement2): Thing {
   const use = useFor(p.name);
   const own = Object.values(p.spots).map((s) => cellAt(s, T));
@@ -416,7 +434,7 @@ function thingOf(p: Placement2): Thing {
     id: p.name,
     footprint: p.footprint ? cellsOf(p.footprint) : [],
     base: p.base,
-    tap: tapOf(p),
+    tap: p.name === 'rowboat' ? BOAT_TAP : tapOf(p),
     ...(spots ? { spots } : {}),
     ...(use ? { use } : {}),
     // The stall's counter is the trader's, as in the current town.
@@ -482,15 +500,52 @@ function groundMap(): TileMap<Ground2> {
   return { cols: walk.cols, rows: walk.rows, tiles, kinds, tile: T };
 }
 
+/**
+ * Pieces this scene places itself until the art lane's layout has them
+ * (`fromLaneB.ts`): the ferry sign on the quay, on a tile of its own, which
+ * opens the chart; and the boat's bow lantern, only drawn: it hangs inside
+ * the boat's own tap box (`BOAT_TAP`), so a tap on it is a tap on the boat.
+ */
+export const STAND_IN_PIECES: readonly { piece: StandInPiece; use: Use | null }[] = [
+  { piece: BOAT_SIGN, use: BOAT_SIGN_USE },
+  { piece: BOAT_LANTERN, use: null },
+];
+
+/** Where a stand-in piece's picture goes: its top-left, its foot the middle of its bottom row. */
+export function pieceBox(piece: StandInPiece): Box {
+  return {
+    x: piece.foot.x - piece.offset.x,
+    y: piece.foot.y - piece.offset.y,
+    w: piece.w,
+    h: piece.h,
+  };
+}
+
+function pieceThing({ piece, use }: (typeof STAND_IN_PIECES)[number]): Thing {
+  // Only drawn: here under its id so the page knows to draw it, and nothing else.
+  if (!use) return { id: piece.id, footprint: [], base: piece.base };
+  const box = pieceBox(piece);
+  return {
+    id: piece.id,
+    footprint: [cellAt(piece.foot, T)],
+    base: piece.base,
+    tap: { x: box.x - 4, y: box.y - 4, w: box.w + 8, h: box.h + 8 },
+    use,
+  };
+}
+
 /** The C-scale town as a scene: its ground on 24-pixel tiles with every footprint solid, and its things. */
 export function buildTown2Scene(): Scene {
   const placed = town2Layout().filter(isThing);
-  const laid: Thing[] = [...placed.map(thingOf), ...TOWNSFOLK2_AT.map(personOf)];
+  const own = new Set(placed.map((p) => p.name));
+  // A stand-in piece gives way as soon as the art lane's layout places the real one.
+  const pieces = STAND_IN_PIECES.filter((p) => !own.has(p.piece.id)).map(pieceThing);
+  const laid: Thing[] = [...placed.map(thingOf), ...TOWNSFOLK2_AT.map(personOf), ...pieces];
   const map = blockFootprints(groundMap(), laid);
   // A tree is walked up to from in front where there is room: beside its trunk its lower
   // boughs would hide the hero, who stands behind them there.
   const things = laid.map((thing, i) => {
-    const p = placed[i];
+    const p = i < placed.length ? placed[i] : undefined;
     if (!p || !TREE.test(p.id)) return thing;
     // Deep in the forest, with nowhere to stand beside it, a pine is only looked at: what of it
     // is not hidden by the pines in front of it lies off the map, or under the sun button.
@@ -507,7 +562,10 @@ export function buildTown2Scene(): Scene {
   for (let i = 0; i < things.length; i++) {
     let thing = things[i]!;
     if (LOOKED_AT_ONLY.has(thing.id)) thing = scenery(thing);
-    const person = i >= placed.length ? TOWNSFOLK2_AT[i - placed.length] : undefined;
+    const person =
+      i >= placed.length && i < placed.length + TOWNSFOLK2_AT.length
+        ? TOWNSFOLK2_AT[i - placed.length]
+        : undefined;
     if (person) thing = withStands(map, thing, person);
     // Nobody is sent to stand where a stroller walks: the old man's bench is
     // used from its other sides, not from where he rests.
