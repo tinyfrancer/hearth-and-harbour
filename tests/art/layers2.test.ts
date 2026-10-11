@@ -157,8 +157,11 @@ describe('what hangs over the legs hides them down to its hem', () => {
 });
 
 describe('across, a cloak is the outermost thing behind the body', () => {
-  it('hides a leg striding back into it, down to its hem, both ways', () => {
+  // B17: down to the knee, no further (the knight read one-legged); below it the calf presses
+  // back through the drape and the trailing shin and boot show over the cloak.
+  it('hides a leg striding back into it down to the knee, both ways, and shows its shin below', () => {
     const faults: string[] = [];
+    let shins = 0;
     const backLine = SIDE_HIP[0] - 4;
     for (const o of OUTFITS.filter((o) => (o.extra ?? []).includes('red_cloak')))
       for (const swap of [false, true])
@@ -167,12 +170,17 @@ describe('across, a cloak is the outermost thing behind the body', () => {
           const fr = sideFrame(dress, f, 7, swap);
           const under = new Uint8Array(W * 72);
           for (const d of fr.sheet.dots)
-            if (d.tag === 'cloak' && d.x < backLine && d.y > 46) under[d.y * W + d.x] = 1;
+            if (d.tag === 'cloak' && d.x < backLine && d.y > 46 && d.y <= 55)
+              under[d.y * W + d.x] = 1;
           const { tags } = stackSheet(fr.sheet);
           const bad = tags.filter((t, i) => (t === 'leg' || t === 'foot') && under[i]).length;
           if (bad) faults.push(`${o.name} ${swap ? 'left' : 'right'} ${f}: ${bad}`);
+          shins += tags.filter(
+            (t, i) => (t === 'leg' || t === 'foot') && i % W < backLine && Math.floor(i / W) > 58,
+          ).length;
         }
     expect(faults).toEqual([]);
+    expect(shins).toBeGreaterThan(40);
   });
 
   it('lays a coat, mail or jerkin over the tunic under it: their skirts and sleeves show', () => {

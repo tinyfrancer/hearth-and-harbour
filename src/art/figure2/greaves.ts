@@ -36,6 +36,9 @@ const STRAP: Pins = { h: ['leather', 2], H: ['leather', 4] };
 
 // The near leg is columns 21 to 27 (the shin from row 54, the knee 50 to 53),
 // the far, eased leg 30 to 35 (its knee a column in); boots begin at row 61.
+// B17: each plate stops a few rows above the boot's top, so a band of the
+// boot's leather shows between plate and foot (at true size a plate down to
+// the foot read as a tall metal boot).
 
 /** Bronze: a domed cop over the knee, a shin plate lit down its ridge, two hide straps. */
 const BRONZE_NEAR = part(
@@ -51,8 +54,6 @@ const BRONZE_NEAR = part(
     'hhhhhHH',
     '.10234.',
     '.11234.',
-    '.11234.',
-    '.12234.',
     'hhhhhHH',
     '.12234.',
     '.44455.',
@@ -69,8 +70,6 @@ const BRONZE_FAR = part(
     '.34455',
     '..1234',
     '.hhhhH',
-    '..1234',
-    '..1234',
     '..1234',
     '..1234',
     '.hhhhH',
@@ -93,13 +92,10 @@ const IRON_NEAR = part(
     '.01233.',
     '.44555.',
     '0102334',
-    '0102334',
     'h10233H',
-    '1102334',
     '1102334',
     '1112334',
     'h12233H',
-    '1122334',
     '4445555',
   ],
   STRAP,
@@ -115,13 +111,10 @@ const IRON_FAR = part(
     '..1233',
     '..4455',
     '.10234',
-    '.10234',
     '.h023H',
-    '.11234',
     '.11234',
     '.12234',
     '.h223H',
-    '.12234',
     '.44555',
   ],
   STRAP,
@@ -187,11 +180,11 @@ export const GREAVES_SIDE: Readonly<Record<string, SideGreaves>> = {
   bronze_greaves: {
     mat: 'bronze',
     covers: [
-      plate('bronze', 13, 16),
-      strap('hide', 16),
-      plate('bronze', 17, 20),
-      strap('hide', 20),
-      { ...plate('bronze', 21, 22), hem: true },
+      plate('bronze', 13, 15),
+      strap('hide', 15),
+      plate('bronze', 16, 18),
+      strap('hide', 18),
+      { ...plate('bronze', 19, 20), hem: true },
     ],
     cop: ['.012.', '01123', '12334', '.445.'],
   },
@@ -200,9 +193,9 @@ export const GREAVES_SIDE: Readonly<Record<string, SideGreaves>> = {
     covers: [
       plate('iron', 13, 16),
       strap('leather', 16),
-      plate('iron', 17, 20),
-      strap('leather', 20),
-      { ...plate('iron', 21, 23), bulk: 2, hem: true },
+      plate('iron', 17, 18),
+      strap('leather', 18),
+      { ...plate('iron', 19, 20), bulk: 2, hem: true },
     ],
     cop: ['.0112.', '011223', '444555', '.1223.', '.4455.'],
   },

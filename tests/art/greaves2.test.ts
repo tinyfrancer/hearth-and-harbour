@@ -53,8 +53,9 @@ describe('greaves', () => {
           30,
         );
         for (const f of FACINGS) {
-          // From behind only the plates' edges and the straps show: less, never none.
-          const least = f === 'up' ? 10 : 20;
+          // From behind only the plates' edges and the straps show: less, never none. B17: the
+          // plates stop short of the boot (a band of leather between), so a little less shows.
+          const least = f === 'up' ? 2 : 8;
           for (let k = 0; k < WALK2_FRAMES; k++)
             expect(
               shin(characterWalkPicture2({}, all, f, k).grid, mat),
@@ -86,5 +87,21 @@ describe('greaves', () => {
     const b = shin(characterPicture2({}, ['bronze_greaves']).grid, 'bronze');
     const i = shin(characterPicture2({}, ['iron_greaves']).grid, 'iron');
     expect(i).toBeGreaterThan(b);
+  });
+
+  // B17: a plate down to the foot read as a tall metal boot at true size.
+  it('stop short of the boot, so a band of its leather shows between plate and foot', () => {
+    for (const [id] of GREAVES)
+      for (const facing of ['down', 'right'] as const) {
+        const g = characterWalkPicture2({}, [id], facing, 0).grid;
+        let leather = 0;
+        for (let y = 54; y <= 61; y++)
+          for (let x = 0; x < g.w; x++) {
+            const c = g.d[y * g.w + x]!;
+            if (c && isMat(c, 'leather')) leather++;
+          }
+        // B16 had 64 / 56 toward the camera and 2 / 18 in profile.
+        expect(leather, `${id} ${facing}`).toBeGreaterThan(facing === 'down' ? 70 : 6);
+      }
   });
 });

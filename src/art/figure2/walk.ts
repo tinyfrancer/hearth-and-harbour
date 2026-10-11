@@ -135,6 +135,12 @@ export interface LegKey {
   readonly kneeUp?: number;
   /** Heel up (+) or toe up (-), in rows at the far end of the foot. */
   readonly tilt?: number;
+  /**
+   * Bearing the weight, toward the camera or away (B17): its sole's welt is
+   * pressed out a pixel either side, so the planted boot reads flat and heavy
+   * against the free one (the feet still move against the ground a little).
+   */
+  readonly plant?: boolean;
 }
 export interface ArmKey {
   readonly dx: number;
@@ -313,7 +319,7 @@ function frontStep(lead: 'near' | 'far', away: boolean): Key2[] {
         { dx: 0, lift: 7, knee: 0, kneeUp: 3 },
         { dx: 0, lift: 2, knee: 0, kneeUp: 1 },
       ];
-  const down = (i: number): LegKey => ({ dx: 0, lift: planted[i]!, knee: 0 });
+  const down = (i: number): LegKey => ({ dx: 0, lift: planted[i]!, knee: 0, plant: true });
   return [
     {
       bob: 1,
@@ -566,6 +572,12 @@ export function posedTagged(boned: readonly Boned[], rig: Rig2, key: Key2): Tagg
         const mid = Math.round((f0 + f1) / 2);
         if (x > mid) xs = [x + key.toes];
         else if (x === mid) xs = Array.from({ length: key.toes + 1 }, (_, i) => x + i);
+      }
+      // A planted foot's welt pressed out either side on its lowest row.
+      if (leg && k.plant && y === rig.sole) {
+        const [f0, f1] = rig.feet[b === 'legN' ? 0 : 1];
+        if (x === f0) xs = [x - 1, x];
+        else if (x === f1) xs = [x, x + 1];
       }
       const upper = !leg ? (key.shift ?? 0) : 0;
       // A knee coming forward pushes the hem up on its side; walking away a lifted sole shows.

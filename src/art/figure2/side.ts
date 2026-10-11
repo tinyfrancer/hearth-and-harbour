@@ -730,7 +730,9 @@ function drawCloak(sheet: Sheet, mat: Mat, bob: number, f: number, backLine: num
         step += 1;
       if (y === hem) step += 1;
       void lift;
-      const over = x < backLine && y > 44 + bob;
+      // Over a leg striding back only down to the knee (B17): below it the calf presses back
+      // through the drape, so the trailing shin and boot show and the knight has two legs.
+      const over = x < backLine && y > 44 + bob && y <= 56 + bob;
       sheet.add(x, y, cell(mat, Math.min(5, step)), over ? SIDE.CLOAK_OVER : SIDE.CLOAK, 'cloak');
     }
   }
