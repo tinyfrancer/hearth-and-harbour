@@ -174,6 +174,12 @@ const click = (root: ParentNode, text: string): void =>
     .find((b) => b.textContent === text)!
     .click();
 
+/** In the harbour chart (wave 15: the boat opens it), picks a landing and rows out. */
+function rowTo(root: ParentNode, id: string): void {
+  root.querySelector<HTMLButtonElement>(`.chart-landing[data-id="${id}"]`)!.click();
+  click(root, 'Row out');
+}
+
 /** The rowing boat, in the middle of its tap box: in view from the start of town. */
 const boat = (): Point => {
   const box = town2Scene().things.find((t) => t.id === 'rowboat')!.tap!;
@@ -184,8 +190,8 @@ const boat = (): Point => {
 function rowOut(view: View): void {
   tap(view.el, boat());
   wait(view, 6000);
-  expect(view.el.querySelector('.scene-panel h2')!.textContent).toBe('Rowing boat');
-  click(view.el, 'Row out to Brinebeard’s Grotto');
+  expect(view.el.querySelector('.chart h2')!.textContent).toBe('The harbour chart');
+  rowTo(view.el, 'brinebeards_grotto');
 }
 
 const prompt = (view: View) => view.el.querySelector<HTMLElement>('.dungeon-prompt')!;
@@ -519,7 +525,7 @@ describe('the idle task during a run', () => {
     root.querySelector('header')!.prepend(face);
     tap(root, boat());
     frames(6000);
-    click(root, 'Row out to Brinebeard’s Grotto');
+    rowTo(root, 'brinebeards_grotto');
     expect(root.classList.contains('fullscreen')).toBe(true);
     app.save();
     const before = saves.load()!;
@@ -565,7 +571,7 @@ describe('a run’s spoils in the real app', () => {
     root.querySelector('header')!.prepend(face);
     tap(root, boat());
     frames(6000);
-    click(root, 'Row out to Brinebeard’s Grotto');
+    rowTo(root, 'brinebeards_grotto');
     resize(844, 390);
     frames(100);
     // Both crabs, then whatever they left on the floor.

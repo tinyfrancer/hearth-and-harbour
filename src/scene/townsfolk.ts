@@ -105,3 +105,16 @@ export const ELDER: Use = {
   duskSays: ['Stars are out. I’ve counted them. There’s one missing, but I shan’t say which.'],
   portrait: 'elder',
 };
+
+/** The ferryman at the mooring: a word as the chart opens, then the chart. */
+export const FERRYMAN: Use = {
+  name: 'Pascoe, ferryman',
+  lines: [],
+  says: [
+    'Where to? I row anywhere the water goes, and back again, which is the important bit.',
+    'First time out? The little cave under the quay. Mind the old snapper: it bites slow, but it bites.',
+    'Pay? Bring me back a good story. And your boots, ideally. Both of them.',
+  ],
+  duskSays: ['Rowing by lantern light. Sit still and keep your hands in the boat.'],
+  chart: true,
+};

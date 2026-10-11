@@ -9,11 +9,16 @@ import { startRun, type Dungeon, type Run } from './dungeon';
 import { builtDungeons, castOf, dungeonById, dungeonScene, healsOf } from './dungeons';
 import { dungeonView } from './dungeonView';
 import { startLessons } from './lessons';
-import { closePanel, startPlay, type Play } from './play';
+import { closePanel, startPlay, visitsTo, type Play } from './play';
 import { loadingScene } from './loadingScene';
+import { sayingFor } from './panel';
 import { stage } from './stage';
-import type { Cell } from './tileMap';
-import { BOAT_LANDING2, town2Scene } from './town2';
+import type { Cell, Point } from './tileMap';
+import { chartPanel, type ChartPanel } from './chartPanel';
+import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './fromLaneA';
+import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
+import { townExtra } from './townExtras';
+import { labelFor, panFocus, ringed } from './townMarks';
 import { Hero2, type Town2Art } from './town2Art';
 import { roomLook } from './grottoArt';
 import { KEPT_RUN_MAX_CHARS, keptAtOf, restoreRun, savedRunOf } from './runSave';
@@ -24,7 +29,9 @@ import {
   START2,
   art2Now,
   forget2,
+  FOCUS_RISE2,
   prepareTown,
+  strollersAt,
   town2Stage,
   townLoading,
   townProgress,
@@ -42,6 +49,28 @@ let play: Play | null = null;
 
 /** Day or dusk chosen with the sun-and-moon button, for this session; null follows the clock. */
 let chosen: TimeOfDay | null = null;
+
+/** Dungeons rowed out to this page: the boat stops saying "somewhere new" for them. */
+const rowedTo = new Set<string>();
+
+/**
+ * Whether the first visit's pan (the camera out to the boat and back) has
+ * played, or been skipped, this page. A save that has rowed out before is
+ * never shown it (`firstVisit`); the save has no place to remember that the
+ * chart was opened (lane A, under Needs), so a fresh page of a new save that
+ * has not rowed out yet may see it again.
+ */
+let panned = false;
+
+/** Where the camera looks while the boat is shown: the middle of the boat and its mooring. */
+const BOAT_FOCUS: Point = { x: BOAT_TAP.x + BOAT_TAP.w / 2, y: BOAT_TAP.y + BOAT_TAP.h / 2 };
+
+/** Everyone in town who is talked to, by id: their markers say so. */
+const PEOPLE: ReadonlySet<string> = new Set(TOWNSFOLK2_AT.map((p) => p.id));
+
+/** Whether a thing in town opens the harbour chart (the boat, the ferryman, the sign, the lantern). */
+const opensChart = (id: string | null): boolean =>
+  !!id && !!town2Scene().things.find((t) => t.id === id)?.use?.chart;
 
 /**
  * The player's character as the dungeons draw him, at the C scale as the
@@ -216,11 +245,80 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       return;
     }
     play ??= startPlay(START2);
+    const town = town2Stage();
     current = stage({
-      ...town2Stage(),
+      ...town,
       play: play!,
       keep: (next) => {
         play = next;
+      },
+      // The boat and all by it open the chart, which is this view's own, not a panel.
+      ownPanel: opensChart,
+      outside: (now) => {
+        let next = now;
+        if (wantClose) {
+          wantClose = false;
+          next = closePanel(next);
+        }
+        if (wantCut) {
+          // To the quay by the boat, at once, with the chart open: asked for from the menus.
+          wantCut = false;
+          next = {
+            ...next,
+            walker: { at: LANDING2, path: [] },
+            facing: 'left',
+            heading: null,
+            open: 'rowboat',
+          };
+        }
+        return next;
+      },
+      lookAt: () => {
+        if (panFrom === null || clockNow === undefined) return null;
+        const hero = shownPlay().walker.at;
+        const at = panFocus(clockNow - panFrom, { x: hero.x, y: hero.y - FOCUS_RISE2 }, BOAT_FOCUS);
+        if (!at) panFrom = null;
+        return at;
+      },
+      tap: (point, min, tapped) => {
+        // Any tap while the boat is being shown ends the showing, and does nothing else.
+        if (panFrom !== null) {
+          panFrom = null;
+          return tapped;
+        }
+        return town.tap(point, min, tapped);
+      },
+      extra: (stageNow, palette) => {
+        const shown = shownPlay();
+        const strollers = new Map(
+          strollersAt().map((feet, i) => [STROLLERS2[i]!.id, personTap(feet)] as const),
+        );
+        const open = shown.open !== null || chart !== null;
+        return townExtra(
+          {
+            scene: town.scene,
+            play: shown,
+            time: art2Now()?.held() ?? (palette.name === 'dusk' ? 'dusk' : 'day'),
+            now: clockNow ?? stageNow,
+            marks: {
+              people: PEOPLE,
+              somewhereNew: somewhereNew(),
+              panelOpen: open,
+              hero: {
+                x: shown.walker.at.x - 14,
+                y: shown.walker.at.y - 66,
+                w: 28,
+                h: 68,
+              },
+              strollers,
+            },
+            ring: ringedNow,
+          },
+          palette,
+        );
+      },
+      seen: (camera, cssPerArt) => {
+        lookedAt = { camera, cssPerArt };
       },
       light: {
         current: now,
@@ -240,11 +338,113 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     });
     if (townLoading()) {
       loading ??= loadingCard();
-      host.replaceChildren(current.el, loading.el);
+      host.replaceChildren(current.el, loading.el, label);
     } else {
       loading = null;
-      host.replaceChildren(current.el);
+      host.replaceChildren(current.el, label);
     }
+    if (chart) host.append(chart.el);
+  };
+
+  /* ----- Saying what can be tapped: the label, the chart, the first visit's pan ----- */
+
+  /** The name of the thing a tap would use, with what a tap does, over it. */
+  const label = h('div', { class: 'scene-label', attrs: { 'aria-live': 'polite' } });
+  label.hidden = true;
+  /** Where the town's camera was for the last frame, and an art pixel's size on screen. */
+  let lookedAt: { camera: Point; cssPerArt: number } | null = null;
+  /** The thing ringed and named this frame (`ringed`). */
+  let ringedNow: string | null = null;
+  /** Changes asked of the town's stage for its next frame. */
+  let wantClose = false;
+  let wantCut = false;
+  /** The chart asked for from the menus before the town could show it. */
+  let wantChart = false;
+  /** When the first visit's pan began, on the app's clock; null while none is playing. */
+  let panFrom: number | null = null;
+  /** The harbour chart, while it is open, and which thing opened it. */
+  let chart: (ChartPanel & { for: string }) | null = null;
+
+  /**
+   * Somewhere on the chart is open and has never been rowed to: not cleared
+   * (the save's clears), and not rowed out to this page.
+   */
+  const somewhereNew = (): boolean =>
+    dungeonsInOrder(content).some(
+      (row) =>
+        dungeonStatus(latest, row.id, content)?.state === 'open' &&
+        !rowedTo.has(row.id) &&
+        dungeonScene(row.id) !== null,
+    );
+
+  const openChart = (by: string): void => {
+    if (chart) return;
+    const thing = town2Scene().things.find((t) => t.id === by);
+    const use = thing?.use;
+    const line = use && by === 'ferryman' ? sayingFor(use, now(), visitsTo(shownPlay(), by)) : null;
+    const panel = chartPanel({
+      content,
+      state: () => latest,
+      say: line && use ? { who: use.name.split(',')[0]!, line } : null,
+      rowOut: (id) => {
+        closeChart();
+        play = closePanel(shownPlay());
+        enter(id);
+      },
+      close: () => closeChart(),
+      picked: (id) => {
+        const dungeon = dungeons(id);
+        if (dungeon && paintedAhead !== id) {
+          paintedAhead = id;
+          paintAhead(dungeon);
+        }
+      },
+    });
+    chart = Object.assign(panel, { for: by });
+    host.append(panel.el);
+    panel.update(latest, clockNow);
+    chartOpened(shell);
+  };
+
+  const closeChart = (): void => {
+    if (!chart) return;
+    chart.el.remove();
+    chart = null;
+    wantClose = true;
+  };
+
+  /** The label over the thing a tap would use, placed by the last frame's camera. */
+  const showLabel = (): void => {
+    const shown = shownPlay();
+    const open = shown.open !== null || chart !== null;
+    const thing = run ? null : ringed(town2Scene(), shown, open || panFrom !== null);
+    ringedNow = thing?.id ?? null;
+    const words = thing ? labelFor(thing, PEOPLE) : null;
+    if (!thing?.tap || !words || !lookedAt) {
+      label.hidden = true;
+      return;
+    }
+    const { camera, cssPerArt } = lookedAt;
+    const x = Math.round((thing.tap.x + thing.tap.w / 2 - camera.x) * cssPerArt);
+    const y = Math.round((thing.tap.y - camera.y) * cssPerArt) - 18;
+    if (label.textContent !== words) label.textContent = words;
+    const place = `translate(${x}px, ${Math.max(70, y)}px) translate(-50%, -100%)`;
+    if (label.style.transform !== place) label.style.transform = place;
+    label.hidden = false;
+  };
+
+  /**
+   * The first time the Town tab shows the town to a save that has never
+   * rowed out (and not this page already): the camera pans to the boat and
+   * back, once. Skipped by any tap.
+   */
+  const maybePan = (): void => {
+    // Only over the town as painted: never a pan across a town still coming, or none at all.
+    if (panned || panFrom !== null || clockNow === undefined || townLoading()) return;
+    if (!art2Now()?.held()) return;
+    panned = true;
+    if (Object.keys(latest.dungeons).length > 0 || latest.run || wantChart) return;
+    panFrom = clockNow;
   };
 
   const showDungeon = (dungeon: Dungeon, resume = false): void => {
@@ -319,6 +519,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   const enter = (id: string): void => {
     const dungeon = dungeons(id);
     if (!dungeon || rowing) return;
+    rowedTo.add(id);
     // A run reads the character as they row out, and rolls its own dice, never the save's.
     const started = startRun(dungeon, {
       fighter: fighterOf(latest, content),
@@ -378,19 +579,6 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     showDungeon(dungeon);
     // Kept from its first moment: a reload in the first room finds it.
     keepIt(true);
-  };
-
-  /** The boat's panel open in town: its dungeon's first room is painted ahead. */
-  const boatOpen = (): void => {
-    const open = play?.open ?? play?.heading;
-    if (!open) return;
-    const thing = town2Scene().things.find((t) => t.id === open);
-    const opens = thing?.use?.button?.opens;
-    if (!opens || !('dungeon' in opens) || paintedAhead === opens.dungeon) return;
-    const dungeon = dungeons(opens.dungeon);
-    if (!dungeon) return;
-    paintedAhead = opens.dungeon;
-    paintAhead(dungeon);
   };
 
   /** Back to town by any way out of a run: the clock and the bars come back, the hero by the boat. */
@@ -471,7 +659,21 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         if (!run && loading && !current.update && townReady()) showTown();
         current.update?.(next);
         if (!run) {
-          boatOpen();
+          // The menus asked for the chart: to the quay by the boat with it open, once the town is up.
+          if (takeRequest(shell) === 'chart') wantChart = true;
+          if (wantChart && townReady() && current.update) {
+            wantChart = false;
+            panFrom = null;
+            panned = true;
+            wantCut = true;
+          }
+          const open = play?.open ?? null;
+          if (opensChart(open) && !chart) openChart(open!);
+          chart?.update(next, now);
+          if (current.update) {
+            maybePan();
+            showLabel();
+          }
           rowOn();
         } else keepIt(false);
         if (loading) {
@@ -492,6 +694,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 export function resetTown(): void {
   play = null;
   chosen = null;
+  rowedTo.clear();
+  panned = false;
   hero = null;
   painter?.close();
   painter = null;

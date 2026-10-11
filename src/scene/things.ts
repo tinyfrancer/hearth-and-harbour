@@ -40,6 +40,8 @@ export interface Use {
   readonly button?: { readonly label: string; readonly opens: Opens };
   /** Whose face to show beside the words, by the art lane's portrait id, when it has drawn one. */
   readonly portrait?: string;
+  /** Walking up to it opens the harbour chart, in place of a panel (the boat and all by it). */
+  readonly chart?: boolean;
 }
 
 /** How a thing looks: a picture with its top-left at `at`, in art pixels. */

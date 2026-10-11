@@ -47,6 +47,7 @@ import {
   type Run,
 } from './dungeon';
 import {
+  FIGHT_COLOURS,
   HERO_TALL,
   doorsOpen,
   fightArtFor,
@@ -58,6 +59,7 @@ import {
   type FightArt,
 } from './fightArt';
 import { dungeonScene } from './dungeons';
+import { foeArtId } from './fromLaneB';
 import { anchorOf, FIGURE2_SOLE_Y, heroPose, POSES2, STRIKE_POSES2 } from './figures2';
 import {
   lessonBlocks,
@@ -254,7 +256,7 @@ export function combatantBoxes(
   const room = dungeon.rooms[run.room];
   for (const foe of run.battle?.foes ?? []) {
     if (foe.room !== run.room || !alive(foe)) continue;
-    const size = foeSize2(foe.monster);
+    const size = foeSize2(foeArtId(foe.monster));
     const box = foeKind(foe.monster).box;
     const lift = room ? liftOf(room, foe) : 0;
     boxes.push(
@@ -385,9 +387,9 @@ export function withRing(extra: StageExtra, ring: LessonRing, now: number): Stag
   };
 }
 
-/** The lesson ring's colours: the menus' bright gold, edged in their ink. */
-const LESSON_GOLD = '#ffd86b';
-const LESSON_INK = '#15111f';
+/** The lesson ring's colours: the fight's own gold, edged in its ink. */
+const LESSON_GOLD = FIGHT_COLOURS.gold;
+const LESSON_INK = FIGHT_COLOURS.ink;
 
 export function dungeonView(options: DungeonViewOptions): View {
   const { dungeon, hero, content } = options;

@@ -11,6 +11,7 @@ import { foeSize2 } from '../art/dungeonArt2';
 import { grid, line, outline, rect, type Grid } from '../art/grid';
 import { picture, type Picture } from '../art/raster';
 import { DUNGEON } from './dungeonMetrics';
+import { foeArtId } from './fromLaneB';
 
 /**
  * A heavy attack: a patch of ground marked first, filling until it lands, and
@@ -274,7 +275,7 @@ export const FIRST_KINDS: Readonly<Record<string, FoeKind>> = {
       radius: 50,
       warnMs: 2200,
       everyMs: 7000,
-      firstMs: 3000,
+      firstMs: 4000,
       range: 46,
       times: 2,
     },
@@ -344,7 +345,7 @@ export const FOE_KINDS: Readonly<Record<string, FoeKind>> = Object.fromEntries(
  * no size for, the first scale's box at the dungeons' scale.
  */
 export function tapBox(id: string, first: FoeKind): { readonly w: number; readonly h: number } {
-  const size = foeSize2(id);
+  const size = foeSize2(foeArtId(id));
   if (size) return size.box;
   return { w: first.box.w * DUNGEON.distance, h: first.box.h * DUNGEON.distance };
 }

@@ -62,6 +62,7 @@ import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import { CaveShadow, glowsIn, paintCells, perchLift, type RoomLook } from './grottoArt';
 import { sayingOf } from './dungeons';
+import { foeArtId } from './fromLaneB';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';
 import type { Box } from './things';
@@ -160,7 +161,7 @@ const isPerson = (monster: string): boolean => {
 export function foePose(foe: Foe, clock: number, speedMs: number, kind: FoeKind): FoeShown {
   const facing = foe.facing;
   const phase = Math.max(1, foe.phase);
-  const frames = foeFrames2(foe.monster);
+  const frames = foeFrames2(foeArtId(foe.monster));
   const count = (pose: Foe2Pose): number => Math.max(1, frames?.[pose] ?? 1);
   const shown = (pose: Foe2Pose, frame = 0): FoeShown => ({ pose, frame, facing, phase });
   if (foe.diedAt !== null) return shown('fall', clock - foe.diedAt < FALL_MS / 3 ? 0 : 1);
@@ -185,7 +186,7 @@ export function foePose(foe: Foe, clock: number, speedMs: number, kind: FoeKind)
 /** How a foe's sizes are known: the art lane's table, or a guess for one it has not drawn. */
 function sizeOf(monster: string): Foe2Size {
   return (
-    foeSize2(monster) ?? {
+    foeSize2(foeArtId(monster)) ?? {
       w: 40,
       h: 40,
       anchor: { x: 20, y: 39 },
@@ -346,16 +347,10 @@ export class FoePictures {
     shown: FoeShown,
     feet: Point,
   ): { image: HTMLCanvasElement; feet: Point; glows: readonly Glow[] } | null {
-    const pic = foePicture2(monster, shown.pose, shown.facing, shown.frame, shown.phase);
+    const art = foeArtId(monster);
+    const pic = foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
     if (!pic) return null;
-    const plain = foeSprite2(
-      monster,
-      shown.pose,
-      shown.facing,
-      shown.frame,
-      shown.phase,
-      CAVE_DUSK,
-    );
+    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, CAVE_DUSK);
     if (!plain) return null;
     const qx = Math.round(feet.x / LIGHT_STEP) * LIGHT_STEP;
     const qy = Math.round(feet.y / LIGHT_STEP) * LIGHT_STEP;

@@ -383,6 +383,21 @@ export interface StageOptions {
   readonly seen?: (camera: Point, cssPerArt: number) => void;
   /** A panel's button was pressed. */
   readonly press: (opens: Opens) => void;
+  /**
+   * Whether the scene shows its own panel for what has opened (the town's
+   * harbour chart): the stage then shows none, and makes no room for one.
+   */
+  readonly ownPanel?: (id: string) => boolean;
+  /**
+   * Changes asked from outside the stage, applied at the start of each
+   * frame: a panel closed from the scene's own, the hero put somewhere.
+   */
+  readonly outside?: (play: Play) => Play;
+  /**
+   * Where the camera looks this frame instead of at the walker (a pan to
+   * show the player something), in art pixels; null follows the walker.
+   */
+  readonly lookAt?: () => Point | null;
   /** What a screen reader hears for the canvas. */
   readonly label: string;
   /** Shown instead of the scene by a browser that cannot draw one. */
@@ -477,7 +492,7 @@ export function stage(options: StageOptions): View {
     panel = null;
     panelFor = play.open;
     const use = scene.things.find((t) => t.id === play.open)?.use;
-    if (!use) return;
+    if (!use || options.ownPanel?.(play.open!)) return;
     panel = usePanel(
       use,
       time,
@@ -521,7 +536,8 @@ export function stage(options: StageOptions): View {
   const camera = (scale: number): Point => {
     const view = viewSize(device, scale);
     const room = inset(scale);
-    const focus = { x: play.walker.at.x, y: play.walker.at.y - rise };
+    const looked = options.lookAt?.() ?? null;
+    const focus = looked ?? { x: play.walker.at.x, y: play.walker.at.y - rise };
     const inner = {
       width: Math.max(1, view.width - room.left - room.right),
       height: Math.max(1, view.height - room.top - room.bottom - lift),
@@ -836,6 +852,7 @@ export function stage(options: StageOptions): View {
       const still = options.frozen?.() ?? false;
       const ms = last === null || still ? 0 : Math.min(Math.max(now - last, 0), MAX_FRAME_MS);
       last = now;
+      if (options.outside) change(options.outside(play));
       if (held && !held.steering) {
         const moved = Math.hypot(held.at.x - held.from.x, held.at.y - held.from.y);
         if (steering(now - held.since, moved)) held = { ...held, steering: true };
