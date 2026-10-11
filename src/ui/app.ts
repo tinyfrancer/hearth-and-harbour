@@ -34,10 +34,12 @@ import { buyFromStore } from '../core/store';
 import { SLOTS, type AchievementDef, type Content } from '../core/content';
 import { newGame, skillLevel, stat, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
+import { memoryPrefs, type Prefs } from '../persistence/Prefs';
 import { awayReportOverlay } from './awayReport';
 import { artGallery } from '../art/gallery';
 import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
+import { isBankSort, type BankView } from './bankOrder';
 import { bountiesView, type BountyActions } from './bountyScreen';
 import { characterView, type SheetPanel } from './characterScreen';
 import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
@@ -57,7 +59,12 @@ export interface AppDeps {
   saves: SaveService;
   content: Content;
   now(): number;
+  /** How the menus are arranged on this device; kept for the page's life alone if left out. */
+  prefs?: Prefs;
 }
+
+/** The bank's sort, kept on this device across sessions (a preference, never the save). */
+const BANK_SORT_PREF = 'bank-sort';
 
 export interface App {
   /** Write the game to storage, stamped with the time. False if it failed or there is no game. */
@@ -153,7 +160,10 @@ function bringIntoView(screen: HTMLElement, el: HTMLElement, under?: HTMLElement
 }
 
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
-export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): App {
+export function mountApp(
+  root: HTMLElement,
+  { saves, content, now, prefs = memoryPrefs() }: AppDeps,
+): App {
   let state: GameState | null = saves.load();
   let tab: TabId = 'skills';
   /** The skill whose page is open on the Skills tab, or null for the list. */
@@ -166,6 +176,13 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let openItem: string | null = null;
   /** Whether the Bank tab is showing the general store. */
   let storeOpen = false;
+  /** How the bank is sorted and filtered: the sort from the last session, the rest from this one. */
+  const savedSort = prefs.get(BANK_SORT_PREF);
+  let bankArranged: BankView = {
+    sort: isBankSort(savedSort) ? savedSort : 'type',
+    filter: 'all',
+    search: '',
+  };
   /** Which of the records is open on the Character tab, if one is. */
   let records: 'log' | 'achievements' | null = null;
   /** A scene has stopped the idle clock (a dungeon run is on). */
@@ -566,47 +583,57 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       });
     }
     if (tab === 'bank') {
-      return bankView(game, content, openItem, {
-        store: () => {
-          storeOpen = true;
-          openItem = null;
-          turnTo();
+      return bankView(
+        game,
+        content,
+        openItem,
+        {
+          store: () => {
+            storeOpen = true;
+            openItem = null;
+            turnTo();
+          },
+          // The bank opens and closes a card in place, where the thumb is: only
+          // which one is open is kept here, for coming back to the tab.
+          open: (itemId) => {
+            openItem = itemId;
+          },
+          sell: (itemId, qty) => {
+            const sold = sell(state ?? game, itemId, qty, content);
+            // A card for a stack that is gone would reopen by itself the next time one is gathered.
+            if (!sold.bank[itemId]) openItem = null;
+            act(sold);
+          },
+          drink: (itemId) => {
+            const result = drinkPotion(state ?? game, itemId, content);
+            if (!result.ok) {
+              toast(result.reason);
+              return;
+            }
+            if (!result.state.bank[itemId]) openItem = null;
+            toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
+            act(result.state);
+          },
+          equip: wear,
+          feed: (itemId) => {
+            const result = loadFood(state ?? game, itemId, content);
+            if (!result.ok) {
+              toast(result.reason);
+              return;
+            }
+            openItem = null;
+            toast(
+              `Your food slot holds ${result.state.food!.qty} ${content.items[itemId]?.name ?? itemId}.`,
+            );
+            act(result.state);
+          },
+          arrange: (next) => {
+            if (next.sort !== bankArranged.sort) prefs.set(BANK_SORT_PREF, next.sort);
+            bankArranged = next;
+          },
         },
-        // The bank opens and closes a card in place, where the thumb is: only
-        // which one is open is kept here, for coming back to the tab.
-        open: (itemId) => {
-          openItem = itemId;
-        },
-        sell: (itemId, qty) => {
-          const sold = sell(state ?? game, itemId, qty, content);
-          // A card for a stack that is gone would reopen by itself the next time one is gathered.
-          if (!sold.bank[itemId]) openItem = null;
-          act(sold);
-        },
-        drink: (itemId) => {
-          const result = drinkPotion(state ?? game, itemId, content);
-          if (!result.ok) {
-            toast(result.reason);
-            return;
-          }
-          if (!result.state.bank[itemId]) openItem = null;
-          toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
-          act(result.state);
-        },
-        equip: wear,
-        feed: (itemId) => {
-          const result = loadFood(state ?? game, itemId, content);
-          if (!result.ok) {
-            toast(result.reason);
-            return;
-          }
-          openItem = null;
-          toast(
-            `Your food slot holds ${result.state.food!.qty} ${content.items[itemId]?.name ?? itemId}.`,
-          );
-          act(result.state);
-        },
-      });
+        bankArranged,
+      );
     }
     if (tab === 'character' && records) {
       const back = (): void => {

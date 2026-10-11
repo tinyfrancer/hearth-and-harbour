@@ -1371,3 +1371,296 @@ button.card:active {
   color: var(--panel);
   font-weight: 700;
 }
+
+/* Words for a screen reader only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The bank as a grid (wave 14): the purse and the store's door side by side,
+ * a search and a sort, the kinds as chips, and every stack a small square
+ * cell: its picture, its count in the corner. Five across at 360, six at 390
+ * and up, each cell at least the 48-pixel target.
+ */
+.bank {
+  gap: 10px;
+}
+
+.bank-head {
+  display: flex;
+  gap: 8px;
+}
+
+.bank-purse {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 12px;
+}
+
+.bank-purse .qty {
+  font-size: 20px;
+}
+
+.store-door {
+  flex: none;
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 12px;
+}
+
+.bank-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bank-tools[hidden] {
+  display: none;
+}
+
+.bank-tools-row {
+  display: flex;
+  gap: 8px;
+}
+
+.bank-search {
+  flex: 1;
+  min-width: 0;
+  /* Never under 16px, or iPhones zoom the page when it is tapped. */
+  font-size: 18px;
+}
+
+.bank-search::placeholder {
+  color: var(--text-muted);
+}
+
+.bank-sort {
+  flex: none;
+  width: auto;
+  max-width: 50%;
+  padding-right: 8px;
+  font-size: 16px;
+}
+
+/* The kinds: a row of chips that scrolls sideways on its own, never the page. */
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  min-height: 40px;
+  padding: 4px 12px;
+  background: var(--panel);
+  color: var(--text-muted);
+  border: var(--px) solid var(--line);
+  border-radius: 0;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--panel);
+  background: var(--gold);
+  border-color: var(--gold);
+  font-weight: 700;
+}
+
+.chip:focus-visible,
+.bank-cell:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 6px;
+}
+
+.grid-heading {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+.grid-heading:first-child {
+  margin-top: 0;
+}
+
+.bank-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 48px;
+  padding: 0;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--line);
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bank-cell:active {
+  background: var(--panel);
+}
+
+.bank-cell[aria-pressed='true'] {
+  border-color: var(--gold-bright);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 var(--px) var(--gold-bright);
+}
+
+.bank-cell.gone {
+  opacity: 0.5;
+}
+
+/* The count sits in the cell's lower right, outlined so it reads over any picture. */
+.cell-qty {
+  position: absolute;
+  right: 3px;
+  bottom: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text);
+  text-shadow:
+    1px 0 var(--backdrop),
+    -1px 0 var(--backdrop),
+    0 1px var(--backdrop),
+    0 -1px var(--backdrop);
+  pointer-events: none;
+}
+
+.grid-icon {
+  flex: none;
+}
+
+/* A thing not drawn yet: its initials in a dashed square the size of a picture. */
+.grid-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: var(--px) dashed var(--line);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.none-match[hidden],
+.bank-sheet[hidden] {
+  display: none;
+}
+
+/*
+ * The open card, pinned at the foot of the screen above the bars, so opening
+ * one never scrolls the grid; the screen's side padding is taken back so it
+ * runs edge to edge. Tall content scrolls inside it.
+ */
+.bank-sheet {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
+  margin: 0 -16px -16px;
+  max-height: 58dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-raised);
+  border-top: var(--px) solid var(--gold-bright);
+  box-shadow: 0 -8px 16px rgb(0 0 0 / 35%);
+}
+
+.bank-sheet .item-card {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sheet-head {
+  flex: none;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 12px 8px 16px;
+  border-bottom: var(--px) solid var(--line);
+}
+
+.sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-title h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-title .qty {
+  color: var(--text);
+}
+
+.btn.sheet-close {
+  flex: none;
+  width: auto;
+  min-width: 48px;
+  padding: 8px 10px;
+  border-color: var(--line);
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 16px calc(16px + 4px);
+}
+
+.sell-line {
+  display: flex;
+  gap: 8px;
+}
+
+.sell-choices {
+  display: flex;
+  gap: 4px;
+}
+
+.sell-choices .btn.choice {
+  width: 44px;
+  min-height: 48px;
+  padding: 4px;
+}
+
+.sell-line .btn.sell {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  font-size: 16px;
+}
