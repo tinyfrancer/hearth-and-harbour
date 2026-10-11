@@ -16,6 +16,15 @@ import type { TabId } from './tabs';
 export interface View {
   el: HTMLElement;
   update?(state: GameState, now?: number): void;
+  /**
+   * Whether something that happened by itself (time passing: a kill, a level,
+   * a potion wearing off, a night away) changed what this screen is built of,
+   * so that `update` cannot show it and the screen must be built again. It is
+   * built again in place, scrolled where it was. Left out, or false, the
+   * screen is never rebuilt by the game, only by the player: a kill must not
+   * throw away an open card, a picker or a half-typed code.
+   */
+  stale?(before: GameState, after: GameState): boolean;
 }
 
 /**

@@ -3,8 +3,11 @@ import { itemIcon } from '../art/icons';
 import { type Content, type Slot } from '../core/content';
 import { equipmentTotals, unmetRequirement, wearablesFor, wornItemIds } from '../core/equipment';
 import { bankCount, type GameState } from '../core/state';
-import { button, h, titled } from './dom';
+import { button, h, setText, titled } from './dom';
+import { totalLevel } from '../core/achievements';
+import { combatLevel } from '../core/bounty';
 import { formatNumber } from './format';
+import { keyedList } from './keyed';
 import { SLOT_NAMES, gearText, statName } from './gear';
 import { recordsEntry } from './logScreen';
 import { deviceScale, dollIcon, dollSlotSize, heroFigure } from './figure';
@@ -64,6 +67,20 @@ function totals(state: GameState, content: Content): HTMLElement {
   ]);
 }
 
+/** Every skill's level added up, and the combat level the board reads, kept current in place. */
+function levels(content: Content, updates: ((state: GameState) => void)[]): HTMLElement {
+  const total = h('dd', { class: 'qty', attrs: { 'data-total-level': '' } });
+  const combat = h('dd', { class: 'qty', attrs: { 'data-combat-level': '' } });
+  updates.push((now) => {
+    setText(total, formatNumber(totalLevel(now, content)));
+    setText(combat, formatNumber(combatLevel(now)));
+  });
+  return h('dl', { class: 'totals levels' }, [
+    h('div', {}, [h('dt', { text: 'Total level' }), total]),
+    h('div', {}, [h('dt', { text: 'Combat level' }), combat]),
+  ]);
+}
+
 /** One slot's choices: what is in it, to take off, and what the bank holds for it. */
 function slotPicker(
   state: GameState,
@@ -76,13 +93,17 @@ function slotPicker(
   const wornDef = worn && content.items[worn.item];
   const held = state.equipment.main_hand;
   const heldDef = held && content.items[held.item];
-  const choices = wearablesFor(state, slot, content).map((item) => {
-    const short = unmetRequirement(state, item.id, content);
+  // The choices follow the bank in place: a drop from a kill that fits this
+  // slot joins them, and the level a choice needs stops being short when it
+  // is reached, with the picker still open where the thumb left it.
+  const list = h('div', { class: 'stack' });
+  const none = h('p', { class: 'muted small', text: 'Nothing in the bank goes here yet.' });
+  const choices = keyedList<GameState>(list, (id) => {
+    const item = content.items[id]!;
     const count = h('span', { class: 'qty' });
-    updates.push((now) => {
-      count.textContent = formatNumber(bankCount(now, item.id));
-    });
-    return h(
+    // Still offered when the level is short, so the player can see what to aim for.
+    const short = h('p', { class: 'small problem' });
+    const el = h(
       'button',
       {
         class: 'panel card choice-card',
@@ -95,10 +116,23 @@ function slotPicker(
           class: 'small muted',
           text: `${gearText(item.equip!)}${item.equip!.twoHanded ? ' · both hands' : ''}`,
         }),
-        // Still offered when the level is short, so the player can see what to aim for.
-        short && h('p', { class: 'small problem', text: short }),
+        short,
       ],
     );
+    return {
+      el,
+      update: (now) => {
+        setText(count, formatNumber(bankCount(now, item.id)));
+        const why = unmetRequirement(now, item.id, content) ?? '';
+        setText(short, why);
+        short.hidden = !why;
+      },
+    };
+  });
+  updates.push((now) => {
+    const ids = wearablesFor(now, slot, content).map((item) => item.id);
+    choices.sync(ids, now);
+    none.hidden = ids.length > 0;
   });
   // Kept short above the choices, with Close at the top beside the slot's name,
   // so on a short phone the first choice shows under the doll straight away.
@@ -124,9 +158,8 @@ function slotPicker(
         class: 'small muted',
         text: `Your ${heldDef.name} needs both hands. Taking something up here puts it away.`,
       }),
-    ...choices,
-    choices.length === 0 &&
-      h('p', { class: 'muted small', text: 'Nothing in the bank goes here yet.' }),
+    list,
+    none,
   ]);
 }
 
@@ -245,6 +278,7 @@ export function characterView(
     doll,
     picker ?? wornList(state, content),
     totals(state, content),
+    levels(content, updates),
     lookOpen
       ? h('div', { class: 'stack tight', attrs: { 'data-look-picker': '' } }, [
           lookPicker(fullLook(state.look), (look) => {
@@ -261,6 +295,7 @@ export function characterView(
   updates.push(records.update!);
   const update = (now: GameState, ms?: number): void => updates.forEach((apply) => apply(now, ms));
   update(state);
+  const worn = (now: GameState): string => wornItemIds(now).join(' ');
   return {
     el: h('div', { class: 'stack' }, [
       head,
@@ -268,5 +303,8 @@ export function characterView(
       records.el,
     ]),
     update,
+    // Only what is worn shapes the sheet (the last arrow shot empties a
+    // square); a kill, a level or a find moves only numbers and the choices.
+    stale: (before, after) => worn(before) !== worn(after),
   };
 }

@@ -190,6 +190,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   /** The away report on screen, until it is dismissed, and the achievements it earned. */
   let away: AwayReport | null = null;
   let awayEarned: string[] = [];
+  /** The away report's overlay while it is up: laid over the screen, which is left alone. */
+  let awayEl: HTMLElement | null = null;
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
@@ -553,9 +555,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           openItem = null;
           turnTo();
         },
+        // The bank opens and closes a card in place, where the thumb is: only
+        // which one is open is kept here, for coming back to the tab.
         open: (itemId) => {
           openItem = itemId;
-          render();
         },
         sell: (itemId, qty) => {
           const sold = sell(state ?? game, itemId, qty, content);
@@ -673,6 +676,56 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     });
   };
 
+  /** The away report, laid over whatever screen is showing; gone with a tap, screen untouched. */
+  const awayOverlay = (): HTMLElement => {
+    awayEl = awayReportOverlay(
+      away!,
+      content,
+      () => {
+        away = null;
+        awayEarned = [];
+        awayEl?.remove();
+        awayEl = null;
+      },
+      awayEarned,
+    );
+    return awayEl;
+  };
+
+  /**
+   * Builds the screen's view again in place, kept scrolled where it was, with
+   * the header, tabs, notes and any report around it left as they are.
+   */
+  const rebuildView = (): void => {
+    const screen = root.querySelector<HTMLElement>('#screen');
+    if (!screen || !state) {
+      render();
+      return;
+    }
+    const top = screen.scrollTop;
+    view = buildView(state);
+    screen.replaceChildren(view.el);
+    screen.scrollTop = top;
+  };
+
+  /** The header's face follows the outfit (the last arrow shot changes it) without a rebuild. */
+  const syncHeader = (game: GameState): void => {
+    const holder = root.querySelector('.who-face');
+    const el = headerFace(game);
+    if (holder && holder.firstElementChild !== el) holder.replaceChildren(el);
+  };
+
+  /**
+   * Shows what time alone changed: in place, unless the screen says what it
+   * is built of changed (`View.stale`), and then rebuilt in place.
+   */
+  const refresh = (before: GameState, time: number): void => {
+    if (!state) return;
+    syncHeader(state);
+    if (view?.stale?.(before, state)) rebuildView();
+    view?.update?.(state, time);
+  };
+
   const render = (): void => {
     if (tab !== 'town' || !state) {
       // Only a scene on the Town tab may hold the clock or the whole screen.
@@ -717,20 +770,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
       awards,
       toasts,
-      ...(away
-        ? [
-            awayReportOverlay(
-              away,
-              content,
-              () => {
-                away = null;
-                awayEarned = [];
-                render();
-              },
-              awayEarned,
-            ),
-          ]
-        : []),
+      ...(away ? [awayOverlay()] : []),
       h(
         'nav',
         { class: 'tabbar', attrs: { 'aria-label': 'Sections' } },
@@ -796,33 +836,42 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       return;
     }
     if (elapsed >= AWAY_MS) {
+      const was = state;
+      const reported = away;
       returnFrom(elapsed);
-      render();
+      // The report goes over the screen; the screen itself changes only as a
+      // frame would change it, so a page left open is as it was left.
+      if (away && away !== reported) {
+        awayEl?.remove();
+        root.querySelector('nav.tabbar')?.before(awayOverlay());
+      }
+      if (was.fight && !state.fight) {
+        const reason = fightEnded(was, state, content) ?? 'gone';
+        fightOver = { monster: was.fight.monster, reason, tally: finalTally(was, state) };
+      }
+      refresh(was, time);
       return;
     }
 
     const before = state;
     state = takeStockOf(advance(state, elapsed, content));
-    let redraw = false;
+    // What changed is said in a toast; which screens it changes is theirs to
+    // say (`View.stale`), so a kill or a level never rebuilds a screen it
+    // does not touch.
     for (const skill of Object.values(content.skills)) {
       const level = skillLevel(state, skill.id);
       if (level > skillLevel(before, skill.id)) {
         toast(`${skill.name} level ${level}!`);
-        // A level can unlock an action, and what is on screen was built for the old one.
-        redraw = true;
       }
     }
     if (before.potion && !state.potion) {
       const name = content.items[before.potion.item]?.name ?? 'potion';
       toast(`Your ${name} has worn off.`);
-      // Its panel goes, and the action's numbers go back to plain.
-      redraw = true;
     }
     if (before.action && !state.action) {
       const short = missingInput(state, content.actions[before.action.id]!);
       toast(short ? `Out of ${content.items[short.item]?.name ?? short.item}.` : 'Stopped.');
       save();
-      redraw = true;
     }
     if (before.fight && !state.fight) {
       const reason = fightEnded(before, state, content) ?? 'gone';
@@ -836,25 +885,18 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             : 'That fight is over.',
       );
       save();
-      redraw = true;
     } else if (before.food && !state.food) {
       toast(
         `Out of ${content.items[before.food.item]?.name ?? 'food'}. Fighting on without eating.`,
       );
-      redraw = true;
     }
     if (bountyReady(state) && !bountyReady(before)) {
       toast(
         `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
       );
-      // Its page and cards change from hunting to handing in.
-      redraw = true;
     }
-    // The bank lists only what is held, so a first log needs its row built.
-    const firstOfSomething = Object.keys(state.bank).length !== Object.keys(before.bank).length;
     if (time - lastSave >= AUTOSAVE_MS) save();
-    if (redraw || (tab === 'bank' && firstOfSomething)) render();
-    else view?.update?.(state, time);
+    refresh(before, time);
   };
 
   // A game that was closed: everything since its last save is time away.

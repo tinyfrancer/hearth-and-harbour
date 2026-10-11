@@ -92,6 +92,11 @@ const ROWS: Record<string, Row> = {
     text: 'Reach a total level of 100.',
     rule: { kind: 'total', level: 100 },
   },
+  total_200: {
+    name: 'Pillar of the Community',
+    text: 'Reach a total level of 200.',
+    rule: { kind: 'total', level: 200 },
+  },
   mastery_10: {
     name: 'Practice Makes Perfect',
     text: 'Reach mastery 10 at anything.',

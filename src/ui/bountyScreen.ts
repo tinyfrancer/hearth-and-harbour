@@ -5,7 +5,7 @@ import type { Content, MonsterDef, ShopEntry } from '../core/content';
 import type { GameState } from '../core/state';
 import { bar } from './bar';
 import { face } from './face';
-import { button, h, titled } from './dom';
+import { button, h, setText, titled } from './dom';
 import { counted, formatNumber } from './format';
 import { gearText, slotText } from './gear';
 import type { View } from './view';
@@ -36,14 +36,17 @@ function progressText(state: GameState, monster: MonsterDef | undefined): string
  * areas page: the bounty held and how far along it is, or an invitation.
  */
 export function bountyEntry(state: GameState, content: Content, open: () => void): View {
-  const monster = state.bounty ? monsterDef(content, state.bounty.monster) : undefined;
   const status = h('span', { class: 'small' });
+  const title = h('h2');
+  const points = h('span', { class: 'muted small' });
+  // All of it moves in place: a bounty can be handed in and the next taken by itself.
   const update = (now: GameState): void => {
+    const monster = now.bounty ? monsterDef(content, now.bounty.monster) : undefined;
     const ready = bountyReady(now);
     status.className = ready ? 'small doing' : now.bounty ? 'small' : 'small muted';
-    status.textContent = now.bounty
-      ? progressText(now, monster)
-      : 'The notice board has work for you.';
+    setText(status, now.bounty ? progressText(now, monster) : 'The notice board has work for you.');
+    setText(title, monster ? `Bounty: ${monster.name}` : 'Bounties');
+    setText(points, plural(now.bountyPoints, 'point'));
   };
   update(state);
   return {
@@ -54,16 +57,7 @@ export function bountyEntry(state: GameState, content: Content, open: () => void
         attrs: { type: 'button', 'data-bounties': '' },
         on: { click: open },
       },
-      [
-        h('div', { class: 'card-head' }, [
-          h('h2', { text: monster ? `Bounty: ${monster.name}` : 'Bounties' }),
-          h('span', {
-            class: 'muted small',
-            text: `${formatNumber(state.bountyPoints)} ${state.bountyPoints === 1 ? 'point' : 'points'}`,
-          }),
-        ]),
-        status,
-      ],
+      [h('div', { class: 'card-head' }, [title, points]), status],
     ),
     update,
   };
@@ -197,7 +191,10 @@ export function bountiesView(state: GameState, content: Content, actions: Bounty
 
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
+  const shape = (now: GameState): string =>
+    JSON.stringify([now.bounty?.monster, bountyReady(now), now.bountyPoints]);
   return {
+    stale: (before, after) => shape(before) !== shape(after),
     el: h('div', { class: 'stack groups' }, [
       button('‹ All skills', actions.back, 'back'),
       h('section', { class: 'panel stack tight points' }, [

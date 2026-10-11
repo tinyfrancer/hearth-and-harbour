@@ -1339,3 +1339,8 @@ button.card:active {
 .perk-note {
   color: var(--text);
 }
+
+/* The sheet's levels: two tiles under the three totals, the same look. */
+.totals.levels {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

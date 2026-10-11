@@ -17,7 +17,7 @@ import { foeDrops } from '../core/run';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
-import { button, h, titled } from './dom';
+import { button, h, setText, titled } from './dom';
 import { face, heroFace } from './face';
 import { fullLook } from './look';
 import { wornItemIds } from '../core/equipment';
@@ -227,10 +227,24 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
 
   const monsterCard = (monster: MonsterDef): HTMLElement => {
     const active = state.fight?.monster === monster.id;
-    const kills = state.bestiary[monster.id]?.kills ?? 0;
     // Only a bounty leads to some: they are listed, but plainly out of reach without one.
     const locked = !mayFight(state, monster);
-    const wanted = state.bounty?.monster === monster.id ? state.bounty : null;
+    // What a kill changes moves in place: the count, what has been seen to drop, the bounty.
+    const drops = h('p', { class: 'small drops' });
+    const killed = h('p', { class: 'small muted' });
+    const wanted = h('p', { class: 'small wanted' });
+    updates.push((now) => {
+      const kills = now.bestiary[monster.id]?.kills ?? 0;
+      setText(drops, `Drops: ${dropsText(monster, now, content)}`);
+      setText(killed, kills > 0 ? `Killed ${formatNumber(kills)}` : '');
+      killed.hidden = kills === 0;
+      const held = now.bounty?.monster === monster.id ? now.bounty : null;
+      setText(
+        wanted,
+        held ? `Bounty: ${formatNumber(held.done)} / ${formatNumber(held.count)}` : '',
+      );
+      wanted.hidden = !held;
+    });
     return h(
       'button',
       {
@@ -249,14 +263,10 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
             class: 'small muted',
             text: `${monster.hp} hit points · hits up to ${monster.maxHit}`,
           }),
-          h('p', { class: 'small drops', text: `Drops: ${dropsText(monster, state, content)}` }),
-          kills > 0 && h('p', { class: 'small muted', text: `Killed ${formatNumber(kills)}` }),
+          drops,
+          killed,
           locked && h('p', { class: 'small muted', text: 'Only with a bounty on it.' }),
-          wanted &&
-            h('p', {
-              class: 'small wanted',
-              text: `Bounty: ${formatNumber(wanted.done)} / ${formatNumber(wanted.count)}`,
-            }),
+          wanted,
         ]),
       ],
     );
@@ -344,6 +354,12 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
       ...dungeons,
     ]),
     update,
+    // Built for the fight under way, the bounty held (which monsters are open)
+    // and the food slot's state; a kill, a level or a drop changes none of those.
+    stale: (before, after) =>
+      before.fight?.monster !== after.fight?.monster ||
+      before.bounty?.monster !== after.bounty?.monster ||
+      Boolean(before.food) !== Boolean(after.food),
   };
 }
 
@@ -394,6 +410,8 @@ export function fightView(
     update(state);
     return {
       update,
+      stale: (before, after) =>
+        Boolean(after.fight) || Boolean(before.food) !== Boolean(after.food),
       el: h('div', { class: 'stack' }, [
         back,
         h(
@@ -435,18 +453,26 @@ export function fightView(
     foeWait.textContent = arriving ? 'Another on its way' : 'Next blow';
   });
 
-  // The character's side.
-  const me = playerCombat(state, content);
+  // The character's side. A level gained mid-fight (a kill can bring three)
+  // moves these numbers in place; the screen is not rebuilt for it.
   const health = bar('health', 'Your health');
   const hp = h('span', { class: 'qty' });
   const swing = bar('swing', 'Your next blow');
   const line = h('div', { class: 'eat-mark' });
+  const styleLine = h('p', { class: 'small muted' });
+  const chances = h('p', { class: 'small muted' });
   updates.push((now) => {
     const f = now.fight;
     if (!f) return;
+    const me = playerCombat(now, content);
     health.set(f.hp / me.maxHp);
-    hp.textContent = `${f.hp} / ${me.maxHp}`;
+    setText(hp, `${f.hp} / ${me.maxHp}`);
     swing.set(f.foeHp === 0 ? 0 : 1 - f.playerMs / PLAYER_ATTACK_MS);
+    setText(styleLine, `${me.style === 'ranged' ? 'Ranged' : 'Melee'} · max hit ${me.maxHit}`);
+    setText(
+      chances,
+      `You hit ${percent(hitChance(me.attack, monster.defence))} of the time, up to ${me.maxHit}. It hits ${percent(hitChance(monster.attack, me.defence))}, up to ${monster.maxHit}.`,
+    );
   });
   // The eating line, marked on the health bar.
   line.style.left = `${state.eatAt}%`;
@@ -465,8 +491,6 @@ export function fightView(
     });
     wanted = line;
   }
-  const chances = `You hit ${percent(hitChance(me.attack, monster.defence))} of the time, up to ${me.maxHit}. It hits ${percent(hitChance(monster.attack, me.defence))}, up to ${monster.maxHit}.`;
-
   const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
   const el = h('div', { class: 'stack' }, [
     back,
@@ -490,25 +514,30 @@ export function fightView(
     h('section', { class: 'panel stack tight you', attrs: { 'data-you': '' } }, [
       // Face to face: the foe's on the left of its panel, the hero's on the right of theirs.
       h('div', { class: 'foe-head you-head' }, [
-        h('div', { class: 'stack tight' }, [
-          h('h2', { text: state.name }),
-          h('p', {
-            class: 'small muted',
-            text: `${me.style === 'ranged' ? 'Ranged' : 'Melee'} · max hit ${me.maxHit}`,
-          }),
-        ]),
+        h('div', { class: 'stack tight' }, [h('h2', { text: state.name }), styleLine]),
         heroFace(fullLook(state.look), wornItemIds(state), 'small'),
       ]),
       h('div', { class: 'card-head small' }, [h('span', { text: 'Health' }), hp]),
       h('div', { class: 'health-wrap' }, [health.el, line]),
       h('span', { class: 'small muted', text: 'Next blow' }),
       swing.el,
-      h('p', { class: 'small muted', text: chances }),
+      chances,
     ]),
     foodPanel(state, content, actions, updates),
     tallyPanel(updates, content),
     button('Stop fighting', actions.stop),
   ]);
   update(state);
-  return { el, update };
+  return {
+    el,
+    update,
+    // The fight screen is the one a kill is about, and still it moves in
+    // place; it is built again only for another monster (a bounty taken by
+    // itself), the fight's end, a bounty on this monster coming or going, or
+    // the food slot emptying.
+    stale: (before, after) =>
+      before.fight?.monster !== after.fight?.monster ||
+      (before.bounty?.monster === monster.id) !== (after.bounty?.monster === monster.id) ||
+      Boolean(before.food) !== Boolean(after.food),
+  };
 }
