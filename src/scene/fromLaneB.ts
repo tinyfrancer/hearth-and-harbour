@@ -23,9 +23,17 @@ import {
   type ChartMarker2State,
   type ChartPiece2,
 } from '../art/chart';
-import { cell, put, tgrid, type Picture2, type TGrid } from '../art/town2/cells';
+import type { Picture2 } from '../art/town2/cells';
 import { foeSize2 } from '../art/dungeonArt2';
-import type { Mat } from '../art/town2/ramps';
+import {
+  townHighlight2,
+  townMarker2,
+  TOWN_MARKER2_FRAMES,
+  TOWN_MARKER2_FRAME_MS,
+  type TownMarker2,
+  type TownMarker2Kind,
+} from '../art/town2/markers';
+import { ROWBOAT_LANTERN_AT, town2Facts, town2Piece } from '../art/town2/pieces';
 import type { TimeOfDay } from './daylight';
 import type { Townsfolk2 } from './figures2';
 import { cellPixels, palette2 } from './town2Paint';
@@ -51,32 +59,6 @@ function painted(pic: Picture2, time: TimeOfDay): HTMLCanvasElement | null {
   );
   return canvas;
 }
-
-function fill(g: TGrid, x: number, y: number, w: number, h: number, m: Mat, t: number): void {
-  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(g, x + i, y + j, cell(m, t));
-}
-
-/**
- * Rows of characters to cells: each character a material and step by `key`,
- * `.` empty, each `k` art pixels square (a stand-in drawn big enough to read).
- */
-function rows(
-  lines: readonly string[],
-  key: Readonly<Record<string, [Mat, number]>>,
-  k = 1,
-): TGrid {
-  const g = tgrid(lines[0]!.length * k, lines.length * k);
-  lines.forEach((line, y) =>
-    [...line].forEach((ch, x) => {
-      const c = key[ch];
-      if (c) fill(g, x * k, y * k, k, k, c[0], c[1]);
-    }),
-  );
-  return g;
-}
-
-/** How many art pixels square each cell of a stand-in marker or piece is. */
-const STAND_IN_K = 2;
 
 /* ----- The harbour chart (lane B's, B15) ----- */
 
@@ -159,168 +141,102 @@ export function chartRoute(from: Point, to: Point): Point[] {
   return chartRoute2(from, to);
 }
 
-/* ----- The town's markers ----- */
+/* ----- The town's markers and ring (lane B's, B15b) ----- */
 
 /** What a marker over a tappable thing says it is for. */
-export type MarkerKind = 'talk' | 'enter' | 'gather' | 'travel' | 'new';
+export type MarkerKind = TownMarker2Kind;
 
-/** How many frames a marker's bob has (lane B's will say). */
-export const MARKER_FRAMES = 4;
+/** How many frames a marker has, and how long each shows. */
+export const MARKER_FRAMES = TOWN_MARKER2_FRAMES;
+export const MARKER_FRAME_MS = TOWN_MARKER2_FRAME_MS;
 
-const MARKER_ROWS: Readonly<Record<MarkerKind, readonly string[]>> = {
-  // A speech bubble.
-  talk: [
-    '.lllllllll.',
-    'lwwwwwwwwwl',
-    'lwkwwkwwkwl',
-    'lwwwwwwwwwl',
-    '.lllwwllll.',
-    '....lwl....',
-    '.....l.....',
-  ],
-  // An arrow in through a door.
-  enter: [
-    '.lllllllll.',
-    'lgggggggggl',
-    'lggggwggggl',
-    'lgggwwwgggl',
-    'lggwwwwwggl',
-    'lggggwggggl',
-    '.lllllllll.',
-  ],
-  // A leaf.
-  gather: [
-    '....lll....',
-    '...lfffl...',
-    '..lffwffl..',
-    '..lfwfffl..',
-    '...lffl....',
-    '....ll.....',
-    '...l.......',
-  ],
-  // An anchor, for the boat and those by it.
-  travel: [
-    '....lll....',
-    '....lwl....',
-    '..lllwlll..',
-    '....lwl....',
-    '.l..lwl..l.',
-    '.lwwwwwwwl.',
-    '..lllllll..',
-  ],
-  // A bright "!": somewhere new to go.
-  new: [
-    '...lllll...',
-    '...lgwgl...',
-    '...lgwgl...',
-    '...lgwgl...',
-    '...lllll...',
-    '...lgwgl...',
-    '...lllll...',
-  ],
-};
+/** A marker or the ring painted: its canvas and the point of it that goes on its spot. */
+export interface TownMark {
+  readonly canvas: HTMLCanvasElement;
+  readonly anchor: Point;
+}
 
-const MARKER_KEY: Readonly<Record<string, [Mat, number]>> = {
-  l: ['wood', 6],
-  w: ['linen', 0],
-  k: ['wood', 5],
-  g: ['gold', 2],
-  f: ['leaf', 2],
-};
-
-const markers = new Map<string, HTMLCanvasElement | null>();
-
-/**
- * A marker for something tappable in town, by kind, at a time of day (lane
- * B's `townMarker2(kind, frame)`); the bob is drawn by the caller from
- * `frame` (0 to `MARKER_FRAMES - 1`). Null where nothing paints.
- */
-export function townMarker(kind: MarkerKind, time: TimeOfDay): HTMLCanvasElement | null {
-  const key = `${kind} ${time}`;
-  if (!markers.has(key)) {
-    // Somewhere new is the one to see from across the quay: half as big again.
-    const g = rows(MARKER_ROWS[kind], MARKER_KEY, kind === 'new' ? STAND_IN_K + 1 : STAND_IN_K);
-    markers.set(key, painted({ grid: g, glows: [] }, time));
+const marks = new Map<string, TownMark | null>();
+function townMark(key: string, make: () => TownMarker2, time: TimeOfDay): TownMark | null {
+  const k = `${key} ${time}`;
+  if (!marks.has(k) || (!marks.get(k) && canPaint())) {
+    const m = make();
+    const canvas = painted(m.picture, time);
+    marks.set(k, canvas ? { canvas, anchor: m.anchor } : null);
   }
-  return markers.get(key)!;
+  return marks.get(k)!;
 }
 
-/** How far a marker is lifted at a frame of its bob, in art pixels. */
-export function markerBob(frame: number): number {
-  return [0, 1, 2, 1][((frame % MARKER_FRAMES) + MARKER_FRAMES) % MARKER_FRAMES]!;
+/** A marker for something tappable in town, by kind, at a frame of its bob and a time of day. */
+export function townMarker(kind: MarkerKind, frame: number, time: TimeOfDay): TownMark | null {
+  const f = ((frame % MARKER_FRAMES) + MARKER_FRAMES) % MARKER_FRAMES;
+  return townMark(`marker ${kind} ${f}`, () => townMarker2(kind, f), time);
 }
 
-/* ----- The ferryman, the boat's sign and its lantern ----- */
+/** The ring round the thing a tap would use, `w` across, at a frame. */
+export function townRing(w: number, frame: number, time: TimeOfDay): TownMark | null {
+  const f = ((frame % MARKER_FRAMES) + MARKER_FRAMES) % MARKER_FRAMES;
+  const width = Math.max(16, Math.round(w));
+  return townMark(`ring ${width} ${f}`, () => townHighlight2(width, f), time);
+}
 
-/** The ferryman's figure: lane B's `ferryman` once drawn; the docker's stands in. */
-export const FERRYMAN_FIGURE: Townsfolk2 = 'docker';
+/* ----- The ferryman, the boat's sign and its lantern (lane B's, B15b) ----- */
 
-/** A town piece this scene places itself until lane B's layout has it. */
+/** The ferryman's figure. */
+export const FERRYMAN_FIGURE: Townsfolk2 = 'ferryman';
+
+/** A town piece this scene places itself (the art lane's layout does not hold these). */
 export interface StandInPiece {
   readonly id: string;
-  /** Where its foot is, in town pixels: the middle of the bottom of its picture. */
+  /** Where its foot is, in town pixels: the middle of its foot on its base line. */
   readonly foot: Point;
   picture(time: TimeOfDay): HTMLCanvasElement | null;
   readonly w: number;
   readonly h: number;
   /** The line it is sorted by among those standing. */
   readonly base: number;
+  /** Its picture's top-left, from its foot. */
+  readonly offset: Point;
 }
-
-const SIGN_ROWS = [
-  'llllllllllllll',
-  'lwwwwwwwwwwwwl',
-  'lwkkwkwkkwkkwl',
-  'lwwwwwwwwwwwwl',
-  'lwkwkkwkwkkkwl',
-  'lwwwwwwwwwwwwl',
-  'llllllllllllll',
-  '......lpl.....',
-  '......lpl.....',
-  '......lpl.....',
-  '......lpl.....',
-  '.....lpppl....',
-];
-
-const LANTERN_ROWS = ['..lll..', '.lyyyl.', '.lyoyl.', '.lyyyl.', '..lll..', '...p...', '...p...'];
 
 const pieces = new Map<string, HTMLCanvasElement | null>();
-function pieceCanvas(id: string, lines: readonly string[], time: TimeOfDay, lit: boolean) {
-  const key = `${id} ${time}`;
-  if (!pieces.has(key)) {
-    const key2: Record<string, [Mat, number]> = {
-      l: ['wood', 6],
-      w: ['wood', 1],
-      k: ['wood', 4],
-      p: ['wood', 3],
-      y: lit && time === 'dusk' ? ['lamp', 0] : ['glass', 2],
-      o: lit && time === 'dusk' ? ['fire', 1] : ['glass', 3],
-    };
-    pieces.set(key, painted({ grid: rows(lines, key2, STAND_IN_K), glows: [] }, time));
-  }
-  return pieces.get(key)!;
+function placed(id: 'boat_sign' | 'boat_lantern', foot: Point, base: number): StandInPiece {
+  const facts = town2Facts(id);
+  return {
+    id,
+    foot,
+    w: facts.w,
+    h: facts.h,
+    base,
+    offset: { x: facts.foot, y: facts.base },
+    picture: (time) => {
+      const key = `${id} ${time}`;
+      if (!pieces.has(key) || (!pieces.get(key) && canPaint()))
+        pieces.set(key, painted(town2Piece(id).picture, time));
+      return pieces.get(key)!;
+    },
+  };
 }
 
-/** The boat's sign, on the quay by the mooring: a stand-in board until lane B's `boat_sign`. */
-export const BOAT_SIGN: StandInPiece = {
-  id: 'boat_sign',
-  foot: { x: 14 * 24 + 12, y: 59 * 24 + 18 },
-  w: SIGN_ROWS[0]!.length * STAND_IN_K,
-  h: SIGN_ROWS.length * STAND_IN_K,
-  base: 59 * 24 + 18,
-  picture: (time) => pieceCanvas('boat_sign', SIGN_ROWS, time, false),
-};
+/** Where the rowing boat's picture has its top-left (its placement, which lane B keeps). */
+const BOAT_TOP_LEFT: Point = { x: 452, y: 1468 };
 
-/** The lantern on the boat's bow: a stand-in until lane B's boat lantern. */
-export const BOAT_LANTERN: StandInPiece = {
-  id: 'boat_lantern',
-  foot: { x: 470, y: 1500 },
-  w: LANTERN_ROWS[0]!.length * STAND_IN_K,
-  h: LANTERN_ROWS.length * STAND_IN_K,
-  // In front of the boat it hangs on.
-  base: 1530,
-  picture: (time) => pieceCanvas('boat_lantern', LANTERN_ROWS, time, true),
-};
+/**
+ * The boat's sign, on the quay west of the ferryman, where it reads over the
+ * boat from the square and keeps the way down to the boat open.
+ */
+export const BOAT_SIGN: StandInPiece = placed(
+  'boat_sign',
+  { x: 14 * 24 + 12, y: 59 * 24 + 22 },
+  59 * 24 + 22,
+);
+
+/** The lantern in the boat's bow: drawn right after the boat (it is in it). */
+export const BOAT_LANTERN: StandInPiece = placed(
+  'boat_lantern',
+  { x: BOAT_TOP_LEFT.x + ROWBOAT_LANTERN_AT.x, y: BOAT_TOP_LEFT.y + ROWBOAT_LANTERN_AT.y },
+  1523,
+);
 
 /* ----- The cave ----- */
 

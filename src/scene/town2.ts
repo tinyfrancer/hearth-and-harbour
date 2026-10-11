@@ -514,8 +514,8 @@ export const STAND_IN_PIECES: readonly { piece: StandInPiece; use: Use | null }[
 /** Where a stand-in piece's picture goes: its top-left, its foot the middle of its bottom row. */
 export function pieceBox(piece: StandInPiece): Box {
   return {
-    x: piece.foot.x - Math.floor(piece.w / 2),
-    y: piece.foot.y - piece.h + 1,
+    x: piece.foot.x - piece.offset.x,
+    y: piece.foot.y - piece.offset.y,
     w: piece.w,
     h: piece.h,
   };

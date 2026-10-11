@@ -7,7 +7,7 @@
  * under the one thing a tap would use, the nearest beside him; and its name
  * in a label, with what a tap does. The stage draws them (`townView.ts`).
  */
-import { MARKER_FRAMES, type MarkerKind } from './fromLaneB';
+import { MARKER_FRAME_MS, MARKER_FRAMES, type MarkerKind } from './fromLaneB';
 import type { Play } from './play';
 import { usable, type Box, type Scene, type Thing } from './things';
 import type { Point } from './tileMap';
@@ -30,8 +30,6 @@ const T = TOWN2_TILE;
 export const MARK_NEAR = 4 * T;
 /** How near the hero must stand to something for it to be ringed and named: a tile and a half. */
 export const RING_NEAR = 1.5 * T;
-/** How long each frame of a marker's bob shows, in ms. */
-export const MARKER_FRAME_MS = 220;
 
 /** Things named for what they are rather than what they say. */
 const GATHER = /^(pine-|oak$|bush-|boulder-)/;
@@ -94,7 +92,7 @@ const overlap = (a: Box, b: Box): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /** The size of a marker as drawn, for keeping it off the hero. */
-export const MARK_BOX = { w: 22, h: 14 };
+export const MARK_BOX = { w: 14, h: 16 };
 
 /**
  * The markers to show now: each marked thing near the hero, and the boat (as
@@ -113,7 +111,8 @@ export function marksNow(scene: Scene, play: Play, o: MarkOptions): Mark[] {
     if (!box) continue;
     const boat = thing.id === 'rowboat';
     const near = (strolling ? nearestOf(strolling, feet) : distanceTo(thing, feet)) <= MARK_NEAR;
-    if (!near && !(boat && o.somewhereNew)) continue;
+    // The boat's marker shows from anywhere, always: it is the way out of town (Cody's point).
+    if (!near && !boat) continue;
     // The boat's over the boat itself, not the top of its generous tap box (the quay's edge).
     const at = boat ? BOAT_MARK : { x: Math.round(box.x + box.w / 2), y: Math.round(box.y) - 3 };
     const mark: Box = {
@@ -163,6 +162,8 @@ export function ringed(
 export function ringOf(thing: Thing): { x: number; y: number; rx: number; ry: number } | null {
   const box = thing.tap;
   if (!box) return null;
+  // The boat's on the water round its hull, as the art lane measures it, not its generous tap box.
+  if (thing.id === 'rowboat') return { x: 520, y: 1518, rx: 75, ry: 25 };
   const cols = thing.footprint.map((c) => c.col);
   if (cols.length) {
     const left = Math.min(...cols) * T;

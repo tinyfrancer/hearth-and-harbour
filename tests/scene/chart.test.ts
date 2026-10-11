@@ -11,7 +11,7 @@ import {
   ROUTE_MS,
   whatToBring,
 } from '../../src/scene/chart';
-import { chartScale, LANDING_CSS } from '../../src/scene/chartPanel';
+import { chartScale, chartShift, LANDING_CSS } from '../../src/scene/chartPanel';
 import { harbourChart } from '../../src/scene/fromLaneB';
 
 // The harbour chart's rules: every landing at its place on lane B's map, with
@@ -97,13 +97,22 @@ describe('the harbour chart', () => {
     expect(routeShown(ROUTE_MS * 3)).toBe(1);
   });
 
-  it('fills the panel at whole device pixels, with landings a thumb wide, at 360 to 430 wide', () => {
+  it('shows the map at whole device pixels, a thumb per landing, cropped at its sides if narrow', () => {
     expect(LANDING_CSS).toBeGreaterThanOrEqual(48);
     for (const width of [360, 390, 430]) {
-      const k = chartScale(map.width, width - 32, 3);
+      const room = width - 40;
+      const k = chartScale(map.width, room, 3);
       expect(Number.isInteger(k * 3)).toBe(true);
-      expect(map.width * k).toBeLessThanOrEqual(width - 32);
-      expect(map.width * k).toBeGreaterThan((width - 32) * 0.8);
+      // Never smaller than one CSS pixel an art pixel on a 3x phone: a narrow one crops instead.
+      expect(k).toBeGreaterThanOrEqual(1);
+      const box = Math.min(map.width * k, room);
+      const xs = [...Object.values(map.landings).map((p) => p.x), map.home.x].map((x) => x * k);
+      const shift = chartShift(map.width * k, box, xs);
+      // Every landing's button is inside what shows.
+      for (const x of xs) {
+        expect(x - shift - LANDING_CSS / 2, `${width}`).toBeGreaterThanOrEqual(-LANDING_CSS / 2);
+        expect(x - shift + LANDING_CSS / 2, `${width}`).toBeLessThanOrEqual(box + LANDING_CSS / 2);
+      }
     }
   });
 });

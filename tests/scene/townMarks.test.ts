@@ -48,20 +48,23 @@ describe('the town’s markers', () => {
     expect(markerKind(thing('lamp-west'), people)).toBeNull();
   });
 
-  it('show only near the hero, and the boat’s from anywhere while somewhere new is open', () => {
+  it('show only near the hero, and the boat’s from anywhere, as somewhere new while it is', () => {
     const play = standing(at(26, 56));
     const near = marksNow(scene, play, options(play));
     expect(near.length).toBeGreaterThan(0);
     for (const m of near) {
+      if (m.id === 'rowboat') continue;
       const t = thing(m.id);
       const box = t.tap!;
       const dx = Math.max(box.x - play.walker.at.x, 0, play.walker.at.x - box.x - box.w);
       const dy = Math.max(box.y - play.walker.at.y, 0, play.walker.at.y - box.y - box.h);
       expect(Math.hypot(dx, dy), m.id).toBeLessThanOrEqual(MARK_NEAR);
     }
-    // Far up the road, nothing at all; unless somewhere is new, when the boat says so.
+    // Far up the road, only the boat, always (the way out of town); as somewhere new while it is.
     const far = standing(at(30, 12));
-    expect(marksNow(scene, far, options(far))).toEqual([]);
+    expect(marksNow(scene, far, options(far))).toEqual([
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK },
+    ]);
     const fresh = marksNow(scene, far, options(far, { somewhereNew: true }));
     expect(fresh).toEqual([{ id: 'rowboat', kind: 'new', at: BOAT_MARK }]);
   });

@@ -117,4 +117,5 @@ export const FERRYMAN: Use = {
   ],
   duskSays: ['Rowing by lantern light. Sit still and keep your hands in the boat.'],
   chart: true,
+  portrait: 'ferryman',
 };
