@@ -17,6 +17,7 @@
  */
 import { bevel, cell, outlined, put, tgrid, type Cell, type Picture2, type TGrid } from './cells';
 import type { Mat } from './ramps';
+import type { Glow } from '../raster';
 
 export const TOWN_MARKER2_KINDS = ['talk', 'enter', 'gather', 'travel', 'new'] as const;
 export type TownMarker2Kind = (typeof TOWN_MARKER2_KINDS)[number];
@@ -34,9 +35,11 @@ export interface TownMarker2 {
 /**
  * A marker's size: `small` (14 x 16 before its keyline) for things near the
  * hero, `large` (27 x 28 before its keyline, about twice) for the rowing
- * boat seen from across the square (B16).
+ * boat seen from across the square (B16), and (B17) `medium` between them
+ * (20 x 21, half as big again as the small), for a scene that finds the
+ * small one too quiet near the hero. `small` stays the default.
  */
-export const TOWN_MARKER2_SIZES = ['small', 'large'] as const;
+export const TOWN_MARKER2_SIZES = ['small', 'large', 'medium'] as const;
 export type TownMarker2Size = (typeof TOWN_MARKER2_SIZES)[number];
 
 /**
@@ -152,6 +155,7 @@ export function townMarker2(
     ((Math.floor(Number.isFinite(frame) ? frame : 0) % TOWN_MARKER2_FRAMES) + TOWN_MARKER2_FRAMES) %
     TOWN_MARKER2_FRAMES;
   if (size === 'large') return largeMarker(kind, f);
+  if (size === 'medium') return mediumMarker(kind, f);
   const key = `${kind} ${f}`;
   let out = made.get(key);
   if (out) return out;
@@ -416,6 +420,122 @@ function largeMarker(kind: TownMarker2Kind, f: number): TownMarker2 {
   return out;
 }
 
+/* ----- The medium marker (B17) ----- */
+
+/** The medium badge before its keyline: 20 across, 15 deep, a pointer 4 below, 2 of bob above. */
+const MW = 20;
+const MH = 15;
+const MPOINT = 4;
+const MBOB = 2;
+
+/** The medium pictograms, 14 x 9 in the badge, drawn by hand at this size. */
+const MEDIUM_ICONS: Readonly<
+  Record<
+    Exclude<TownMarker2Kind, 'new' | 'gather'>,
+    { rows: readonly string[]; pins: Record<string, Cell> }
+  >
+> = {
+  talk: {
+    rows: [
+      '..............',
+      '..............',
+      '..............',
+      '.aa...aa...aa.',
+      '.aa...aa...aa.',
+    ],
+    pins: { a: pin('tar', 5) },
+  },
+  enter: {
+    rows: [
+      '.....aaaa.....',
+      '....abbbba....',
+      '...abbbbbba...',
+      '...abbbbbba...',
+      '...abbbbbba...',
+      '...abbbbcba...',
+      '...abbbbbba...',
+      '...abbbbbba...',
+      '.aaaaaaaaaaaa.',
+    ],
+    pins: { a: pin('wood', 3), b: pin('tar', 5), c: pin('gold', 2) },
+  },
+  travel: {
+    rows: [
+      '.......mrr....',
+      '.......ms.....',
+      '......kmss....',
+      '.....kkmsss...',
+      '....kkkmssss..',
+      '.......m......',
+      '.hhhhhhhhhhhh.',
+      '..hhhhhhhhhh..',
+      'w.ww..ww..ww.w',
+    ],
+    pins: {
+      m: pin('tar', 5),
+      r: pin('crimson', 2),
+      k: pin('tar', 3),
+      s: pin('tar', 3),
+      h: pin('tar', 5),
+      w: pin('sea', 4),
+    },
+  },
+};
+
+/** The large marker's construction at half as big again as the small: a one-pixel gold rim. */
+function mediumMarker(kind: TownMarker2Kind, f: number): TownMarker2 {
+  const key = `${kind} ${f} medium`;
+  let out = made.get(key);
+  if (out) return out;
+  const g = tgrid(MW, MH + MPOINT + MBOB);
+  const up = BOB[f]!;
+  const top = MBOB - up;
+  const mid = (MW - 1) / 2;
+  const R = 4;
+  if (kind === 'new') {
+    sparkle(g, Math.floor(mid), top + 8, [5, 6, 8, 6][f]!);
+    if (f === 2) sparkle(g, Math.floor(mid) + 7, top + 1, 1);
+    if (f === 0) sparkle(g, Math.floor(mid) - 7, top + 14, 1);
+  } else {
+    for (let y = 0; y < MH; y++)
+      for (let x = 0; x < MW; x++) {
+        if (!inRounded(x, y, MW, MH, R)) continue;
+        const lit = y < MH / 2;
+        const rim =
+          !inRounded(x - 1, y, MW, MH, R) ||
+          !inRounded(x + 1, y, MW, MH, R) ||
+          y === 0 ||
+          y === MH - 1;
+        put(
+          g,
+          x,
+          top + y,
+          rim ? pin('gold', lit ? 1 : 3) : pin('sail', y <= 1 ? 0 : y >= MH - 2 ? 2 : 1),
+        );
+      }
+    put(g, 3, top + 1, pin('gold', 0));
+    // The pointer: a gold wedge, its tip at the middle (the badge is even, so the tip is two wide
+    // above a single pixel).
+    for (let j = 0; j < MPOINT; j++) {
+      const half = MPOINT - 1 - j;
+      for (let x = Math.floor(mid) - half; x <= Math.ceil(mid) + half; x++)
+        put(g, x, top + MH + j, pin('gold', x < mid ? 2 : 4));
+    }
+    if (kind === 'gather') leafIcon(g, 3, top + 3, 14, 9);
+    else {
+      const icon = MEDIUM_ICONS[kind];
+      const rows = icon.rows;
+      rowsAt(g, 3, top + 3 + Math.floor((9 - rows.length) / 2), rows, icon.pins);
+    }
+  }
+  out = {
+    picture: { grid: outlined(g), glows: [] },
+    anchor: { x: Math.floor(mid) + 1, y: MBOB + MH + MPOINT + 1 },
+  };
+  made.set(key, out);
+  return out;
+}
+
 /** The pointer's length along its way and its width across, before its keyline; it moves 2 along. */
 const PL = 12;
 const PW = 17;
@@ -605,7 +725,22 @@ export function townHighlight2(w: number, frame = 0): TownMarker2 {
       } else if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1))
         put(g, x, y, pin('tar', 5));
     }
-  out = { picture: { grid: g, glows: [] }, anchor: { x: Math.round(cx), y: Math.round(cy) } };
+  // B17: at dusk the gold went dim against the dark ground (dusk's gold is a step deeper), so the
+  // line carries a soft light of its own, shining only when the lights are on: small glows close
+  // round it, the one at the glint brighter.
+  const glows: Glow[] = [];
+  const beads = Math.max(8, Math.round((W + D) / 2.2));
+  for (let k = 0; k < beads; k++) {
+    const t = (k / beads) * Math.PI * 2;
+    const d = Math.abs(((t - glint + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    glows.push({
+      x: cx + 0.5 + Math.cos(t) * rx,
+      y: cy + 0.5 + Math.sin(t) * ry,
+      radius: d < Math.PI / 8 ? 4.5 : 3.5,
+      strength: d < Math.PI / 8 ? 0.6 : 0.4,
+    });
+  }
+  out = { picture: { grid: g, glows }, anchor: { x: Math.round(cx), y: Math.round(cy) } };
   made.set(key, out);
   return out;
 }

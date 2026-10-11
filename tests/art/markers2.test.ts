@@ -39,7 +39,8 @@ const hasKeyline = (g: { d: Int16Array }): boolean =>
 
 describe('the marker’s size (B16)', () => {
   it('leaves every existing call as it was: no size is small, byte for byte (gather redrawn)', () => {
-    expect(TOWN_MARKER2_SIZES).toEqual(['small', 'large']);
+    // B17 added 'medium' after them; the first two keep their places.
+    expect(TOWN_MARKER2_SIZES.slice(0, 2)).toEqual(['small', 'large']);
     for (const kind of TOWN_MARKER2_KINDS)
       for (let f = 0; f < TOWN_MARKER2_FRAMES; f++) {
         const m = townMarker2(kind, f);

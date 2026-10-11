@@ -112,13 +112,14 @@ export function ferryPlate(): Picture2 {
 }
 
 /**
- * The town's markers, every kind small and large (B16), at one frame of their
- * loop, the edge pointers, and the ring round the nearest thing.
+ * The town's markers, every kind small, medium (B17) and large (B16), at one
+ * frame of their loop, the edge pointers, and the ring round the nearest thing.
  */
 export function markersPlate(frame: number): Picture2 {
   return plate(
     [
       ...TOWN_MARKER2_KINDS.map((k) => townMarker2(k, frame).picture),
+      ...TOWN_MARKER2_KINDS.map((k) => townMarker2(k, frame, 'medium').picture),
       ...TOWN_MARKER2_KINDS.map((k) => townMarker2(k, frame, 'large').picture),
       ...TOWN_POINTER2_DIRECTIONS.map((d) => townPointer2(d, frame).picture),
       townHighlight2(48, frame).picture,

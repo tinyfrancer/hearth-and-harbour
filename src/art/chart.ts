@@ -483,19 +483,21 @@ export function harbourChart2(): HarbourChart2 {
   // Home: the town on the bay, its roofs red and slate, the quay out into the water. B16: half as
   // big again (it was a few pixels of roof): the tavern, the smithy and its chimney, the thatched
   // house up behind them, each with windows and a door, outlined so the pale walls hold on the land.
+  // B17: the chimneys two pixels wide and set into their roofs (one pixel clear of the thatch, the
+  // house's was all outline at true size).
   const home = tgrid(34, 18);
   marks(
     home,
     0,
     0,
     [
-      '..............ttttt...............',
-      '.............ttttttt..c...........',
-      '............ttttttttt.c...........',
-      '...........tttttttttttc...........',
+      '..............ttttt.Cc............',
+      '.............tttttttcc............',
+      '............ttttttttcc............',
+      '...........ttttttttttt............',
       '............hhwhhwhh..............',
-      '............hhhhdhhh.......c......',
-      '...rrrrrrrrr...............c......',
+      '............hhhhdhhh.......Cc.....',
+      '...rrrrrrrrr...............cc.....',
       '..rrrrrrrrrrr..........sssssss....',
       '.rrrrrrrrrrrrr........sssssssss...',
       'rrrrrrrrrrrrrrr......sssssssssss..',
@@ -518,6 +520,7 @@ export function harbourChart2(): HarbourChart2 {
       d: ['wood', 3],
       t: ['thatch', 1],
       c: ['stone', 3],
+      C: ['stone', 1],
       q: ['stone', 2],
       Q: ['stone', 4],
     },

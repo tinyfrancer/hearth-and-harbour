@@ -307,6 +307,44 @@ const MAKE: Readonly<Record<Town2Id, () => [Picture2, Meta]>> = {
  */
 export const ROWBOAT_LANTERN_AT: Point = { x: 114, y: 23 };
 
+/**
+ * B17: the pieces that move, and how: their frames and how long to show each.
+ * Only the boat's lantern so far (its pennant stirs). Frame 0 is the piece
+ * `town2Piece` draws; every frame has its size, base, foot and facts.
+ */
+export const TOWN2_PIECE_FRAMES: Readonly<
+  Partial<Record<Town2Id, { readonly frames: number; readonly frameMs: number }>>
+> = { boat_lantern: { frames: 2, frameMs: 420 } };
+
+/** How each moving piece draws its frames past the first. */
+const FRAME_DRAW: Partial<Record<Town2Id, (frame: number) => Picture2>> = {
+  boat_lantern: (f) => asPicture(boatLantern(f), outlined),
+};
+
+const framed = new Map<string, Town2Piece>();
+
+/**
+ * A piece at a frame of its loop (any whole number; it wraps). A piece that
+ * does not move is `town2Piece(id)` at every frame. Swap the picture every
+ * `TOWN2_PIECE_FRAMES[id].frameMs`; nothing else about the piece changes.
+ */
+export function town2PieceFrame(id: Town2Id, frame: number): Town2Piece {
+  const loop = TOWN2_PIECE_FRAMES[id];
+  const draw = FRAME_DRAW[id];
+  const piece = town2Piece(id);
+  if (!loop || !draw) return piece;
+  const f =
+    ((Math.floor(Number.isFinite(frame) ? frame : 0) % loop.frames) + loop.frames) % loop.frames;
+  if (f === 0) return piece;
+  const key = `${id} ${f}`;
+  let out = framed.get(key);
+  if (!out) {
+    out = { ...piece, picture: draw(f) };
+    framed.set(key, out);
+  }
+  return out;
+}
+
 /** Everything about a piece but its drawing: what a scene needs to lay out the town before (or without) drawing it. */
 export type Town2Facts = Omit<Town2Piece, 'picture'>;
 
@@ -325,6 +363,7 @@ export const town2Facts = (id: Town2Id): Town2Facts => TOWN2_FACTS[id];
 /** Lets go of every drawn piece (they are drawn again when next asked for). */
 export function forgetTown2Pieces(): void {
   made.clear();
+  framed.clear();
 }
 
 const made = new Map<Town2Id, Town2Piece>();
