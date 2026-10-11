@@ -364,6 +364,17 @@ the far hand stayed on the hip. What replaced it:
   and long hair has a sheen across it and lit strands so black hair is not a dark mass.
 - **Boots**: the heel striking with the toe turned up has its sole as a dark line rising to the toe.
 
+#### Standing turned (B17)
+
+The three-quarter turn had been one column since B9. `characterThreeQuarterPicture2` turns the
+standing figure before its outline, row by row about the body's middle: the near side widened
+(about 1.2 at the head, 1.1 at the chest, 1.06 at the legs), the far side drawn in (0.58, 0.74,
+0.82), the rows moved three, one and one columns toward the facing, eased through the neck and
+the hips; then the outline. Rows only move sideways and are resampled to the nearest pixel, so
+lit edges hold; the near side gains a repeated column here and there, the far side loses some
+(mail rings, a far pauldron's lames). It is one construction for every look and wearable, never
+a turned head on a square body, and not a redrawn three-quarter.
+
 #### What covers what (B12)
 
 Cody, on B11's walk: "sword and shield are visible when character is facing away. Shoes through
@@ -396,6 +407,10 @@ frames' provenance (`posedTagged` in `walk.ts`, the side view's tags) holds it i
   skirt (a cloak hangs behind there); across, the cloak behind the body's back line (the back of
   the hips) is the outermost thing, so a leg striding back goes in under it and only its foot shows
   below the hem (`SIDE.CLOAK_OVER`); under the body the cloak stays behind the legs.
+- **B17 from behind**: a shield is held out three columns and cut at the body's side, so it shows
+  as a solid band past the arm and never through the gap between arm and body; a cloak's top is
+  a mantle over the shoulders; across, a cloak covers a leg striding back only to the knee (the
+  calf presses back through the drape below it, and the trailing shin and boot show).
 - **Under before over**: across, the everyday tunic is dressed first, so a coat's, mail's or
   jerkin's skirt and sleeves are laid over it (until B12 the tunic came last and its skirt and
   sleeves replaced theirs in profile: the captain's coat was a short jacket, mail had teal sleeves).
@@ -484,6 +499,8 @@ Cody: "Leg armor from smithing?" Two rungs of leg armour (`figure2/greaves.ts`),
 - **From behind** only the plates' edges where they wrap the calf and the straps across it show;
   **in profile** the plate is stretches of the shin from the knee to the boot's top, the straps
   their own short stretches, the cop riding on the knee in its own metal (`kneeMat`).
+- **Short of the boot** (B17): each plate stops a few rows above the boot's top, so a band of the
+  boot's leather shows between plate and foot; down to the foot they read as tall metal boots.
 - The icons are the pair stood side by side, the far one lower: a domed cop over a plate that
   narrows to the ankle and flares at the foot.
 
@@ -549,7 +566,18 @@ the swing, the blow landing (frame 2, `STRIKE2_HIT_FRAME`), the recovery.
   the viewer), then leant less, and as a last resort its far end left off; nothing touches the
   canvas's edge (tested). A knight's long sword at full stretch is drawn about half its length.
 - **The shield arm is braced**: raised a little toward the blow and held there. With a bow the
-  shield is not drawn (both hands are on the bow); see the status file's weak list.
+  shield stays (B17): strapped to the bow arm across, its edge by the grip; slung on the back
+  toward the camera and away.
+- **B17, toward the camera and away**: a swing is a diagonal cut across the front (over the right
+  shoulder, across the chest, landing low on the left with the blade laid out beside the body),
+  never pointing at the viewer over the legs; from behind the same cut, the blade landing past
+  the body's left side. At the landing a long weapon gives up its lean before its length. A swung
+  weapon trails an arc on the swing and the landing: a crescent about the shoulder, thickening
+  toward the weapon, pale steel at its outer edge, laid only on empty pixels so it needs no line.
+  A bow toward and away is three-quarter (its limbs drawn in to half their spread and canted),
+  drawn to the jaw in a V. A punch lands clear of the chest (a fist on the same cloth is lost), a
+  larger fist for one thrown toward the viewer, with a flash of eight short rays about it that
+  never covers the fist or the arm.
 
 ### The title screen (B14)
 
