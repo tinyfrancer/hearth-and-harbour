@@ -1,8 +1,75 @@
 # Lane B: art
 
-**Next session:** Cody's review of B15 and B16 (the tide-pool cave, Old Snapper, the harbour
-chart, the ferryman, the boat, its sign and lantern, the town's markers large and small, the edge
-pointer) and whatever it asks for.
+**Next session:** Cody's review of B17 (the dungeon-replay pictures, rowing, and the weak spots
+of B12 to B16) and whatever it asks for.
+
+## Dungeon replay: icons, medals, seals, the pennant, rowing, corner pointers, for lanes A and C (B17, first PR)
+
+S16 adds daily modifiers, challenges and idle dungeon runs. Lane A's ids were not on `main` when
+this was drawn, so icons are chosen **by kind**: the words in an id, or a modifier's effects. No
+existing export renamed or re-signed; the four straight pointers are byte for byte B16's (tested).
+
+```ts
+// src/art/dungeonIcons.ts (new door)
+modifierIcon(id: string): HTMLCanvasElement          // 24 x 24 art px at iconScale, class 'icon',
+challengeIcon(id: string): HTMLCanvasElement         //   aria-hidden (its name goes beside it); never null
+modifierIconFor(effects: unknown): HTMLCanvasElement // from the effects, for ids never seen here
+modifierIconPicture(id) / challengeIconPicture(id) / modifierIconForPicture(effects): Picture2
+modifierKind(id) / challengeKind(id) / modifierKindFor(effects): DungeonIconKind
+DUNGEON_ICON_KINDS   // tough fierce swift might frail loot coins xp tide hungry dark modifier |
+                     // time untouched nobrace nopotion unarmed boss slayer challenge
+dungeonIconPicture(kind): Picture2;  DUNGEON_ICON_SIZE = 24
+challengeMedal(state: 'todo' | 'done' | 'new', frame = 0): HTMLCanvasElement
+challengeMedalPicture(state, frame = 0): Picture2
+CHALLENGE_MEDAL_STATES, CHALLENGE_MEDAL_FRAMES = 6, CHALLENGE_MEDAL_FRAME_MS = 90
+dungeonSeal(id: string, tier: 'cleared' | 'all-challenges' = 'cleared'): ChartPiece2  // anchor: the disc's middle
+DUNGEON_SEAL_TIERS
+// src/art/chart.ts
+chartPennant2(frame = 0): ChartPiece2;  CHART_PENNANT2_FRAMES = 4, CHART_PENNANT2_FRAME_MS = 200
+// src/art/character2.ts: a new activity through the existing doors
+ACTIVITY2_IDS  // gains 'dungeon' (after 'thieving'); activityFrames2('dungeon') = 4,
+               // activityFrameMs2 230, activityHitFrame2 1 (the drive), activityProp2: the boat
+// src/art/town2/markers.ts
+TOWN_POINTER2_DIRECTIONS  // gains 'up-left', 'up-right', 'down-left', 'down-right'
+townPointer2(direction, frame)   // a diagonal is 22 x 22 with its keyline, one anchor every frame
+```
+
+- **Matching**: a modifier id is read for words (`tough|health|hardy` tough, `fierce|damage|hit|
+strong` fierce, `swift|speed|fast|frenzy` swift, `hero|might|keen` might, `frail|fragile` frail,
+  `loot|bounty|treasure` loot, `coin|gold|rich` coins, `xp|learn|wisdom` xp, `tide|flood|wave`
+  tide, `hung|no_food|famine` hungry, `dark|gloom|night` dark; else a die, `modifier`). A
+  challenge is read by its slug after the last dot (`untouched|no_damage|flawless`, `brace`,
+  `no_food`, `potion`, `unarmed|fist|bare`, `time|under|swift|minute` an hourglass, `boss|captain`,
+  `kill|every|all` crossed swords, `tide`, `loot`; else a target, `challenge`). The dungeon's own
+  id is never read (the tide-pool cave's "tide"). `modifierKindFor` reads effects as an object
+  (`{ foeHealth: 1.5 }`) or a list (`[{ kind: 'foeDamage', by: 1.3 }]`): who it touches (hero or
+  foe) and what (health, damage, speed or interval, loot, coins, xp, tide, food, dark), the
+  biggest change winning; `heroHealth` below 1 is `frail`. `tests/art/dungeonIcons2.test.ts`
+  asserts every modifier and challenge id in `src/data/dungeons.ts` gets a non-generic icon
+  (skipped until those ids land).
+- **Medals**: `todo` a dull iron disc with a hollow face on a grey ribbon; `done` gold with a
+  star on a red ribbon; `new` the gold medal with a glint sweeping across it and a sparkle
+  blooming: play frames 0 to 5 once at `CHALLENGE_MEDAL_FRAME_MS`; frame 5 on is exactly `done`.
+- **Seals**: the dungeon's chart emblem on chart paper in a round frame, 33 x 33 with its keyline (`cleared`, a
+  bronze rim) or 33 x 40 (`all-challenges`, a gold rim with a laurel, a star over it and red
+  ribbon tails under). Any id without an emblem gets a compass star. Day only (paper): `DAY2`.
+- **The pennant**: a midnight-blue swallowtail with a gold star on a tall pole, 19 x 22 with
+  its keyline, anchor the pole's foot (as a marker's): stand it 6 to 10 pixels left of a landing's
+  marker on a day the landing has a modifier. It is taller than the marker and never red.
+- **Rowing** (`dungeon`): seated in the little boat facing the stern, both fists on the near
+  oar: the catch, the drive (the blade deep, a splash: the hit frame), the finish, the
+  recovery (the blade carried clear). The boat (`activityProp2('dungeon')`) is behind the hero
+  (`front: false`), its top-left the hero canvas's top-left (`at` (0, 0), `foot` (28, 70)), 79 x
+  71, so the "now doing" stage keeps its size (the fishing prop already reaches column 79);
+  the frame lays the near hull and the water over his legs, pixel for pixel the prop's, and the
+  oar over that. Any look and outfit; weapon and shield put down as for every activity. The
+  boat's lantern glow is in the prop's `glows` (dusk only).
+- **Corner pointers**: the chevron turned to the diagonal with a shallower notch (turned, a deep
+  notch reads as a corner bracket). Its anchor is the pixel diagonally past the tip at its
+  furthest frame: put it where the arrow points to, a few pixels in from the corner.
+- **Gallery**: the Icons part has "Dungeon replay" (each kind, the medals with the new one's
+  sparkle looping, the seals and the pennant fluttering); rowing is in the figures' activity
+  plate and the corner pointers in the markers plate.
 
 ## Markers, the ring, the boat, B15's weak spots, for lane C (B16, second PR)
 
@@ -1739,6 +1806,23 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 - The townsfolk bodies are drawn only where they show, so they cannot be dressed in other gear.
 
 ## Needs from another lane
+
+- **Lane A, for B17** (all optional; nothing breaks without them):
+  - Show `modifierIconFor(modifier.effects)` (or `modifierIcon(id)`) beside each daily modifier,
+    `challengeIcon(id)` beside each challenge with `challengeMedal(state)` for its state, and play
+    `challengeMedal('new', f)` for f 0 to 5 at `CHALLENGE_MEDAL_FRAME_MS` when one is first met.
+    On the results card, `dungeonSeal(id, tier)` (rasterize with `DAY2` through `pixelCanvas2`).
+  - The "now doing" strip for an idle dungeon run: activity id `'dungeon'` (`ACTIVITY2_IDS` has
+    it); `atWork.ts` needs nothing new, as the boat is a prop like any other.
+  - When `DUNGEON_MODIFIERS` and the challenges land, `tests/art/dungeonIcons2.test.ts` checks
+    every id gets a fitting icon; a new id whose words fit no kind fails it until lane B adds a
+    word or a picture (or name the modifier by what it does).
+- **Lane C, for B17**:
+  - On the chart: `dungeonSeal(id, 'cleared' | 'all-challenges')` beside a cleared landing's
+    marker (anchor the disc's middle), and `chartPennant2(frame)` 6 to 10 pixels left of the marker
+    of a landing with a modifier today, stepping every `CHART_PENNANT2_FRAME_MS`.
+  - `townPointer2` takes the four diagonals: when the boat is off a corner of the screen, point
+    `'up-left'` etc. rather than snapping to an edge (anchor diagonally past the tip).
 
 - **Lane C, for B16** (nothing breaks if you wait; all drawing):
   - Float the boat's marker large: `townMarker2('travel', frame, 'large')` (29 x 30, anchor

@@ -40,6 +40,7 @@ import { turnsRigid } from './figure2/edges';
 import {
   ACTIVITY_IDS,
   COMBAT_ACTIVITIES,
+  activityFinish,
   activityFrameCount,
   activityFrameMs,
   activityPose,
@@ -710,7 +711,8 @@ export type { ActivityId } from './figure2/activity';
 /**
  * The skills with a loop of the hero at work, in the order the player meets
  * them: the gathering and making skills posed here, combat's by the blow
- * (`melee`, `ranged`, `defence`) and the breath (`vitality`).
+ * (`melee`, `ranged`, `defence`) and the breath (`vitality`), and (B17)
+ * `dungeon`, the hero rowing the little boat while he runs a dungeon idle.
  */
 export const ACTIVITY2_IDS: readonly string[] = ACTIVITY_IDS;
 
@@ -729,6 +731,8 @@ export function activityFrames2(activity: string): number {
  * tool touching its prop on that frame.
  */
 const ACTIVITY_HIT: Readonly<Partial<Record<ActivityId, number>>> = {
+  // Rowing's stroke bites on the drive (the blade deep, the splash): B17.
+  dungeon: 1,
   woodcutting: 2,
   fishing: 0,
   mining: 3,
@@ -817,8 +821,8 @@ export function characterActivityPicture2(
     );
     const dress = sideDress(gear)!;
     const pose = activityPose(dress, activity, f)!;
-    const { grid } = sideWalkGrid(dress, f, WALK2_STRIDE, false, pose);
-    pic = { grid: recolour(grid, lookSwap(safe)), glows: [] };
+    const { grid, fist } = sideWalkGrid(dress, f, WALK2_STRIDE, false, pose);
+    pic = { grid: activityFinish(activity, f, recolour(grid, lookSwap(safe)), fist), glows: [] };
   } catch {
     pic = characterPicture2(look, wornItemIds, extra);
   }
