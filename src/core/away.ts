@@ -2,6 +2,7 @@ import { advance, missingInput } from './actions';
 import { busy } from './combat';
 import type { Content } from './content';
 import { fightEnded } from './fight';
+import { idleRunEnded } from './idleRun';
 import { masteryLevel, skillLevel, stat, type GameState } from './state';
 
 /** The most time away that is ever paid for. */
@@ -13,7 +14,7 @@ export interface AwayReport {
   awayMs: number;
   /** How much of that was paid for: `awayMs`, or the cap. */
   countedMs: number;
-  /** The action that was running when the game was left, or null if it was a fight. */
+  /** The action that was running when the game was left, or null if it was a fight or idle runs. */
   actionId: string | null;
   /** What came of the fight that was running when the game was left, or null if it was an action. */
   fight: null | {
@@ -24,6 +25,19 @@ export interface AwayReport {
     eaten: number;
     food: string | null;
     /** Arrows shot. */
+    arrows: number;
+  };
+  /**
+   * What came of the dungeon being run idle when the game was left, or null:
+   * runs finished, foes felled, food eaten (and what it was) and arrows shot.
+   */
+  dungeon: null | {
+    /** A DungeonDef id. */
+    dungeon: string;
+    runs: number;
+    kills: number;
+    eaten: number;
+    food: string | null;
     arrows: number;
   };
   /**
@@ -59,7 +73,7 @@ export interface AwayReport {
    * (MonsterDef ids, each once, in table order). Null when it handed in none.
    */
   claimed: null | { bounties: number; points: number; monsters: string[] };
-  /** Why the action or fight is no longer running, or null if it still is. */
+  /** Why the action, fight or idle runs are no longer running, or null if they still are. */
   stopped:
     | null
     | { reason: 'ran_out'; item: string }
@@ -135,12 +149,29 @@ export function catchUp(
 
   let stopped: AwayReport['stopped'] = null;
   let fight: AwayReport['fight'] = null;
-  if (state.fight) {
+  let dungeon: AwayReport['dungeon'] = null;
+  const left = (worn: { item: string; qty: number } | null | undefined, item: string): number =>
+    worn?.item === item ? worn.qty : 0;
+  if (state.idleRun) {
+    const id = state.idleRun.dungeon;
+    const ended = idleRunEnded(state, after, content);
+    if (ended) stopped = { reason: ended };
+    const killed = (at: GameState): number =>
+      Object.values(at.bestiary).reduce((sum, record) => sum + record.kills, 0);
+    dungeon = {
+      dungeon: id,
+      runs: (after.dungeons[id]?.idleRuns ?? 0) - (state.dungeons[id]?.idleRuns ?? 0),
+      kills: killed(after) - killed(state),
+      eaten: state.food ? state.food.qty - left(after.food, state.food.item) : 0,
+      food: state.food?.item ?? null,
+      arrows: state.equipment.ammo
+        ? state.equipment.ammo.qty - left(after.equipment.ammo, state.equipment.ammo.item)
+        : 0,
+    };
+  } else if (state.fight) {
     const { monster } = state.fight;
     const ended = fightEnded(state, after, content);
     if (ended) stopped = { reason: ended };
-    const left = (worn: { item: string; qty: number } | null | undefined, item: string): number =>
-      worn?.item === item ? worn.qty : 0;
     // Every kill counts, whoever it was: auto bounty may have moved the fight on.
     const killed = (at: GameState): number =>
       Object.values(at.bestiary).reduce((sum, record) => sum + record.kills, 0);
@@ -169,15 +200,16 @@ export function catchUp(
     theft = { mark: mark.id, attempts: picked + caught, picked, caught };
   }
 
-  // Only a fight changes a bounty while time passes: by counting kills, and
-  // with auto bounty by handing one in and taking the next.
+  // Only fighting changes a bounty while time passes (a fight or idle runs): by
+  // counting kills, and with auto bounty by handing one in and taking the next.
   const handed = stat(after, 'bounties') - stat(state, 'bounties');
   const claimed: AwayReport['claimed'] =
     handed > 0
       ? {
           bounties: handed,
           points: after.bountyPoints - state.bountyPoints,
-          monsters: claimedOn(state, after, content),
+          // Idle runs fell more than the bounty's monster, so which were handed in cannot be read.
+          monsters: state.idleRun ? [] : claimedOn(state, after, content),
         }
       : null;
   let bounty: AwayReport['bounty'] = null;
@@ -203,6 +235,7 @@ export function catchUp(
       countedMs,
       actionId: state.action?.id ?? null,
       fight,
+      dungeon,
       items,
       coins: after.coins - state.coins,
       xp,

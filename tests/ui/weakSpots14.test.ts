@@ -46,6 +46,7 @@ describe('wave 13’s weak spots', () => {
       countedMs: 3_600_000,
       actionId: null,
       fight: { monster: 'dock_rat', kills: 90, eaten: 0, food: null, arrows: 0 },
+      dungeon: null,
       items: {},
       coins: 0,
       xp: {},
