@@ -176,6 +176,42 @@ export function strollersNow(clocks: FolkClocks, play: Play, now: number): Walki
   });
 }
 
+/**
+ * The fastest a stroller is drawn to move, in art pixels a second: three
+ * times her walk. Where she is (`giveWay`) is a pure function of her clock
+ * and where the hero stands, and it jumps where he crosses straight through
+ * her line beside her (she goes round the other side of him); drawn, she
+ * slides there over a moment instead. Her walk and her gentle steps aside
+ * are far under it and are drawn exactly.
+ */
+export const GLIDE_SPEED = 120;
+
+/**
+ * The strollers as drawn this frame, from where they were drawn last frame
+ * (`was`, at `wasNow`): each where she is, unless that is further than she
+ * may be drawn to move since (`GLIDE_SPEED`), when she is drawn that far
+ * toward it. Drawing only; taps and the hero's walk go by where she is.
+ */
+export function glide(
+  was: readonly Point[] | null,
+  wasNow: number,
+  next: readonly Walking[],
+  now: number,
+): Walking[] {
+  const dt = now - wasNow;
+  // A first frame, one after the page was away, or no frame between (nothing drawn): where they are.
+  if (!was || was.length !== next.length || !(dt > 0) || dt > 500) return [...next];
+  const most = (GLIDE_SPEED * dt) / 1000;
+  return next.map((w, i) => {
+    const from = was[i]!;
+    const dx = w.feet.x - from.x;
+    const dy = w.feet.y - from.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= most) return w;
+    return { ...w, feet: { x: from.x + (dx * most) / d, y: from.y + (dy * most) / d } };
+  });
+}
+
 const inside = (b: Box, p: Point): boolean =>
   p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h;
 

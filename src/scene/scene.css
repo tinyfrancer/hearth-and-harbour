@@ -180,6 +180,8 @@
 .scene-face {
   display: block;
   flex: none;
+  /* At 1x the face is cut top and bottom to its safe box (`faceFrame`). */
+  overflow: hidden;
 }
 
 .scene-face > canvas {
@@ -205,6 +207,57 @@
   justify-content: center;
   padding: 16px;
   background: var(--backdrop);
+}
+
+/* A slow boat rowing out: the town stays up and moving under this, never frozen. */
+.scene-rowing {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(calc(100% - 32px), 280px);
+  padding: 12px 16px;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+}
+
+.scene-rowing p {
+  font-size: 18px;
+}
+
+.scene-rowing-bar {
+  position: relative;
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  background: var(--backdrop);
+}
+
+.scene-rowing-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: var(--gold);
+  animation: scene-rowing 1.1s steps(11) infinite;
+}
+
+@keyframes scene-rowing {
+  from {
+    left: -40%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-rowing-bar i {
+    animation-duration: 3s;
+  }
 }
 
 .scene-loading-card {
@@ -395,6 +448,26 @@
   padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
     calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   background: var(--scrim);
+}
+
+/*
+ * A run taken up after a reload waits behind this: over the room and its buttons, so nothing
+ * under it can be tapped; the turn-your-phone prompt and Leave come after it, over it.
+ */
+.dungeon-resume {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  background: var(--scrim);
+}
+
+.dungeon-resume-go {
+  min-height: 48px;
+  font-size: 20px;
 }
 
 .dungeon-card {

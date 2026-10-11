@@ -16,6 +16,7 @@ import type { Cell } from './tileMap';
 import { BOAT_LANDING2, town2Scene } from './town2';
 import { Hero2, type Town2Art } from './town2Art';
 import { roomLook } from './grottoArt';
+import { KEPT_RUN_MAX_CHARS, keptAtOf, restoreRun, savedRunOf } from './runSave';
 import { groundInAWorker, type WorkerPainter } from './grottoPainter';
 import { tideStateOf } from './fightArt';
 import {
@@ -60,6 +61,43 @@ let run: Run | null = null;
 let settled = false;
 
 /**
+ * How often, at the least, a run under way is handed to the shell to keep
+ * (`Shell.keepRun`), on the app's clock: a reload takes it up from there. It
+ * is handed over at once, besides, when it enters a room, something falls
+ * or something is picked up, and when the page is hidden.
+ */
+export const KEEP_EVERY_MS = 3000;
+
+/** A kept run older than this is not taken up (the shell's own rule for a reload). */
+export const TAKE_UP_MS = 60_000;
+
+/** What the run was when last handed to the shell (`runMark`), and when on the app's clock. */
+let kept: { mark: string; at: number } | null = null;
+
+/** Hands the run under way to the shell at once: the page is being hidden. */
+let keepOnHide: (() => void) | null = null;
+
+// The page hidden or let go: the run is handed over before the app's own save
+// on the same event (`src/main.ts`), as these are heard first, in the capture.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => keepOnHide?.(), { capture: true });
+  window.addEventListener(
+    'visibilitychange',
+    () => {
+      if (document.visibilityState === 'hidden') keepOnHide?.();
+    },
+    { capture: true },
+  );
+}
+
+/** What about a run is worth keeping at once when it changes: the room, a door, the fallen, what was picked up. */
+export function runMark(run: Run): string {
+  const t = run.battle?.tally;
+  const picked = t ? Object.values(t.loot).reduce((a, b) => a + b, 0) : 0;
+  return `${run.room} ${run.doorway ? 1 : 0} ${t?.kills ?? 0} ${picked} ${t?.coins ?? 0}`;
+}
+
+/**
  * What this scene last asked of the shell. The shell lets go of both when
  * the Town tab is left; a rebuilt tab checks these so the town is never shown
  * with the clock stopped or the bars gone.
@@ -78,8 +116,17 @@ const dungeons = (id: string): Dungeon | null => {
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
 
-/** The longest the town waits, as a boat rows out, for the first room's ground to come from the worker. */
-export const ROW_OUT_WAIT_MS = 1500;
+/**
+ * The longest the town waits, as a boat rows out, for the first room's ground
+ * to come from the worker, before working it out on the spot (a pause with
+ * the town held still). Meanwhile the town stays up and moving, and after
+ * `ROW_OUT_SHOW_MS` says it is rowing out with a moving bar, so a slow phone
+ * sees progress, not a freeze.
+ */
+export const ROW_OUT_WAIT_MS = 8000;
+
+/** How long rowing out may take before it says so: under this, the room is in before anyone notices. */
+export const ROW_OUT_SHOW_MS = 300;
 
 /**
  * Starts painting a dungeon's first room, every state of its tide, in the
@@ -117,7 +164,12 @@ if (typeof Worker === 'function' && typeof window !== 'undefined')
  * and a bar (`loadingScene.ts`). Never a dark empty scene.
  */
 function loadingCard(): { el: HTMLElement; update(): void } {
-  const card = loadingScene(now());
+  // At the town's own grain on this screen, so the card and the town have the same pixels.
+  const screen =
+    typeof innerWidth === 'number' && innerWidth > 0
+      ? { width: innerWidth, height: innerHeight }
+      : undefined;
+  const card = loadingScene(now(), screen);
   return { el: card.el, update: () => card.update(townProgress(), performance.now()) };
 }
 
@@ -199,7 +251,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     }
   };
 
-  const showDungeon = (dungeon: Dungeon): void => {
+  const showDungeon = (dungeon: Dungeon, resume = false): void => {
     current = dungeonView({
       dungeon,
       content,
@@ -215,23 +267,50 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         settle();
         tell(false, true);
       },
+      resume,
     });
     host.replaceChildren(current.el);
   };
 
+  /** The app's clock as of the last frame (`View.update`'s `now`): when a run is kept, and its dice's seed. */
+  let clockNow: number | undefined;
+
+  /**
+   * Hands the run under way to the shell to keep through a reload: when it
+   * has changed in a way worth keeping (`runMark`), when `KEEP_EVERY_MS` has
+   * gone by since it last was, or at once (`now`: the page is being hidden).
+   * Never a finished or settled run, and never one too big for the save.
+   */
+  const keepIt = (now: boolean): void => {
+    if (!shell?.keepRun || !run || run.finished || settled) return;
+    const mark = runMark(run);
+    const due = clockNow === undefined || !kept || clockNow - kept.at >= KEEP_EVERY_MS;
+    if (!now && kept && kept.mark === mark && !due) return;
+    const saved = savedRunOf(run, clockNow);
+    // A save whose run is over the cap is set aside whole on the next load: keep the spoils alone instead.
+    const fits = JSON.stringify(saved.data).length <= KEPT_RUN_MAX_CHARS;
+    shell.keepRun(fits ? saved : { ...saved, data: {} });
+    kept = { mark, at: clockNow ?? kept?.at ?? 0 };
+  };
+  keepOnHide = () => keepIt(true);
+
   /**
    * The run's spoils paid in through the shell: XP, loot and coins in, food
-   * and arrows out, saved. Exactly once a run, by whichever way it ends.
+   * and arrows out, saved. Exactly once a run, by whichever way it ends. The
+   * shell lets go of the kept run as it settles; it is told so here as well,
+   * so no old run is ever taken up again.
    */
   const settle = (): void => {
     if (!run?.battle || settled) return;
     settled = true;
+    kept = null;
     // A clear is the boss down and the end reached: the run ended by itself, cleared.
     // With how long it took, for the dungeon's best time.
     shell?.settleRun({
       ...spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined),
       timeMs: run.ms,
     });
+    shell?.keepRun?.(null);
   };
 
   /**
@@ -249,7 +328,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       fighter: fighterOf(latest, content),
       // The grotto's own cast fights by its rows here; the tables' monsters by theirs.
       monsters: { ...(content.monsters ?? {}), ...GROTTO_CAST },
-      seed: seedFrom(Date.now()),
+      // Seeded from the app's clock as passed in; a view updated without one (a test) reads the date.
+      seed: seedFrom(clockNow ?? Date.now()),
       // Loot the game's tables do not know yet is not dropped.
       known: Object.keys(content.items),
     });
@@ -258,19 +338,40 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     rowOn();
   };
 
+  /** Over the town while a slow boat rows out: words and a moving bar, so it is plainly on its way. */
+  let rowingCard: HTMLElement | null = null;
+
   /** Out in the boat once the first room's ground is in, or the wait is over. */
   const rowOn = (): void => {
     if (!rowing) return;
     const waited = performance.now() - rowing.since;
     // Without a worker the room is worked out on the spot as it is shown: nothing to wait for.
     const waiting = !!painter?.offThread && !groundIn(rowing.dungeon, rowing.run);
-    if (waiting && waited < ROW_OUT_WAIT_MS) return;
+    if (waiting && waited < ROW_OUT_WAIT_MS) {
+      if (waited >= ROW_OUT_SHOW_MS && !rowingCard) {
+        rowingCard = h(
+          'div',
+          { class: 'scene-rowing', attrs: { role: 'status', 'aria-live': 'polite' } },
+          [
+            h('p', { text: 'Rowing out…' }),
+            h('span', { class: 'scene-rowing-bar', attrs: { 'aria-hidden': 'true' } }, [h('i')]),
+          ],
+        );
+        host.append(rowingCard);
+      }
+      return;
+    }
+    rowingCard?.remove();
+    rowingCard = null;
     const { dungeon } = rowing;
     run = rowing.run;
     rowing = null;
     settled = false;
+    kept = null;
     tell(true, true);
     showDungeon(dungeon);
+    // Kept from its first moment: a reload in the first room finds it.
+    keepIt(true);
   };
 
   /** The boat's panel open in town: its dungeon's first room is painted ahead. */
@@ -307,8 +408,33 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     showTown();
   };
 
+  /**
+   * A run kept from before a reload (`Shell.savedRun`), taken up: back in the
+   * same room, as it stood, paused behind Resume. One this scene cannot read
+   * (another snapshot version, or none) is settled from its spoils, as if
+   * rowed home early. When it was kept is checked on the first frame, when
+   * the app's clock is known (`TAKE_UP_MS`).
+   */
+  let takenUpAt: number | null = null;
+  let resuming = false;
+  const saved = !run ? (shell?.savedRun?.() ?? null) : null;
+  if (saved) {
+    const dungeon = dungeons(saved.dungeon);
+    const back = dungeon ? restoreRun(saved.data, saved.scene) : null;
+    if (back && !back.finished) {
+      run = back;
+      settled = false;
+      kept = null;
+      resuming = true;
+      takenUpAt = keptAtOf(saved.data);
+    } else {
+      shell?.settleRun({ ...saved.spoils, cleared: undefined });
+      shell?.keepRun?.(null);
+    }
+  }
+
   const inRun = run && dungeons(run.dungeon);
-  if (inRun) showDungeon(inRun);
+  if (inRun) showDungeon(inRun, resuming);
   else showTown();
 
   let first = true;
@@ -316,10 +442,16 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   let busy = false;
   return {
     el: host,
-    update: (next) => {
+    update: (next, now) => {
       if (busy) return;
       busy = true;
       try {
+        if (now !== undefined) clockNow = now;
+        if (first && takenUpAt !== null && now !== undefined && now - takenUpAt >= TAKE_UP_MS) {
+          // Kept too long ago to take up (the page sat on another tab): home with what was carried.
+          takenUpAt = null;
+          leave();
+        }
         if (first) {
           first = false;
           // A rebuilt tab: a run carries on as it was; the town is never left paused or bare.
@@ -335,7 +467,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         if (!run) {
           boatOpen();
           rowOn();
-        }
+        } else keepIt(false);
         if (loading) {
           loading.update();
           if (!run && !townLoading()) {
@@ -361,8 +493,15 @@ export function resetTown(): void {
   forget2();
   run = null;
   settled = false;
+  kept = null;
+  keepOnHide = null;
   asked.paused = false;
   asked.full = false;
+}
+
+/** Lets every dungeon room's painted ground go, as a fresh page has none. For tests. */
+export function forgetRooms(): void {
+  if (grotto) for (const room of Object.values(grotto.rooms)) roomLook(room).forget();
 }
 
 /** Where the hero is, whether he is on his way somewhere, and what is open. For tests. */

@@ -11,6 +11,7 @@ import {
 import { clearLine } from '../../src/scene/path';
 import { STAND_HALF, advancePlay, startPlay, tapAt, type Play } from '../../src/scene/play';
 import {
+  PASS_DEPTH,
   PASS_ROOM,
   PERSONAL,
   crowding,
@@ -34,9 +35,11 @@ import {
   town2Scene,
 } from '../../src/scene/town2';
 import {
+  GLIDE_SPEED,
   ROUNDS,
   faceStroller,
   folkOn,
+  glide,
   startFolk,
   strollerAt,
   strolling,
@@ -229,24 +232,29 @@ describe('passing each other', () => {
     let clocks: FolkClocks = startFolk();
     const seen: Point[] = [];
     let aside = 0;
+    let widest = 0;
     for (let t = 0; t < 120_000; t += 50) {
       clocks = folkOn(clocks, 50, parked);
       const s = strolling(clocks, parked)[0]!;
       const route = strolling(clocks)[0]!;
       // Never into his room, at any moment, where she is drawn.
       expect(crowding(s.at, parked.walker.at)).toBeGreaterThan(1 - 1e-6);
-      // Stepped off her route only near him, and by no more than his room's depth and a bit.
+      // Stepped off her route only near him, and by no more than a figure's clearance (wave 14:
+      // more than a tile, `PASS_DEPTH`, so the two figures are drawn apart, not over each other).
       const off = Math.hypot(s.at.x - route.at.x, s.at.y - route.at.y);
       if (off > 0) {
         aside++;
         expect(Math.abs(route.at.x - parked.walker.at.x)).toBeLessThan(
-          2 * PERSONAL.rx + PERSONAL.ry,
+          2 * PERSONAL.rx + PASS_DEPTH / PASS_ROOM,
         );
-        expect(off).toBeLessThanOrEqual(PASS_ROOM * PERSONAL.ry + 1e-9);
+        expect(off).toBeLessThanOrEqual(PASS_DEPTH + 1e-9);
+        widest = Math.max(widest, Math.abs(s.at.y - parked.walker.at.y));
       }
       seen.push(s.at);
     }
     expect(aside).toBeGreaterThan(10);
+    // Level with him she passes a tile and more behind or in front: their figures do not run together.
+    expect(widest).toBeGreaterThanOrEqual(PASS_DEPTH - 1);
     // She got past him to the far end of her way, and home again: no one stood stuck or turned back.
     const far = centreOf({ col: 2, row: 51 }, TOWN2_TILE);
     expect(seen.some((p) => p.x === far.x && p.y === far.y)).toBe(true);
@@ -338,6 +346,40 @@ describe('passing each other', () => {
       }
     }
     expect(arrived).toBe(8);
+  });
+
+  it('is drawn sliding, never jumping, round to his other side when he cuts across her line', () => {
+    // The market woman walking west on row 51; the hero walks straight down through her line
+    // just ahead of her, so she must go round the other side of him partway through.
+    let clocks: FolkClocks = startFolk();
+    // Until she is walking her way west.
+    for (let t = 0; t < 20_000; t += 50) {
+      clocks = folkOn(clocks, 50, startPlay({ x: -999, y: -999 }));
+      const s = strolling(clocks)[0]!;
+      if (s.walking && s.at.y === centreOf({ col: 0, row: 51 }, TOWN2_TILE).y && s.at.x < 130)
+        break;
+    }
+    const her = strolling(clocks)[0]!.at;
+    let drawn: Point[] | null = null;
+    let jumped = 0;
+    let now = 0;
+    for (let f = 0; f < 60; f++) {
+      now += 16;
+      const hero = startPlay({ x: her.x - 30, y: her.y - 30 + f * 1.2 });
+      clocks = folkOn(clocks, 16, hero);
+      const pure = strolling(clocks, hero)[0]!.at;
+      const before = drawn;
+      const shown = glide(drawn, now - 16, strollersNow(clocks, hero, now), now);
+      drawn = shown.map((w) => w.feet);
+      if (before) {
+        const was = before[0]!;
+        const step = Math.hypot(drawn[0]!.x - was.x, drawn[0]!.y - was.y);
+        expect(step).toBeLessThanOrEqual((GLIDE_SPEED * 16) / 1000 + 1e-9);
+        if (Math.hypot(pure.x - was.x, pure.y - was.y) > 6) jumped++;
+      }
+    }
+    // Where she is did jump (round his other side); where she is drawn slid there.
+    expect(jumped).toBeGreaterThan(0);
   });
 
   it('turns a walker about where she is, going the other way', () => {

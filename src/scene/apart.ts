@@ -10,7 +10,7 @@
  * sizes (`FOE2_SIZES`: the body's width, and what is drawn ahead of and
  * behind the feet), never from a picture's pixels. The one who gives way is
  * the smaller (the hero, before any foe; a deckhand, before the captain),
- * by no more than half a tile, so a figure is never shown far from where
+ * by little more than half a tile, so a figure is never shown far from where
  * the marks on the ground judge it.
  *
  * Pure and smooth: a function of where everyone is this moment, so it never
@@ -35,8 +35,14 @@ export interface Figure {
 
 /** How far two figures may overlap before either is moved: outlines touching reads as a fight. */
 export const APART_ALLOW = 4;
-/** The most anyone is shown from their feet, in art pixels: half a tile. */
-export const APART_MOST = 12;
+/**
+ * The most anyone is shown from their feet, in art pixels: a little over half
+ * a tile. 14 since wave 14 (was 12), enough for the giant crab's claws (its
+ * drawn front, 41, against the hero's 13 at the 36-pixel stand, less the 4
+ * allowed: 14) so they no longer reach over him; the captain, narrowed by the
+ * art lane, needs 8.
+ */
+export const APART_MOST = 14;
 /** Feet this near up and down the room count fully; this far apart, not at all. */
 export const APART_NEAR = 6;
 export const APART_FAR = 20;

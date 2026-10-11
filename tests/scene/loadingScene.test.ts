@@ -8,6 +8,7 @@ import {
   QUAY_X,
   boatX,
   cardScale,
+  cardView,
   harbourGrid,
   keelOf,
   loadingScene,
@@ -89,5 +90,32 @@ describe('the loading scene', () => {
       expect((CARD_W * (k + 1)) / dpr).toBeGreaterThan(CARD_MOST);
     }
     expect(cardScale(3)).toBe(2);
+  });
+
+  it('is drawn at the town’s grain on a phone, the harbour cut on the left to fit', () => {
+    // A 390 x 844 phone at 3x: the town is three device pixels an art pixel, and so is the card.
+    const phone = { width: 390, height: 844 };
+    expect(cardScale(3, phone)).toBe(3);
+    expect(cardScale(2, phone)).toBe(2);
+    expect(cardScale(2.625, { width: 412, height: 915 })).toBe(3);
+    for (const [dpr, screen] of [
+      [3, phone],
+      [2, phone],
+      [2.625, { width: 412, height: 915 }],
+      [1, { width: 1280, height: 800 }],
+    ] as const) {
+      const k = cardScale(dpr, screen);
+      const w = cardView(k, dpr, screen);
+      // Inside the card's width (a phone's, or wider on a wide screen), at whole device pixels.
+      expect((w * k) / dpr).toBeLessThanOrEqual(Math.max(CARD_MOST, screen.width - 60));
+      expect(w).toBeLessThanOrEqual(CARD_W);
+      // The quay and the buoy's water always show; the boat comes in from the cut edge.
+      expect(CARD_W - w).toBeLessThan(QUAY_X - 120);
+      expect(boatX(0, 135, CARD_W - w) + 135).toBeLessThan(CARD_W - w + 40);
+    }
+    // Built at that grain: its canvas is the cut width (jsdom is 1x).
+    const card = loadingScene('day', phone);
+    const canvas = card.el.querySelector('canvas')!;
+    expect(canvas.width).toBe(cardView(cardScale(1, phone), 1, phone));
   });
 });

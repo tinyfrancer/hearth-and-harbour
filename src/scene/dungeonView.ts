@@ -40,6 +40,7 @@ import {
   doorwayDark,
   groundNow,
   placeOf,
+  runLocked,
   runTime,
   sideways,
   type Dungeon,
@@ -47,6 +48,7 @@ import {
 } from './dungeon';
 import {
   HERO_TALL,
+  doorsOpen,
   fightArtFor,
   fightExtra,
   heroStrikePose,
@@ -61,6 +63,7 @@ import { abilityPicture, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
   CaveShadow,
+  doorUnder,
   groundOnTheSpot,
   roomLook,
   type GroundPainter,
@@ -68,7 +71,8 @@ import {
 } from './grottoArt';
 import type { Play } from './play';
 import type { Size } from './camera';
-import type { Point } from './tileMap';
+import { centreOf, type Point } from './tileMap';
+import type { Box } from './things';
 import { dungeonScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
 import { stage, type Insets, type StillPicture } from './stage';
@@ -113,6 +117,11 @@ export interface DungeonViewOptions {
   readonly leave: () => void;
   /** The run has just ended by itself: the last room cleared, or the hero down. */
   readonly finished: () => void;
+  /**
+   * A run taken up again after a reload: it waits, paused, behind a Resume
+   * button, so nothing hits the hero while the player finds where they were.
+   */
+  readonly resume?: boolean;
 }
 
 /** Whole seconds left on a cooldown, as the button shows it. */
@@ -438,14 +447,14 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   const press = (slot: 0 | 1): void => {
     const run = options.run();
-    if (!run.battle || run.finished || run.doorway) return;
+    if (waiting || !run.battle || run.finished || run.doorway) return;
     const used = useAbility(run.battle, placeOf(dungeon, run), run.play, slot);
     if (used.battle === run.battle) return;
     options.keep({ ...run, battle: used.battle, play: used.play });
   };
   const eatOne = (): void => {
     const run = options.run();
-    if (!run.battle || run.finished || run.doorway) return;
+    if (waiting || !run.battle || run.finished || run.doorway) return;
     const fed = eat(run.battle, run.play.walker.at);
     if (fed !== run.battle) options.keep({ ...run, battle: fed });
   };
@@ -469,7 +478,36 @@ export function dungeonView(options: DungeonViewOptions): View {
   ]);
   if (!battleOf()) hud.hidden = true;
 
-  const root = h('div', { class: 'dungeon' }, [room, hud, fade, prompt, way]);
+  /* ----- Taken up after a reload: paused until the player is ready ----- */
+
+  let waiting = !!options.resume && !options.run().finished;
+  const resumeButton = h('button', {
+    class: 'btn primary dungeon-resume-go',
+    text: 'Resume',
+    attrs: { type: 'button' },
+    on: {
+      click: () => {
+        waiting = false;
+        resume.remove();
+      },
+    },
+  });
+  const resume = h('section', { class: 'dungeon-resume', attrs: { 'aria-label': 'Run paused' } }, [
+    h('div', { class: 'dungeon-card' }, [
+      h('h2', { text: 'Back where you were' }),
+      h('p', { class: 'muted', text: 'The run is paused. Nothing moves until you are ready.' }),
+      resumeButton,
+    ]),
+  ]);
+
+  const root = h('div', { class: 'dungeon' }, [
+    room,
+    hud,
+    fade,
+    waiting ? resume : null,
+    prompt,
+    way,
+  ]);
 
   /** The view's size in CSS pixels: whether the phone is on its side. */
   let size = { width: 0, height: 0 };
@@ -508,7 +546,8 @@ export function dungeonView(options: DungeonViewOptions): View {
     const s = tideStateOf(dungeon, run);
     return lastStill !== null || look.nearestIn(s.level, s.warn) !== null;
   };
-  const playing = (): boolean => sideways(size) && !options.run().finished && roomIn(options.run());
+  const playing = (): boolean =>
+    !waiting && sideways(size) && !options.run().finished && roomIn(options.run());
 
   /**
    * The room as the tide has it now, darkening where it is about to come in;
@@ -526,6 +565,24 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** The hero's contact shadow, cut from the room's ground under his feet. */
   const heroShadow = new CaveShadow();
+
+  /** A barred door last tapped, and when on the fight's clock: it says it is barred for a moment. */
+  let barredTap: { letter: string; at: number } | null = null;
+
+  /** Whether the room's doors have begun to open: the ground about them is lit from beyond. */
+  const doorsAreOpen = (run: Run): boolean => !!run.battle && doorsOpen(run.battle, run.room) > 0;
+
+  /** What the camera showed last frame, in art pixels, less the edges kept for the HUD. */
+  const viewBox = (): Box | null => {
+    if (!lookedAt || lookedAt.cssPerArt <= 0) return null;
+    const per = lookedAt.cssPerArt;
+    return {
+      x: lookedAt.camera.x + DUNGEON_INSETS.left / per,
+      y: lookedAt.camera.y + DUNGEON_INSETS.top / per,
+      w: (size.width - DUNGEON_INSETS.left - DUNGEON_INSETS.right) / per,
+      h: (size.height - DUNGEON_INSETS.top - DUNGEON_INSETS.bottom) / per,
+    };
+  };
 
   /** The rooms in the order a run meets them: the one after this is painted ahead. */
   const order = Object.keys(dungeon.rooms);
@@ -576,13 +633,15 @@ export function dungeonView(options: DungeonViewOptions): View {
           );
         },
         shadowAt: (feet) => {
-          const s = tideStateOf(dungeon, options.run());
-          const cells = look.cellsAt(s.level, s.warn);
+          const run = options.run();
+          const s = tideStateOf(dungeon, run);
+          const open = doorsAreOpen(run);
+          const cells = look.cellsAt(s.level, s.warn, open);
           if (!cells) return null;
           const placed = heroShadow.at(
             cells,
             look.kindsAt(s.level, s.warn),
-            look.glows,
+            open ? look.openGlows : look.glows,
             feet,
             HERO_SHADOW,
           );
@@ -617,10 +676,13 @@ export function dungeonView(options: DungeonViewOptions): View {
         const run = options.run();
         if (!run.battle || run.finished || run.doorway) return null;
         const from = play === given ? run.play : play;
-        // Being carried by the sea, a tap does nothing until he is on his feet.
-        if (run.battle.wash) return from;
+        // Being carried by the sea, or paused to be resumed, a tap does nothing.
+        if (run.battle.wash || waiting) return from;
         const foe = foeAt(run.battle, run.room, point, min, tapLift(dungeon.rooms[run.room]!));
         if (!foe || held(run.battle, placeOf(dungeon, run), foe)) {
+          // A barred door says so; the walk (to the door, wherever on it the tap was) is the stage's.
+          const door = doorUnder(dungeon.rooms[run.room]!, point, min);
+          if (door && runLocked(run)) barredTap = { letter: door.letter, at: run.battle.clock };
           options.keep({ ...run, battle: stopChasing(run.battle), play: from });
           return null;
         }
@@ -629,7 +691,16 @@ export function dungeonView(options: DungeonViewOptions): View {
         given = aimed.play;
         return aimed.play;
       },
-      extra: () => fightExtra(dungeon, options.run(), look, art),
+      // Anywhere on a door's piece is the door: through it when open, up to it when barred.
+      aim: (point, min) => {
+        const run = options.run();
+        const here = dungeon.rooms[run.room]!;
+        const piece = doorUnder(here, point, min);
+        const door = piece && here.doors.find((d) => d.letter === piece.letter);
+        if (!door) return point;
+        return centreOf(runLocked(run) ? door.inside : door.cell, DUNGEON.tile);
+      },
+      extra: () => fightExtra(dungeon, options.run(), look, art, { view: viewBox(), barredTap }),
       seen: (camera, cssPerArt) => {
         lookedAt = { camera, cssPerArt };
       },
@@ -869,6 +940,8 @@ export function dungeonView(options: DungeonViewOptions): View {
           : 'The grotto is wide and low. So, to be fair, is the boat.';
       look.lock.map = groundNow(dungeon, before);
       hero.wear(state);
+      // An open door's light from beyond lights him too as he goes by it.
+      hero.lightBy(doorsAreOpen(before) ? look.openGlows : look.glows);
       roomView?.update?.(state);
       const after = options.run();
       if (after.room !== roomShown) showRoom();

@@ -33,6 +33,7 @@ import {
   folkOn,
   startFolk,
   strollerAt,
+  glide,
   strollersNow,
   strolling,
   talkToStroller,
@@ -213,9 +214,19 @@ function walkingNow(): readonly Walking[] {
   walked.folk = folk;
   walked.play = lastPlay;
   walked.now = lastNow;
-  walkedNow = strollersNow(folk, lastPlay ?? NOBODY, lastNow);
+  // Slid, never jumped, where someone crossing her line sends her round his other side.
+  walkedNow = glide(
+    glided.feet,
+    glided.now,
+    strollersNow(folk, lastPlay ?? NOBODY, lastNow),
+    lastNow,
+  );
+  glided.feet = walkedNow.map((w) => w.feet);
+  glided.now = lastNow;
   return walkedNow;
 }
+/** Where the strollers were drawn last, and when. */
+const glided = { feet: null as Point[] | null, now: 0 };
 const NOBODY: Play = startPlay({ x: -1e6, y: -1e6 });
 
 /** Where each stroller is, for tests and screenshot scripts. */
@@ -244,4 +255,6 @@ export function forget2(): void {
   folk = startFolk();
   lastPlay = null;
   lastNow = 0;
+  glided.feet = null;
+  glided.now = 0;
 }

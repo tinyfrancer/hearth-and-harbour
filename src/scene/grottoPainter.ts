@@ -5,7 +5,7 @@
  * worker, or one that fails, it is done on the spot.
  */
 import type { Room } from './dungeon';
-import { groundOnTheSpot, type GroundPainter, type TideState } from './grottoArt';
+import { groundOnTheSpot, type DoorPaint, type GroundPainter, type TideState } from './grottoArt';
 import type { GroundAnswer, GroundRequest } from './grottoWorker';
 import type { TGrid } from '../art/town2/cells';
 
@@ -13,7 +13,11 @@ interface Job {
   readonly request: GroundRequest;
   readonly room: Room;
   readonly state: TideState;
-  readonly done: (cells: TGrid, data: Uint8ClampedArray | null) => void;
+  readonly done: (
+    cells: TGrid,
+    data: Uint8ClampedArray | null,
+    doors?: readonly DoorPaint[],
+  ) => void;
 }
 
 /** A painter that asks a worker, and the means to let it go when the run ends. */
@@ -51,7 +55,17 @@ export function groundInAWorker(): WorkerPainter {
       const a = event.data;
       const job = busy;
       busy = null;
-      if (job && job.request.id === a.id) job.done({ w: a.w, h: a.h, d: a.cells }, a.data);
+      if (job && job.request.id === a.id)
+        job.done(
+          { w: a.w, h: a.h, d: a.cells },
+          a.data,
+          a.doors.map((d) => ({
+            letter: d.letter,
+            box: d.box,
+            barred: { w: d.box.w, h: d.box.h, d: d.barred },
+            open: { w: d.box.w, h: d.box.h, d: d.open },
+          })),
+        );
       send();
     };
     worker.onerror = failed;

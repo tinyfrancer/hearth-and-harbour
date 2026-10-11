@@ -366,6 +366,13 @@ export interface StageOptions {
    * leaves it to the stage to walk or open as ever.
    */
   readonly tap?: (point: Point, min: number, play: Play) => Play | null;
+  /**
+   * Where a tap or a held finger at `point` sends the walker, if not there:
+   * a door drawn bigger than the one cell he walks through (a dungeon's)
+   * sends him to that cell wherever on it the thumb lands. `min` is the
+   * smallest tap target, in art pixels.
+   */
+  readonly aim?: (point: Point, min: number) => Point;
   /** More to draw this frame. */
   readonly extra?: (now: number, palette: Palette) => StageExtra;
   /**
@@ -588,7 +595,7 @@ export function stage(options: StageOptions): View {
       return;
     }
     const thing = thingAt(scene.things, tap, min);
-    change(tapAt(scene, play, tap, min));
+    change(tapAt(scene, play, options.aim?.(tap, min) ?? tap, min));
     // A press on the ground can be held and dragged to steer; one on a thing is only a tap.
     if (thing && usable(thing)) return;
     held = {
@@ -834,7 +841,9 @@ export function stage(options: StageOptions): View {
         if (steering(now - held.since, moved)) held = { ...held, steering: true };
       }
       if (held?.steering && !still && device.width > 0) {
-        const steered = steer(scene, play, toWorld(held.at), held.aimed);
+        const at = toWorld(held.at);
+        const min = cssToArt(MIN_TAP_CSS, cssSize(), device, scaleOf(device));
+        const steered = steer(scene, play, options.aim?.(at, min) ?? at, held.aimed);
         held = { ...held, aimed: steered.aimed };
         change(steered.play);
       }
