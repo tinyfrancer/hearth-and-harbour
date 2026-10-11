@@ -5,8 +5,9 @@ import { screenEl, type Title } from './screen';
 import { TITLE_A } from './titleA';
 import { TITLE_B } from './titleB';
 import { TITLE_C } from './titleC';
+import { TITLE_D } from './titleD';
 
-const TITLES: Record<string, Title> = { A: TITLE_A, B: TITLE_B, C: TITLE_C };
+const TITLES: Record<string, Title> = { A: TITLE_A, B: TITLE_B, C: TITLE_C, D: TITLE_D };
 
 const q = new URLSearchParams(location.search);
 const v = q.get('v') ?? 'logos';
