@@ -253,8 +253,7 @@ function crest(g: TGrid, ph: number): void {
 }
 
 /** The ribbon bowed under the shield, and the name on it following the bow. */
-function ribbon(g: TGrid): void {
-  const y0 = SH.top + SH.h + 8;
+export function ribbon(g: TGrid, y0 = SH.top + SH.h + 8): void {
   const half = 176;
   const H = 46;
   const bow = 18;

@@ -14,9 +14,30 @@ import { X, type XMat } from './pal';
 const memo = new Map<string, Framed>();
 const keep = (key: string, make: () => Framed): Framed => {
   let f = memo.get(key);
-  if (!f) memo.set(key, (f = make()));
+  if (!f) memo.set(key, (f = crop(make())));
   return f;
 };
+
+/** Crops a lockup to the box round what is drawn, so placing it places its ink. */
+function crop(f: Framed): Framed {
+  const { w, h, d } = f.g;
+  let x0 = w;
+  let y0 = h;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (d[y * w + x]) {
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x);
+        y0 = Math.min(y0, y);
+        y1 = Math.max(y1, y);
+      }
+  if (x1 < 0) return f;
+  const g = tgrid(x1 - x0 + 1, y1 - y0 + 1);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g.d[(y - y0) * g.w + x - x0] = d[y * w + x] as number;
+  return { g, ox: 0, oy: 0 };
+}
 
 function place(parts: { f: Framed; x: number; y: number }[], w: number, h: number): Framed {
   const g = tgrid(w, h);

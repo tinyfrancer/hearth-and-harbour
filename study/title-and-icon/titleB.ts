@@ -30,6 +30,7 @@ const C = cell;
 const LOOP = 2400;
 const FIRE = { x: 195, y: 612 };
 const FLOOR = 660;
+const LANTERN = { x: 362, y: 252 };
 
 /** Things that give light, or are seen through glass, and so are never darkened by distance. */
 const LIGHTS: readonly XMat[] = ['fire', 'ember', 'lamp', 'glass', 'skyHi', 'skyLo', 'star', 'hazeDusk', 'gilt'];
@@ -196,7 +197,7 @@ function window_(g: TGrid, ph: number): BandGlow[] {
   for (let y = y0 + 114; y < y0 + h; y++)
     for (let x = x0; x < x0 + w; x++) put(g, x, y, C('sea', 4 + (clumps(x / 6 + ph * 4, y, 3) > 0.6 ? 1 : 0)));
   const sub = tgrid(SCREEN_W, SCREEN_H);
-  const glows = farShip(sub, x0 - 12, y0 + 126, 0.26, true, ph);
+  const glows = farShip(sub, x0 - 4, y0 + 126, 0.19, true, ph);
   for (let y = y0; y < y0 + h; y++)
     for (let x = x0; x < x0 + w; x++) {
       const c = at(sub, x, y);
@@ -361,6 +362,11 @@ function floor(g: TGrid): void {
 function backdrop(): TGrid {
   const g = tgrid(SCREEN_W, SCREEN_H);
   render(g, { x: 0, y: 0, w: SCREEN_W, h: FLOOR }, 580, 7);
+  // Indoors the render is smoke-stained and even: fold its patches a step toward the middle.
+  for (let i = 0; i < g.d.length; i++) {
+    const c = g.d[i] as number;
+    if (c && (c >> 3) === (C('plaster', 0) >> 3) && (c & 7) === 1) g.d[i] = C('plaster', 2);
+  }
   // Corner posts and the ceiling beam either side of the chimney.
   beamV(g, 0, 0, 8, FLOOR, 3);
   beamV(g, 382, 0, 8, FLOOR, 4);
@@ -411,13 +417,12 @@ function backdrop(): TGrid {
 let base: TGrid | null = null;
 
 /** The carved board the name is cut into, hung on chains from the rafters. */
-function board(g: TGrid): void {
+export function board(g: TGrid, by = 70): void {
   const L = lockupUncial({ xh: 30, treatment: 'carved', drop: 0, rim: undefined });
   const pad = 14;
   const bw = L.g.w + pad * 2;
-  const bh = L.g.h + pad * 2 - 30;
+  const bh = L.g.h + pad * 2 - 6;
   const bx = Math.round((SCREEN_W - bw) / 2);
-  const by = 70;
   for (const cx of [bx + 30, bx + bw - 30])
     for (let y = 0; y < by; y++) put(g, cx, y, C('iron', y % 4 < 2 ? 2 : 4));
   beamH(g, bx, by, bw, bh, 13, undefined, 'wood');
@@ -439,7 +444,7 @@ function board(g: TGrid): void {
     put(g, bx + 5, y, X('gilt', 4));
     put(g, bx + bw - 6, y, X('gilt', 2));
   }
-  stampF(g, L, bx + pad, by + pad - 34);
+  stampF(g, L, bx + pad, by + pad - 3);
 }
 
 export function drawB(t: number): Frame {
@@ -460,6 +465,15 @@ export function drawB(t: number): Frame {
   put(g, 74, 415, X('fire', 0));
   put(g, 74, 416, X('fire', 2));
   put(g, 74, 417, C('felt', 5));
+  // A wall lantern on its bracket by the peg rail.
+  for (let i = 0; i < 10; i++) put(g, LANTERN.x + 4 - i, LANTERN.y - 12, C('iron', 3));
+  for (let j = -12; j < -8; j++) put(g, LANTERN.x - 5, LANTERN.y + j, C('iron', 4));
+  for (let j = 0; j < 12; j++)
+    for (let i = -4; i <= 4; i++) {
+      const frame = Math.abs(i) === 4 || j === 0 || j === 11 || i === 0;
+      put(g, LANTERN.x + i, LANTERN.y - 9 + j, frame ? C('iron', i < 0 ? 2 : 4) : C('lamp', j < 5 ? 0 : 1));
+    }
+  for (let i = -5; i <= 5; i++) put(g, LANTERN.x + i, LANTERN.y - 10, C('iron', i < 0 ? 1 : 3));
   // Firelight: every lit-able step darkens with distance from the fire, in clumped bands.
   for (let y = 0; y < SCREEN_H; y++)
     for (let x = 0; x < SCREEN_W; x++) {
@@ -467,8 +481,12 @@ export function drawB(t: number): Frame {
       if (!c) continue;
       const m = xmatOf(c);
       if (m && LIGHTS.includes(m) && m !== 'gilt') continue;
-      const d = Math.hypot((x - FIRE.x) / 1.1, (y - FIRE.y) * (y < FIRE.y ? 0.85 : 1.25));
-      let n = clamp(d / 78 + (clumps(x / 2, y / 2, 21) - 0.5) * 0.9 - 0.9, 0, 4);
+      const d = Math.hypot((x - FIRE.x) / 1.1, (y - FIRE.y) * (y < FIRE.y ? 0.8 : 1.25));
+      const jit = (clumps(x / 2, y / 2, 21) - 0.5) * 0.9;
+      let n = clamp(d / 84 + jit - 0.9, 0, 4);
+      // The wall lantern by the cloak lights its own corner a little.
+      const dl = Math.hypot(x - LANTERN.x, (y - LANTERN.y) * 0.8);
+      n = Math.min(n, clamp(dl / 24 + jit + 1.1, 0, 4));
       if (m === 'gilt') n = Math.min(1, n);
       if (n > 0) put(g, x, y, (c & ~7) | Math.min(6, (c & 7) + n));
     }
@@ -477,6 +495,7 @@ export function drawB(t: number): Frame {
     { x: FIRE.x, y: FIRE.y - 20, r: 270 * (1 + breath), strength: 0.2, bands: 5, colour: [255, 130, 50] },
     { x: FIRE.x, y: FIRE.y, r: 120 * (1 + breath * 2), strength: 0.22, bands: 3, colour: [255, 170, 70] },
     { x: 74, y: 415, r: 22, strength: 0.3, bands: 2 },
+    { x: LANTERN.x, y: LANTERN.y - 4, r: 40, strength: 0.2, bands: 3 },
     ...winGlows,
   ];
   return { g, glows };

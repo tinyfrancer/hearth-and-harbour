@@ -195,9 +195,9 @@ function clouds(g: TGrid, ph: number): void {
   // Cumulus: heaps of round puffs, flat-ish below, each puff lit from the low
   // sun on the left and from beneath, shadowed on its upper right.
   const heaps = [
-    { cx: 262, cy: 300, w: 120, h: 34, n: 9, depth: 0.1, k: 1 },
-    { cx: 40, cy: 352, w: 70, h: 18, n: 6, depth: 0.4, k: 2 },
-    { cx: 330, cy: 394, w: 70, h: 14, n: 6, depth: 0.6, k: 3 },
+    { cx: 250, cy: 318, w: 230, h: 15, n: 14, depth: 0.1, k: 1 },
+    { cx: 30, cy: 366, w: 110, h: 9, n: 8, depth: 0.4, k: 2 },
+    { cx: 330, cy: 398, w: 90, h: 7, n: 7, depth: 0.6, k: 3 },
   ];
   heaps.forEach((hp) => {
     const cx = ((hp.cx + ph * 50 * (1 - hp.depth * 0.6) + 200) % (SCREEN_W + 400)) - 200;
@@ -338,7 +338,7 @@ export function drawC(t: number): Frame {
     const a = (ph + off) * Math.PI * 2;
     stamp(g, gp, Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.35));
   }
-  stampCentred(g, lockupUncial({ xh: 34 }), 54, -2);
+  stampCentred(g, lockupUncial({ xh: 34 }), 70, -2);
   glows.push({ x: SUN.x, y: SUN.y - 6, r: 190, strength: 0.22, bands: 4, colour: [255, 214, 150] });
   return { g, glows };
 }
