@@ -61,7 +61,7 @@ describe('the harbour chart', () => {
     });
     expect(firstPick(landings(state, CONTENT, map))).toBe('brinebeards_grotto');
     // Far under the grotto's level, the chart says so plainly; never at the cave.
-    expect(levelWarning(state, l.brinebeards_grotto!)).toMatch(/combat level 1.*level 20/);
+    expect(levelWarning(state, l.brinebeards_grotto!)).toMatch(/19 levels short/);
     expect(levelWarning(state, l.tidepool_cave!)).toBeNull();
     expect(whatToBring(state, l.brinebeards_grotto!)).toMatch(/no food/);
   });

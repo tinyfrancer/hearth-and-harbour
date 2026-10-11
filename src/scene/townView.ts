@@ -354,6 +354,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   label.hidden = true;
   /** Where the town's camera was for the last frame, and an art pixel's size on screen. */
   let lookedAt: { camera: Point; cssPerArt: number } | null = null;
+  /** Half the label's width for its words, in CSS pixels. */
+  let labelHalf = 0;
   /** The thing ringed and named this frame (`ringed`). */
   let ringedNow: string | null = null;
   /** Changes asked of the town's stage for its next frame. */
@@ -430,8 +432,17 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     const top = Math.min(thing.tap.y, shown.walker.at.y - 70);
     const x = Math.round((thing.tap.x + thing.tap.w / 2 - camera.x) * cssPerArt);
     const y = Math.round((top - camera.y) * cssPerArt) - 6;
-    if (label.textContent !== words) label.textContent = words;
-    const place = `translate(${x}px, ${Math.max(70, y)}px) translate(-50%, -100%)`;
+    if (label.textContent !== words || label.hidden) {
+      label.textContent = words;
+      label.hidden = false;
+      // Measured once for its words, not every frame.
+      labelHalf = label.offsetWidth / 2;
+    }
+    // Kept on the scene: centred over the thing where it fits, else against the nearer edge.
+    const half = labelHalf;
+    const width = current.el.clientWidth || Infinity;
+    const left = Math.max(half + 6, Math.min(width - half - 6, x));
+    const place = `translate(${left}px, ${Math.max(70, y)}px) translate(-50%, -100%)`;
     if (label.style.transform !== place) label.style.transform = place;
     label.hidden = false;
   };

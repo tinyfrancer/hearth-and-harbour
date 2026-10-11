@@ -122,7 +122,9 @@ export function marksNow(scene: Scene, play: Play, o: MarkOptions): Mark[] {
       h: MARK_BOX.h + 3,
     };
     if (overlap(mark, o.hero)) continue;
-    out.push({ id: thing.id, kind: boat && o.somewhereNew ? 'new' : kind, at });
+    out.push({ id: thing.id, kind, at });
+    // Somewhere on the chart not yet rowed to: the boat's sparkle beside its badge as well.
+    if (boat && o.somewhereNew) out.push({ id: thing.id, kind: 'new', at: { x: at.x + 15, y: at.y - 4 } });
   }
   return out;
 }

@@ -82,7 +82,7 @@ export const UNDER_BY = 5;
 export function levelWarning(state: GameState, landing: Landing): string | null {
   const level = combatLevel(state);
   if (landing.state === 'soon' || level + UNDER_BY > landing.recommended) return null;
-  return `You are combat level ${level}. This is meant for level ${landing.recommended}: expect to be sent home wet.`;
+  return `Well under that: ${landing.recommended - level} levels short. Expect to be sent home wet.`;
 }
 
 /** What to bring, in a line, for a landing. */

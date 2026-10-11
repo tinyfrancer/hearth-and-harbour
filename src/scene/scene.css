@@ -1259,6 +1259,10 @@
 .chart-row {
   min-height: 56px;
   font-size: 20px;
+  /* Always in reach of the thumb: held at the foot of the sheet while the rest scrolls. */
+  position: sticky;
+  bottom: 0;
+  box-shadow: 0 -8px 0 var(--panel-raised);
 }
 
 @media (prefers-reduced-motion: reduce) {

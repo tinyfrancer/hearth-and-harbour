@@ -66,7 +66,10 @@ describe('the town’s markers', () => {
       { id: 'rowboat', kind: 'travel', at: BOAT_MARK },
     ]);
     const fresh = marksNow(scene, far, options(far, { somewhereNew: true }));
-    expect(fresh).toEqual([{ id: 'rowboat', kind: 'new', at: BOAT_MARK }]);
+    expect(fresh).toEqual([
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK },
+      { id: 'rowboat', kind: 'new', at: { x: BOAT_MARK.x + 15, y: BOAT_MARK.y - 4 } },
+    ]);
   });
 
   it('never show over an open panel, or over the hero', () => {
