@@ -100,7 +100,9 @@ describe('the title screen', () => {
     open();
     clock += 2 * 60 * 1000;
     q<HTMLButtonElement>('[data-title-go]').click();
-    // Still there for the scene to take up.
-    expect(saves().load()?.run ?? null).not.toBeNull();
+    // Not cut short by the app: handed to the scene, on the Town tab where it is taken up
+    // (wave 15). This snapshot is one the scene cannot read, so the scene settles it itself.
+    expect(q('.tab[data-tab="town"]').getAttribute('aria-current')).toBe('page');
+    expect(document.body.textContent).not.toContain('Your dungeon run was cut short.');
   });
 });

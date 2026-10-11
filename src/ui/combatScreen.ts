@@ -13,6 +13,7 @@ import {
 } from '../core/combat';
 import type { Content, DungeonFoe, MonsterDef } from '../core/content';
 import type { FightEnd } from '../core/fight';
+import { dungeonStatus, dungeonsInOrder, type DungeonState } from '../core/dungeons';
 import { foeDrops } from '../core/run';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
@@ -20,7 +21,7 @@ import { bountyEntry } from './bountyScreen';
 import { button, h, setText, titled } from './dom';
 import { keyedList } from './keyed';
 import { face } from './face';
-import { formatNumber } from './format';
+import { formatClock, formatNumber } from './format';
 import type { View } from './view';
 import { workStage } from './atWork';
 
@@ -44,6 +45,8 @@ export interface CombatActions {
   showFight(): void;
   /** To the bounties page. */
   bounties(): void;
+  /** To the Town tab with the harbour chart open: the way into a dungeon. */
+  harbour(): void;
   fight(monsterId: string): void;
   stop(): void;
   loadFood(itemId: string): void;
@@ -93,6 +96,72 @@ function levelRange(cast: readonly DungeonFoe[]): string {
   const least = Math.min(...levels);
   const most = Math.max(...levels);
   return least === most ? `${least}` : `${least} to ${most}`;
+}
+
+/** The word for where the character stands with a dungeon, as its row shows it. */
+const STANDING: Readonly<Record<DungeonState, string>> = {
+  open: 'Open',
+  cleared: 'Cleared',
+  locked: 'Locked',
+  soon: 'Not yet charted',
+};
+
+/**
+ * Every dungeon on the harbour chart, in its order: whether it is open,
+ * cleared or locked (and what unlocks it), the combat level it is meant for,
+ * and its clears and best time. Landings to come show as a "?" with what will
+ * open them. The way in is the boat at the quay: "To the harbour" opens the
+ * Town tab with the chart open.
+ */
+export function dungeonsCard(
+  state: GameState,
+  content: Content,
+  harbour: () => void,
+): HTMLElement | null {
+  const rows = dungeonsInOrder(content).flatMap((dungeon) => {
+    const status = dungeonStatus(state, dungeon.id, content);
+    if (!status) return [];
+    const soon = status.state === 'soon';
+    const facts = soon
+      ? [status.unlock]
+      : [
+          `Recommended combat level ${status.recommended}`,
+          ...(status.clears > 0
+            ? [
+                `cleared ${status.clears === 1 ? 'once' : `${formatNumber(status.clears)} times`}`,
+                ...(status.bestMs !== undefined ? [`best ${formatClock(status.bestMs)}`] : []),
+              ]
+            : []),
+        ];
+    return [
+      h(
+        'div',
+        {
+          class: `dungeon-row stack tight${soon ? ' soon' : ''}`,
+          attrs: { 'data-dungeon-row': dungeon.id, 'data-status': status.state },
+        },
+        [
+          h('div', { class: 'card-head' }, [
+            h('h3', { text: soon ? '?' : dungeon.name }),
+            h('span', { class: `standing ${status.state}`, text: STANDING[status.state] }),
+          ]),
+          !soon && h('p', { class: 'small muted', text: dungeon.description }),
+          status.state === 'locked' &&
+            h('p', { class: 'small', attrs: { 'data-unlock': '' }, text: status.unlock }),
+          h('p', { class: 'small muted', text: facts.join(' · ') }),
+        ],
+      ),
+    ];
+  });
+  if (rows.length === 0) return null;
+  return h('section', { class: 'panel stack dungeons', attrs: { 'data-dungeons': '' } }, [
+    h('div', { class: 'card-head' }, [
+      h('h2', { text: 'Dungeons' }),
+      h('span', { class: 'hint', text: 'By boat from the quay' }),
+    ]),
+    ...rows,
+    button('To the harbour', harbour, 'primary'),
+  ]);
 }
 
 /** "12 kills · 30 coins", what dropped, and what was eaten and shot. */
@@ -298,18 +367,25 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
   // A dungeon's cast is fought in its scene, not from here; what has been
   // beaten there is kept like any kill, and shown after the areas. Anyone not
   // yet met stays a "?", so there is someone to find out about.
+  // One met on the shore as well (the cave's dock rats) has the one card, the
+  // area's, and is named here only.
   const dungeons = Object.values(content.dungeons ?? {})
-    .filter((dungeon) => dungeon.cast?.length)
-    .map((dungeon) =>
-      h('section', { class: 'stack', attrs: { 'data-dungeon': dungeon.id } }, [
+    .filter((dungeon) => dungeon.cast?.length && !dungeon.comingSoon)
+    .map((dungeon) => {
+      const own = dungeon.cast!.filter((foe) => !content.monsters?.[foe.id]);
+      const shared = dungeon.cast!.filter((foe) => content.monsters?.[foe.id]);
+      const also = shared.length
+        ? ` ${shared.map((foe) => foe.name).join(' and ')} ${shared.length === 1 ? 'is' : 'are'} met here too, and counted with those above.`
+        : '';
+      return h('section', { class: 'stack', attrs: { 'data-dungeon': dungeon.id } }, [
         h('div', { class: 'stack tight' }, [
           h('h2', { class: 'group-heading', text: dungeon.name }),
           h('p', {
             class: 'small muted',
-            text: `Fought in the dungeon itself, not from here: levels ${levelRange(dungeon.cast!)}. Everyone beaten there is counted.`,
+            text: `Fought in the dungeon itself, not from here: levels ${levelRange(dungeon.cast!)}. Everyone beaten there is counted.${also}`,
           }),
         ]),
-        ...dungeon.cast!.map((foe) => {
+        ...own.map((foe) => {
           const kills = state.bestiary[foe.id]?.kills ?? 0;
           if (!kills) {
             return h('div', { class: 'panel card monster unmet', attrs: { 'data-cast': foe.id } }, [
@@ -342,8 +418,8 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
             ]),
           ]);
         }),
-      ]),
-    );
+      ]);
+    });
 
   const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
   const food = foodPanel(state, content, actions, updates);
@@ -361,6 +437,7 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
       button('‹ All skills', actions.back, 'back'),
       now,
       bounty.el,
+      dungeonsCard(state, content, actions.harbour),
       you,
       food,
       ...areas,

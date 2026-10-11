@@ -3,6 +3,15 @@ import type { Content, MonsterDef } from '../../src/core/content';
 import { foeDrops, knownFoe, settleRun } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 
+/** What every dungeon row says for the chart, which these tests do not read. */
+const CHART = {
+  description: '',
+  order: 1,
+  recommended: 1,
+  unlock: { kind: 'none' },
+  unlockText: '',
+} as const;
+
 const base: GameState = {
   ...newGame('Cody', 0),
   skills: { melee: 100 },
@@ -89,7 +98,7 @@ const tables: Content = {
   items: {},
   actions: {},
   monsters: { rat: monster('rat'), crab: monster('crab') },
-  dungeons: { cove: { id: 'cove', name: 'The Cove', loot: [] } },
+  dungeons: { cove: { id: 'cove', name: 'The Cove', ...CHART, loot: [] } },
 };
 
 describe('settleRun: kills and clears', () => {
@@ -132,6 +141,7 @@ describe('settleRun: kills and clears', () => {
         cove: {
           id: 'cove',
           name: 'The Cove',
+          ...CHART,
           loot: [],
           cast: [
             {
@@ -179,6 +189,7 @@ describe('settleRun: kills and clears', () => {
         cove: {
           id: 'cove',
           name: 'The Cove',
+          ...CHART,
           loot: [],
           cast: [
             {

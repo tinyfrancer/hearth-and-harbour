@@ -16,6 +16,7 @@ import {
   usedWorth,
   madeWorth,
 } from './economy';
+import { CAVE, ROOMS as CAVE_ROOMS, many as manyCaveRuns } from './cave';
 import { characterAt, hourOf, hoursToLevel as hoursOfFighting } from './fighting';
 import {
   bountyChoices,
@@ -417,6 +418,51 @@ describe('in the smithy’s greaves (for a decision)', () => {
       .map((monster) => monster.id)
       .sort();
     expect(slow).toEqual(['bramble_wyrm', 'marsh_troll', 'smuggler']);
+  });
+});
+
+// The Tidepool Cave (wave 15) is a lesson with a first clear's reward, not a
+// farm. Run back to back by a level-1 character in linen with the reward's
+// bronze sword, each run as quick as the quickest fight of 400 dice in the
+// model of tests/data/cave.ts (foes in reach from the first moment, every
+// heavy blow dodged), plus a dozen seconds to walk its three rooms and
+// fifteen for the round trip (rowing out, the results, the boat and the chart
+// again), with every drop at its average and the pearl at its odds: it pays
+// under half an hour of the first skills, and less XP than dock rats idle.
+// (With no round trip at all its XP would be about 1.5 times the rats'; it
+// cannot be run with none, and the idle rats need no hands.)
+describe('the Tidepool Cave run again and again (wave 15)', () => {
+  const WALK_MS = 12_000;
+  const ROUND_TRIP_MS = 15_000;
+  const perRun = (): { worth: number; xp: number } => {
+    let worth = 0;
+    let damage = 0;
+    for (const room of CAVE_ROOMS) {
+      for (const id of room) {
+        const foe = CAVE.cast!.find((row) => row.id === id)!;
+        const mean = (d: { min: number; max: number }): number => (d.min + d.max) / 2;
+        worth += (foe.coins[0] + foe.coins[1]) / 2;
+        for (const drop of foe.always) worth += mean(drop) * CONTENT.items[drop.item]!.value;
+        for (const drop of foe.rare)
+          worth += (mean(drop) / drop.oneIn) * CONTENT.items[drop.item]!.value;
+        damage += foe.hp;
+      }
+    }
+    // Every point of a foe's health is dealt once: 5 XP each to the attacking skill.
+    return { worth, xp: damage * 5 };
+  };
+
+  it('pays less an hour than the first skills, and less XP than dock rats idle', () => {
+    const fastest = manyCaveRuns(characterAt(1), { dodge: 1 }).quickest + WALK_MS + ROUND_TRIP_MS;
+    const runs = HOUR / fastest;
+    const { worth, xp } = perRun();
+    const coins = Math.round(worth * runs);
+    const xpHour = Math.round(xp * runs);
+    // Pinned so a change to the cave's numbers is seen: about 75 coins and 140 XP a run.
+    expect([Math.round(worth), xp, Math.round(fastest / 1000)]).toEqual([75, 140, 39]);
+    expect(coins).toBeLessThan(skillHour('woodcutting', 1).gross / 2);
+    expect(coins).toBeLessThan(bestFightHour(1).earned / 2);
+    expect(xpHour).toBeLessThan(hourOf(1, 'dock_rat').xpPerHour);
   });
 });
 

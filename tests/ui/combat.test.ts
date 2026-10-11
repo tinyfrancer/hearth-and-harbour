@@ -92,8 +92,12 @@ describe('the Combat section', () => {
     q<HTMLButtonElement>('[data-combat]').click();
     const grotto = q('[data-dungeon="brinebeards_grotto"]');
     expect(grotto.querySelector('.group-heading')!.textContent).toBe('Brinebeard’s Grotto');
-    // After every area, and not something to tap and fight from here.
-    expect(grotto.previousElementSibling!.matches('[data-area]')).toBe(true);
+    // After every area (and the cave, before it on the chart), and not something to tap and
+    // fight from here.
+    expect(grotto.previousElementSibling!.matches('[data-dungeon="tidepool_cave"]')).toBe(true);
+    expect(grotto.previousElementSibling!.previousElementSibling!.matches('[data-area]')).toBe(
+      true,
+    );
     expect(grotto.querySelector('button')).toBeNull();
     const cast = [...grotto.querySelectorAll<HTMLElement>('[data-cast]')];
     expect(cast.map((el) => el.dataset.cast)).toEqual(
@@ -304,5 +308,74 @@ describe('the bank and the sheet', () => {
     expect(q('[data-card="iron_helmet"]').textContent).toContain('Defence level 10');
     press('Equip Iron helmet');
     expect(saved().equipment.head).toEqual({ item: 'iron_helmet', qty: 1 });
+  });
+});
+
+describe('the Dungeons card (wave 15)', () => {
+  const rows = (): string[] =>
+    [...root.querySelectorAll<HTMLElement>('[data-dungeon-row]')].map(
+      (el) => `${el.dataset.dungeonRow} ${el.dataset.status}`,
+    );
+
+  it("lists the chart's dungeons for a new player: the cave and the grotto open, two to come", () => {
+    playing();
+    q<HTMLButtonElement>('[data-combat]').click();
+    expect(rows()).toEqual([
+      'tidepool_cave open',
+      'brinebeards_grotto open',
+      'uncharted_1 soon',
+      'uncharted_2 soon',
+    ]);
+    const cave = q('[data-dungeon-row="tidepool_cave"]');
+    expect(cave.querySelector('h3')!.textContent).toBe('Tidepool Cave');
+    expect(cave.textContent).toContain('Recommended combat level 1');
+    expect(q('[data-dungeon-row="brinebeards_grotto"]').textContent).toContain(
+      'Recommended combat level 20',
+    );
+    // A landing to come keeps its name back, and says what will open it.
+    const soon = q('[data-dungeon-row="uncharted_1"]');
+    expect(soon.querySelector('h3')!.textContent).toBe('?');
+    expect(soon.textContent).toContain('Clear Brinebeard’s Grotto.');
+    expect(soon.textContent).not.toContain('Uncharted');
+    // Above the areas, with its way in.
+    const card = q('[data-dungeons]');
+    expect(card.compareDocumentPosition(q('[data-area]')) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(card.querySelector('button.primary')!.textContent).toBe('To the harbour');
+  });
+
+  it('shows clears and the best time once cleared, and what opens next', () => {
+    let state = newGame('Cody', clock);
+    state = settleRun(state, { cleared: 'tidepool_cave', timeMs: 101_400 }, CONTENT);
+    state = settleRun(state, { cleared: 'tidepool_cave', timeMs: 84_900 }, CONTENT);
+    state = settleRun(state, { cleared: 'brinebeards_grotto', timeMs: 512_000 }, CONTENT);
+    playing(state);
+    q<HTMLButtonElement>('[data-combat]').click();
+    expect(rows()).toEqual([
+      'tidepool_cave cleared',
+      'brinebeards_grotto cleared',
+      'uncharted_1 soon',
+      'uncharted_2 soon',
+    ]);
+    expect(q('[data-dungeon-row="tidepool_cave"]').textContent).toContain(
+      'Recommended combat level 1 · cleared 2 times · best 1:24',
+    );
+    expect(q('[data-dungeon-row="brinebeards_grotto"]').textContent).toContain(
+      'cleared once · best 8:32',
+    );
+  });
+
+  it("names only the cave's own boss among its cast: its rats and crabs are the shore's", () => {
+    playing({
+      bestiary: { old_snapper: { kills: 1, seen: [] }, dock_rat: { kills: 3, seen: [] } },
+    });
+    q<HTMLButtonElement>('[data-combat]').click();
+    const cave = q('[data-dungeon="tidepool_cave"]');
+    expect(
+      [...cave.querySelectorAll<HTMLElement>('[data-cast]')].map((el) => el.dataset.cast),
+    ).toEqual(['old_snapper']);
+    expect(cave.textContent).toContain('Dock rat and Sand crab are met here too');
+    expect(root.querySelectorAll('[data-monster="dock_rat"]').length).toBe(1);
   });
 });

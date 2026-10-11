@@ -256,17 +256,56 @@ export interface PerkDef {
  */
 export interface DungeonDef {
   id: string;
+  /** Its name. Never shown while it is `comingSoon`. */
   name: string;
+  /** What it is, in a line, for the harbour chart and the menus. */
+  description: string;
+  /** Its place on the harbour chart and in the menus' lists, from the first (1). */
+  order: number;
+  /** The combat level it is meant for (src/core/bounty.ts `combatLevel`): advice, never a gate. */
+  recommended: number;
+  /** What has to be done before the boat will take you there. */
+  unlock: DungeonUnlock;
+  /**
+   * What unlocks it, in a line for the player: "Clear the Tidepool Cave."
+   * Shown beside a locked landing; for one open from the start, says so.
+   */
+  unlockText: string;
+  /**
+   * A landing on the chart with nothing there yet: shown as a silhouette with
+   * what will unlock it, its name and everything else kept back. It is never
+   * open, its clears never count, and it has no loot or cast.
+   */
+  comingSoon?: boolean;
+  /**
+   * Paid into the bank once, by the run that first clears it (`settleRun`),
+   * on top of whatever that run picked up.
+   */
+  firstClear?: readonly { item: string; qty: number }[];
   /** Item ids it can give up, in the order the collection log lists them. */
   loot: readonly string[];
   /**
    * Who is fought in it, by the ids its scene reports kills by, in the order
    * they are listed, with their numbers. Their kills are kept like any
-   * monster's, and the bestiary shows their level and drops; they are not
-   * table monsters, so nothing idle fights them or posts a bounty on them.
+   * monster's, and the bestiary shows their level and drops; nothing idle
+   * fights them or posts a bounty on them.
+   *
+   * A row may share its id with a table monster (the cave's dock rats): it is
+   * the same creature, met somewhere else. Its numbers here are how it fights
+   * in this dungeon only; its kills, drops seen and bounty count go to the one
+   * bestiary entry under that id, and the tables' row is the one the bestiary
+   * shows (`foeRow`). Its drops should be among the table row's, so what it is
+   * seen to drop is kept.
    */
   cast?: readonly DungeonFoe[];
 }
+
+/**
+ * What opens a dungeon: nothing (open from the start), a combat level, or a
+ * first clear of another dungeon.
+ */
+export type DungeonUnlock =
+  { kind: 'none' } | { kind: 'combat'; level: number } | { kind: 'cleared'; dungeon: string };
 
 /** One of several things, or none: rolled once a kill, one chance in `oneIn` that it is any. */
 export interface PickDrop {

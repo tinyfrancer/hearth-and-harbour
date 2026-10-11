@@ -92,7 +92,18 @@ const content: Content = {
     cake: { id: 'cake', item: 'cake', qty: 1, price: 100 },
     lamp: { id: 'lamp', price: 10, perk: { name: 'Lamp', description: '', effect: '', shows: [] } },
   },
-  dungeons: { cave: { id: 'cave', name: 'The Cave', loot: ['coin', 'gem'] } },
+  dungeons: {
+    cave: {
+      id: 'cave',
+      name: 'The Cave',
+      description: '',
+      order: 1,
+      recommended: 1,
+      unlock: { kind: 'none' },
+      unlockText: '',
+      loot: ['coin', 'gem'],
+    },
+  },
 };
 
 describe('the collection log', () => {

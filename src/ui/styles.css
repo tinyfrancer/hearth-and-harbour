@@ -1914,3 +1914,38 @@ button.card:active {
   font-size: 14px;
   opacity: 0.8;
 }
+
+/* The Dungeons card on the Combat page: one row a landing on the harbour chart. */
+.dungeons h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dungeon-row + .dungeon-row {
+  border-top: var(--px) solid var(--line);
+  padding-top: 10px;
+}
+
+.dungeon-row.soon h3 {
+  color: var(--text-muted);
+}
+
+.standing {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.standing.open {
+  color: var(--gold-bright);
+}
+
+.standing.cleared {
+  color: var(--green);
+}
+
+.standing.locked,
+.standing.soon {
+  color: var(--text-muted);
+}

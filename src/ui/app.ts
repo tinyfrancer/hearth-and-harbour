@@ -29,7 +29,8 @@ import {
 import { equip, unequip, wornItemIds } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
-import { settleRun } from '../core/run';
+import { dungeonDef } from '../core/dungeons';
+import { firstClearOf, settleRun } from '../core/run';
 import { buyFromStore } from '../core/store';
 import { SLOTS, type AchievementDef, type Content } from '../core/content';
 import { newGame, skillLevel, stat, type Fight, type GameState } from '../core/state';
@@ -54,7 +55,7 @@ import { nowDoing, type NowTarget } from './nowDoing';
 import { skillListView, skillPageView } from './skillsScreen';
 import { entryName, storeView } from './storeScreen';
 import { TABS, type TabId } from './tabs';
-import type { View } from './view';
+import type { ShellRequest, View } from './view';
 
 export interface AppDeps {
   saves: SaveService;
@@ -193,6 +194,11 @@ export function mountApp(
   let records: 'log' | 'achievements' | null = null;
   /** A scene has stopped the idle clock (a dungeon run is on). */
   let idlePaused = false;
+  /**
+   * What a menu has asked the town to open (`Shell.takeRequest`): taken once
+   * by the scene, and dropped if the Town tab is left first.
+   */
+  let request: ShellRequest | null = null;
   /** Whether Menu is showing the art gallery. */
   let galleryOpen = false;
   /** What is open under the character sheet: a slot's choices, the look, or nothing. */
@@ -380,6 +386,13 @@ export function mountApp(
     if (screen) screen.scrollTop = 0;
   };
 
+  /** "To the harbour": the Town tab, with the harbour chart asked for. */
+  const toHarbour = (): void => {
+    request = 'chart';
+    tab = 'town';
+    render();
+  };
+
   const combatActions = (game: GameState): CombatActions => ({
     back: () => {
       combatPage = null;
@@ -398,6 +411,7 @@ export function mountApp(
       combatPage = 'bounties';
       turnTo();
     },
+    harbour: toHarbour,
     fight: (monsterId) => {
       const result = startFight(state ?? game, monsterId, content);
       if (!result.ok) {
@@ -736,11 +750,21 @@ export function mountApp(
         // that called this is still showing its results.
         const before = state;
         state = settleRun(state, spoils, content);
+        const said: string[] = [];
+        const dungeon = spoils.cleared ? dungeonDef(content, spoils.cleared) : undefined;
+        if (dungeon && !before.dungeons[dungeon.id] && state.dungeons[dungeon.id]) {
+          const reward = firstClearOf(dungeon, content).map(({ item, qty }) =>
+            qty === 1 ? `a ${content.items[item]!.name}` : `${qty} ${content.items[item]!.name}`,
+          );
+          if (reward.length > 0)
+            said.push(`First clear of ${dungeon.name}! Into the bank: ${listed(reward)}.`);
+        }
         if (bountyReady(state) && !bountyReady(before)) {
-          toast(
+          said.push(
             `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
           );
         }
+        if (said.length > 0) toast(said.join(' '));
         save();
       },
       openBounties: () => {
@@ -758,6 +782,12 @@ export function mountApp(
         if (!run) save();
       },
       savedRun: () => state?.run ?? null,
+      takeRequest: () => {
+        const asked = request;
+        request = null;
+        return asked;
+      },
+      chartOpened: () => {},
     });
   };
 
@@ -815,9 +845,11 @@ export function mountApp(
     // The title stays until it is left by its own button.
     if (titleUp) return;
     if (tab !== 'town' || !state) {
-      // Only a scene on the Town tab may hold the clock or the whole screen.
+      // Only a scene on the Town tab may hold the clock or the whole screen,
+      // and a request for it not taken there is dropped.
       idlePaused = false;
       root.classList.remove('fullscreen');
+      request = null;
     }
     if (!state) {
       view = null;
@@ -1020,6 +1052,8 @@ export function mountApp(
   const welcomeBack = (): void => {
     if (!state) return;
     if (state.run && runKept) {
+      // Straight back to it: the Town tab is where the scene takes the run up.
+      tab = 'town';
       lastTick = now();
       return;
     }
