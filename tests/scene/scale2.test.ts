@@ -4,13 +4,19 @@ import { cssStep } from '../../src/art/canvas';
 import {
   TOWN_SIZE,
   canvasFit,
+  dungeonScale,
   pixelFit,
+  roomScale,
   scaleFor,
   sceneScale,
   viewSize,
 } from '../../src/scene/scale';
 import { TOWN2_SCENE } from '../../src/scene/town2Place';
 import { TOWN2_H, TOWN2_W } from '../../src/art/town2/town';
+import { dungeonById } from '../../src/scene/dungeons';
+import { DUNGEON } from '../../src/scene/dungeonMetrics';
+import { TIDEPOOL_ID } from '../../src/scene/tidepool';
+import { GROTTO_ID } from '../../src/scene/cast';
 
 // The scale belongs to the scene shown: the dungeons keep a 270-wide world on
 // 16-pixel tiles (`TOWN_SIZE`, the first town's); the town is 360 wide on
@@ -137,4 +143,42 @@ describe('the town drawn at one canvas pixel per art pixel and enlarged', () => 
       scale: 3,
     });
   });
+});
+
+describe('a dungeon room’s scale', () => {
+  // Sideways phones: [name, CSS width, CSS height, device pixel ratio, the cave's scale, the grotto's].
+  const sideways: [string, number, number, number, number, number][] = [
+    ['an iPhone at 844 x 390, 3x', 844, 390, 3, 4, 3],
+    ['an iPhone Pro Max at 932 x 430, 3x', 932, 430, 3, 4, 3],
+    ['a 740 x 360 Android at 3x', 740, 360, 3, 3, 3],
+    ['an iPhone SE at 667 x 375, 2x', 667, 375, 2, 2, 2],
+  ];
+  const cave = dungeonById(TIDEPOOL_ID)!;
+  const grotto = dungeonById(GROTTO_ID)!;
+  const biggest = (d: typeof cave) =>
+    Object.values(d.rooms).reduce(
+      (m, r) => ({
+        width: Math.max(m.width, r.map.cols * DUNGEON.tile),
+        height: Math.max(m.height, r.map.rows * DUNGEON.tile),
+      }),
+      { width: 0, height: 0 },
+    );
+  for (const [name, w, h, dpr, caveScale, grottoScale] of sideways) {
+    it(`fills ${name} with a whole room where one fits: the cave at ${caveScale}, the grotto at ${grottoScale}`, () => {
+      const device = canvasFit({ width: w, height: h }, dpr).device;
+      const room = biggest(cave);
+      const k = roomScale(device, room, DUNGEON.scene.width);
+      expect(k).toBe(caveScale);
+      // The largest whole scale at which the room fits, and never under the town's size for the hero.
+      expect(device.width / k).toBeGreaterThanOrEqual(room.width);
+      expect(device.height / k).toBeGreaterThanOrEqual(room.height);
+      expect(device.width / (k + 1) < room.width || device.height / (k + 1) < room.height).toBe(
+        true,
+      );
+      expect(k).toBeGreaterThanOrEqual(dungeonScale(device, DUNGEON.scene.width));
+      // The grotto's rooms are wider than a screen: its scale is the town's, as before.
+      expect(roomScale(device, biggest(grotto), DUNGEON.scene.width)).toBe(grottoScale);
+      expect(grottoScale).toBe(dungeonScale(device, DUNGEON.scene.width));
+    });
+  }
 });

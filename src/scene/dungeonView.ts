@@ -86,7 +86,7 @@ import type { Play } from './play';
 import type { Size } from './camera';
 import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
-import { dungeonScale } from './scale';
+import { roomScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
 import {
   stage,
@@ -706,6 +706,17 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** The rooms in the order a run meets them: the one after this is painted ahead. */
   const order = Object.keys(dungeon.rooms);
+  /** The largest room of the dungeon, art pixels: the one scale for all its rooms (`roomScale`). */
+  const biggestRoom: Size = order.reduce(
+    (most, id) => {
+      const map = dungeon.rooms[id]!.map;
+      return {
+        width: Math.max(most.width, map.cols * DUNGEON.tile),
+        height: Math.max(most.height, map.rows * DUNGEON.tile),
+      };
+    },
+    { width: 0, height: 0 },
+  );
 
   const showRoom = (): void => {
     const run = options.run();
@@ -782,7 +793,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       play: run.play,
       keep: () => {},
       press: () => {},
-      scaleOf: (device) => dungeonScale(device, DUNGEON.scene.width),
+      // As large as a whole room still fits: the cave's one-screen rooms fill a wide phone.
+      scaleOf: (device) => roomScale(device, biggestRoom, DUNGEON.scene.width),
       focusRise: FOCUS_RISE_DUNGEON,
       pixelated: true,
       overlay: true,

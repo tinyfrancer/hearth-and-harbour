@@ -168,6 +168,23 @@ export function dungeonScale(device: Size, width = SCENE_WIDTH): number {
 }
 
 /**
+ * The scale for a dungeon whose rooms are `room` art pixels at the most: the
+ * largest whole number of device pixels an art pixel at which a whole room
+ * still fits the screen, so a small room (the tide-pool cave's, one screen
+ * across) fills a wide phone instead of sitting letterboxed in the middle;
+ * never less than `dungeonScale`, so a room wider than a screen (the
+ * grotto's, which the camera travels) keeps the hero the size he was in
+ * town. The same for every room of a dungeon, so going through a door does
+ * not change it.
+ */
+export function roomScale(device: Size, room: Size, width = SCENE_WIDTH): number {
+  let scale = dungeonScale(device, width);
+  while (device.width / (scale + 1) >= room.width && device.height / (scale + 1) >= room.height)
+    scale++;
+  return scale;
+}
+
+/**
  * A scene's overlay for words and thin lines (`StageOptions.overlay`): as
  * big on the page as the scene's canvas, `css`, and a device pixel per pixel
  * whatever the scene's own canvas holds (`device` covered at `scale` device
