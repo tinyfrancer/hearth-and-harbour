@@ -14,7 +14,7 @@ const PRIZES = ['smugglers_cutlass', 'trollstone', 'poachers_longbow', 'wyrmscal
 // The first set, across everything that exists: the first of each kind of
 // thing (a skill's firsts are for doing the skill, `made`, never for owning
 // what it gives: a sand crab's shells are not foraging), levels, mastery, fighting, thieving, bounties, potions, gear, the
-// store, the collection log and the grotto. In the order the page lists them.
+// store, the collection log, the Tidepool Cave and the grotto. In the order the page lists them.
 // Nothing is given for them yet; the house (S18) will give them a wall.
 const ROWS: Record<string, Row> = {
   first_log: {
@@ -147,6 +147,16 @@ const ROWS: Record<string, Row> = {
     name: 'Magpie',
     text: 'Find fifty different things for the collection log.',
     rule: { kind: 'collected', count: 50 },
+  },
+  cave_cleared: {
+    name: 'Sea Legs',
+    text: 'Clear the Tidepool Cave.',
+    rule: { kind: 'cleared', dungeon: 'tidepool_cave' },
+  },
+  cave_quick: {
+    name: 'Quick Study',
+    text: 'Clear the Tidepool Cave in under a minute and a half.',
+    rule: { kind: 'cleared', dungeon: 'tidepool_cave', withinMs: 90_000 },
   },
   grotto_cleared: {
     name: 'Low Tide',

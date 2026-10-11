@@ -2,18 +2,27 @@ import { actionDuration } from '../core/actions';
 import { monsterDef, playerCombat } from '../core/combat';
 import type { Content } from '../core/content';
 import { bankCount, type GameState } from '../core/state';
+import type { Prefs } from '../persistence/Prefs';
 import { workStage } from './atWork';
 import { bar } from './bar';
 import { h, setText } from './dom';
 import { formatNumber } from './format';
 
 /**
- * CSS pixels to an art pixel for the hero in the strip: two device pixels to
- * one at 3x (and 2.625x), one at 2x, so he fits a strip a thumb's height
- * tall (he fills his canvas's height, so only the air behind him is trimmed).
+ * Device pixels to an art pixel for the hero in the strip: the fewest whole
+ * ones that show him at least 0.6 CSS pixels an art pixel. Two at 3x (48 CSS
+ * tall) and at 2.625x (55); two at 2x as well (72), where one left him 36
+ * tall, too small to read (wave 14's weak spot); one at 1x. He fills his
+ * canvas's height (his hair to his soles), so the strip grows with him there;
+ * folding it is the player's way to have the room back.
  */
-export const STRIP_SCALE = 0.67;
-const STRIP_TRIM = { left: 8 };
+export function stripScale(dpr: number): number {
+  return Math.max(1, Math.ceil(STRIP_LEAST * dpr - 1e-9));
+}
+const STRIP_LEAST = 0.6;
+
+/** The strip folded to a slim bar, on this device (a preference, never the save). */
+export const STRIP_FOLDED_PREF = 'strip-folded';
 
 /** Where the strip takes the thumb: the running action's skill, the fight, or the skills to choose from. */
 export type NowTarget = { kind: 'skill'; skill: string } | { kind: 'fight' } | { kind: 'choose' };
@@ -78,13 +87,20 @@ function said(
  * tap from its page. Built once and kept across every screen; every frame
  * moves only the picture (when its frame changes), the bar and the words.
  */
-export function nowDoing(content: Content, go: (target: NowTarget) => void): NowDoing {
-  const stage = workStage(content, STRIP_SCALE, true, STRIP_TRIM);
+export function nowDoing(
+  content: Content,
+  go: (target: NowTarget) => void,
+  prefs?: Prefs,
+): NowDoing {
+  const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+  // Fitted to the work under way: as wide as this loop and its prop, no wider.
+  const stage = workStage(content, stripScale(dpr) / dpr, true, {}, true);
   const line = h('span', { class: 'now-line' });
   const detail = h('span', { class: 'now-detail small muted' });
   const progress = bar('action', 'Progress');
   let target: NowTarget = { kind: 'choose' };
-  const el = h(
+  let folded = prefs?.get(STRIP_FOLDED_PREF) === '1';
+  const main = h(
     'button',
     {
       class: 'now-doing',
@@ -94,13 +110,33 @@ export function nowDoing(content: Content, go: (target: NowTarget) => void): Now
     [
       h('span', { class: 'now-stage' }, [stage.el]),
       h('span', { class: 'now-text' }, [line, progress.el, detail]),
-      h('span', { class: 'hint', text: '›', attrs: { 'aria-hidden': 'true' } }),
     ],
   );
+  // Folded, the strip is a slim bar: the words and the bar, no hero. Its own
+  // button, beside the strip's (a button cannot hold another), remembered.
+  const fold = h('button', {
+    class: 'now-fold',
+    attrs: { type: 'button', 'data-now-fold': '' },
+    on: {
+      click: () => {
+        folded = !folded;
+        prefs?.set(STRIP_FOLDED_PREF, folded ? '1' : '0');
+        show();
+      },
+    },
+  });
+  const el = h('div', { class: 'now-strip' }, [main, fold]);
+  const show = (): void => {
+    el.classList.toggle('folded', folded);
+    fold.textContent = folded ? '▴' : '▾';
+    fold.setAttribute('aria-label', folded ? 'Show the hero at work' : 'Fold the strip away');
+    fold.setAttribute('aria-expanded', String(!folded));
+  };
+  show();
   return {
     el,
     update(state, ms) {
-      stage.show(state, ms);
+      if (!folded) stage.show(state, ms);
       const now = said(state, content);
       target = now.target;
       el.dataset.target = now.target.kind;

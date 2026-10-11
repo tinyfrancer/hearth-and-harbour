@@ -364,8 +364,8 @@ export type AchievementRule =
   | { kind: 'kills'; count: number; monster?: string }
   /** Every one of these worn at once. */
   | { kind: 'worn'; items: readonly string[] }
-  /** Clears of a dungeon. */
-  | { kind: 'cleared'; dungeon: string; count?: number }
+  /** Clears of a dungeon; with `withinMs`, a best time under it (`DungeonRecord.bestMs`). */
+  | { kind: 'cleared'; dungeon: string; count?: number; withinMs?: number }
   /** Coins in hand at once. */
   | { kind: 'coins'; amount: number }
   /** Pockets picked, or times caught, at all marks together. */
