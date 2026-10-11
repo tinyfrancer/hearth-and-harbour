@@ -20,8 +20,15 @@ export function dressOf(state: GameState): Dress {
   return { look: fullLook(state.look), worn: wornItemIds(state) };
 }
 
-/** One string per way the hero can look, so a change is found by comparing two strings. */
+/**
+ * One string per way the hero can look, so a change is found by comparing two
+ * strings: every part of the look by name, whatever parts it has (a beard
+ * today, whatever comes next), in a fixed order, and what is worn.
+ */
 export function dressKey(dress: Dress): string {
-  const { skin, hair, hairColour } = dress.look;
-  return `${skin} ${hair} ${hairColour} | ${dress.worn.join(' ')}`;
+  const look = dress.look as unknown as Readonly<Record<string, unknown>>;
+  const parts = Object.keys(look)
+    .sort()
+    .map((part) => `${part}=${String(look[part] ?? '')}`);
+  return `${parts.join(' ')} | ${dress.worn.join(' ')}`;
 }
