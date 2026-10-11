@@ -25,11 +25,17 @@ TITLE_FRAME_MS = 125                  // redraw interval while the title shows
   same composition. Build a new scene on a resize or rotation (`dispose()` the old one).
 - **The menu**: put the button and version line inside `safe` (calm water at the foot, below the
   town's reflection, a little narrower than the screen; it reaches the canvas's bottom, so add
-  the safe-area inset yourself). On a 390 x 844 phone it is 340 x 150 CSS pixels from y 694. The
-  logotype is part of the picture, above `safe` at every size (tested).
+  the safe-area inset yourself). On a 390 x 844 phone it is 340 x 150 CSS pixels from y 694; on
+  360 x 640, 336 x 150 from y 490; on 430 x 932, 340 x 150 from y 782. The logotype is part of
+  the picture, above `safe` at every size (tested). On a screen much wider than tall (a phone on
+  its side, a tablet held sideways) `safe` is the calm water to the right of the town instead
+  (844 x 390: 287 x 135 CSS pixels at x 549, y 255): lay the menu out inside whatever box comes
+  back rather than assuming it is centred.
 - **Animating**: call `draw(ms)` with the time since the title appeared, every `TITLE_FRAME_MS`
   (a `requestAnimationFrame` loop that skips frames until 125 ms have passed). The first `draw`
-  builds the still layers (see the performance notes in Done); later frames are cheap.
+  builds the still layers (about 150 to 250 ms on the sandbox's busy VM unthrottled, 370 to 490
+  ms at 4x CPU throttle; give the screen the panel colour `#15111f` behind the canvas so nothing
+  flashes); later frames cost 2 to 4 ms (about 12 at 4x).
   `draw(a)` then `draw(b)` paints exactly what a fresh scene's `draw(b)` does.
 - **Reduced motion**: `draw(0)` once and never again; frame 0 is a composed still.
 - **Stop** the loop and `dispose()` when the title is left; nothing else holds memory.
@@ -534,6 +540,61 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 `ITEM_ICON_IDS`, `SKILL_ICON_IDS` and `ICON_FAMILIES`.
 
 ## Done
+
+- **B14: the title screen** (PR #57, merged; this PR). Review sheets in
+  `/home/claude/lane-shots/w14-b/`: `title-390.png` (1170 x 2532), `title-360.png`,
+  `title-430.png`, `title-2625.png`, `title-land.png`, `title-tablet.png` (each with a mock menu
+  in `safe`), `title-before-after.png` (study A beside this, the fixes called out), `title.gif`
+  and `title-town-2x.gif` (6 s at the redraw interval), `crop-town-400.png`, `crop-ship-400.png`,
+  `crop-logotype-400.png`, `crop-reflections-400.png`, `activities-fixes.png` (each fixed loop
+  before and after, and the greaves icons).
+  - **The door**: `src/art/title.ts` (`titleScene`, `TITLE_FRAME_MS`), the scene in
+    `src/art/title/` (layout, sky, land, buildings, harbour, light, logo, scene, gallery).
+  - **What changed from study A**: the hill recomposed round the house (Cody's fault: a broad
+    shoulder three times the house's width, a fenced garden, a dry-stone wall, slopes eased off
+    the shoulder behind the tavern and smithy, a path in turns to the pier); the three buildings
+    each drawn by its own painter at one scale (the study had one generic painter); layers with
+    anchors instead of one 390 x 844 bitmap; the sky as flat bands with a deliberate interlock and
+    the afterglow behind the town; placed stars; banded halos; the water a column-by-column mirror
+    with lit windows as streaks and a calm band for the menu; the logotype trued (7-pixel stems,
+    3-pixel hairlines on whole pixels, spaced by shape) and baked.
+  - **Five critique rounds** (each listed before fixing): (1) mosaic water, glyph-like window
+    reflections, a flat bright hill, many stripy sky bands, thin clouds, too few stars, tiny
+    gulls, soft green halos; (2) zigzag reflections from one-row ripple bands, blotchy thatch, a
+    stray hedge line, contrail clouds, a bare quay; (3) a pyramid-straight hill slope, thin dark
+    smoke, stems sampling 6 or 7 pixels; (4) brick-like ripple faces in the bottom water,
+    corrugated zenith bands behind the name; (5) beside the study, the afterglow hidden behind the
+    hills and the water too cold; the menu cramped on a phone held sideways.
+  - **Performance** (production build, 390 x 844 at 3x, Chromium on this sandbox, whose two cores
+    were shared with other sessions all along, so absolute numbers are pessimistic; minimum and
+    median of fresh pages): first paint (creating the scene and its first `draw`) 170 / 268 ms
+    unthrottled, 368 / 490 ms at 4x CPU throttle (PR #57's code under the same conditions: 523 /
+    568 ms at 4x); a frame 2.3 / 3.9 ms unthrottled, about 12 ms median at 4x, so 125 ms frames
+    are about a tenth of a slow phone's time. The logotype is baked (sampling its letters took
+    longer than the rest of the build); the build's long loops are small functions of their own
+    (a long loop in a big function compiles slowly), tables replace per-pixel calls, the mirror's
+    fade is a table per row, and the passes that look for lights stop below the last light.
+    Memory: the still layer and the frame are w x h x 4 bytes each (1.3 MB at 390 x 844), the
+    mirror w x (h - wl) x 4 (0.57 MB), the ripple pattern (h - wl) x 512 bytes.
+  - **Size**: the door alone is 64.8 KB minified, 24.4 KB gzipped (the town's palette and cell
+    code, about 10 KB gzipped of that, are already in the app); the app's bundle grows from
+    703.2 KB to 759.1 KB minified, 246.6 to 266.7 KB gzipped, with the gallery's section.
+  - **Tests** (`tests/art/title.test.ts`): seven sizes compose (whole device pixels, the
+    logotype inside the canvas, above the town's smoke and above `safe`; `safe` below the
+    reflection or beside the town; the water calm under it); the logotype on the dark sky; the
+    water mirrors the town within the ripple tolerance (3 pixels) row by row and overall; lit
+    windows mirror as light; `draw(a)` then `draw(b)` equals a fresh `draw(b)`; every building's
+    foot on ground and the house's shoulder past its walls; the bake equals the drawing; the door
+    in jsdom; the gallery section.
+  - **Activity poses** (B13's weak list): props moved clear of the front foot (at least 2 pixels in
+    every frame, tested), tools landing on their props (the hammer on the glowing bar, the
+    needle's thread down to the cloth, the hand into a bramble now tall enough to reach, the hand
+    onto the counter; tested at each contact frame), the off hand's basket and shaft held out in
+    front, the fishing rod drawn as a rod. Same doors, frame counts and timings.
+  - **The greaves icons** redrawn (bronze, and iron with it as their family): a pair in profile
+    with a leg's silhouette, straps behind the calf. Same ids and size.
+  - **Gallery**: "See the title screen" (first among the drawn-on-a-tap sections) shows it
+    animated at 360 x 640, 390 x 844 and 430 x 932, `safe` outlined.
 
 - **B13: Cody's feedback, the art items.** Review sheets in `/home/claude/lane-shots/w13-b/`:
   `hair-4way.png` (every style in four facings and under the helm, before/after for the five old
@@ -1451,6 +1512,13 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Needs from another lane
 
+- **Lane A, for B14**: wire the title screen (top of this file): `titleScene(innerWidth,
+innerHeight, devicePixelRatio)` in a full-screen container with `overflow: hidden` and the panel
+  colour behind it, the menu laid out inside `safe` (it may be beside the town on a wide screen),
+  a 125 ms `draw` loop from `requestAnimationFrame`, `draw(0)` once under
+  `prefers-reduced-motion`, a new scene on resize or rotation, `dispose()` on leaving. Nothing
+  else is needed from lane A; the activity doors and the greaves' ids are unchanged.
+
 - **Lane C, for B13** (nothing breaks if you do nothing):
   - **Doors**: draw `dungeonDoor2(kind, aroundOf(kinds, col, row), { col, row })` for every door
     cell after the tiles and before anything standing, at `(col * 24 + dx, row * 24 + dy)`, and
@@ -1607,6 +1675,41 @@ worn, 'dusk')` is identical under it.
   - `tests/ui` that look for the character canvas by its size will need the new size.
 
 ## Notes for this lane's next session
+
+- **Weak list (B14), honestly**, weakest first:
+  - First paint is the slowest thing on the title: 170 to 270 ms unthrottled on this busy
+    sandbox, about 370 to 490 at 4x. The rest of the cost is the size-dependent land and the
+    water's mirror; baking the three buildings, the ship and the pier like the logotype would save
+    roughly another 40 to 50 ms (they do not depend on the screen), at about 6 to 8 KB gzipped of
+    data and a re-bake whenever one is redrawn.
+  - The ship's rigging and black flag cross the smithy (at 360 pixels across there is no room to
+    put the ship clear of it); the flag reads poorly against the slate.
+  - The hill's face between the tavern and the smithy is still a large, quiet area of grass:
+    terraces, shrubs, a hedge and stones, but no second feature.
+  - Lamp reflections near the quay wobble into small hooked shapes at 4x; at true size they read
+    as light.
+  - The house is smaller than the tavern by distance, but the three buildings are not at one
+    perspective: each is a front elevation (the town's convention), so the hill's house shows no
+    more roof than the quay's.
+  - Gulls are 9 pixels across: right for the distance, easy to miss.
+  - On a phone held sideways the scenery beyond the town is woods, ridges and a rocky shore made
+    from functions of distance; it is plain next to the town.
+  - Activity poses: the off hand's basket is in front now but small; the fletching knife reads at
+    true size only in motion.
+  - The greaves icons read as leg armour now, but at true size the pair can read as a pair of
+    boots.
+- **The title scene's pieces** are in `src/art/title/`: layout (anchors and `safe`), sky, land,
+  buildings (each building's own painter), harbour (ship, pier, buoy, gulls, flag, lamps), light
+  (banded halos), logo and logoDraw (the bake and its drawing), scene (build once, frames as a
+  function of time). A new building is a painter returning a `Building` (outlined grid, halos,
+  flickering pixels, chimneys); place it in `PLACE` (`scene.ts`) on painted ground. To change the
+  logotype, edit `logoDraw.ts` and run `UPDATE_LOGO=1 npx vitest run tests/art/title.test.ts`.
+- **How it was iterated**: a `.shots/` vitest (node environment, its own config) renders frames of
+  `TitleScene` to RGBA files that a Python script turns into PNGs, crops and GIFs, far quicker
+  than the browser; a scratch page under `.shots/` served by `npm run dev` (and a production
+  build of it, for timing) is screenshot with Playwright at the phone sizes with a mock menu in
+  `safe`. Timings on this sandbox swing with other sessions' load: compare against the previous
+  code interleaved, and report minimum and median of fresh pages.
 
 - **Weak list (B13), honestly**: the activity props sit close to the hero's front foot and the
   tools land a little short of some of them (the smith's hammer, the needle above the bench); the

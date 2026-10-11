@@ -60,12 +60,15 @@ function range(
   rim: number,
   bottom: number,
 ) {
+  // Cells worked out once and written straight in: this runs for every pixel of two ranges.
+  const rimC = C(m, rim);
+  const bodyC = C(m, body);
+  const d = g.d;
   for (let x = 0; x < f.w; x++) {
     const rx = x - f.cx;
     const t = Math.round(top(rx));
-    const rising = top(rx + 2) < top(rx - 2) - 0.6;
-    for (let y = Math.max(0, t); y < bottom; y++)
-      put(g, x, y, C(m, y < t + (rising ? 2 : 1) ? rim : body));
+    const edge = t + (top(rx + 2) < top(rx - 2) - 0.6 ? 2 : 1);
+    for (let y = Math.max(0, t); y < bottom; y++) d[y * f.w + x] = y < edge ? rimC : bodyC;
   }
 }
 
@@ -82,7 +85,10 @@ function pine(
 ) {
   const tiers = Math.max(3, Math.round(h / 7));
   const crown = h - 2;
-  for (let y = base - 2; y < base; y++) put(g, cx, y, C(m, shade));
+  const litC = C(m, lit);
+  const bodyC = C(m, body);
+  const shadeC = C(m, shade);
+  for (let y = base - 2; y < base; y++) put(g, cx, y, shadeC);
   for (let t = 0; t < tiers; t++) {
     const ty0 = base - h + Math.round((t / tiers) * crown * 0.82);
     const ty1 = base - h + Math.round(((t + 1) / tiers) * crown) + 1;
@@ -93,11 +99,11 @@ function pine(
       for (let x = cx - half; x <= cx + half; x++) {
         const under = y >= ty1 - 1 && half > 1;
         const left = x <= cx - half + (half > 2 ? 1 : 0) && !under;
-        put(g, x, y, C(m, left ? lit : under || x > cx + half / 2 ? shade : body));
+        put(g, x, y, left ? litC : under || x > cx + half / 2 ? shadeC : bodyC);
       }
     }
   }
-  put(g, cx, base - h - 1, C(m, lit));
+  put(g, cx, base - h - 1, litC);
 }
 
 /** The far hills, the far forest and the woods either side of the town. */
@@ -124,7 +130,7 @@ export function paintFar(g: TGrid, f: LandFrame): void {
     wl,
   );
   // The far forest: a ragged band of pine tops on the near range's foot.
-  for (let x = 0; x < f.w; x++) for (let y = wl - 98; y < wl; y++) put(g, x, y, C('haze', 4));
+  g.d.fill(C('haze', 4), (wl - 98) * f.w, wl * f.w);
   const span = Math.ceil(f.w / 2) + 12;
   for (let i = -Math.ceil(span / 7); i <= Math.ceil(span / 7); i++) {
     const x = f.cx + i * 7 + Math.floor(hash(i, 1, 21) * 5) - 2;
@@ -142,8 +148,14 @@ export function paintFar(g: TGrid, f: LandFrame): void {
       Math.round(Math.max(0, 140 - Math.abs(rx)) * 0.12);
     pine(g, f.cx + rx, base, 22 + Math.floor(hash(i, 6, 22) * 14), 'haze', 5, 4, 6);
   }
-  for (let x = 0; x < f.w; x++)
-    for (let y = wl - 52; y < wl; y++) if (Math.abs(x - f.cx) >= 60) put(g, x, y, C('haze', 5));
+  // The woods' floor either side of the town's valley.
+  const floor = C('haze', 5);
+  const gapL = Math.max(0, f.cx - 59);
+  const gapR = Math.min(f.w, f.cx + 60);
+  for (let y = wl - 52; y < wl; y++) {
+    g.d.fill(floor, y * f.w, y * f.w + gapL);
+    g.d.fill(floor, y * f.w + gapR, (y + 1) * f.w);
+  }
 }
 
 /** The hill's top edge at `rx`: the broad shoulder in the middle, slopes either side. */
@@ -155,11 +167,14 @@ export function hillTop(rx: number): number {
     return back + Math.round(u * u * 2);
   }
   const d = rx < l ? l - rx : rx - r;
-  const fall = rx < l ? 0.62 : 0.5;
-  // A round shoulder easing into a long slope, then a gentle roll to the edges.
-  const edge = back + 2;
-  const curve = d < 18 ? (d * d) / 36 : 9 + (d - 18) * fall;
-  return Math.min(-46 + Math.round(4 * Math.sin(rx / 23)), Math.round(edge + curve));
+  // The slope eases off the shoulder and onto the low ground (a cosine, not a
+  // ruled line), a little uneven on the way down, then rolls on to the edges.
+  const span = rx < l ? 96 : 84;
+  const low = -46 + 4 * Math.sin(rx / 23);
+  const f = Math.min(1, d / span);
+  const ease = (1 - Math.cos(f * Math.PI)) / 2;
+  const wobble = 2.2 * Math.sin(d / 11 + (rx < l ? 1 : 3)) * Math.sin(f * Math.PI);
+  return Math.round(back + 2 + (low - back - 2) * ease + wobble);
 }
 
 /**

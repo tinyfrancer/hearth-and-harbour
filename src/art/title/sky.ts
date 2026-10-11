@@ -43,8 +43,17 @@ export const SKY_IDS = [rampId('skyHi'), rampId('skyLo')] as const;
 export const isSky = (c: number): boolean => c >> 3 === SKY_IDS[0] || c >> 3 === SKY_IDS[1];
 
 /** Paints the sky into rows 0..bottom of `g` (the afterglow's last band reaches `bottom`). */
-export function paintSky(g: TGrid, bottom: number): number[] {
-  const rows = STARTS.map((f) => Math.round(f * bottom));
+export function paintSky(g: TGrid, bottom: number, darkUntil = 0): number[] {
+  // The zenith's bands reach at least to `darkUntil` (just below the logotype,
+  // so it always sits on the dark); on a short screen the afterglow's bands
+  // are squeezed into what is left below.
+  const split = STARTS[8] as number;
+  const zenith = Math.max(split * bottom, Math.min(darkUntil, bottom - 40));
+  const rows = STARTS.map((f) =>
+    Math.round(
+      f < split ? (f / split) * zenith : zenith + ((f - split) / (1 - split)) * (bottom - zenith),
+    ),
+  );
   for (let i = 0; i < BANDS.length; i++) {
     const [m, s] = BANDS[i]!;
     const y0 = rows[i]!;
@@ -62,12 +71,16 @@ export function paintSky(g: TGrid, bottom: number): number[] {
     let x = Math.floor(hash(i, 0, 77) * 6) - 6;
     let k = 0;
     while (x < g.w) {
+      // In the zenith, where neighbouring bands are close, a sparse single row
+      // is enough (a full interlock there reads as stripes behind the name).
+      const zenith = i < 8;
       const dash = 2 + Math.floor(hash(i, k, 78) * 4);
-      const gap = 3 + Math.floor(hash(i, k, 79) * 7);
+      const gap = (zenith ? 9 : 3) + Math.floor(hash(i, k, 79) * (zenith ? 12 : 7));
       for (let j = 0; j < dash; j++) put(g, x + j, y - 1, tc(lm, ls));
       // The upper colour hangs down under the middle of the gap.
-      for (let j = 1; j < gap - 1; j++)
-        if (hash(i, k, 80) < 0.7) put(g, x + dash + j, y, tc(um, us));
+      if (!zenith)
+        for (let j = 1; j < gap - 1; j++)
+          if (hash(i, k, 80) < 0.7) put(g, x + dash + j, y, tc(um, us));
       x += dash + gap;
       k++;
     }
@@ -238,6 +251,8 @@ export function makeClouds(period: number, top: number, bottom: number): Cloud[]
     [0.72, 0.3, 80, 5],
     [0.86, 0.85, 118, 6],
     [0.2, 0.95, 66, 4],
+    [0.6, 0.12, 46, 3],
+    [0.12, 0.62, 52, 4],
   ];
   return specs.map(([fx, fy, len, th], k) => {
     const g: TGrid = { w: len, h: th + 2, d: new Int16Array(len * (th + 2)) };

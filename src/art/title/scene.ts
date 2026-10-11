@@ -21,7 +21,7 @@
 import { stamp, tgrid, hash, type TGrid } from '../town2/cells';
 import { TITLE_RGBA, rampId, unpack } from './ramps';
 import { addHalos, type Halo } from './light';
-import { titleLayout, type Box, type TitleLayout } from './layout';
+import { TOWN_RISE, titleLayout, type Box, type TitleLayout } from './layout';
 import { logotype } from './logo';
 import { isSky, makeClouds, paintMoon, paintSky, placeStars, starPixels, type Star } from './sky';
 import {
@@ -318,9 +318,9 @@ function smoke(
     const age = t / T + i / n;
     const a = age % 1;
     const life = Math.floor(age);
-    const px = x + Math.pow(a, 1.3) * 15 + Math.sin(a * 5 + k) * 1.2;
-    const py = y - 1 - a * 30;
-    const r = 0.9 + a * 3;
+    const px = x + Math.pow(a, 1.25) * 19 + Math.sin(a * 5 + k) * 1.4;
+    const py = y - 1 - a * 34;
+    const r = 1.2 + a * 3.6;
     for (let yy = Math.floor(py - r); yy <= py + r; yy++)
       for (let xx = Math.floor(px - r); xx <= px + r; xx++) {
         if (xx < 0 || xx >= w || yy < 0 || yy >= wl) continue;
@@ -331,7 +331,8 @@ function smoke(
         const i2 = yy * w + xx;
         if (logo[i2]) continue;
         const lit = -dx * 0.7 - dy * 0.5;
-        const step = Math.max(1, Math.min(5, Math.round((dark ? 3.4 : 2.4) + a * 1.2 - lit * 1.1)));
+        // Lit by the afterglow on its lower left: pale at first, greying as it thins.
+        const step = Math.max(1, Math.min(5, Math.round((dark ? 2.9 : 1.9) + a * 1.4 - lit * 1.1)));
         F[i2] = TITLE_RGBA[SMOKE + step] as number;
       }
   }
@@ -344,6 +345,13 @@ const rgba = (c: number): number => (c ? (TITLE_RGBA[c] as number) : 0);
 const LIGHT = new Uint8Array(TITLE_RGBA.length >> 3);
 for (const m of ['glass', 'lamp', 'fire'] as const) LIGHT[rampId(m)] = 1;
 const isLight = (c: number): boolean => c !== 0 && LIGHT[c >> 3] === 1;
+/** Per cell: 1 if it is a light, 1 if it is sky (tables, so the build's loops do no calls). */
+const LIGHT_CELL = new Uint8Array(TITLE_RGBA.length);
+const SKY_CELL = new Uint8Array(TITLE_RGBA.length);
+for (let c = 8; c < TITLE_RGBA.length; c++) {
+  LIGHT_CELL[c] = isLight(c) ? 1 : 0;
+  SKY_CELL[c] = isSky(c) ? 1 : 0;
+}
 
 /** Mixes a packed pixel toward an RGB colour by `f`. */
 function mix(p: number, rgb: readonly [number, number, number], f: number): number {
@@ -416,8 +424,8 @@ function build(L: TitleLayout): Built {
   const logo: Box = { x: L.logoX, y: L.logoY, w: logoCells.w, h: logoCells.h };
 
   // The sky, down behind the hills.
-  const skyBottom = wl - 96;
-  const rows = paintSky(top, skyBottom);
+  const skyBottom = wl - 132;
+  const rows = paintSky(top, skyBottom, logo.y + logo.h + 8);
   const last = top.d[(skyBottom - 1) * w] as number;
   top.d.fill(last, skyBottom * w, wl * w);
   // The young moon, right of the logotype's lower word, low in the dark of the sky.
@@ -474,11 +482,7 @@ function build(L: TitleLayout): Built {
   // The still layer: cells to colour, the halos added, the logotype on top.
   const still = new Uint32Array(w * h);
   const skyMask = new Uint8Array(w * wl);
-  for (let i = 0; i < w * wl; i++) {
-    const c = top.d[i] as number;
-    still[i] = rgba(c);
-    if (isSky(c)) skyMask[i] = 1;
-  }
+  colourStill(top.d, still, skyMask);
   addHalos(still, w, wl, halos);
   for (let y = Math.max(0, moonBox.y); y < moonBox.y + moonBox.h; y++)
     for (let x = Math.max(0, moonBox.x); x < Math.min(w, moonBox.x + moonBox.w); x++)
@@ -559,37 +563,13 @@ function build(L: TitleLayout): Built {
   mirrorNear(sprites[1]!, sh.g, sh.wl);
   // A lit window mirrors as one patch of light: the bars and frame between
   // lit panes are lost in the water's blur, so they take their neighbours' light.
-  const fills: number[] = [];
-  for (let d = 1; d < wh - 1; d++)
-    for (let x = 1; x < w - 1; x++) {
-      const i = d * w + x;
-      if (isLight(cells[i] as number)) continue;
-      const l = cells[i - 1] as number;
-      const r = cells[i + 1] as number;
-      const u = cells[i - w] as number;
-      if (isLight(l) && isLight(r)) fills.push(i, l);
-      else if (isLight(u) && isLight(cells[i + w] as number)) fills.push(i, u);
-    }
-  for (let k = 0; k < fills.length; k += 2) cells[fills[k] as number] = fills[k + 1] as number;
-
+  // Lights are only in the town's band and the mirrors of the pier and the ship:
+  // the passes that look for them need go no further down the water than that.
+  const lit = Math.min(wh, Math.max(TOWN_RISE + 8, shY + sh.g.h * 2 - wl, prY + pr.g.h * 2 - wl));
+  fillLitBars(cells, w, lit);
   const mirror = new Uint32Array(w * wh);
-  for (let d = 0; d < wh; d++)
-    for (let x = 0; x < w; x++) mirror[d * w + x] = mirrorColour(cells[d * w + x] as number, d, wh);
-  // Lights reflect as streaks: each lit pixel drawn out downward in dashes,
-  // longer further from the shore, a wobbling column of light.
-  for (let d = 0; d < wh; d++)
-    for (let x = 0; x < w; x++) {
-      const c = cells[d * w + x] as number;
-      if (!isLight(c) || (c & 7) > 3) continue;
-      const len = 2 + Math.round(d * 0.1);
-      for (let j = 1; j <= len; j++) {
-        const dd = d + j;
-        if (dd >= wh || (dd + (x & 1)) % 3 === 2 || hash(x, dd, 71) < j / (len + 3)) continue;
-        mirror[dd * w + x] = TITLE_RGBA[
-          (c & ~7) | Math.min(4, (c & 7) + (j > len / 2 ? 2 : 1))
-        ] as number;
-      }
-    }
+  colourMirror(cells, mirror, w, wh);
+  streakLights(cells, mirror, w, wh, lit);
   // Pools of lamplight on the water under the pier's lamp and the ship's lantern.
   addHalos(
     mirror,
@@ -613,33 +593,14 @@ function build(L: TitleLayout): Built {
     const bh = d < 90 ? 2 : 3;
     for (let j = 0; j < bh && d < wh; j++, d++) bandOf[d] = band;
   }
-  const calm = L.safe.y - wl;
-  const ripples = new Uint8Array(wh * RIPPLE_P);
-  for (let d = 0; d < wh; d++) {
-    const band = bandOf[d] as number;
-    const first = d === 0 || bandOf[d - 1] !== band;
-    const inCalm = d >= calm;
-    const onBase = d < 6 ? 90 : inCalm ? 46 : 22 + 14 * (d / Math.max(1, calm));
-    const offBase = d < 6 ? 1 : inCalm ? 3 : 2 + 3 * (d / Math.max(1, calm));
-    const look = first && d > 3 && hash(band, 9, 81) < (inCalm ? 0.25 : 0.7) ? 2 : 1;
-    let x = Math.floor(hash(band, 4, 81) * 20);
-    for (let k = 0; x < RIPPLE_P; k++) {
-      x += Math.round(onBase * (0.45 + hash(band, k, 82)));
-      const len = Math.max(1, Math.round(offBase * (0.5 + hash(band, k, 83))));
-      ripples.fill(
-        look,
-        d * RIPPLE_P + Math.min(RIPPLE_P, x),
-        d * RIPPLE_P + Math.min(RIPPLE_P, x + len),
-      );
-      x += len;
-    }
-  }
+  const calm = L.calm - wl;
+  const ripples = makeRipples(bandOf, wh, calm);
 
-  // The buoy, on the left, clear above the menu's band.
+  // The buoy, on the left, clear above the calm water.
   const bu = buoy();
   const buoyPx = new Uint32Array(bu.w * bu.h);
   for (let i = 0; i < buoyPx.length; i++) buoyPx[i] = rgba(bu.d[i] as number);
-  const buoyWl = Math.min(L.safe.y - 8, wl + Math.round((L.safe.y - wl) * 0.7));
+  const buoyWl = Math.min(L.calm - 8, wl + Math.round((L.calm - wl) * 0.7));
 
   // The clouds, as pixels on their strip: x, y and colour in threes.
   const cloudPeriod = Math.max(w + 140, 540);
@@ -680,6 +641,100 @@ function build(L: TitleLayout): Built {
     ground,
     logo,
   };
+}
+
+// The build's long loops, each in a small function of its own: a loop over
+// every pixel is compiled on its own as it runs, which is far quicker when the
+// function around it is small (the title's first frame waits on these).
+
+/** Colours the cells above the water, and marks where plain sky shows. */
+function colourStill(d: Int16Array, still: Uint32Array, skyMask: Uint8Array): void {
+  for (let i = 0; i < d.length; i++) {
+    const c = d[i] as number;
+    still[i] = TITLE_RGBA[c] as number;
+    skyMask[i] = SKY_CELL[c] as number;
+  }
+}
+
+/**
+ * A lit window mirrors as one patch of light: the bars and frame between lit
+ * panes are lost in the water's blur, so they take their neighbours' light.
+ */
+function fillLitBars(cells: Int16Array, w: number, wh: number): void {
+  const fills: number[] = [];
+  for (let d = 1; d < wh - 1; d++)
+    for (let i = d * w + 1; i < (d + 1) * w - 1; i++) {
+      if (LIGHT_CELL[cells[i] as number]) continue;
+      const l = cells[i - 1] as number;
+      const u = cells[i - w] as number;
+      if (LIGHT_CELL[l] && LIGHT_CELL[cells[i + 1] as number]) fills.push(i, l);
+      else if (LIGHT_CELL[u] && LIGHT_CELL[cells[i + w] as number]) fills.push(i, u);
+    }
+  for (let k = 0; k < fills.length; k += 2) cells[fills[k] as number] = fills[k + 1] as number;
+}
+
+/** The mirror's colours, row by row at each row's fade. */
+function colourMirror(cells: Int16Array, mirror: Uint32Array, w: number, wh: number): void {
+  for (let d = 0; d < wh; d++) {
+    const lut = fadeLut(fadeLevel(d, wh));
+    for (let i = d * w; i < (d + 1) * w; i++) mirror[i] = lut[cells[i] as number] as number;
+  }
+}
+
+/**
+ * Lights reflect as streaks: each lit pixel drawn out downward in dashes,
+ * longer further from the shore, a wobbling column of light.
+ */
+function streakLights(
+  cells: Int16Array,
+  mirror: Uint32Array,
+  w: number,
+  wh: number,
+  rows: number,
+): void {
+  for (let i = 0; i < w * rows; i++) {
+    const c = cells[i] as number;
+    if (!LIGHT_CELL[c] || (c & 7) > 3) continue;
+    const d = (i / w) | 0;
+    const x = i - d * w;
+    const len = 2 + Math.round(d * 0.1);
+    for (let j = 1; j <= len; j++) {
+      const dd = d + j;
+      if (dd >= wh || (dd + (x & 1)) % 3 === 2 || hash(x, dd, 71) < j / (len + 3)) continue;
+      mirror[dd * w + x] = TITLE_RGBA[
+        (c & ~7) | Math.min(4, (c & 7) + (j > len / 2 ? 2 : 1))
+      ] as number;
+    }
+  }
+}
+
+/**
+ * The ripple pattern: in each band, long runs of mirror broken by short runs
+ * of face, a band's top row lit as a lip. By the quay the mirror is nearly
+ * still; in the menu's band (from row `calm`) the runs are long and the lips few.
+ */
+function makeRipples(bandOf: Uint16Array, wh: number, calm: number): Uint8Array {
+  const ripples = new Uint8Array(wh * RIPPLE_P);
+  for (let d = 0; d < wh; d++) {
+    const band = bandOf[d] as number;
+    const first = d === 0 || bandOf[d - 1] !== band;
+    const inCalm = d >= calm;
+    const onBase = d < 6 ? 90 : inCalm ? 46 : 22 + 14 * (d / Math.max(1, calm));
+    const offBase = d < 6 ? 1 : inCalm ? 3 : 2 + 3 * (d / Math.max(1, calm));
+    const look = first && d > 3 && hash(band, 9, 81) < (inCalm ? 0.25 : 0.7) ? 2 : 1;
+    let x = Math.floor(hash(band, 4, 81) * 20);
+    for (let k = 0; x < RIPPLE_P; k++) {
+      x += Math.round(onBase * (0.45 + hash(band, k, 82)));
+      const len = Math.max(1, Math.round(offBase * (0.5 + hash(band, k, 83))));
+      ripples.fill(
+        look,
+        d * RIPPLE_P + Math.min(RIPPLE_P, x),
+        d * RIPPLE_P + Math.min(RIPPLE_P, x + len),
+      );
+      x += len;
+    }
+  }
+  return ripples;
 }
 
 function liveOf(f: Flicker, x: number, y: number): Live {

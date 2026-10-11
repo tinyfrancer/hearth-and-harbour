@@ -105,11 +105,30 @@ const TOOLS: Readonly<Record<string, () => readonly Part2[]>> = {
       l: ['teal', 1],
     }),
   ],
-  // A shaft for an arrow, held in the off hand to be whittled.
-  shaft: () => [front(16, 30, 'pinewood', ['1', '1', '2', '2', '2', '3', '3', '3', '3'])],
-  // A wicker basket on the arm, a few berries in it.
+  // A shaft for an arrow, held in the off hand to be whittled: long, pale, shavings curling off.
+  shaft: () => [
+    front(16, 24, 'pinewood', [
+      '0',
+      '1',
+      '1',
+      '1',
+      '2',
+      '2',
+      '2',
+      '2',
+      '2',
+      '3',
+      '3',
+      '3',
+      '3',
+      '3',
+      '3',
+    ]),
+  ],
+  // A wicker basket on the arm, its handle over the fist, berries heaped in it.
   basket: () => [
-    front(10, 42, 'wood', ['1rr.rR..', '12222234', '.122234.', '..1234..'], {
+    front(11, 36, 'wood', ['..1223..', '.1....4.', '1......4'], {}),
+    front(8, 39, 'wood', ['.rRr.rrR.r', '1212121234', '1212121234', '.12121234.', '..122234..'], {
       r: ['crimson', 2],
       R: ['crimson', 4],
     }),
@@ -150,6 +169,8 @@ interface Beat {
   readonly tool?: string;
   /** A line drawn from the weapon fist (a rod, a ladle): its far end, from the shoulder, and its line's end. */
   readonly rod?: { tip: Pt; line?: Pt; mat: Mat };
+  /** A thread from the needle down to where it goes into the cloth, from the shoulder. */
+  readonly thread?: Pt;
 }
 
 interface Loop {
@@ -172,9 +193,9 @@ const LOOPS: Readonly<Record<string, Loop>> = {
     frameMs: 140,
     beats: [
       { lean: -1, bob: 0, feet: WIDE, weapon: [-3, -12], off: [6, 6], turn: { q: 0, lean: -0.6 } },
-      { lean: 1, bob: 1, feet: WIDE, weapon: [8, -6], off: [6, 7], turn: { q: 1, lean: -0.5 } },
-      { lean: 2, bob: 2, feet: WIDE, weapon: [10, 9], off: [7, 8], turn: { q: 1, lean: 0.5 } },
-      { lean: 2, bob: 2, feet: WIDE, weapon: [9, 10], off: [7, 8], turn: { q: 1, lean: 0.6 } },
+      { lean: 2, bob: 1, feet: WIDE, weapon: [10, -6], off: [7, 7], turn: { q: 1, lean: -0.5 } },
+      { lean: 3, bob: 2, feet: WIDE, weapon: [12, 9], off: [8, 8], turn: { q: 1, lean: 0.5 } },
+      { lean: 3, bob: 2, feet: WIDE, weapon: [11, 10], off: [8, 8], turn: { q: 1, lean: 0.6 } },
       { lean: 0, bob: 0, feet: WIDE, weapon: [3, 0], off: [6, 7], turn: { q: 0, lean: 0.4 } },
     ],
   },
@@ -188,7 +209,7 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         feet: STAND,
         weapon: [9, 4],
         off: [7, 8],
-        rod: { tip: [27, -14], line: [31, 37], mat: 'pinewood' },
+        rod: { tip: [24, -15], line: [25, 37], mat: 'pinewood' },
       },
       {
         lean: 0,
@@ -196,7 +217,7 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         feet: STAND,
         weapon: [9, 5],
         off: [7, 8],
-        rod: { tip: [27, -12], line: [31, 37], mat: 'pinewood' },
+        rod: { tip: [24, -13], line: [25, 37], mat: 'pinewood' },
       },
       {
         lean: 0,
@@ -204,7 +225,7 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         feet: STAND,
         weapon: [9, 6],
         off: [7, 9],
-        rod: { tip: [26, -8], line: [31, 38], mat: 'pinewood' },
+        rod: { tip: [24, -9], line: [25, 38], mat: 'pinewood' },
       },
       {
         lean: -1,
@@ -212,7 +233,7 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         feet: STAND,
         weapon: [6, 0],
         off: [7, 7],
-        rod: { tip: [18, -22], line: [27, 32], mat: 'pinewood' },
+        rod: { tip: [18, -22], line: [23, 32], mat: 'pinewood' },
       },
     ],
   },
@@ -231,29 +252,29 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         offHand: 'open',
       },
       {
-        lean: 1,
+        lean: 2,
         bob: 1,
         feet: WIDE,
-        weapon: [7, -6],
-        off: [5, -1],
+        weapon: [9, -6],
+        off: [6, -1],
         turn: { q: 1, lean: -0.5 },
         offHand: 'open',
       },
       {
-        lean: 1,
-        bob: 1,
+        lean: 3,
+        bob: 2,
         feet: WIDE,
-        weapon: [9, 9],
-        off: [8, 9],
+        weapon: [11, 9],
+        off: [10, 9],
         turn: { q: 1, lean: 0.6 },
         offHand: 'open',
       },
       {
-        lean: 1,
-        bob: 2,
+        lean: 3,
+        bob: 3,
         feet: WIDE,
-        weapon: [8, 10],
-        off: [7, 10],
+        weapon: [10, 10],
+        off: [9, 10],
         turn: { q: 1, lean: 0.7 },
         offHand: 'open',
       },
@@ -265,38 +286,38 @@ const LOOPS: Readonly<Record<string, Loop>> = {
     frameMs: 200,
     beats: [
       {
-        lean: 1,
+        lean: 2,
         bob: 3,
         feet: STAND,
-        weapon: [11, 6],
-        off: [4, 9],
+        weapon: [12, 6],
+        off: [9, 7],
         weaponHand: 'open',
         offHand: 'fist',
       },
       {
-        lean: 2,
+        lean: 3,
         bob: 4,
         feet: STAND,
-        weapon: [13, 8],
-        off: [4, 9],
+        weapon: [14, 8],
+        off: [9, 7],
+        weaponHand: 'fist',
+        offHand: 'fist',
+      },
+      {
+        lean: 2,
+        bob: 3,
+        feet: STAND,
+        weapon: [11, 7],
+        off: [9, 7],
         weaponHand: 'fist',
         offHand: 'fist',
       },
       {
         lean: 1,
-        bob: 3,
-        feet: STAND,
-        weapon: [8, 10],
-        off: [4, 9],
-        weaponHand: 'fist',
-        offHand: 'fist',
-      },
-      {
-        lean: 0,
         bob: 2,
         feet: STAND,
-        weapon: [4, 11],
-        off: [4, 9],
+        weapon: [9, 5],
+        off: [9, 7],
         weaponHand: 'open',
         offHand: 'fist',
       },
@@ -307,28 +328,28 @@ const LOOPS: Readonly<Record<string, Loop>> = {
     frameMs: 180,
     beats: [
       {
-        lean: 1,
+        lean: 2,
         bob: 1,
         feet: STAND,
-        weapon: [10, 8],
+        weapon: [11, 8],
         off: [6, 6],
-        rod: { tip: [20, 27], mat: 'wood' },
+        rod: { tip: [24, 27], mat: 'wood' },
       },
       {
-        lean: 1,
+        lean: 2,
         bob: 1,
         feet: STAND,
-        weapon: [12, 8],
+        weapon: [13, 8],
         off: [6, 6],
-        rod: { tip: [23, 27], mat: 'wood' },
+        rod: { tip: [27, 27], mat: 'wood' },
       },
       {
-        lean: 1,
+        lean: 2,
         bob: 1,
         feet: STAND,
-        weapon: [13, 7],
+        weapon: [14, 7],
         off: [6, 6],
-        rod: { tip: [25, 26], mat: 'wood' },
+        rod: { tip: [29, 26], mat: 'wood' },
       },
       {
         lean: 0,
@@ -349,35 +370,35 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         lean: 0,
         bob: 0,
         feet: STAND,
-        weapon: [2, -11],
-        off: [12, 9],
+        weapon: [3, -11],
+        off: [13, 9],
         turn: { q: 0, lean: -0.3 },
         offHand: 'fist',
       },
       {
-        lean: 1,
+        lean: 2,
         bob: 1,
         feet: STAND,
-        weapon: [9, -3],
-        off: [12, 9],
+        weapon: [11, -4],
+        off: [13, 9],
         turn: { q: 1, lean: -0.3 },
         offHand: 'fist',
       },
       {
-        lean: 1,
-        bob: 1,
+        lean: 3,
+        bob: 2,
         feet: STAND,
-        weapon: [9, 10],
-        off: [12, 9],
-        turn: { q: 1, lean: 0.7 },
+        weapon: [13, 8],
+        off: [13, 9],
+        turn: { q: 1, lean: 0.75 },
         offHand: 'fist',
       },
       {
-        lean: 0,
-        bob: 0,
+        lean: 1,
+        bob: 1,
         feet: STAND,
-        weapon: [8, 4],
-        off: [12, 9],
+        weapon: [10, 3],
+        off: [13, 9],
         turn: { q: 0, lean: 0.6 },
         offHand: 'fist',
       },
@@ -388,10 +409,42 @@ const LOOPS: Readonly<Record<string, Loop>> = {
     tool: 'needle',
     frameMs: 200,
     beats: [
-      { lean: 1, bob: 2, feet: STAND, weapon: [12, 9], off: [12, 10], offHand: 'open' },
-      { lean: 1, bob: 2, feet: STAND, weapon: [11, 5], off: [12, 10], offHand: 'open' },
-      { lean: 1, bob: 2, feet: STAND, weapon: [9, 0], off: [12, 10], offHand: 'open' },
-      { lean: 1, bob: 2, feet: STAND, weapon: [11, 6], off: [12, 10], offHand: 'open' },
+      {
+        lean: 2,
+        bob: 3,
+        feet: STAND,
+        weapon: [13, 9],
+        off: [10, 10],
+        offHand: 'open',
+        thread: [17, 15],
+      },
+      {
+        lean: 2,
+        bob: 3,
+        feet: STAND,
+        weapon: [13, 4],
+        off: [10, 10],
+        offHand: 'open',
+        thread: [17, 15],
+      },
+      {
+        lean: 2,
+        bob: 3,
+        feet: STAND,
+        weapon: [12, -1],
+        off: [10, 10],
+        offHand: 'open',
+        thread: [17, 15],
+      },
+      {
+        lean: 2,
+        bob: 3,
+        feet: STAND,
+        weapon: [13, 5],
+        off: [10, 10],
+        offHand: 'open',
+        thread: [17, 15],
+      },
     ],
   },
   // A shaft held up in one hand, the knife drawn along it in strokes away from the body.
@@ -404,36 +457,40 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         lean: 0,
         bob: 0,
         feet: STAND,
-        weapon: [8, 6],
-        off: [11, 4],
+        weapon: [6, 7],
+        off: [9, 5],
         offHand: 'fist',
+        offTurn: { q: 1, lean: -0.2 },
         turn: { q: 1, lean: 0 },
       },
       {
         lean: 0,
         bob: 0,
         feet: STAND,
-        weapon: [11, 4],
-        off: [11, 4],
+        weapon: [10, 6],
+        off: [9, 5],
         offHand: 'fist',
+        offTurn: { q: 1, lean: -0.2 },
         turn: { q: 1, lean: 0 },
       },
       {
         lean: 0,
         bob: 0,
         feet: STAND,
-        weapon: [14, 2],
-        off: [11, 4],
+        weapon: [14, 4],
+        off: [9, 5],
         offHand: 'fist',
+        offTurn: { q: 1, lean: -0.2 },
         turn: { q: 1, lean: 0 },
       },
       {
         lean: 0,
         bob: 0,
         feet: STAND,
-        weapon: [10, 7],
-        off: [11, 4],
+        weapon: [8, 8],
+        off: [9, 5],
         offHand: 'fist',
+        offTurn: { q: 1, lean: -0.2 },
         turn: { q: 1, lean: 0 },
       },
     ],
@@ -443,15 +500,15 @@ const LOOPS: Readonly<Record<string, Loop>> = {
     tool: 'flask',
     frameMs: 200,
     beats: [
-      { lean: 0, bob: 0, feet: STAND, weapon: [9, 0], off: [10, 9], offHand: 'open' },
-      { lean: 0, bob: 0, feet: STAND, weapon: [10, -4], off: [10, 9], offHand: 'open' },
-      { lean: 0, bob: 0, feet: STAND, weapon: [11, -2], off: [10, 9], offHand: 'open' },
+      { lean: 0, bob: 0, feet: STAND, weapon: [9, 0], off: [12, 9], offHand: 'open' },
+      { lean: 0, bob: 0, feet: STAND, weapon: [10, -4], off: [12, 9], offHand: 'open' },
+      { lean: 0, bob: 0, feet: STAND, weapon: [11, -2], off: [12, 9], offHand: 'open' },
       {
-        lean: 2,
+        lean: 3,
         bob: 2,
         feet: STAND,
-        weapon: [13, 5],
-        off: [10, 9],
+        weapon: [14, 5],
+        off: [12, 9],
         offHand: 'open',
         turn: { q: 1, lean: 0.6 },
       },
@@ -471,19 +528,19 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         offHand: 'open',
       },
       {
-        lean: 1,
+        lean: 3,
         bob: 3,
-        feet: [35, 21],
-        weapon: [13, 9],
+        feet: [34, 21],
+        weapon: [14, 11],
         off: [4, 3],
         weaponHand: 'open',
         offHand: 'open',
       },
       {
-        lean: 1,
+        lean: 3,
         bob: 3,
-        feet: [35, 21],
-        weapon: [13, 9],
+        feet: [34, 21],
+        weapon: [14, 11],
         off: [4, 3],
         weaponHand: 'fist',
         offHand: 'open',
@@ -541,6 +598,7 @@ export function activityPose(dress: SideDress, id: string, f: number): SidePose 
     : undefined;
   void dress;
   const rod = b.rod;
+  const thread = b.thread;
   return {
     feet: b.feet ?? STAND,
     bob: b.bob,
@@ -557,23 +615,68 @@ export function activityPose(dress: SideDress, id: string, f: number): SidePose 
       bend: b.offBend ?? 1,
       ...(offHolds ? { holds: offHolds } : {}),
     },
-    ...(rod
+    ...(rod || thread
       ? {
           extra: (sheet: Sheet, at: { weapon: { wrist: Pt; depth: number } }) => {
             const hand: Pt = [Math.round(at.weapon.wrist[0]), Math.round(at.weapon.wrist[1]) + 2];
+            const d = at.weapon.depth + 8;
+            if (thread) {
+              // The thread: from the needle in the fist, pale, down to the cloth.
+              const end: Pt = [
+                SIDE_SHOULDER[0] + b.lean + thread[0],
+                SIDE_SHOULDER[1] + b.bob + thread[1],
+              ];
+              line([hand[0] + 1, hand[1] - 3], end).forEach(([x, y], i) => {
+                if (i > 0) sheet.add(x, y, cell('linen', 0), d - 1, 'held');
+              });
+            }
+            if (!rod) return;
             const tip: Pt = [
               SIDE_SHOULDER[0] + b.lean + rod.tip[0],
               SIDE_SHOULDER[1] + b.bob + rod.tip[1],
             ];
-            const d = at.weapon.depth + 8;
-            line(hand, tip).forEach(([x, y], i, all) =>
-              sheet.add(x, y, cell(rod.mat, i < all.length / 2 ? 2 : 3), d, 'held'),
-            );
+            const pts = line(hand, tip);
             if (rod.line) {
-              // The line, slack, from the rod's tip down to the float on the water.
+              // A rod, not a stick: a cork grip below the hand and above it, the
+              // butt two pixels thick, a ferrule at each joint, the tip tapering
+              // pale, the reel hung under the rod just ahead of the hand.
+              const n = pts.length;
+              pts.forEach(([x, y], i) => {
+                const f = i / Math.max(1, n - 1);
+                const cork = i <= 3;
+                const ferrule =
+                  Math.abs(i - Math.round(n * 0.38)) < 1 || Math.abs(i - Math.round(n * 0.7)) < 1;
+                const c = cork
+                  ? cell('tan', i % 2 ? 1 : 2)
+                  : ferrule
+                    ? cell('iron', 1)
+                    : cell(rod.mat, f < 0.4 ? 3 : f < 0.75 ? 2 : 1);
+                sheet.add(x, y, c, d, 'held');
+                // The butt's thickness, on its underside.
+                if (f < 0.35 && !cork) sheet.add(x + 1, y, cell(rod.mat, 4), d, 'held');
+              });
+              const [rx, ry] = pts[Math.min(n - 1, 5)]!;
+              sheet.add(rx + 1, ry + 1, cell('iron', 2), d + 1, 'held');
+              sheet.add(rx + 2, ry + 1, cell('iron', 3), d + 1, 'held');
+              sheet.add(rx + 1, ry + 2, cell('iron', 3), d + 1, 'held');
+              sheet.add(rx + 2, ry + 2, cell('iron', 4), d + 1, 'held');
+              // The line, sagging a little, from the rod's tip down to the float.
               const end: Pt = [SIDE_SHOULDER[0] + rod.line[0], SIDE_SHOULDER[1] + rod.line[1]];
-              line(tip, end).forEach(([x, y]) => sheet.add(x, y, cell('linen', 1), d - 1, 'held'));
+              const steps = Math.max(Math.abs(end[0] - tip[0]), Math.abs(end[1] - tip[1]), 1);
+              let last = '';
+              for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const sag = Math.sin(t * Math.PI) * Math.min(3, steps / 14);
+                const x = Math.round(tip[0] + (end[0] - tip[0]) * t + sag);
+                const y = Math.round(tip[1] + (end[1] - tip[1]) * t);
+                if (`${x} ${y}` === last) continue;
+                last = `${x} ${y}`;
+                sheet.add(x, y, cell('linen', 1), d - 1, 'held');
+              }
             } else {
+              pts.forEach(([x, y], i, all) =>
+                sheet.add(x, y, cell(rod.mat, i < all.length / 2 ? 2 : 3), d, 'held'),
+              );
               // The ladle's bowl at the end.
               sheet.add(tip[0], tip[1], cell('iron', 2), d, 'held');
               sheet.add(tip[0] + 1, tip[1], cell('iron', 3), d, 'held');
@@ -656,7 +759,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     c.lying(1, 1, 18, 6, 'bark');
     c.dome(19, 4, 2, 3, 'wood', 1);
     c.set(19, 4, 'wood', 3);
-    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 22, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 27, y: 0 }, front: false };
   },
   // A boulder with veins of ore glinting in it.
   mining: () => {
@@ -674,35 +777,47 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
       c.set(x, y, 'bronze', 1);
       c.set(x + 1, y, 'bronze', 3);
     }
-    return { grid: c.done(), glows: [], foot: { x: 13, y: 21 }, at: { x: 26, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 13, y: 21 }, at: { x: 31, y: 0 }, front: false };
   },
   // The water's edge: a stretch of shallows with the float and its rings.
   fishing: () => {
     const c = new Canvas(34, 9);
     c.dome(17, 4, 16, 4, 'sea', 2);
-    for (let x = 9; x <= 25; x++) if (x < 14 || x > 20) c.set(x, 4, 'sea', 0);
-    c.set(17, 3, 'crimson', 2);
-    c.set(17, 4, 'linen', 1);
-    return { grid: c.done(), glows: [], foot: { x: 17, y: 4 }, at: { x: 30, y: -6 }, front: false };
+    // Rings round the float, which bobs near the bank where the line can reach it.
+    for (let x = 4; x <= 20; x++) if (x < 8 || x > 14) c.set(x, 4, 'sea', 0);
+    c.set(11, 3, 'crimson', 2);
+    c.set(11, 4, 'linen', 1);
+    return { grid: c.done(), glows: [], foot: { x: 17, y: 4 }, at: { x: 32, y: -6 }, front: false };
   },
-  // A bramble with berries.
+  // A bramble with berries: a waist-high crown on a few stems, so the hand
+  // reaches into it standing and the stems keep clear of the feet.
   foraging: () => {
-    const c = new Canvas(22, 22);
-    c.dome(11, 12, 10, 9, 'leaf', 2);
-    c.dome(7, 9, 5, 4, 'leaf', 2);
-    c.dome(15, 8, 5, 4, 'leaf', 2);
+    const c = new Canvas(26, 34);
+    for (const [x, lean] of [
+      [11, -1],
+      [13, 0],
+      [15, 1],
+    ] as const)
+      for (let y = 16; y < 34; y++)
+        c.set(x + Math.round(((33 - y) / 17) * lean), y, 'bark', x < 13 ? 2 : 3);
+    c.dome(9, 25, 3, 2, 'leaf', 3);
+    c.dome(17, 27, 3, 2, 'leaf', 3);
+    c.dome(13, 10, 11, 9, 'leaf', 2);
+    c.dome(8, 7, 5, 4, 'leaf', 2);
+    c.dome(18, 6, 5, 4, 'leaf', 2);
     for (const [x, y] of [
-      [5, 10],
-      [12, 6],
-      [16, 12],
-      [9, 15],
-      [14, 17],
-      [18, 9],
+      [5, 9],
+      [12, 4],
+      [18, 10],
+      [9, 14],
+      [15, 15],
+      [20, 7],
+      [3, 12],
     ] as const) {
       c.set(x, y, 'crimson', 1);
       c.set(x + 1, y, 'crimson', 3);
     }
-    return { grid: c.done(), glows: [], foot: { x: 11, y: 21 }, at: { x: 21, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 13, y: 33 }, at: { x: 24, y: 0 }, front: false };
   },
   // A pot on three stones over a fire.
   cooking: () => {
@@ -725,7 +840,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
       grid: c.done(),
       glows: [{ x: 10, y: 14, radius: 14, strength: 0.5, always: true }],
       foot: { x: 10, y: 19 },
-      at: { x: 22, y: 0 },
+      at: { x: 26, y: 0 },
       front: true,
     };
   },
@@ -741,7 +856,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
       grid: c.done(),
       glows: [{ x: 12, y: 0, radius: 9, strength: 0.6, always: true }],
       foot: { x: 12, y: 23 },
-      at: { x: 20, y: 0 },
+      at: { x: 24, y: 0 },
       front: false,
     };
   },
@@ -755,7 +870,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
       c.set(x, 2, 'linen', 2);
     }
     for (let y = 3; y < 9; y++) c.set(4, y, 'linen', y % 2 ? 2 : 3);
-    return { grid: c.done(), glows: [], foot: { x: 12, y: 25 }, at: { x: 22, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 12, y: 25 }, at: { x: 26, y: 0 }, front: false };
   },
   // A bundle of shafts and a heap of feathers on a stump.
   fletching: () => {
@@ -765,7 +880,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     for (const x of [4, 6, 8, 10])
       for (let y = 1; y < 11; y++) c.set(x + (y < 4 ? 1 : 0), y, 'pinewood', 2);
     c.dome(12, 9, 2, 1.5, 'linen', 1);
-    return { grid: c.done(), glows: [], foot: { x: 8, y: 23 }, at: { x: 21, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 8, y: 23 }, at: { x: 25, y: 0 }, front: false };
   },
   // A small table with a stand of flasks and a dish smoking.
   alchemy: () => {
@@ -786,7 +901,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     c.upright(17, 6, 5, 2, 'iron', 2);
     c.set(19, 3, 'smoke', 1);
     c.set(20, 1, 'smoke', 1);
-    return { grid: c.done(), glows: [], foot: { x: 12, y: 31 }, at: { x: 22, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 12, y: 31 }, at: { x: 26, y: 0 }, front: false };
   },
   // A stall's counter of crates, a fat purse left on it.
   thieving: () => {
@@ -799,7 +914,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     for (const y of [5, 15]) for (let yy = y; yy < y + 9; yy++) c.set(10, yy, 'wood', 4);
     c.dome(8, 2, 3, 2, 'leather', 2);
     c.set(8, 0, 'gold', 1);
-    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 22, y: 0 }, front: true };
+    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 27, y: 0 }, front: true };
   },
 };
 
