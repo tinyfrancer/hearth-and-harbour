@@ -35,7 +35,8 @@ function crop(f: Framed): Framed {
       }
   if (x1 < 0) return f;
   const g = tgrid(x1 - x0 + 1, y1 - y0 + 1);
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g.d[(y - y0) * g.w + x - x0] = d[y * w + x] as number;
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) g.d[(y - y0) * g.w + x - x0] = d[y * w + x] as number;
   return { g, ox: 0, oy: 0 };
 }
 
@@ -102,7 +103,12 @@ export function lockupCaps(o: CapsOpts = {}): Framed {
           if (idx < 0 || ex + i < 0 || ex + i >= w) continue;
           out.g.d[idx] = d === 3 ? X('navy', 6) : X('gilt', i + j < 0 ? 1 : 3);
         }
-    stampF(out.g, amp, cx - Math.round(amp.g.w / 2), a.g.h + gap + Math.round(ampH / 2) - Math.round(amp.g.h * 0.58));
+    stampF(
+      out.g,
+      amp,
+      cx - Math.round(amp.g.w / 2),
+      a.g.h + gap + Math.round(ampH / 2) - Math.round(amp.g.h * 0.58),
+    );
     return out;
   });
 }

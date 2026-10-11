@@ -32,7 +32,14 @@ interface Look {
 const LOOKS: Record<Exclude<Treatment, 'carved'>, Look> = {
   gilt: {
     mat: 'gilt',
-    band: (f) => (f < 0.42 ? 1.3 + f * 1.6 : f < 0.5 ? 3.4 : f < 0.72 ? 3.0 - (f - 0.5) * 2.5 : 2.2 + (f - 0.72) * 3),
+    band: (f) =>
+      f < 0.42
+        ? 1.3 + f * 1.6
+        : f < 0.5
+          ? 3.4
+          : f < 0.72
+            ? 3.0 - (f - 0.5) * 2.5
+            : 2.2 + (f - 0.72) * 3,
     contrast: 1.4,
     radius: 2.2,
     lo: 0,
@@ -77,7 +84,13 @@ function shadeRaised(m: Mask, look: Look, top = 0, bottom = m.h): TGrid {
   // A glint on the upper-left corners of each stroke: the brightest step.
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++)
-      if (mget(m, x, y) && !mget(m, x - 1, y) && !mget(m, x, y - 1) && mget(m, x + 1, y) && mget(m, x, y + 1))
+      if (
+        mget(m, x, y) &&
+        !mget(m, x - 1, y) &&
+        !mget(m, x, y - 1) &&
+        mget(m, x + 1, y) &&
+        mget(m, x, y + 1)
+      )
         put(g, x, y, X(look.mat, 0));
   return g;
 }
@@ -111,7 +124,13 @@ export interface Framed {
 export function frame(
   letters: TGrid,
   m: Mask,
-  o: { line: [XMat, number]; rim?: [XMat, number]; rimW?: number; drop?: number; dropCell?: [XMat, number] },
+  o: {
+    line: [XMat, number];
+    rim?: [XMat, number];
+    rimW?: number;
+    drop?: number;
+    dropCell?: [XMat, number];
+  },
 ): Framed {
   const rimW = o.rim ? (o.rimW ?? 1) : 0;
   const drop = o.drop ?? 0;
@@ -153,7 +172,8 @@ export function frame(
   const lineM = grown[1]!;
   const lo = rimW;
   for (let y = 0; y < lineM.h; y++)
-    for (let x = 0; x < lineM.w; x++) if (mget(lineM, x, y)) put(g, x + lo, y + lo, X(o.line[0], o.line[1]));
+    for (let x = 0; x < lineM.w; x++)
+      if (mget(lineM, x, y)) put(g, x + lo, y + lo, X(o.line[0], o.line[1]));
   for (let y = 0; y < letters.h; y++)
     for (let x = 0; x < letters.w; x++) {
       const c = at(letters, x, y);
@@ -180,7 +200,10 @@ export function treat(
     return frame(shadeCarved(m), m, { line: o.line ?? ['wood', 5], ...o });
   }
   const look = LOOKS[t];
-  return frame(shadeRaised(m, look, o.top ?? 0, o.bottom ?? m.h), m, { line: o.line ?? look.line, ...o });
+  return frame(shadeRaised(m, look, o.top ?? 0, o.bottom ?? m.h), m, {
+    line: o.line ?? look.line,
+    ...o,
+  });
 }
 
 /** Stamps a framed logotype into a picture at (x, y): its top-left. */

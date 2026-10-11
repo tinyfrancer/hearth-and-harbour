@@ -108,6 +108,8 @@ export interface BandGlow {
   bands?: number;
   /** Squash vertically (a pool of light on the ground). */
   squash?: number;
+  /** How far the rings' edges break into clumps (0 for clean rings). */
+  jitter?: number;
 }
 
 const WARM = [255, 176, 84] as const;
@@ -134,12 +136,13 @@ export function colourise(g: TGrid, pal: XPal, glows: readonly BandGlow[] = []):
         if (d >= 1) continue;
         const f = 1 - d;
         // Quantise to `bands` flat rings, the boundary between rings clumped.
-        const q = Math.floor(f * bands + (clumps(x, y, 41) - 0.5) * 0.7 + 0.15);
+        const q = Math.floor(f * bands + (clumps(x, y, 41) - 0.5) * (gl.jitter ?? 0.7) + 0.15);
         if (q <= 0) continue;
         const a = (gl.strength * Math.min(bands, q)) / bands;
         const i = (y * g.w + x) * 4;
         if (!out[i + 3]) continue;
-        for (let k = 0; k < 3; k++) out[i + k] = Math.min(255, (out[i + k] as number) + (col[k] as number) * a);
+        for (let k = 0; k < 3; k++)
+          out[i + k] = Math.min(255, (out[i + k] as number) + (col[k] as number) * a);
       }
   }
   return out;

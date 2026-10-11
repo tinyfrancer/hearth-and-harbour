@@ -68,7 +68,8 @@ export function farBuilding(g: TGrid, s: FarSpec, lightsOn = true): BandGlow[] {
     }
   // A stone plinth along the foot.
   for (let y = H - 3; y < H; y++)
-    for (let x = wx; x < wx + s.w; x++) put(b, x, y, C('stone', y === H - 3 ? 2 : 3 + ((x >> 2) & 1)));
+    for (let x = wx; x < wx + s.w; x++)
+      put(b, x, y, C('stone', y === H - 3 ? 2 : 3 + ((x >> 2) & 1)));
   // Timber framing: posts each bay, a rail at the floor, braces.
   if (s.wall === 'timber') {
     const floor = wallTop + Math.round(s.wallH * 0.48);
@@ -110,7 +111,8 @@ export function farBuilding(g: TGrid, s: FarSpec, lightsOn = true): BandGlow[] {
         else {
           const mullion = i === Math.floor(ww / 2) || j === Math.floor(wh / 2);
           if (mullion) put(b, x0 + i, y0 + j, C('wood', 4));
-          else if (w.lit && lightsOn) put(b, x0 + i, y0 + j, C('glass', j < wh / 2 ? (i < ww / 2 ? 0 : 1) : 2));
+          else if (w.lit && lightsOn)
+            put(b, x0 + i, y0 + j, C('glass', j < wh / 2 ? (i < ww / 2 ? 0 : 1) : 2));
           else put(b, x0 + i, y0 + j, C('pane', j === 0 ? 4 : i < ww / 2 && j < 2 ? 2 : 3));
         }
       }
@@ -121,7 +123,14 @@ export function farBuilding(g: TGrid, s: FarSpec, lightsOn = true): BandGlow[] {
         put(b, x0 + ww + 1, y0 + j, C('blue', 2));
         put(b, x0 + ww + 2, y0 + j, C('blue', 3));
       }
-    if (w.lit && lightsOn) glows.push({ x: s.x - wx + x0 + ww / 2, y: s.base - H + y0 + wh / 2, r: 8, strength: 0.22, bands: 2 });
+    if (w.lit && lightsOn)
+      glows.push({
+        x: s.x - wx + x0 + ww / 2,
+        y: s.base - H + y0 + wh / 2,
+        r: 8,
+        strength: 0.22,
+        bands: 2,
+      });
   }
   if (s.door) {
     const d = s.door;
@@ -138,9 +147,21 @@ export function farBuilding(g: TGrid, s: FarSpec, lightsOn = true): BandGlow[] {
       for (let i = 0; i < f.w; i++) {
         const y = H - 3 - f.h + j;
         const fire = j > f.h - 6 && i > 2 && i < f.w - 3;
-        put(b, wx + f.x + i, y, fire ? C('fire', j > f.h - 3 ? 2 : 3 + ((i + j) & 1)) : C('shade', 1 + (j < 2 ? 2 : 0)));
+        put(
+          b,
+          wx + f.x + i,
+          y,
+          fire ? C('fire', j > f.h - 3 ? 2 : 3 + ((i + j) & 1)) : C('shade', 1 + (j < 2 ? 2 : 0)),
+        );
       }
-    glows.push({ x: s.x - wx + wx + f.x + f.w / 2, y: s.base - 6, r: 22, strength: 0.32, bands: 3, colour: [255, 120, 50] });
+    glows.push({
+      x: s.x - wx + wx + f.x + f.w / 2,
+      y: s.base - 6,
+      r: 22,
+      strength: 0.32,
+      bands: 3,
+      colour: [255, 120, 50],
+    });
   }
   // Roof: the front slope, a trapezoid from the eave up to the ridge.
   const over = 3;
@@ -181,7 +202,12 @@ export function farBuilding(g: TGrid, s: FarSpec, lightsOn = true): BandGlow[] {
     const j = s.roofH - 1;
     const inset = Math.round(((j / s.roofH) * s.roofH * 0.55) | 0);
     for (let x = wx - over + inset; x < wx + s.w + over - inset; x++)
-      put(b, x, eave - s.roofH, C(s.roof === 'thatch' ? 'thatch' : s.roof === 'slate' ? 'slate' : 'tile', 1));
+      put(
+        b,
+        x,
+        eave - s.roofH,
+        C(s.roof === 'thatch' ? 'thatch' : s.roof === 'slate' ? 'slate' : 'tile', 1),
+      );
   }
   // The eave's shadow on the wall.
   for (let x = wx; x < wx + s.w; x++)
@@ -228,7 +254,13 @@ export function chimneyTop(s: FarSpec): { x: number; y: number } | null {
  * Smoke rising from a chimney: small puffs lit on the left, drifting right
  * as they climb, thinning as they go. `phase` 0..1 moves them up one puff.
  */
-export function farSmoke(g: TGrid, x: number, y: number, phase: number, o: { n?: number; dusk?: boolean; size?: number } = {}): void {
+export function farSmoke(
+  g: TGrid,
+  x: number,
+  y: number,
+  phase: number,
+  o: { n?: number; dusk?: boolean; size?: number } = {},
+): void {
   const n = o.n ?? 6;
   const size = o.size ?? 1;
   for (let i = 0; i < n; i++) {
@@ -286,7 +318,14 @@ export function farPine(
  * castle with its lit windows and lantern, one mast, the sail furled on its
  * yard, shrouds, and the black flag. Returns its glows.
  */
-export function farShip(g: TGrid, x: number, wl: number, s = 1, lightsOn = true, flagPhase = 0): BandGlow[] {
+export function farShip(
+  g: TGrid,
+  x: number,
+  wl: number,
+  s = 1,
+  lightsOn = true,
+  flagPhase = 0,
+): BandGlow[] {
   const L = Math.round(140 * s);
   const hullH = Math.round(24 * s);
   const mastH = Math.round(150 * s);
@@ -348,7 +387,12 @@ export function farShip(g: TGrid, x: number, wl: number, s = 1, lightsOn = true,
   const scTop = deckAt(sc1) - Math.round(14 * s);
   for (let y = scTop; y < deckAt(sc0); y++)
     for (let xx = sc0; xx < sc1; xx++) {
-      put(b, xx, y, C('tar', xx === sc0 ? 1 : y === scTop ? 1 : 2 + ((xx - sc0) % 6 === 5 ? 1 : 0)));
+      put(
+        b,
+        xx,
+        y,
+        C('tar', xx === sc0 ? 1 : y === scTop ? 1 : 2 + ((xx - sc0) % 6 === 5 ? 1 : 0)),
+      );
     }
   for (let xx = sc0 - 1; xx <= sc1; xx++) put(b, xx, scTop - 1, C('gold', 2));
   for (let i = 0; i < 3; i++) {
@@ -357,17 +401,20 @@ export function farShip(g: TGrid, x: number, wl: number, s = 1, lightsOn = true,
       for (let q = 0; q < 3; q++)
         put(b, wx + q, scTop + 4 + j, lightsOn ? C('glass', j < 2 ? 0 : 2) : C('pane', 3));
     for (let q = -1; q <= 3; q++) put(b, wx + q, scTop + 3, C('gold', 2));
-    if (lightsOn) glows.push({ x: x + wx + 1, y: wl - H + scTop + 6, r: 9, strength: 0.25, bands: 2 });
+    if (lightsOn)
+      glows.push({ x: x + wx + 1, y: wl - H + scTop + 6, r: 9, strength: 0.25, bands: 2 });
   }
   // Stern lantern on its post.
   const lx = sc1 - 1;
   for (let j = 1; j < 8; j++) put(b, lx, scTop - j, C('iron', 3));
-  for (let j = 0; j < 4; j++) for (let q = -1; q <= 1; q++) put(b, lx + q, scTop - 11 + j, C('lamp', j < 2 ? 0 : 1));
+  for (let j = 0; j < 4; j++)
+    for (let q = -1; q <= 1; q++) put(b, lx + q, scTop - 11 + j, C('lamp', j < 2 ? 0 : 1));
   put(b, lx, scTop - 12, C('iron', 2));
   if (lightsOn) glows.push({ x: x + lx, y: wl - H + scTop - 9, r: 18, strength: 0.4, bands: 3 });
   // Bowsprit.
   const bx = x0 + 6;
-  for (let i = 0; i < Math.round(36 * s); i++) put(b, bx - i, deckAt(bx) - 3 - Math.round(i * 0.35), C('wood', 3));
+  for (let i = 0; i < Math.round(36 * s); i++)
+    put(b, bx - i, deckAt(bx) - 3 - Math.round(i * 0.35), C('wood', 3));
   // Mast, yards, furled sail.
   const mx = x0 + Math.round(L * 0.48);
   const mTop = 6;
@@ -387,7 +434,8 @@ export function farShip(g: TGrid, x: number, wl: number, s = 1, lightsOn = true,
   yard(Math.round(mTop + mastH * 0.28), Math.round(30 * s));
   yard(Math.round(mTop + mastH * 0.58), Math.round(40 * s));
   // Top and its crow's nest.
-  for (let i = -4; i <= 4; i++) put(b, mx + i, Math.round(mTop + mastH * 0.2), C('wood', i < 0 ? 2 : 4));
+  for (let i = -4; i <= 4; i++)
+    put(b, mx + i, Math.round(mTop + mastH * 0.2), C('wood', i < 0 ? 2 : 4));
   // Shrouds and stays: lines from the masthead to the rails.
   const line = (ax: number, ay: number, cx2: number, cy2: number) => {
     const n = Math.max(Math.abs(cx2 - ax), Math.abs(cy2 - ay));
@@ -399,7 +447,8 @@ export function farShip(g: TGrid, x: number, wl: number, s = 1, lightsOn = true,
   };
   line(mx, mTop + 4, bx - Math.round(34 * s), deckAt(bx) - 3 - Math.round(12 * s));
   line(mx, mTop + 4, sc1 - 2, scTop - 2);
-  for (const d of [-12, -6, 6, 12]) line(mx, Math.round(mTop + mastH * 0.2), mx + Math.round(d * s), deckAt(mx + d) - 4);
+  for (const d of [-12, -6, 6, 12])
+    line(mx, Math.round(mTop + mastH * 0.2), mx + Math.round(d * s), deckAt(mx + d) - 4);
   // The black flag at the masthead, rippling with phase.
   for (let j = 0; j < 9; j++)
     for (let i = 0; i < 14; i++) {
@@ -422,7 +471,8 @@ export function farLamp(g: TGrid, x: number, base: number, h = 18, on = true): B
   put(g, x - 1, base - 1, C('iron', 4));
   put(g, x + 1, base - 1, C('iron', 4));
   for (let j = 0; j < 4; j++)
-    for (let i = -1; i <= 1; i++) put(g, x + i, base - h + j, C(on ? 'lamp' : 'iron', on ? (j < 2 ? 0 : 1) : 3));
+    for (let i = -1; i <= 1; i++)
+      put(g, x + i, base - h + j, C(on ? 'lamp' : 'iron', on ? (j < 2 ? 0 : 1) : 3));
   put(g, x, base - h - 1, C('iron', 3));
   return { x: x + 0.5, y: base - h + 2, r: 16, strength: 0.38, bands: 3 };
 }

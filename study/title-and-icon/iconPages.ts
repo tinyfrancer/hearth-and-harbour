@@ -14,7 +14,11 @@ function iconCanvas(icon: IconArt, size = 36): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = g.w;
   c.height = g.h;
-  c.getContext('2d')!.putImageData(new ImageData(colourise(g, icon.pal, glows) as Uint8ClampedArray<ArrayBuffer>, g.w, g.h), 0, 0);
+  c.getContext('2d')!.putImageData(
+    new ImageData(colourise(g, icon.pal, glows) as Uint8ClampedArray<ArrayBuffer>, g.w, g.h),
+    0,
+    0,
+  );
   c.style.imageRendering = 'pixelated';
   return c;
 }
@@ -80,7 +84,13 @@ export function iconsComparePage(): void {
   style();
   const sheet = el('div', 'sheet');
   sheet.append(el('h1', '', 'Home-screen icon: six options'));
-  sheet.append(el('p', 'lede', '36 x 36 pixels each, shown at 8x with the iPhone corner mask. Today’s icon last.'));
+  sheet.append(
+    el(
+      'p',
+      'lede',
+      '36 x 36 pixels each, shown at 8x with the iPhone corner mask. Today’s icon last.',
+    ),
+  );
   const row = el('div', 'row');
   for (const icon of ICONS) {
     const cell = el('div', 'cell');
@@ -117,7 +127,9 @@ export function iconsHomePage(): void {
   style();
   const sheet = el('div', 'sheet');
   sheet.append(el('h1', '', 'At true size on a home screen'));
-  sheet.append(el('p', 'lede', '60 pt (180 device pixels at 3x), iOS mask, between plain placeholder apps.'));
+  sheet.append(
+    el('p', 'lede', '60 pt (180 device pixels at 3x), iOS mask, between plain placeholder apps.'),
+  );
   const walls = el('div', 'row');
   for (const tone of ['light', 'dark'] as const) {
     const wall = el('div', `wall ${tone}`);
@@ -167,10 +179,20 @@ export function iconsSafePage(): void {
     safe.append(iconCanvas(icon, 48));
     const ring = el('div', 'ring');
     const d = 240 * 0.66;
-    Object.assign(ring.style, { width: `${d}px`, height: `${d}px`, left: `${(240 - d) / 2 - 2}px`, top: `${(240 - d) / 2 - 2}px` });
+    Object.assign(ring.style, {
+      width: `${d}px`,
+      height: `${d}px`,
+      left: `${(240 - d) / 2 - 2}px`,
+      top: `${(240 - d) / 2 - 2}px`,
+    });
     const sq = el('div', 'sq');
     const v = 240 * (72 / 108);
-    Object.assign(sq.style, { width: `${v}px`, height: `${v}px`, left: `${(240 - v) / 2 - 2}px`, top: `${(240 - v) / 2 - 2}px` });
+    Object.assign(sq.style, {
+      width: `${v}px`,
+      height: `${v}px`,
+      left: `${(240 - v) / 2 - 2}px`,
+      top: `${(240 - v) / 2 - 2}px`,
+    });
     safe.append(sq, ring);
     const masks = el('div', 'row');
     masks.style.gap = '10px';

@@ -57,7 +57,10 @@ function style(): void {
 }
 
 /** The title on a phone screen at time t. Returns the element and a repaint. */
-export function screenEl(title: Title, t = 0): { el: HTMLElement; paint: (t: number) => void; canvas: HTMLCanvasElement } {
+export function screenEl(
+  title: Title,
+  t = 0,
+): { el: HTMLElement; paint: (t: number) => void; canvas: HTMLCanvasElement } {
   style();
   const el = document.createElement('div');
   el.className = 'hh-screen';

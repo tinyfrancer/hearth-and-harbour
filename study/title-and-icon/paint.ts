@@ -11,7 +11,14 @@ import { X, type XMat } from './pal';
 export type Stop = readonly [XMat, number];
 
 /** Index into `stops` at fraction f, with the band edges broken into sideways clumps. */
-function bandAt(stops: readonly Stop[], f: number, x: number, y: number, k: number, stretch: number) {
+function bandAt(
+  stops: readonly Stop[],
+  f: number,
+  x: number,
+  y: number,
+  k: number,
+  stretch: number,
+) {
   const t = Math.max(0, Math.min(stops.length - 1, f * (stops.length - 1)));
   const fl = Math.floor(t);
   const fr = t - fl;
@@ -26,7 +33,14 @@ export function bands(
   y0: number,
   y1: number,
   stops: readonly Stop[],
-  o: { k?: number; stretch?: number; under?: boolean; x0?: number; x1?: number; curve?: (f: number) => number } = {},
+  o: {
+    k?: number;
+    stretch?: number;
+    under?: boolean;
+    x0?: number;
+    x1?: number;
+    curve?: (f: number) => number;
+  } = {},
 ): void {
   const k = o.k ?? 1;
   const stretch = o.stretch ?? 4;
@@ -58,7 +72,12 @@ export function stars(
   y0: number,
   w: number,
   h: number,
-  o: { density?: number; k?: number; phase?: number; avoid?: (x: number, y: number) => boolean } = {},
+  o: {
+    density?: number;
+    k?: number;
+    phase?: number;
+    avoid?: (x: number, y: number) => boolean;
+  } = {},
 ): void {
   const k = o.k ?? 3;
   const dens = o.density ?? 0.006;
@@ -150,7 +169,15 @@ export function streak(
 }
 
 /** Darkens every drawn cell in a box by n steps (a shadow cast across a scene). */
-export function shade(g: TGrid, x0: number, y0: number, w: number, h: number, n: number, cap = 6): void {
+export function shade(
+  g: TGrid,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  n: number,
+  cap = 6,
+): void {
   for (let y = y0; y < y0 + h; y++)
     for (let x = x0; x < x0 + w; x++) {
       const c = at(g, x, y);

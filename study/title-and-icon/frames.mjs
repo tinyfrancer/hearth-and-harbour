@@ -7,9 +7,14 @@ const PW =
 const { chromium } = await import(PW);
 const [out, id, n = '24', dpr = '2'] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: Number(dpr) });
+const page = await browser.newPage({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: Number(dpr),
+});
 page.on('pageerror', (e) => console.error('pageerror', e.message));
-await page.goto(`http://localhost:${process.env.PORT ?? '5191'}/study/title-and-icon/index.html?v=title&o=${id}`);
+await page.goto(
+  `http://localhost:${process.env.PORT ?? '5191'}/study/title-and-icon/index.html?v=title&o=${id}`,
+);
 await page.waitForFunction(() => window.ready === true, null, { timeout: 120000 });
 await page.evaluate(() => document.fonts.ready);
 const loop = await page.evaluate(() => window.loopMs);

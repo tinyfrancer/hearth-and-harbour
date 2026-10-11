@@ -56,13 +56,24 @@ export function titlesComparePage(titles: Title[]): void {
   style();
   const sheet = el('div', 'sheet');
   sheet.append(el('h1', '', 'Hearth & Harbour: title screen, four directions'));
-  sheet.append(el('p', 'lede', 'Each is a real 390 x 844 phone screen, one art pixel to three device pixels; the controls are the menus’ own.'));
+  sheet.append(
+    el(
+      'p',
+      'lede',
+      'Each is a real 390 x 844 phone screen, one art pixel to three device pixels; the controls are the menus’ own.',
+    ),
+  );
   const row = el('div', 'titles');
   for (const t of titles) {
     const cell = el('div', 'tcell');
     const frame = el('div', 'frame');
     frame.append(screenEl(t).el);
-    cell.append(el('div', 'tlabel', t.id), el('div', 'tname', t.name), el('div', 'tcap', CAPTIONS[t.id] ?? ''), frame);
+    cell.append(
+      el('div', 'tlabel', t.id),
+      el('div', 'tname', t.name),
+      el('div', 'tcap', CAPTIONS[t.id] ?? ''),
+      frame,
+    );
     row.append(cell);
   }
   sheet.append(row);
@@ -85,13 +96,23 @@ export function logotypesPage(): void {
   const wrap = el('div', 'sheet');
   wrap.append(el('h1', '', 'The logotype, three hands'));
   wrap.append(
-    el('p', 'lede', 'Hand-drawn letters, not the menu font: Roman capitals in gilt, a broad-nib uncial, and both cut or bent to suit a scene. Shown at 2x art size.'),
+    el(
+      'p',
+      'lede',
+      'Hand-drawn letters, not the menu font: Roman capitals in gilt, a broad-nib uncial, and both cut or bent to suit a scene. Shown at 2x art size.',
+    ),
   );
   const logos = el('div', 'logos');
   const dusk = xpal('dusk');
   const items: { cap: string; make: () => { g: TGrid; pal: XPal } }[] = [
-    { cap: 'I. Gilt Roman capitals, uncial ampersand on a rule (title A)', make: () => ({ g: alone(lockupCaps()), pal: dusk }) },
-    { cap: 'II. Uncial in painted cream, red shadow (title C)', make: () => ({ g: alone(lockupUncial({ xh: 34 })), pal: dusk }) },
+    {
+      cap: 'I. Gilt Roman capitals, uncial ampersand on a rule (title A)',
+      make: () => ({ g: alone(lockupCaps()), pal: dusk }),
+    },
+    {
+      cap: 'II. Uncial in painted cream, red shadow (title C)',
+      make: () => ({ g: alone(lockupUncial({ xh: 34 })), pal: dusk }),
+    },
     {
       cap: 'II carved: the uncial cut into an oak board and gilded (title B)',
       make: () => {

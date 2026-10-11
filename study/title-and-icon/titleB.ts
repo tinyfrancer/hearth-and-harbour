@@ -15,11 +15,21 @@
  * exactly), sparks rising, the firelight's rings breathing, the candle, the
  * stars and the lantern in the window.
  */
-import { at, cell, hash, outlined, put, solid, stamp, tgrid, type TGrid } from '../../src/art/town2/cells';
+import {
+  at,
+  cell,
+  hash,
+  outlined,
+  put,
+  solid,
+  stamp,
+  tgrid,
+  type TGrid,
+} from '../../src/art/town2/cells';
 import { ashlar, beamH, beamV, render } from '../../src/art/town2/walls';
 import { barrel, crate } from '../../src/art/town2/props';
 import { clamp, clumps, cyl, noise } from '../../src/art/town2/texture';
-import { X, isX, xmatOf, xpal, type BandGlow, type XMat } from './pal';
+import { X, xmatOf, xpal, type BandGlow, type XMat } from './pal';
 import { bands, run, stars } from './paint';
 import { farShip } from './far';
 import { lockupUncial } from './lockups';
@@ -33,7 +43,17 @@ const FLOOR = 660;
 const LANTERN = { x: 362, y: 252 };
 
 /** Things that give light, or are seen through glass, and so are never darkened by distance. */
-const LIGHTS: readonly XMat[] = ['fire', 'ember', 'lamp', 'glass', 'skyHi', 'skyLo', 'star', 'hazeDusk', 'gilt'];
+const LIGHTS: readonly XMat[] = [
+  'fire',
+  'ember',
+  'lamp',
+  'glass',
+  'skyHi',
+  'skyLo',
+  'star',
+  'hazeDusk',
+  'gilt',
+];
 
 function shieldAndSwords(g: TGrid, cx: number, top: number): void {
   // Two long swords crossed behind the shield, hilts down.
@@ -47,12 +67,19 @@ function shieldAndSwords(g: TGrid, cx: number, top: number): void {
       const py = y0 + uy * i;
       if (f < 0.12) {
         // Grip (leather) and pommel.
-        for (let w = -1; w <= 1; w++) put(g, px - uy * w, py + ux * w, C(f < 0.03 ? 'gold' : 'leather', f < 0.03 ? 2 : 2 + w));
+        for (let w = -1; w <= 1; w++)
+          put(g, px - uy * w, py + ux * w, C(f < 0.03 ? 'gold' : 'leather', f < 0.03 ? 2 : 2 + w));
       } else if (f < 0.14) {
         for (let w = -7; w <= 7; w++) put(g, px - uy * w, py + ux * w, C('gold', w < 0 ? 1 : 3));
       } else {
         const half = f > 0.94 ? 1 : 2;
-        for (let w = -half; w <= half; w++) put(g, px - uy * w, py + ux * w, C('plate', w === -half ? 0 : w === half ? 4 : w === 0 ? 3 : 2));
+        for (let w = -half; w <= half; w++)
+          put(
+            g,
+            px - uy * w,
+            py + ux * w,
+            C('plate', w === -half ? 0 : w === half ? 4 : w === 0 ? 3 : 2),
+          );
       }
     }
   };
@@ -79,8 +106,13 @@ function shieldAndSwords(g: TGrid, cx: number, top: number): void {
     for (let x = 0; x < W; x++) {
       if (!mask[y * W + x]) continue;
       const edge =
-        !mask[y * W + x - 1] || !mask[y * W + x + 1] || !mask[(y - 1) * W + x] || !mask[(y + 1) * W + x] ||
-        !mask[y * W + x - 2] || !mask[y * W + x + 2] || !mask[(y - 2) * W + x];
+        !mask[y * W + x - 1] ||
+        !mask[y * W + x + 1] ||
+        !mask[(y - 1) * W + x] ||
+        !mask[(y + 1) * W + x] ||
+        !mask[y * W + x - 2] ||
+        !mask[y * W + x + 2] ||
+        !mask[(y - 2) * W + x];
       const vx = Math.abs(x + 0.5 - W / 2) < 5;
       const hy = y >= 30 && y < 39;
       if (edge) put(g, x0 + x, top + y, C('iron', x < W / 2 && y < H * 0.6 ? 1 : 3));
@@ -139,7 +171,15 @@ function cloak(g: TGrid, px: number, top: number): void {
   for (let y = -6; y < 14; y++)
     for (let x = -11; x <= 11; x++)
       if ((x / 11) ** 2 + ((y - 3) / 9) ** 2 <= 1)
-        put(g, px + x, top + y, C('crimson', clamp(1.4 + x / 5 + (y > 7 ? 1.4 : 0) + (Math.abs(x) < 3 && y > 4 ? 1 : 0), 0, 5)));
+        put(
+          g,
+          px + x,
+          top + y,
+          C(
+            'crimson',
+            clamp(1.4 + x / 5 + (y > 7 ? 1.4 : 0) + (Math.abs(x) < 3 && y > 4 ? 1 : 0), 0, 5),
+          ),
+        );
   for (let x = -2; x <= 3; x++) put(g, px + x, top - 8, C('wood', x < 0 ? 2 : 4));
   put(g, px - 1, top + 14, C('gold', 1));
   put(g, px, top + 14, C('gold', 2));
@@ -154,10 +194,16 @@ function boots(g: TGrid, x: number, base: number): void {
     for (let y = 0; y < 22; y++)
       for (let i = 0; i < 9; i++) {
         const nx = (i - 4) / 4.5;
-        put(g, bx + i + (y < 6 ? lean : 0), base - 22 + y, C('leather', clamp(cyl(nx, 2.4, 1.4) + (y < 2 ? -1 : 0), 0, 5)));
+        put(
+          g,
+          bx + i + (y < 6 ? lean : 0),
+          base - 22 + y,
+          C('leather', clamp(cyl(nx, 2.4, 1.4) + (y < 2 ? -1 : 0), 0, 5)),
+        );
       }
     for (let i = 0; i < 14; i++)
-      for (let y = 0; y < 5; y++) put(g, bx + i - 1, base - 5 + y, C('leather', clamp(2 + y * 0.6 + (i > 10 ? 1 : 0), 0, 5)));
+      for (let y = 0; y < 5; y++)
+        put(g, bx + i - 1, base - 5 + y, C('leather', clamp(2 + y * 0.6 + (i > 10 ? 1 : 0), 0, 5)));
   }
 }
 
@@ -176,7 +222,9 @@ function rug(g: TGrid): void {
       const u = (x - cx) / half;
       const edge = Math.abs(u) > 0.9 || y - y0 < 4 + f * 2 || y1 - y < 6;
       const stripe = Math.abs(Math.abs(u) - 0.82) < 0.025 || Math.abs(y - y0 - (8 + f * 4)) < 1 + f;
-      const loz = Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 < 0.62 && Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 > 0.5;
+      const loz =
+        Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 < 0.62 &&
+        Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 > 0.5;
       const loz2 = Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 < 0.28;
       let c = C('madder', 2 + ((Math.floor(x / 6) + Math.floor(y / 4)) % 5 === 0 ? 1 : 0));
       if (edge) c = C('madder', 4);
@@ -219,14 +267,31 @@ function window_(g: TGrid, ph: number): BandGlow[] {
   const w = 34;
   const h = 150;
   // The view: dusk over the harbour.
-  bands(g, y0, y0 + 112, [...run('skyHi', 6, 0), ...run('skyLo', 7, 1)], { k: 8, stretch: 5, x0, x1: x0 + w });
+  bands(g, y0, y0 + 112, [...run('skyHi', 6, 0), ...run('skyLo', 7, 1)], {
+    k: 8,
+    stretch: 5,
+    x0,
+    x1: x0 + w,
+  });
   stars(g, x0, y0, w, 50, { density: 0.02, k: 9, phase: ph * 8 });
   for (let x = x0; x < x0 + w; x++) {
     const top = y0 + 100 + Math.round(noise(x / 9, 0, 1, 3) * 6);
     for (let y = top; y < y0 + 114; y++) put(g, x, y, X('hazeDusk', 3));
   }
   for (let y = y0 + 114; y < y0 + h; y++)
-    for (let x = x0; x < x0 + w; x++) put(g, x, y, C('sea', 4 + (clumps(x / 6 + ph * 4, y, 3) > 0.6 ? 1 : 0)));
+    for (let x = x0; x < x0 + w; x++)
+      put(
+        g,
+        x,
+        y,
+        C(
+          'sea',
+          4 +
+            (clumps(x / 6 + Math.cos(ph * Math.PI * 2), y + Math.sin(ph * Math.PI * 2), 3) > 0.6
+              ? 1
+              : 0),
+        ),
+      );
   const sub = tgrid(SCREEN_W, SCREEN_H);
   const glows = farShip(sub, x0 - 4, y0 + 126, 0.19, true, ph);
   for (let y = y0; y < y0 + h; y++)
@@ -277,7 +342,16 @@ function fire(g: TGrid, t: number): void {
       for (let j = -r; j <= r; j++) {
         const glow = j < 0 ? 0 : 1;
         const ember = hash(Math.round(px / 3), j, 5) < 0.25;
-        put(g, px, py + j, j === -r ? C('bark', 2) : ember && j > 0 ? X('ember', 2 + glow) : C('bark', clamp(3 + j / r, 1, 5)));
+        put(
+          g,
+          px,
+          py + j,
+          j === -r
+            ? C('bark', 2)
+            : ember && j > 0
+              ? X('ember', 2 + glow)
+              : C('bark', clamp(3 + j / r, 1, 5)),
+        );
       }
       put(g, px, py + r + 1, C('bark', 6));
     }
@@ -317,10 +391,13 @@ function fire(g: TGrid, t: number): void {
   TONGUES.forEach(([bx, wb, h0], i) => {
     const hh =
       h0 *
-      (0.82 + 0.22 * Math.sin(ph * Math.PI * 2 * (2 + (i % 3)) + i * 1.7) + 0.06 * Math.sin(ph * Math.PI * 2 * 5 + i));
+      (0.82 +
+        0.22 * Math.sin(ph * Math.PI * 2 * (2 + (i % 3)) + i * 1.7) +
+        0.06 * Math.sin(ph * Math.PI * 2 * 5 + i));
     for (let y = 0; y < hh; y++) {
       const f = y / hh;
-      const sway = Math.sin(f * 3.4 + ph * Math.PI * 2 * 3 + i * 0.9) * f * f * 9 + (bx - 195) * f * 0.12;
+      const sway =
+        Math.sin(f * 3.4 + ph * Math.PI * 2 * 3 + i * 0.9) * f * f * 9 + (bx - 195) * f * 0.12;
       const half = wb * Math.pow(1 - f, 0.85) * (1 + 0.18 * Math.sin(f * 7 + i));
       for (let x = Math.round(-half); x <= Math.round(half); x++) {
         const across = Math.abs(x) / Math.max(1, half);
@@ -333,7 +410,8 @@ function fire(g: TGrid, t: number): void {
       const ty = top - hh - 6 - lift * 30;
       const tx = bx + Math.sin(lift * 6 + i) * 6;
       for (let y = -3; y <= 3; y++)
-        for (let x = -2; x <= 2; x++) if (x * x + y * y * 0.6 <= 4) add(tx + x, ty + y, 0.18 - lift * 0.2);
+        for (let x = -2; x <= 2; x++)
+          if (x * x + y * y * 0.6 <= 4) add(tx + x, ty + y, 0.18 - lift * 0.2);
     }
   });
   for (let y = 0; y < SCREEN_H; y++)
@@ -352,7 +430,8 @@ function fire(g: TGrid, t: number): void {
   // Embers in the bed.
   for (let x = 100; x < 292; x++)
     for (let y = FLOOR - 5; y < FLOOR; y++)
-      if (hash(x, y, Math.floor(ph * 6)) < 0.5) put(g, x, y, X('ember', 1 + Math.floor(hash(x, y, 7) * 4)));
+      if (hash(x, y, Math.floor(ph * 6)) < 0.5)
+        put(g, x, y, X('ember', 1 + Math.floor(hash(x, y, 7) * 4)));
   // Sparks.
   for (let i = 0; i < 7; i++) {
     const f = (ph * 2 + i / 7) % 1;
@@ -384,7 +463,8 @@ function floor(g: TGrid): void {
       if (rowNext !== row) t = 5;
       else if (ul !== col) t = 5;
       else if (rowPrev !== row) t = tone - 1;
-      else if (Math.floor(((x - 2 - FIRE.x) / (y - hy)) * 1.4 + (row % 2) * 0.5) !== col) t = tone - 1;
+      else if (Math.floor(((x - 2 - FIRE.x) / (y - hy)) * 1.4 + (row % 2) * 0.5) !== col)
+        t = tone - 1;
       put(g, x, y, C('cobble', clamp(t, 1, 5)));
     }
   }
@@ -396,13 +476,14 @@ function backdrop(): TGrid {
   // Indoors the render is smoke-stained and even: fold its patches a step toward the middle.
   for (let i = 0; i < g.d.length; i++) {
     const c = g.d[i] as number;
-    if (c && (c >> 3) === (C('plaster', 0) >> 3) && (c & 7) === 1) g.d[i] = C('plaster', 2);
+    if (c && c >> 3 === C('plaster', 0) >> 3 && (c & 7) === 1) g.d[i] = C('plaster', 2);
   }
   // Corner posts and the ceiling beam either side of the chimney.
   beamV(g, 0, 0, 8, FLOOR, 3);
   beamV(g, 382, 0, 8, FLOOR, 4);
   beamH(g, 0, 214, SCREEN_W, 20, 5);
-  for (let y = 0; y < 40; y++) for (let x = 0; x < SCREEN_W; x++) put(g, x, y, C('wood', (x >> 4) % 2 ? 5 : 4));
+  for (let y = 0; y < 40; y++)
+    for (let x = 0; x < SCREEN_W; x++) put(g, x, y, C('wood', (x >> 4) % 2 ? 5 : 4));
   beamH(g, 0, 40, SCREEN_W, 14, 6);
   // The chimney breast, cut stone, up through the ceiling.
   ashlar(g, { x: 58, y: 0, w: 274, h: 440 }, 9, 11);
@@ -416,21 +497,37 @@ function backdrop(): TGrid {
       if (cheek) put(g, x, y, C('stone', x < 80 ? (x < 70 ? 2 : 3) : x < 316 ? 4 : 3));
       else {
         const back = y < 500 ? 0 : Math.floor((y - 500) / 34);
-        put(g, x, y, C('shade', clamp(2 - back * 0.5 + (hash(x >> 3, y >> 2, 4) < 0.3 ? 1 : 0), 0, 4)));
-        if (y > 500 && ((y - 500) % 9 === 0 || (x + Math.floor((y - 500) / 9) * 7) % 14 === 0)) put(g, x, y, C('shade', 4));
+        put(
+          g,
+          x,
+          y,
+          C('shade', clamp(2 - back * 0.5 + (hash(x >> 3, y >> 2, 4) < 0.3 ? 1 : 0), 0, 4)),
+        );
+        if (y > 500 && ((y - 500) % 9 === 0 || (x + Math.floor((y - 500) / 9) * 7) % 14 === 0))
+          put(g, x, y, C('shade', 4));
       }
     }
   floor(g);
   // The hearthstone, a step proud of the floor.
   for (let y = FLOOR; y < FLOOR + 16; y++)
     for (let x = 52; x < 338; x++)
-      put(g, x, y, C('stone', y === FLOOR ? 1 : y >= FLOOR + 14 ? 5 : 2 + (hash(x >> 4, 1, 3) < 0.3 ? 1 : 0)));
+      put(
+        g,
+        x,
+        y,
+        C('stone', y === FLOOR ? 1 : y >= FLOOR + 14 ? 5 : 2 + (hash(x >> 4, 1, 3) < 0.3 ? 1 : 0)),
+      );
   shieldAndSwords(g, 195, 270);
   helm(g, 300, 430);
   // A tankard on the mantel.
   for (let y = 0; y < 14; y++)
     for (let x = 0; x < 10; x++)
-      put(g, 92 + x, 416 + y, C('iron', clamp(cyl((x - 4.5) / 5, 2, 1.5) + (y === 0 || y === 10 ? -1 : 0), 0, 5)));
+      put(
+        g,
+        92 + x,
+        416 + y,
+        C('iron', clamp(cyl((x - 4.5) / 5, 2, 1.5) + (y === 0 || y === 10 ? -1 : 0), 0, 5)),
+      );
   for (let y = 2; y < 10; y++) put(g, 103, 416 + y, C('iron', 3));
   // The peg rail, the cloak.
   beamH(g, 336, 286, 46, 5, 8);
@@ -502,7 +599,12 @@ export function drawB(t: number): Frame {
   for (let j = 0; j < 12; j++)
     for (let i = -4; i <= 4; i++) {
       const frame = Math.abs(i) === 4 || j === 0 || j === 11 || i === 0;
-      put(g, LANTERN.x + i, LANTERN.y - 9 + j, frame ? C('iron', i < 0 ? 2 : 4) : C('lamp', j < 5 ? 0 : 1));
+      put(
+        g,
+        LANTERN.x + i,
+        LANTERN.y - 9 + j,
+        frame ? C('iron', i < 0 ? 2 : 4) : C('lamp', j < 5 ? 0 : 1),
+      );
     }
   for (let i = -5; i <= 5; i++) put(g, LANTERN.x + i, LANTERN.y - 10, C('iron', i < 0 ? 1 : 3));
   // Firelight: every lit-able step darkens with distance from the fire, in clumped bands.
@@ -523,8 +625,22 @@ export function drawB(t: number): Frame {
     }
   const breath = Math.sin(ph * Math.PI * 2 * 3) * 0.04 + Math.sin(ph * Math.PI * 2 * 7) * 0.02;
   const glows: BandGlow[] = [
-    { x: FIRE.x, y: FIRE.y - 20, r: 270 * (1 + breath), strength: 0.2, bands: 5, colour: [255, 130, 50] },
-    { x: FIRE.x, y: FIRE.y, r: 120 * (1 + breath * 2), strength: 0.22, bands: 3, colour: [255, 170, 70] },
+    {
+      x: FIRE.x,
+      y: FIRE.y - 20,
+      r: 270 * (1 + breath),
+      strength: 0.2,
+      bands: 5,
+      colour: [255, 130, 50],
+    },
+    {
+      x: FIRE.x,
+      y: FIRE.y,
+      r: 120 * (1 + breath * 2),
+      strength: 0.22,
+      bands: 3,
+      colour: [255, 170, 70],
+    },
     { x: 74, y: 415, r: 22, strength: 0.3, bands: 2 },
     { x: LANTERN.x, y: LANTERN.y - 4, r: 40, strength: 0.2, bands: 3 },
     ...winGlows,
@@ -536,7 +652,9 @@ export const TITLE_B: Title = {
   id: 'B',
   name: 'The hearth',
   // Night indoors: the town's dusk palette, warmed, every light kept as it is.
-  pal: xpal('dusk', (c, m) => (LIGHTS.includes(m) ? c : [Math.min(255, c[0] * 1.04), c[1] * 0.95, c[2] * 0.9])),
+  pal: xpal('dusk', (c, m) =>
+    LIGHTS.includes(m) ? c : [Math.min(255, c[0] * 1.04), c[1] * 0.95, c[2] * 0.9],
+  ),
   draw: drawB,
   ui: 'tap',
   uiTop: 744,

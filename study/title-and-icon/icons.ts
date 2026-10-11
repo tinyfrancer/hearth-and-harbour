@@ -23,7 +23,15 @@ export interface IconArt {
 }
 
 /** A radial field in flat bands from `centre` step to `edge` step. */
-function radial(g: TGrid, m: XMat, centre: number, edge: number, cx = g.w / 2, cy = g.h / 2, k = 1): void {
+function radial(
+  g: TGrid,
+  m: XMat,
+  centre: number,
+  edge: number,
+  cx = g.w / 2,
+  cy = g.h / 2,
+  k = 1,
+): void {
   const R = Math.hypot(g.w / 2, g.h / 2);
   for (let y = 0; y < g.h; y++)
     for (let x = 0; x < g.w; x++) {
@@ -45,14 +53,27 @@ function lineRound(g: TGrid, isIt: (c: number) => boolean, line: number): void {
         [x + 1, y],
         [x, y - 1],
         [x, y + 1],
-      ].some(([a, b]) => a! >= 0 && b! >= 0 && a! < g.w && b! < g.h && isIt(src[b! * g.w + a!] as number));
+      ].some(
+        ([a, b]) =>
+          a! >= 0 && b! >= 0 && a! < g.w && b! < g.h && isIt(src[b! * g.w + a!] as number),
+      );
       if (nb) g.d[y * g.w + x] = line;
     }
 }
 
 /** Hand-placed rows: each character a cell from the legend, '.' leaves what is there. */
-function rows(g: TGrid, x0: number, y0: number, art: readonly string[], legend: Record<string, number>): void {
-  art.forEach((r, j) => [...r].forEach((ch, i) => ch !== '.' && legend[ch] !== undefined && put(g, x0 + i, y0 + j, legend[ch]!)));
+function rows(
+  g: TGrid,
+  x0: number,
+  y0: number,
+  art: readonly string[],
+  legend: Record<string, number>,
+): void {
+  art.forEach((r, j) =>
+    [...r].forEach(
+      (ch, i) => ch !== '.' && legend[ch] !== undefined && put(g, x0 + i, y0 + j, legend[ch]!),
+    ),
+  );
 }
 
 // 1 -----------------------------------------------------------------------
@@ -123,7 +144,13 @@ const hearthAnchor: IconArt = {
     const g = tgrid(size, size);
     const o = (size - 36) / 2;
     radial(g, 'navy', 2, 5, size / 2, size / 2 - 3);
-    solid(g, o, o, 36, 36, (x, y) => anchorMask(x, y), 'gold', { base: 2, contrast: 1.6, radius: 1.6, lo: 0, hi: 4 });
+    solid(g, o, o, 36, 36, (x, y) => anchorMask(x, y), 'gold', {
+      base: 2,
+      contrast: 1.6,
+      radius: 1.6,
+      lo: 0,
+      hi: 4,
+    });
     flame(g, o + 17.5, o + 11, 1);
     lineRound(g, (c) => isX(c, 'gold'), C('gold', 6));
     lineRound(g, (c) => isX(c, 'fire'), X('fire', 6));
@@ -144,7 +171,9 @@ const lantern: IconArt = {
     // The halo: flat rings warming toward the lamp, their edges clumped.
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++) {
-        const d = Math.hypot(x + 0.5 - size / 2, (y + 0.5 - (o + 17.5)) * 0.92) + (clumps(x, y, 6) - 0.5) * 1.4;
+        const d =
+          Math.hypot(x + 0.5 - size / 2, (y + 0.5 - (o + 17.5)) * 0.92) +
+          (clumps(x, y, 6) - 0.5) * 1.4;
         if (d < 10.5) put(g, x, y, X('skyLo', 3));
         else if (d < 13) put(g, x, y, X('skyLo', 5));
         else if (d < 15.5) put(g, x, y, X('skyLo', 7));
@@ -162,43 +191,47 @@ const lantern: IconArt = {
       w: X('fire', 0),
       c: C('sail', 1),
     };
-    rows(g, o, o, [
-      '................IIII................',
-      '...............IjiiI................',
-      '...............Ii..iI...............',
-      '...............IjiiiI...............',
-      '................IiiI................',
-      '...............IIjiII...............',
-      '.............IIjhjiiiII.............',
-      '...........IIjhjjjiiiiII............',
-      '..........IIjhjjjjjjiiiiII..........',
-      '.........IjjjjjjjjjiiiiiiiI.........',
-      '.........IIIIIIIIIIIIIIIIII.........',
-      '.........IjhggggGGGGGGaaiiI.........',
-      '.........IjhgggGGGGGGGaaiiI.........',
-      '.........IjhgggGGGwGGGaaiiI.........',
-      '.........IjhggGGGwwGGGaaiiI.........',
-      '.........IjhggGGwwwfGGaaiiI.........',
-      '.........IjhggGGwwwfGGaaiiI.........',
-      '.........IjhggGGfwwfGGaaiiI.........',
-      '.........IjhggGGGffGGGaaiiI.........',
-      '.........IjhggGGGccGGaaaiiI.........',
-      '.........IjhggGGGccGGaaaiiI.........',
-      '.........IjhgGGGGccGGaaaiiI.........',
-      '.........IjhgGGGGGGGaaaaiiI.........',
-      '........IIIIIIIIIIIIIIIIIIII........',
-      '........IjjjjjjjjjiiiiiiiiiI........',
-      '.........IIjjjjjjjiiiiiiII..........',
-      '...........IIIIjjiiiIIII............',
-      '..............IIjiiII...............',
-      '...............IIiII................',
-      '................III.................',
-    ], L);
+    rows(
+      g,
+      o,
+      o,
+      [
+        '................IIII................',
+        '...............IjiiI................',
+        '...............Ii..iI...............',
+        '...............IjiiiI...............',
+        '................IiiI................',
+        '...............IIjiII...............',
+        '.............IIjhjiiiII.............',
+        '...........IIjhjjjiiiiII............',
+        '..........IIjhjjjjjjiiiiII..........',
+        '.........IjjjjjjjjjiiiiiiiI.........',
+        '.........IIIIIIIIIIIIIIIIII.........',
+        '.........IjhggggGGGGGGaaiiI.........',
+        '.........IjhgggGGGGGGGaaiiI.........',
+        '.........IjhgggGGGwGGGaaiiI.........',
+        '.........IjhggGGGwwGGGaaiiI.........',
+        '.........IjhggGGwwwfGGaaiiI.........',
+        '.........IjhggGGwwwfGGaaiiI.........',
+        '.........IjhggGGfwwfGGaaiiI.........',
+        '.........IjhggGGGffGGGaaiiI.........',
+        '.........IjhggGGGccGGaaaiiI.........',
+        '.........IjhggGGGccGGaaaiiI.........',
+        '.........IjhgGGGGccGGaaaiiI.........',
+        '.........IjhgGGGGGGGaaaaiiI.........',
+        '........IIIIIIIIIIIIIIIIIIII........',
+        '........IjjjjjjjjjiiiiiiiiiI........',
+        '.........IIjjjjjjjiiiiiiII..........',
+        '...........IIIIjjiiiIIII............',
+        '..............IIjiiII...............',
+        '...............IIiII................',
+        '................III.................',
+      ],
+      L,
+    );
     return {
       g,
-      glows: [
-        { x: size / 2 - 0.5, y: o + 17.5, r: 9, strength: 0.2, bands: 2 },
-      ],
+      glows: [{ x: size / 2 - 0.5, y: o + 17.5, r: 9, strength: 0.2, bands: 2 }],
     };
   },
 };
@@ -236,37 +269,43 @@ const helmFace: IconArt = {
       n: C('iron', 2),
       r: C('gold', 2),
     };
-    rows(g, o, o, [
-      '................KKKK................',
-      '..............KK0012KK..............',
-      '.............K00112233K.............',
-      '............K0011222334K............',
-      '...........K00112222333K............',
-      '..........K001122222333 4K..........'.replace(' ', ''),
-      '..........K0112222223334K...........',
-      '.........K01122222223334K...........',
-      '.........K0112222222333 44K.........'.replace(' ', ''),
-      '........K01122222222233344K.........',
-      '........K01122222222233344K.........',
-      '........K11122222222233344K.........',
-      '........KK1r1111221111r33KK.........',
-      '........K1111111221111333K..........',
-      '........KKKKKKKK12KKKKKKKK..........',
-      '........KSsssbbK12KbbuuuvSK.........',
-      '........KSssbbsK12KsbbuuvSK.........',
-      '........KSseeesK12KseeeuvSK.........',
-      '........KSswiwsK12KswiwuvSK.........',
-      '........KSswIwsK12KswIwuvSK.........',
-      '........KSsssssK12KsuuuuvSK.........',
-      '........KSssssstK2KtuuuuvSK.........',
-      '........KSsssssstvuuuuuuvSK.........',
-      '.........SssssssuvvuuuuuvS..........',
-      '.........SStssssvvvuuuuvSS..........',
-      '..........SttssSSSSuuuvvS...........',
-      '..........SSttssuuuuuvvSS...........',
-      '...........SSttuuuuuvSS.............',
-      '..........MmSSSSSSSSSSmM............',
-    ], L);
+    rows(
+      g,
+      o,
+      o,
+      [
+        '................KKKK................',
+        '..............KK0012KK..............',
+        '.............K00112233K.............',
+        '............K0011222334K............',
+        '...........K00112222333K............',
+        '..........K001122222333 4K..........'.replace(' ', ''),
+        '..........K0112222223334K...........',
+        '.........K01122222223334K...........',
+        '.........K0112222222333 44K.........'.replace(' ', ''),
+        '........K01122222222233344K.........',
+        '........K01122222222233344K.........',
+        '........K11122222222233344K.........',
+        '........KK1r1111221111r33KK.........',
+        '........K1111111221111333K..........',
+        '........KKKKKKKK12KKKKKKKK..........',
+        '........KSsssbbK12KbbuuuvSK.........',
+        '........KSssbbsK12KsbbuuvSK.........',
+        '........KSseeesK12KseeeuvSK.........',
+        '........KSswiwsK12KswiwuvSK.........',
+        '........KSswIwsK12KswIwuvSK.........',
+        '........KSsssssK12KsuuuuvSK.........',
+        '........KSssssstK2KtuuuuvSK.........',
+        '........KSsssssstvuuuuuuvSK.........',
+        '.........SssssssuvvuuuuuvS..........',
+        '.........SStssssvvvuuuuvSS..........',
+        '..........SttssSSSSuuuvvS...........',
+        '..........SSttssuuuuuvvSS...........',
+        '...........SSttuuuuuvSS.............',
+        '..........MmSSSSSSSSSSmM............',
+      ],
+      L,
+    );
     // The coif: mail in offset rows of rings, lit high on the left.
     for (let j = 0; j < 7; j++) {
       const y = o + 29 + j;
@@ -329,9 +368,28 @@ const shipSunset: IconArt = {
       }
       return inside;
     };
-    const MAIN = [[17.5, 6], [24, 6.5], [27.5, 10], [28.5, 15], [27, 21.5], [17.5, 21.5]] as const;
-    const JIB = [[16, 6.5], [15.5, 21.5], [6, 21.5]] as const;
-    const HULL = [[4, 21], [27, 21], [27, 18.5], [32.5, 18.5], [32, 21.5], [29, 25], [9, 25]] as const;
+    const MAIN = [
+      [17.5, 6],
+      [24, 6.5],
+      [27.5, 10],
+      [28.5, 15],
+      [27, 21.5],
+      [17.5, 21.5],
+    ] as const;
+    const JIB = [
+      [16, 6.5],
+      [15.5, 21.5],
+      [6, 21.5],
+    ] as const;
+    const HULL = [
+      [4, 21],
+      [27, 21],
+      [27, 18.5],
+      [32.5, 18.5],
+      [32, 21.5],
+      [29, 25],
+      [9, 25],
+    ] as const;
     const D = C('tar', 6);
     for (let y = 0; y < 36; y++)
       for (let x = 0; x < 36; x++) {
@@ -340,7 +398,15 @@ const shipSunset: IconArt = {
         const mast = x === 17 && y >= 3 && y <= 21;
         const sprit = y === 20 && x >= 1 && x <= 6;
         const flag = y >= 2 && y <= 4 && x >= 18 && x <= 21 - (y === 4 ? 1 : 0);
-        if (mast || sprit || flag || inPoly(MAIN, px, py) || inPoly(JIB, px, py) || inPoly(HULL, px, py)) put(g, o + x, o + y, D);
+        if (
+          mast ||
+          sprit ||
+          flag ||
+          inPoly(MAIN, px, py) ||
+          inPoly(JIB, px, py) ||
+          inPoly(HULL, px, py)
+        )
+          put(g, o + x, o + y, D);
       }
     // The waterline: a lit lip where the hull meets the sea.
     for (let x = 9; x <= 29; x++) put(g, o + x, o + 25, X('sunsea', 0));
@@ -373,7 +439,12 @@ const monogram: IconArt = {
         const rim = !inS(x - 2, y) || !inS(x + 2, y) || !inS(x, y - 2) || !inS(x, y + 2);
         const edge = !inS(x - 1, y) || !inS(x + 1, y) || !inS(x, y - 1) || !inS(x, y + 1);
         const lit = x < 18 && y < 24;
-        put(g, o + x, o + y, edge ? X('gilt', 6) : rim ? X('gilt', lit ? 1 : 3) : X('banner', x < 18 ? 2 : 3));
+        put(
+          g,
+          o + x,
+          o + y,
+          edge ? X('gilt', 6) : rim ? X('gilt', lit ? 1 : 3) : X('banner', x < 18 ? 2 : 3),
+        );
       }
     const L = { '#': X('gilt', 2), h: X('gilt', 0), s: X('gilt', 4), k: X('gilt', 6) };
     const H = [
@@ -425,7 +496,14 @@ const cottage: IconArt = {
     for (let y = 0; y < size; y++)
       for (let x = 0; x < size; x++) {
         const f = y / size;
-        put(g, x, y, f < 0.62 ? X('skyHi', clamp(6 - f * 9 + (clumps(x / 2, y, 2) - 0.5), 1, 7)) : X('skyLo', clamp(6 - (f - 0.62) * 6 + (clumps(x / 2, y, 2) - 0.5), 4, 7)));
+        put(
+          g,
+          x,
+          y,
+          f < 0.62
+            ? X('skyHi', clamp(6 - f * 9 + (clumps(x / 2, y, 2) - 0.5), 1, 7))
+            : X('skyLo', clamp(6 - (f - 0.62) * 6 + (clumps(x / 2, y, 2) - 0.5), 4, 7)),
+        );
       }
     for (const [x, y] of [
       [4, 4],
@@ -462,46 +540,54 @@ const cottage: IconArt = {
       Q: C('grass', 5),
       d: C('wood', 4),
     };
-    rows(g, o, o, [
-      '....................................',
-      '....................................',
-      '..........................mm........',
-      '.........................mmnn.......',
-      '........................mmn.........',
-      '.........................mn.........',
-      '..........................n.........',
-      '.........................kk.........',
-      '..............TTTTTTT...ksSk........',
-      '............TT1122223TT.ksSk........',
-      '..........TT11122222233TsSSk........',
-      '.........T1112222222223334sSk.......',
-      '........T111222222222223334Sk.......',
-      '.......T1112222222222222333 4T......'.replace(' ', ''),
-      '......T11122222222222222223334T.....',
-      '.....T1112222222222222222223334T....',
-      '....T111222222222222222222223334T...',
-      '...T44444444444444444444444444444T..',
-      '....TTTTTTTTTTTTTTTTTTTTTTTTTTTTT...',
-      '.....WwwwwwwwwwwwwwwwwwwwwvvvuuW....',
-      '.....WwbggGbwwwwWWWWwwwbggGbvuuW....',
-      '.....WwbgGGbwwwWBbbBWwwbgGGbvuuW....',
-      '.....WwbGGGbwwwWBbbBWwwbGGGbvuuW....',
-      '.....WwbGGGbwwwWBbbBWwwbGGGbvuuW....',
-      '.....WwwwwwwwwwWBbbBWwwwwwwwvuuW....',
-      '.....WwwwwwwwwwWBbgBWwwwwwwwvuuW....',
-      '.....WwwwwwwwwwWBbbBWwwwwwwvvuuW....',
-      '.....WsssssssssWBbbBWsssssssSSSW....',
-      '...qqWSSSSSSSSSWddddWSSSSSSSSSSWqq..',
-      '.qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq.',
-      'qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq',
-      'QqqqQqqqqQqqqqqQqqqqqQqqqqqQqqqqQqqq',
-      'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
-      'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
-      'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
-      'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
-    ], L);
+    rows(
+      g,
+      o,
+      o,
+      [
+        '....................................',
+        '....................................',
+        '..........................mm........',
+        '.........................mmnn.......',
+        '........................mmn.........',
+        '.........................mn.........',
+        '..........................n.........',
+        '.........................kk.........',
+        '..............TTTTTTT...ksSk........',
+        '............TT1122223TT.ksSk........',
+        '..........TT11122222233TsSSk........',
+        '.........T1112222222223334sSk.......',
+        '........T111222222222223334Sk.......',
+        '.......T1112222222222222333 4T......'.replace(' ', ''),
+        '......T11122222222222222223334T.....',
+        '.....T1112222222222222222223334T....',
+        '....T111222222222222222222223334T...',
+        '...T44444444444444444444444444444T..',
+        '....TTTTTTTTTTTTTTTTTTTTTTTTTTTTT...',
+        '.....WwwwwwwwwwwwwwwwwwwwwvvvuuW....',
+        '.....WwbggGbwwwwWWWWwwwbggGbvuuW....',
+        '.....WwbgGGbwwwWBbbBWwwbgGGbvuuW....',
+        '.....WwbGGGbwwwWBbbBWwwbGGGbvuuW....',
+        '.....WwbGGGbwwwWBbbBWwwbGGGbvuuW....',
+        '.....WwwwwwwwwwWBbbBWwwwwwwwvuuW....',
+        '.....WwwwwwwwwwWBbgBWwwwwwwwvuuW....',
+        '.....WwwwwwwwwwWBbbBWwwwwwwvvuuW....',
+        '.....WsssssssssWBbbBWsssssssSSSW....',
+        '...qqWSSSSSSSSSWddddWSSSSSSSSSSWqq..',
+        '.qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq.',
+        'qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq',
+        'QqqqQqqqqQqqqqqQqqqqqQqqqqqQqqqqQqqq',
+        'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
+        'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
+        'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
+        'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
+      ],
+      L,
+    );
     // Grass to the field's edge when it is grown for the maskable variant.
-    for (let y = o + 30; y < size; y++) for (let x = 0; x < size; x++) if (!at(g, x, y) || y >= o + 31) put(g, x, y, C('grass', y < o + 31 ? 3 : 5));
+    for (let y = o + 30; y < size; y++)
+      for (let x = 0; x < size; x++)
+        if (!at(g, x, y) || y >= o + 31) put(g, x, y, C('grass', y < o + 31 ? 3 : 5));
     return {
       g,
       glows: [
@@ -512,4 +598,11 @@ const cottage: IconArt = {
   },
 };
 
-export const ICONS: readonly IconArt[] = [hearthAnchor, lantern, helmFace, shipSunset, monogram, cottage];
+export const ICONS: readonly IconArt[] = [
+  hearthAnchor,
+  lantern,
+  helmFace,
+  shipSunset,
+  monogram,
+  cottage,
+];

@@ -64,7 +64,6 @@ const minus =
 // Roman capitals --------------------------------------------------------------
 
 const TH = 18; // a thick stem
-const TN = 8; // a hairline
 const SE = 9; // how far a serif reaches past its stem
 const SH = 6; // a serif's thickness
 
@@ -246,7 +245,10 @@ const UNCIAL: Record<string, PenGlyph> = {
     w: 92,
     strokes: [
       [...line([18, -58], [18, 96])],
-      [...bez([18, 38], [26, 4], [70, -6], [80, 30]), ...bez([80, 30], [88, 60], [80, 90], [62, 100])],
+      [
+        ...bez([18, 38], [26, 4], [70, -6], [80, 30]),
+        ...bez([80, 30], [88, 60], [80, 90], [62, 100]),
+      ],
     ],
     fill: [poly([4, -66], [30, -66], [24, -50], [10, -54])],
   },
@@ -260,7 +262,10 @@ const UNCIAL: Record<string, PenGlyph> = {
   a: {
     w: 92,
     strokes: [
-      [...bez([60, 6], [20, -6], [6, 40], [12, 70]), ...bez([12, 70], [18, 104], [58, 100], [70, 60])],
+      [
+        ...bez([60, 6], [20, -6], [6, 40], [12, 70]),
+        ...bez([12, 70], [18, 104], [58, 100], [70, 60]),
+      ],
       [...line([70, 2], [72, 86]), ...bez([72, 86], [72, 98], [84, 100], [92, 92])],
     ],
   },
@@ -279,7 +284,10 @@ const UNCIAL: Record<string, PenGlyph> = {
     w: 90,
     strokes: [
       [...line([18, -58], [18, 92])],
-      [...bez([18, 36], [30, 0], [80, -4], [82, 48]), ...bez([82, 48], [84, 98], [36, 104], [18, 90])],
+      [
+        ...bez([18, 36], [30, 0], [80, -4], [82, 48]),
+        ...bez([82, 48], [84, 98], [36, 104], [18, 90]),
+      ],
     ],
     fill: [poly([4, -66], [30, -66], [24, -50], [10, -54])],
   },
@@ -315,7 +323,10 @@ UNCIAL.H = {
     [...bez([80, -60], [92, -10], [92, 50], [80, 92]), ...line([80, 92], [100, 100], 4)],
     [...line([16, 22], [86, 16])],
   ],
-  fill: [poly([2, -70], [32, -70], [26, -54], [8, -56]), poly([64, -70], [94, -70], [88, -54], [70, -56])],
+  fill: [
+    poly([2, -70], [32, -70], [26, -54], [8, -56]),
+    poly([64, -70], [94, -70], [88, -54], [70, -56]),
+  ],
 };
 
 /** The nib: a segment `width` units long at `angle`. */
@@ -337,10 +348,19 @@ function penMask(gl: PenGlyph, xh: number, nibW: number, angle: number, top = -9
       const A: P = [ax * k + ox, ay * k + oy];
       const B: P = [bx * k + ox, by * k + oy];
       quads.push(
-        poly([A[0] - nx, A[1] - ny], [A[0] + nx, A[1] + ny], [B[0] + nx, B[1] + ny], [B[0] - nx, B[1] - ny]),
+        poly(
+          [A[0] - nx, A[1] - ny],
+          [A[0] + nx, A[1] + ny],
+          [B[0] + nx, B[1] + ny],
+          [B[0] - nx, B[1] - ny],
+        ),
       );
     }
-  const fills = (gl.fill ?? []).map((s): Shape => (x, y) => s((x - ox) / k, (y - oy) / k));
+  const fills = (gl.fill ?? []).map(
+    (s): Shape =>
+      (x, y) =>
+        s((x - ox) / k, (y - oy) / k),
+  );
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const u = x + 0.5;
@@ -400,7 +420,16 @@ export function join(parts: { m: Mask; dx?: number; dy?: number }[], gap: number
 
 /** A word in Roman capitals, `cap` pixels tall, letters `gap` apart (kerned for A and T). */
 export function capsWord(word: string, cap: number, gap = Math.max(1, Math.round(cap / 14))): Mask {
-  const KERN: Record<string, number> = { HA: -2, AR: -2, RT: -2, TH: -2, RB: -1, BO: 0, OU: 0, UR: 0 };
+  const KERN: Record<string, number> = {
+    HA: -2,
+    AR: -2,
+    RT: -2,
+    TH: -2,
+    RB: -1,
+    BO: 0,
+    OU: 0,
+    UR: 0,
+  };
   const parts = [...word].map((ch, i) => ({
     m: tidy(capMask(ch, cap)),
     dx: i ? Math.round(((KERN[word[i - 1]! + ch] ?? 0) * cap) / 30) : 0,
@@ -418,7 +447,9 @@ export function uncialWord(
 ): Mask {
   const parts = [...word].map((ch) => {
     const gl = UNCIAL[ch];
-    return { m: gl ? tidy(penMask(gl, xh, nib * (xh / 100), angle)) : mask(Math.round(xh * 0.5), 1) };
+    return {
+      m: gl ? tidy(penMask(gl, xh, nib * (xh / 100), angle)) : mask(Math.round(xh * 0.5), 1),
+    };
   });
   return join(parts, gap);
 }

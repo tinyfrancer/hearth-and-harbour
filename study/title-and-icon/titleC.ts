@@ -10,11 +10,22 @@
  * flowers (ground.ts) and gulls (props.ts). The far town, ship and cliff are
  * drawn new, in the town's materials under the dawn.
  *
- * What moves: clouds drifting, the sun's glitter path on the sea, the cloak
- * (its edge streaming out in the wind), gulls wheeling, the pine's top
- * swaying a pixel, smoke from the town's chimneys.
+ * What moves: the sun's road glittering on the sea, the bay's ripples, the
+ * cloak (its windward edge streaming out), gulls wheeling over the bay, the
+ * cutter riding the swell, smoke from the town's chimneys. Live, the clouds
+ * would drift too; in the study they hold still so the GIF meets itself.
  */
-import { at, bevel, FLAT_LIGHT, hash, outlined, put, stamp, tgrid, type TGrid } from '../../src/art/town2/cells';
+import {
+  at,
+  bevel,
+  FLAT_LIGHT,
+  hash,
+  outlined,
+  put,
+  stamp,
+  tgrid,
+  type TGrid,
+} from '../../src/art/town2/cells';
 import { characterWalkPicture2, KNIGHT_GEAR2 } from '../../src/art/character2';
 import { pineTree2 } from '../../src/art/town2/trees';
 import { flowerDrift, longGrass } from '../../src/art/town2/ground';
@@ -35,32 +46,59 @@ const SKY: Stop[] = [...run('dawnHi', 7, 0), ...run('dawnLo', 7, 0)];
 const HERO = { x: 240, y: 700 };
 
 /** The headland's top edge: grass from the right, falling to the cliff's lip. */
-const lip = (x: number) => 600 + Math.pow(Math.max(0, 390 - x) / 240, 1.6) * 110 + Math.sin(x / 13) * 2;
-/** The cliff's foot in the sea. */
-const LIP_X0 = 150;
+const lip = (x: number) =>
+  600 + Math.pow(Math.max(0, 390 - x) / 240, 1.6) * 110 + Math.sin(x / 13) * 2;
 
 const S = 0.62;
 const TOWN: FarSpec[] = [
   {
-    x: 36, base: 664, w: Math.round(120 * S), wallH: Math.round(50 * S), roofH: Math.round(30 * S),
-    roof: 'tile', wall: 'timber',
+    x: 36,
+    base: 664,
+    w: Math.round(120 * S),
+    wallH: Math.round(50 * S),
+    roofH: Math.round(30 * S),
+    roof: 'tile',
+    wall: 'timber',
     windows: [
-      { x: 6, y: 5, lit: false, w: 4, h: 5 }, { x: 22, y: 5, lit: false, w: 4, h: 5 },
-      { x: 40, y: 5, lit: false, w: 4, h: 5 }, { x: 58, y: 5, lit: false, w: 4, h: 5 },
-      { x: 6, y: 19, lit: false, w: 4, h: 5 }, { x: 58, y: 19, lit: false, w: 4, h: 5 },
+      { x: 6, y: 5, lit: false, w: 4, h: 5 },
+      { x: 22, y: 5, lit: false, w: 4, h: 5 },
+      { x: 40, y: 5, lit: false, w: 4, h: 5 },
+      { x: 58, y: 5, lit: false, w: 4, h: 5 },
+      { x: 6, y: 19, lit: false, w: 4, h: 5 },
+      { x: 58, y: 19, lit: false, w: 4, h: 5 },
     ],
-    door: { x: 34, w: 6, h: 10 }, chimney: { x: 54, w: 5, h: 9 }, k: 3,
+    door: { x: 34, w: 6, h: 10 },
+    chimney: { x: 54, w: 5, h: 9 },
+    k: 3,
   },
   {
-    x: 150, base: 670, w: Math.round(96 * S), wallH: Math.round(36 * S), roofH: Math.round(24 * S),
-    roof: 'slate', wall: 'rubble', windows: [{ x: 48, y: 7, lit: false, w: 4, h: 5 }],
-    forge: { x: 8, w: 20, h: 14 }, chimney: { x: 16, w: 5, h: 10 }, k: 11,
+    x: 150,
+    base: 670,
+    w: Math.round(96 * S),
+    wallH: Math.round(36 * S),
+    roofH: Math.round(24 * S),
+    roof: 'slate',
+    wall: 'rubble',
+    windows: [{ x: 48, y: 7, lit: false, w: 4, h: 5 }],
+    forge: { x: 8, w: 20, h: 14 },
+    chimney: { x: 16, w: 5, h: 10 },
+    k: 11,
   },
   {
-    x: 128, base: 628, w: Math.round(72 * S), wallH: Math.round(30 * S), roofH: Math.round(26 * S),
-    roof: 'thatch', wall: 'limewash',
-    windows: [{ x: 6, y: 6, lit: false, w: 4, h: 5, shutters: true }, { x: 32, y: 6, lit: false, w: 4, h: 5, shutters: true }],
-    door: { x: 20, w: 5, h: 9, mat: 'blue' }, chimney: { x: 36, w: 4, h: 8 }, k: 23,
+    x: 128,
+    base: 628,
+    w: Math.round(72 * S),
+    wallH: Math.round(30 * S),
+    roofH: Math.round(26 * S),
+    roof: 'thatch',
+    wall: 'limewash',
+    windows: [
+      { x: 6, y: 6, lit: false, w: 4, h: 5, shutters: true },
+      { x: 32, y: 6, lit: false, w: 4, h: 5, shutters: true },
+    ],
+    door: { x: 20, w: 5, h: 9, mat: 'blue' },
+    chimney: { x: 36, w: 4, h: 8 },
+    k: 23,
   },
 ];
 
@@ -81,13 +119,20 @@ function backdrop(): { g: TGrid; glows: BandGlow[] } {
   for (let i = 0; i < 40; i++) {
     const cx = Math.round(i * 10 + hash(i, 1, 9) * 8);
     const top = Math.round(560 - Math.pow(cx / SCREEN_W, 1.3) * 40 + noise(cx / 30, 0, 1, 8) * 14);
-    farPine(g, cx, top + 10 + Math.round(hash(i, 2, 9) * 8), 16 + Math.round(hash(i, 3, 9) * 10), (lit, sh) =>
-      X('hazeDawn', lit ? 3 : sh ? 6 : 5), i);
+    farPine(
+      g,
+      cx,
+      top + 10 + Math.round(hash(i, 2, 9) * 8),
+      16 + Math.round(hash(i, 3, 9) * 10),
+      (lit, sh) => X('hazeDawn', lit ? 3 : sh ? 6 : 5),
+      i,
+    );
   }
   // Nearer slope, in the town's grass.
   for (let x = 0; x < SCREEN_W; x++) {
     const top = Math.round(608 + Math.sin(x / 50) * 6 - x * 0.04);
-    for (let y = top; y < 664; y++) put(g, x, y, C('grass', 2 + (clumps(x / 2, y, 5) > 0.6 ? 1 : 0) + (y - top < 1 ? -1 : 0)));
+    for (let y = top; y < 664; y++)
+      put(g, x, y, C('grass', 2 + (clumps(x / 2, y, 5) > 0.6 ? 1 : 0) + (y - top < 1 ? -1 : 0)));
   }
   // The town.
   glows.push(...farBuilding(g, TOWN[2]!, false));
@@ -111,7 +156,8 @@ function backdrop(): { g: TGrid; glows: BandGlow[] } {
 /** Where the headland's grass ends on the bay side, by row: the cliff's top edge. */
 const grassEdge = (y: number) => 214 + (y - 680) * 0.1 + noise(0, y / 8, 1, 5) * 6;
 /** The cliff face's foot, flaring out toward the sea as it falls. */
-const faceFoot = (y: number) => 206 - Math.pow(Math.max(0, y - 680) / 164, 0.9) * 110 + noise(1, y / 6, 1, 6) * 10;
+const faceFoot = (y: number) =>
+  206 - Math.pow(Math.max(0, y - 680) / 164, 0.9) * 110 + noise(1, y / 6, 1, 6) * 10;
 
 /**
  * The cliff face on the bay side: rock in tall planes (facets around points
@@ -122,7 +168,12 @@ const faceFoot = (y: number) => 206 - Math.pow(Math.max(0, y - 680) / 164, 0.9) 
 function cliff(g: TGrid, ph: number): void {
   const pts: [number, number, number][] = [];
   for (let j = 0; j < 8; j++)
-    for (let i = 0; i < 10; i++) pts.push([110 + i * 14 + hash(i, j, 3) * 10, 670 + j * 26 + hash(i, j, 4) * 18, hash(i, j, 5)]);
+    for (let i = 0; i < 10; i++)
+      pts.push([
+        110 + i * 14 + hash(i, j, 3) * 10,
+        670 + j * 26 + hash(i, j, 4) * 18,
+        hash(i, j, 5),
+      ]);
   for (let y = 680; y < SCREEN_H; y++) {
     const x0 = Math.round(faceFoot(y));
     const x1 = Math.round(grassEdge(y));
@@ -191,7 +242,7 @@ function headlandTop(g: TGrid): void {
 
 let cache: { g: TGrid; glows: BandGlow[] } | null = null;
 
-function clouds(g: TGrid, ph: number): void {
+function clouds(g: TGrid, _ph: number): void {
   // Cumulus: heaps of round puffs, flat-ish below, each puff lit from the low
   // sun on the left and from beneath, shadowed on its upper right.
   const heaps = [
@@ -200,7 +251,8 @@ function clouds(g: TGrid, ph: number): void {
     { cx: 330, cy: 398, w: 90, h: 7, n: 7, depth: 0.6, k: 3 },
   ];
   heaps.forEach((hp) => {
-    const cx = ((hp.cx + ph * 50 * (1 - hp.depth * 0.6) + 200) % (SCREEN_W + 400)) - 200;
+    // Clouds hold still in the loop (a GIF must meet itself); live, they would drift.
+    const cx = hp.cx;
     const puffs: [number, number, number][] = [];
     for (let i = 0; i < hp.n; i++) {
       const f = i / (hp.n - 1);
@@ -239,7 +291,7 @@ function clouds(g: TGrid, ph: number): void {
     [200, 460, 70, 0.95],
   ] as const;
   streaks.forEach(([cx0, cy, half, depth], i) => {
-    const cx = ((cx0 + ph * 30 * (1 - depth * 0.5) + 200) % (SCREEN_W + 400)) - 200;
+    const cx = cx0;
     for (let x = Math.floor(cx - half); x <= cx + half; x++) {
       const f = Math.abs(x - cx) / half;
       const th = Math.round((1 - f * f) * 3 + noise(x / 9, i, 1, 7) * 1.4);
@@ -254,8 +306,25 @@ function sea(g: TGrid, ph: number): void {
     for (let x = 0; x < SCREEN_W; x++) {
       if (at(g, x, y)) continue;
       // Far water takes the sky's dawn colour, nearer it is the sea's own blue.
-      const v = f * 6 + (clumps(x / (8 + f * 20) + ph * 3, y, 15) - 0.5) * 1.2;
-      const c = v < 0.6 ? X('dawnLo', 6) : v < 1.3 ? X('hazeDawn', 2) : v < 2.2 ? C('sea', 2) : v < 3.4 ? C('sea', 3) : C('sea', 4);
+      const v =
+        f * 6 +
+        (clumps(
+          x / (8 + f * 20) + Math.cos(ph * Math.PI * 2) * 1.5,
+          y + Math.sin(ph * Math.PI * 2) * 1.5,
+          15,
+        ) -
+          0.5) *
+          1.2;
+      const c =
+        v < 0.6
+          ? X('dawnLo', 6)
+          : v < 1.3
+            ? X('hazeDawn', 2)
+            : v < 2.2
+              ? C('sea', 2)
+              : v < 3.4
+                ? C('sea', 3)
+                : C('sea', 4);
       put(g, x, y, c);
     }
   }
@@ -264,9 +333,20 @@ function sea(g: TGrid, ph: number): void {
     const f = (y - HORIZON) / (SCREEN_H - HORIZON);
     const half = 4 + f * 70;
     for (let x = Math.round(SUN.x - half); x <= SUN.x + half; x++) {
-      if (at(g, x, y) && !isX(at(g, x, y), 'sea') && !isX(at(g, x, y), 'dawnLo') && !isX(at(g, x, y), 'hazeDawn')) continue;
+      if (
+        at(g, x, y) &&
+        !isX(at(g, x, y), 'sea') &&
+        !isX(at(g, x, y), 'dawnLo') &&
+        !isX(at(g, x, y), 'hazeDawn')
+      )
+        continue;
       const e = Math.abs(x - SUN.x) / half;
-      const n = noise((x + ph * 30) / (4 + f * 14), y / (1 + f * 2), 1, 21);
+      const n = noise(
+        (x + Math.cos(ph * Math.PI * 2) * 12) / (4 + f * 14),
+        y / (1 + f * 2) + Math.sin(ph * Math.PI * 2) * 0.8,
+        1,
+        21,
+      );
       if (n > 0.55 + e * 0.35) put(g, x, y, n > 0.8 + e * 0.15 ? X('dawnLo', 0) : X('dawnLo', 1));
     }
   }
@@ -282,7 +362,7 @@ function heroWithWind(ph: number): TGrid {
     let xl = -1;
     for (let x = 0; x < src.w; x++) {
       const c = at(src, x, y);
-      if (c && (c >> 3) === (C('crimson', 0) >> 3)) {
+      if (c && c >> 3 === C('crimson', 0) >> 3) {
         xl = x;
         break;
       }
@@ -317,10 +397,10 @@ export function drawC(t: number): Frame {
   sea(g, ph);
   // The cutter, sails furled, standing out of the bay.
   const glows: BandGlow[] = [...cache.glows];
-  farShip(g, 40 + Math.round(ph * 6), 726, 0.4, false, ph * 3);
+  farShip(g, 40, 726 + Math.round(Math.sin(ph * Math.PI * 2)), 0.4, false, ph * 3);
   for (const s of TOWN) {
     const c = chimneyTop(s);
-    if (c) farSmoke(g, c.x, c.y, ph * 2 % 1, { size: 0.7, n: 5 });
+    if (c) farSmoke(g, c.x, c.y, (ph * 2) % 1, { size: 0.7, n: 5 });
   }
   headlandTop(g);
   cliff(g, ph);
@@ -341,7 +421,15 @@ export function drawC(t: number): Frame {
     stamp(g, gp, Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.35));
   }
   stampCentred(g, lockupUncial({ xh: 34 }), 70, -2);
-  glows.push({ x: SUN.x, y: SUN.y - 6, r: 190, strength: 0.22, bands: 4, colour: [255, 214, 150] });
+  glows.push({
+    x: SUN.x,
+    y: SUN.y - 6,
+    r: 170,
+    strength: 0.18,
+    bands: 4,
+    colour: [255, 214, 150],
+    jitter: 0,
+  });
   return { g, glows };
 }
 
@@ -350,7 +438,16 @@ export const TITLE_C: Title = {
   name: 'The hero on the headland',
   // Dawn: the day palette, warmed toward rose-gold.
   pal: xpal('day', (c, m) => {
-    if (m === 'dawnHi' || m === 'dawnLo' || m === 'cloud' || m === 'star' || m === 'hazeDawn' || m === 'parch' || m === 'banner' || m === 'navy')
+    if (
+      m === 'dawnHi' ||
+      m === 'dawnLo' ||
+      m === 'cloud' ||
+      m === 'star' ||
+      m === 'hazeDawn' ||
+      m === 'parch' ||
+      m === 'banner' ||
+      m === 'navy'
+    )
       return c;
     return [Math.min(255, c[0] * 0.96 + 18), c[1] * 0.9 + 6, c[2] * 0.86 + 8];
   }),

@@ -117,19 +117,35 @@ function backdrop(): { g: TGrid; glows: BandGlow[] } {
   // Far hills in haze, the left higher.
   for (let x = 0; x < SCREEN_W; x++) {
     const top = 412 + Math.sin(x / 70) * 10 + (x / SCREEN_W) * 30 + noise(x / 18, 0, 1, 4) * 10;
-    for (let y = Math.round(top); y < WL; y++) put(g, x, y, X('hazeDusk', 1 + (y - top < 2 ? 0 : 1)));
+    for (let y = Math.round(top); y < WL; y++)
+      put(g, x, y, X('hazeDusk', 1 + (y - top < 2 ? 0 : 1)));
   }
   // The forest on the hill behind the town: two rows of pines in deeper haze.
   for (let i = 0; i < 40; i++) {
     const cx = Math.round(i * 10 + hash(i, 1, 5) * 8 - 4);
     const base = 470 + Math.round(hash(i, 2, 5) * 10);
-    farPine(g, cx, base, 22 + Math.round(hash(i, 3, 5) * 14), (lit, sh) => X('hazeDusk', lit ? 2 : sh ? 4 : 3), i);
+    farPine(
+      g,
+      cx,
+      base,
+      22 + Math.round(hash(i, 3, 5) * 14),
+      (lit, sh) => X('hazeDusk', lit ? 2 : sh ? 4 : 3),
+      i,
+    );
   }
-  for (let x = 0; x < SCREEN_W; x++) for (let y = 470; y < WL; y++) if (!at(g, x, y) || y > 478) put(g, x, y, X('hazeDusk', 4));
+  for (let x = 0; x < SCREEN_W; x++)
+    for (let y = 470; y < WL; y++) if (!at(g, x, y) || y > 478) put(g, x, y, X('hazeDusk', 4));
   for (let i = 0; i < 26; i++) {
     const cx = Math.round(i * 15 + hash(i, 4, 6) * 10);
     const base = 490 + Math.round(hash(i, 5, 6) * 14);
-    farPine(g, cx, base, 26 + Math.round(hash(i, 6, 6) * 16), (lit, sh) => X('hazeDusk', lit ? 3 : sh ? 6 : 5), i + 50);
+    farPine(
+      g,
+      cx,
+      base,
+      26 + Math.round(hash(i, 6, 6) * 16),
+      (lit, sh) => X('hazeDusk', lit ? 3 : sh ? 6 : 5),
+      i + 50,
+    );
   }
   // The slope the town stands on: dark dusk grass, and the road up to your house.
   for (let x = 0; x < SCREEN_W; x++) {
@@ -153,7 +169,8 @@ function backdrop(): { g: TGrid; glows: BandGlow[] } {
   glows.push(...farBuilding(g, SMITHY));
   // The quay: its cobbled top, then the wall in courses, dark and weeded at the tide line.
   for (let y = WL - 10; y < WL - 6; y++)
-    for (let x = 0; x < SCREEN_W; x++) put(g, x, y, X('cobble', 3 + ((x + (y & 1) * 2) % 4 === 0 ? 1 : 0)));
+    for (let x = 0; x < SCREEN_W; x++)
+      put(g, x, y, X('cobble', 3 + ((x + (y & 1) * 2) % 4 === 0 ? 1 : 0)));
   for (let y = WL - 6; y < WL; y++)
     for (let x = 0; x < SCREEN_W; x++) {
       const row = y - (WL - 6);
@@ -185,7 +202,8 @@ function pier(g: TGrid, glows: BandGlow[]): void {
     put(g, cx + half + 1, y, X('wood', 6));
   }
   // The near end's face and the posts down into the water.
-  for (let y = y1; y < y1 + 5; y++) for (let x = 178 - 22; x <= 178 + 22; x++) put(g, x, y, X('wood', y === y1 ? 1 : 4));
+  for (let y = y1; y < y1 + 5; y++)
+    for (let x = 178 - 22; x <= 178 + 22; x++) put(g, x, y, X('wood', y === y1 ? 1 : 4));
   for (const px of [157, 176, 197])
     for (let y = y1 + 5; y < y1 + 14; y++) {
       put(g, px, y, X('wood', 3));
@@ -240,7 +258,22 @@ export function drawA(t: number): Frame {
   for (let y = WL; y < SCREEN_H; y++) {
     const f = (y - WL) / (SCREEN_H - WL);
     for (let x = 0; x < SCREEN_W; x++) {
-      const idx = Math.max(0, Math.min(SEA.length - 1, Math.round(f * (SEA.length - 1) + (clumps(x / (8 + f * 16) + ph * 3, y, 7) - 0.5) * 0.9)));
+      const idx = Math.max(
+        0,
+        Math.min(
+          SEA.length - 1,
+          Math.round(
+            f * (SEA.length - 1) +
+              (clumps(
+                x / (8 + f * 16) + Math.cos(ph * Math.PI * 2) * 1.5,
+                y + Math.sin(ph * Math.PI * 2) * 1.5,
+                7,
+              ) -
+                0.5) *
+                0.9,
+          ),
+        ),
+      );
       const [m, s] = SEA[idx]!;
       put(g, x, y, X(m, s));
     }
@@ -250,8 +283,9 @@ export function drawA(t: number): Frame {
   glows.push(...farShip(g, SHIP_X, SHIP_WL, SHIP_S, true, ph * 2));
   // Reflections: each water row mirrors the row as far above the waterline,
   // shifted sideways by the ripple there, darkened a step; rows in a trough show the sea.
-  reflect(g, WL, SCREEN_H, ph);
-  reflect(g, SHIP_WL, SHIP_WL + 70, ph, SHIP_X + 4, SCREEN_W, 2);
+  // The ship's own reflection first, about its own waterline; then the town's.
+  reflect(g, SHIP_WL, SHIP_WL + 70, ph, SHIP_X + 4, SCREEN_W, 1);
+  reflect(g, WL, 800, ph);
   // The buoy in the foreground, bobbing.
   const bp = asPic(buoy());
   const bob = Math.round(Math.sin(ph * Math.PI * 2) * 1.5);
@@ -278,7 +312,12 @@ function reflect(g: TGrid, wl: number, y1: number, ph: number, x0 = 0, x1 = g.w,
       const here = src[y * g.w + x] as number;
       // Leave things standing in the water (pier posts, the ship, the buoy) alone.
       if (here && !isX(here, 'sea')) continue;
-      const wave = noise((x + ph * 40) / (10 + f * 30), y / (1.1 + f * 1.6), 1, 17);
+      const wave = noise(
+        (x + Math.cos(ph * Math.PI * 2) * 20) / (10 + f * 30),
+        y / (1.1 + f * 1.6) + Math.sin(ph * Math.PI * 2) * 0.6,
+        1,
+        17,
+      );
       if (wave < 0.46 - f * 0.1) continue;
       const sx = x + Math.round(Math.sin(y * 0.7 + ph * Math.PI * 2) * (0.5 + f * 2.5));
       const c = src[sy * g.w + Math.max(0, Math.min(g.w - 1, sx))] as number;

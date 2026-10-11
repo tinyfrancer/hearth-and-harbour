@@ -34,7 +34,10 @@ function titlePage(): void {
   (window as unknown as { loopMs: number }).loopMs = title.loop ?? 4000;
 }
 
-const pages: Record<string, () => void | Promise<void>> = { logos: logosPage, title: titlePage, hero: heroPage,
+const pages: Record<string, () => void | Promise<void>> = {
+  logos: logosPage,
+  title: titlePage,
+  hero: heroPage,
   icons: iconsComparePage,
   home: iconsHomePage,
   safe: iconsSafePage,

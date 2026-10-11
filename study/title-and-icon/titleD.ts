@@ -108,7 +108,8 @@ function shield(g: TGrid, ph: number): void {
   for (let y = 0; y < SH.h; y++)
     for (let x = 0; x < SH.w; x++) {
       if (!inShield(x, y)) continue;
-      const edge = !inShield(x - 5, y) || !inShield(x + 5, y) || !inShield(x, y - 5) || !inShield(x, y + 5);
+      const edge =
+        !inShield(x - 5, y) || !inShield(x + 5, y) || !inShield(x, y - 5) || !inShield(x, y + 5);
       if (edge) continue;
       let c: number;
       if (y < fess) {
@@ -117,9 +118,12 @@ function shield(g: TGrid, ph: number): void {
         c = X('banner', 2 + (dam ? 0 : 1) + (x > SH.w * 0.6 ? 1 : 0));
       } else {
         // Barry wavy azure and argent, running with the phase.
-        const wave = Math.sin((x + ph * 26) / 9) * 3;
+        const wave = Math.sin(x / 9 + ph * Math.PI * 2) * 3;
         const band = Math.floor((y - fess + wave) / 12);
-        c = band % 2 ? C('sail', 1 + (x > SH.w * 0.6 ? 1 : 0)) : C('blue', 2 + (x > SH.w * 0.6 ? 1 : 0));
+        c =
+          band % 2
+            ? C('sail', 1 + (x > SH.w * 0.6 ? 1 : 0))
+            : C('blue', 2 + (x > SH.w * 0.6 ? 1 : 0));
       }
       put(g, x0 + x, SH.top + y, c);
     }
@@ -127,10 +131,17 @@ function shield(g: TGrid, ph: number): void {
   for (let y = 0; y < SH.h; y++)
     for (let x = 0; x < SH.w; x++) {
       if (!inShield(x, y)) continue;
-      const e5 = !inShield(x - 5, y) || !inShield(x + 5, y) || !inShield(x, y - 5) || !inShield(x, y + 5);
+      const e5 =
+        !inShield(x - 5, y) || !inShield(x + 5, y) || !inShield(x, y - 5) || !inShield(x, y + 5);
       if (!e5) continue;
-      const outer = !inShield(x - 1, y) || !inShield(x + 1, y) || !inShield(x, y - 1) || !inShield(x, y + 1);
-      const inner = !(!inShield(x - 4, y) || !inShield(x + 4, y) || !inShield(x, y - 4) || !inShield(x, y + 4));
+      const outer =
+        !inShield(x - 1, y) || !inShield(x + 1, y) || !inShield(x, y - 1) || !inShield(x, y + 1);
+      const inner = !(
+        !inShield(x - 4, y) ||
+        !inShield(x + 4, y) ||
+        !inShield(x, y - 4) ||
+        !inShield(x, y + 4)
+      );
       const lit = x < SH.w / 2 && y < SH.h * 0.7;
       put(g, x0 + x, SH.top + y, X('gilt', outer ? 6 : inner ? 5 : lit ? 1 : 3));
     }
@@ -158,7 +169,11 @@ function anchor(g: TGrid, ph: number): void {
     if (Math.abs(x + 0.5 - cx) < 7 && y > 20 && y < H - 22) return true;
     // Stock, with rounded ends.
     if (y >= 34 && y < 46 && Math.abs(x + 0.5 - cx) < 46) return true;
-    if (Math.hypot(x + 0.5 - (cx - 46), y - 40) < 7.5 || Math.hypot(x + 0.5 - (cx + 46), y - 40) < 7.5) return true;
+    if (
+      Math.hypot(x + 0.5 - (cx - 46), y - 40) < 7.5 ||
+      Math.hypot(x + 0.5 - (cx + 46), y - 40) < 7.5
+    )
+      return true;
     // Arms: an arc under the crown.
     const r = Math.hypot(x + 0.5 - cx, y + 0.5 - (H - 82));
     const ang = Math.atan2(y + 0.5 - (H - 82), x + 0.5 - cx);
@@ -180,7 +195,8 @@ function anchor(g: TGrid, ph: number): void {
   for (let y = -1; y <= H; y++)
     for (let x = -1; x <= W; x++) {
       if (inside(x, y)) continue;
-      if (inside(x - 1, y) || inside(x + 1, y) || inside(x, y - 1) || inside(x, y + 1)) put(g, ax + x, ay + y, C('gold', 6));
+      if (inside(x - 1, y) || inside(x + 1, y) || inside(x, y - 1) || inside(x, y + 1))
+        put(g, ax + x, ay + y, C('gold', 6));
     }
   // The flame where the ring would be: the hearth on the harbour's anchor.
   const fx = CX;
@@ -189,11 +205,23 @@ function anchor(g: TGrid, ph: number): void {
   for (let j = 0; j < 7; j++) {
     const half = Math.round((16 - j * 1.2) * K);
     for (let x = -half; x <= half; x++)
-      put(g, fx + x, fb + j - 3, j === 0 ? C('gold', 1) : j === 6 ? C('gold', 6) : C('gold', x < -half * 0.4 ? 1 : x > half * 0.4 ? 4 : 2 + (j > 3 ? 1 : 0)));
+      put(
+        g,
+        fx + x,
+        fb + j - 3,
+        j === 0
+          ? C('gold', 1)
+          : j === 6
+            ? C('gold', 6)
+            : C('gold', x < -half * 0.4 ? 1 : x > half * 0.4 ? 4 : 2 + (j > 3 ? 1 : 0)),
+      );
   }
   for (let i = 0; i < 5; i++) {
     const tw = [7, 10, 13, 10, 7][i]! * K;
-    const th = [24, 38, 52, 36, 22][i]! * K * (0.88 + 0.14 * Math.sin(ph * Math.PI * 2 * (3 + (i % 3)) + i * 2));
+    const th =
+      [24, 38, 52, 36, 22][i]! *
+      K *
+      (0.88 + 0.14 * Math.sin(ph * Math.PI * 2 * (3 + (i % 3)) + i * 2));
     const ox = [-13, -7, 0, 7, 13][i]! * K;
     for (let y = 0; y < th; y++) {
       const f = y / th;
@@ -216,7 +244,12 @@ function anchor(g: TGrid, ph: number): void {
     for (let x = fx - 40; x <= fx + 40; x++) {
       const c = src[y * g.w + x] as number;
       if (isX(c, 'fire')) continue;
-      const n = [src[y * g.w + x - 1], src[y * g.w + x + 1], src[(y - 1) * g.w + x], src[(y + 1) * g.w + x]];
+      const n = [
+        src[y * g.w + x - 1],
+        src[y * g.w + x + 1],
+        src[(y - 1) * g.w + x],
+        src[(y + 1) * g.w + x],
+      ];
       if (n.some((v) => isX(v as number, 'fire'))) put(g, x, y, X('fire', 6));
     }
 }
@@ -253,7 +286,12 @@ function pine(g: TGrid, cx: number, base: number, h: number): void {
     for (let x = cx - 44; x <= cx + 44; x++) {
       const c = src[y * g.w + x] as number;
       if (!c || xmatOf(c) !== 'azure') continue;
-      const n = [src[y * g.w + x - 1], src[y * g.w + x + 1], src[(y - 1) * g.w + x], src[(y + 1) * g.w + x]];
+      const n = [
+        src[y * g.w + x - 1],
+        src[y * g.w + x + 1],
+        src[(y - 1) * g.w + x],
+        src[(y + 1) * g.w + x],
+      ];
       if (n.some((v) => xmatOf(v as number) === 'pine')) put(g, x, y, X('gilt', 3));
     }
 }
@@ -301,7 +339,20 @@ export function ribbon(g: TGrid, y0 = SH.top + SH.h + 8): void {
   for (let x = CX - half; x <= CX + half; x++) {
     const top = y0 + arc(x);
     for (let j = 0; j < H; j++) {
-      const s = j === 0 ? 6 : j === 1 ? 1 : j === H - 2 ? 4 : j === H - 1 ? 6 : j < 6 ? 2 : j > H - 8 ? 3 : 2;
+      const s =
+        j === 0
+          ? 6
+          : j === 1
+            ? 1
+            : j === H - 2
+              ? 4
+              : j === H - 1
+                ? 6
+                : j < 6
+                  ? 2
+                  : j > H - 8
+                    ? 3
+                    : 2;
       put(g, x, top + j, X('banner', s));
     }
   }
@@ -376,7 +427,8 @@ export function drawD(t: number): Frame {
       const c = at(g, x, y);
       if (!c) continue;
       const m = xmatOf(c);
-      if ((m === 'gilt' || m === 'gold') && (c & 7) > 0 && (c & 7) < 6) put(g, x, y, (c & ~7) | ((c & 7) - (Math.abs(d) < 0.01 ? 2 : 1)));
+      if ((m === 'gilt' || m === 'gold') && (c & 7) > 0 && (c & 7) < 6)
+        put(g, x, y, (c & ~7) | ((c & 7) - (Math.abs(d) < 0.01 ? 2 : 1)));
     }
   void hash;
   const glows: BandGlow[] = [{ x: CX, y: SH.top + 40, r: 40, strength: 0.18, bands: 2 }];
