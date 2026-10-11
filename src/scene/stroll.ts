@@ -176,6 +176,18 @@ export function crowding(at: Point, other: Point): number {
 export const PASS_ROOM = 1.15;
 
 /**
+ * How far behind or in front of someone a stroller passes on a way across
+ * the screen, at the least, in art pixels: more than a tile, so she reads as
+ * walking behind him (her head over his) or in front, not through his figure.
+ * His room is only 10 deep up and down (`PERSONAL`), which drawn 64-pixel
+ * figures overlap almost wholly.
+ */
+export const PASS_DEPTH = 26;
+
+/** Over how much of the end of a stretch of her route a stroller comes back onto it, in art pixels. */
+const END_EASE = 24;
+
+/**
  * Where a stroller walking her round is shown with someone standing at
  * `other`: stepped aside from her route as she comes up to them, round them
  * and back onto it, never into their room (`PERSONAL`). She steps to the side
@@ -204,21 +216,37 @@ export function giveWay(
   const b = dx * n.x + dy * n.y;
   // Their room along her way and across it (the routes run straight across or up and down).
   const along = Math.abs(u.x) * PERSONAL.rx + Math.abs(u.y) * PERSONAL.ry;
-  const across = Math.abs(n.x) * PERSONAL.rx + Math.abs(n.y) * PERSONAL.ry;
+  // Across a way that runs across the screen, at least `PASS_DEPTH` once stepped aside.
+  const across = Math.max(
+    Math.abs(n.x) * PERSONAL.rx + Math.abs(n.y) * PERSONAL.ry,
+    (Math.abs(n.y) * PASS_DEPTH) / PASS_ROOM,
+  );
   // Eased over twice the room's length and its depth again, so the step aside is gentle even
   // where the room is deep across her way (going up or down past him): it starts and ends level.
   const k = a / (2 * along + across);
   if (Math.abs(k) >= 1) return s;
-  const need = PASS_ROOM * across * (1 - k * k) ** 2;
+  // Back on her route by the ends of the stretch she is walking, where she turns a corner or
+  // stops to rest: eased off over the last tile, so the step aside never ends in a jump.
+  const ends = Math.min(
+    Math.hypot(s.at.x - leg.from.x, s.at.y - leg.from.y),
+    Math.hypot(leg.to.x - s.at.x, leg.to.y - s.at.y),
+  );
+  const e = Math.min(1, ends / END_EASE);
+  const need = PASS_ROOM * across * (1 - k * k) ** 2 * e * e * (3 - 2 * e);
   if (Math.abs(b) >= need) return s;
   // Away from them; straight at her, to the side her route's first choice is (its normal's).
   const away = b > 0 ? -1 : 1;
   const step = (o: number): Point => ({ x: s.at.x + n.x * o, y: s.at.y + n.y * o });
-  const near = step(away * (need - Math.abs(b)));
-  if (open(near)) return { ...s, at: near };
+  // Which side is chosen for the whole of her passing, by whether it is open where she is
+  // furthest aside (level with them), so she never swaps sides as the ground beside her changes.
+  const most = PASS_ROOM * across;
+  const level = { x: s.at.x + u.x * a, y: s.at.y + u.y * a };
+  const beside = (o: number): Point => ({ x: level.x + n.x * o, y: level.y + n.y * o });
+  if (open(beside(away * (most - Math.abs(b)))) && open(step(away * (need - Math.abs(b)))))
+    return { ...s, at: step(away * (need - Math.abs(b))) };
   // That side is blocked: round them on theirs, further out.
-  const far = step(-away * (need + Math.abs(b)));
-  if (open(far)) return { ...s, at: far };
+  if (open(beside(-away * (most + Math.abs(b)))) && open(step(-away * (need + Math.abs(b)))))
+    return { ...s, at: step(-away * (need + Math.abs(b))) };
   return null;
 }
 
