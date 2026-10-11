@@ -5,9 +5,14 @@ import { centreOf, type Point } from '../../src/scene/tileMap';
 import { BOAT_LANDING2, TOWNSFOLK2_AT, town2Scene } from '../../src/scene/town2';
 import {
   BOAT_MARK,
+  EDGE_NEAR,
   MARK_NEAR,
   PAN_MS,
+  POINTER_INSET,
+  boatMarkSize,
+  boatPointer,
   labelFor,
+  labelPlace,
   markerKind,
   marksNow,
   panFocus,
@@ -24,6 +29,7 @@ const people = new Set(TOWNSFOLK2_AT.map((p) => p.id));
 const thing = (id: string) => scene.things.find((t) => t.id === id)!;
 const at = (col: number, row: number): Point => centreOf({ col, row }, TOWN2_TILE);
 const standing = (p: Point): Play => startPlay(p);
+const by = (): Point => centreOf(BOAT_LANDING2, TOWN2_TILE);
 const options = (play: Play, o: Partial<MarkOptions> = {}): MarkOptions => ({
   people,
   somewhereNew: false,
@@ -62,11 +68,20 @@ describe('the town’s markers', () => {
     }
     // Far up the road, only the boat, always (the way out of town); as somewhere new while it is.
     const far = standing(at(30, 12));
+    // Large, from that far: it reads across the square (lane B's B16 marker).
     expect(marksNow(scene, far, options(far))).toEqual([
-      { id: 'rowboat', kind: 'travel', at: BOAT_MARK },
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK, size: 'large' },
     ]);
     const fresh = marksNow(scene, far, options(far, { somewhereNew: true }));
     expect(fresh).toEqual([
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK, size: 'large' },
+      { id: 'rowboat', kind: 'new', at: { x: BOAT_MARK.x + 20, y: BOAT_MARK.y - 18 } },
+    ]);
+    // Beside it, the quiet small one, its sparkle where it always was.
+    const by = standing(centreOf(BOAT_LANDING2, TOWN2_TILE));
+    expect(
+      marksNow(scene, by, options(by, { somewhereNew: true })).filter((m) => m.id === 'rowboat'),
+    ).toEqual([
       { id: 'rowboat', kind: 'travel', at: BOAT_MARK },
       { id: 'rowboat', kind: 'new', at: { x: BOAT_MARK.x + 15, y: BOAT_MARK.y - 4 } },
     ]);
@@ -82,12 +97,94 @@ describe('the town’s markers', () => {
   });
 });
 
+describe('the boat from across the square', () => {
+  const boat = thing('rowboat');
+  const by = centreOf(BOAT_LANDING2, TOWN2_TILE);
+  const viewAround = (
+    p: Point,
+    w = 390,
+    h = 727,
+  ): { x: number; y: number; w: number; h: number } => ({
+    x: p.x - w / 2,
+    y: p.y - h / 2,
+    w,
+    h,
+  });
+
+  it('is large far off, or at the screen’s edge; small beside him in the middle of the view', () => {
+    expect(boatMarkSize(at(30, 12), boat)).toBe('large');
+    expect(boatMarkSize(by, boat, viewAround(BOAT_MARK))).toBe('small');
+    // Near, but with the boat at the very edge of what shows.
+    const edge = {
+      x: BOAT_MARK.x - EDGE_NEAR / 2,
+      y: BOAT_MARK.y - 300,
+      w: 390,
+      h: 300 + EDGE_NEAR / 2,
+    };
+    expect(boatMarkSize(by, boat, edge)).toBe('large');
+  });
+
+  it('is pointed to from the screen’s edge while somewhere new is open and the chart has not been opened', () => {
+    const view = viewAround(at(30, 30));
+    const o = { somewhereNew: true, chartSeen: false, panelOpen: false };
+    const p = boatPointer(view, o)!;
+    // The boat is down the road and a little left: the chevron at the bottom edge, pointing down.
+    expect(p.dir).toBe('down');
+    expect(p.at.y).toBe(Math.round(view.y + view.h - POINTER_INSET));
+    expect(p.at.x).toBeGreaterThanOrEqual(view.x + POINTER_INSET);
+    expect(p.at.x).toBeLessThanOrEqual(view.x + view.w - POINTER_INSET);
+    // On the line from the view's middle toward the boat.
+    const mid = { x: view.x + view.w / 2, y: view.y + view.h / 2 };
+    const cross =
+      (p.at.x - mid.x) * (BOAT_MARK.y - mid.y) - (p.at.y - mid.y) * (BOAT_MARK.x - mid.x);
+    expect(Math.abs(cross) / Math.hypot(BOAT_MARK.x - mid.x, BOAT_MARK.y - mid.y)).toBeLessThan(1);
+    // None once the chart has been opened, nothing new, a panel up, or the boat on screen.
+    expect(boatPointer(view, { ...o, chartSeen: true })).toBeNull();
+    expect(boatPointer(view, { ...o, somewhereNew: false })).toBeNull();
+    expect(boatPointer(view, { ...o, panelOpen: true })).toBeNull();
+    expect(boatPointer(viewAround(BOAT_MARK), o)).toBeNull();
+    // Far off to the east: at the left edge, pointing left.
+    expect(boatPointer(viewAround({ x: 1300, y: BOAT_MARK.y }), o)!.dir).toBe('left');
+  });
+
+  it('keeps the chevron off the sun-and-moon button', () => {
+    // Boat up and to the left of the view, so the line meets the corner where the button is.
+    const view = { x: BOAT_MARK.x + 40, y: BOAT_MARK.y + 40, w: 390, h: 727 };
+    const button = { x: view.x, y: view.y, w: 64, h: 64 };
+    const o = { somewhereNew: true, chartSeen: false, panelOpen: false };
+    const p = boatPointer(view, o, button)!;
+    const inside =
+      p.at.x >= button.x &&
+      p.at.x <= button.x + button.w &&
+      p.at.y >= button.y &&
+      p.at.y <= button.y + button.h;
+    expect(inside).toBe(false);
+  });
+});
+
 describe('the ring and the label', () => {
+  it('places the label by the camera it is given, over the thing, kept on the scene', () => {
+    const t = thing('rowboat');
+    const feet = by();
+    const look = { camera: { x: 300, y: 1200 }, cssPerArt: 1 };
+    const a = labelPlace(t, feet, look, 80, 390)!;
+    const moved = labelPlace(t, feet, { ...look, camera: { x: 340, y: 1200 } }, 80, 390)!;
+    // A camera 40 to the right puts the words 40 to the left: the frame's own camera, no lag.
+    expect(a.left - moved.left).toBe(40);
+    // Never off the scene's sides, never into the top's buttons.
+    const offLeft = labelPlace(t, feet, { ...look, camera: { x: 900, y: 1200 } }, 80, 390)!;
+    expect(offLeft.left).toBe(86);
+    expect(labelPlace(t, feet, { ...look, camera: { x: 300, y: 1500 } }, 80, 390)!.top).toBe(70);
+  });
+
   it('ring the boat from where it is boarded, and name it with what a tap does', () => {
     const play = standing(centreOf(BOAT_LANDING2, TOWN2_TILE));
     const t = ringed(scene, play, false, people);
     expect(t?.id).toBe('rowboat');
-    expect(labelFor(t!, people)).toBe('Rowing boat — tap to open the chart');
+    expect(labelFor(t!, people)).toBe('Rowing boat — tap to row out');
+    expect(labelFor(thing('boat_sign'), people)).toBe('Ferry sign — tap to row out');
+    // The ferryman has a word first.
+    expect(labelFor(thing('ferryman'), people)).toMatch(/ferryman — tap to talk$/);
   });
 
   it('name people, doors and things with buttons for what a tap does there', () => {

@@ -88,7 +88,7 @@ export function levelWarning(state: GameState, landing: Landing): string | null 
 /** What to bring, in a line, for a landing. */
 export function whatToBring(state: GameState, landing: Landing): string {
   if (landing.recommended <= 1)
-    return 'Nothing you do not have: there are fish in the cave, and the ferryman waits.';
+    return 'Nothing but yourself: there are fish to find in the cave.';
   const food = state.food ? '' : ' You have no food in your food slot.';
   return `Armour, a weapon, and a good stack of cooked fish in your food slot.${food}`;
 }

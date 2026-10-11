@@ -373,8 +373,12 @@ export interface StageOptions {
    * smallest tap target, in art pixels.
    */
   readonly aim?: (point: Point, min: number) => Point;
-  /** More to draw this frame. */
-  readonly extra?: (now: number, palette: Palette) => StageExtra;
+  /**
+   * More to draw this frame, told where this frame's camera is (so anything
+   * placed by the screen's edges, or laid over the scene in the page, is
+   * placed by the frame it is drawn with, not the one before).
+   */
+  readonly extra?: (now: number, palette: Palette, look: StageLook) => StageExtra;
   /**
    * Told after each frame is drawn where the camera was and how many CSS
    * pixels an art pixel took: for laying something over the scene clear of
@@ -402,6 +406,13 @@ export interface StageOptions {
   readonly label: string;
   /** Shown instead of the scene by a browser that cannot draw one. */
   readonly fallback: string;
+}
+
+/** Where a frame's camera is: its top-left and the view's size, in art pixels, and CSS pixels an art pixel. */
+export interface StageLook {
+  readonly camera: Point;
+  readonly view: Size;
+  readonly cssPerArt: number;
 }
 
 const round = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) });
@@ -681,7 +692,10 @@ export function stage(options: StageOptions): View {
     if (!ctx) return;
     const scale = scaleOf(device);
     const cam = camera(scale);
-    const extra = options.extra?.(now, palette) ?? null;
+    const cssPerArt = (scale * css.width) / device.width;
+    const extra =
+      options.extra?.(now, palette, { camera: cam, view: viewSize(device, scale), cssPerArt }) ??
+      null;
     // Where the walker is drawn: where they stand, or a little to the side if the scene says so.
     const feet = round({ x: play.walker.at.x + (extra?.walkerOffset ?? 0), y: play.walker.at.y });
     const left = play.facing === 'left';
@@ -779,7 +793,7 @@ export function stage(options: StageOptions): View {
     drawnLast = moving;
     extraLast = extra?.boxes ?? [];
     if (top) drawOverlay(top, extra, cam, scale);
-    options.seen?.(cam, (scale * css.width) / device.width);
+    options.seen?.(cam, cssPerArt);
   };
 
   /** Whether anything was drawn on the overlay last frame, so it is cleared once when there is nothing. */

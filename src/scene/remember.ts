@@ -65,6 +65,8 @@ export function forgetRemembered(): void {
 export const KEYS = {
   /** The first visit's pan to the boat has played (or the chart has been opened). */
   pan: 'town.pan',
+  /** The harbour chart has been opened: the edge-of-screen pointer to the boat is done. */
+  chart: 'town.chart',
   /** A lesson learned, by its dungeon's short name and the lesson's id. */
   lesson: (dungeon: string, id: string) => `${dungeon}.lesson.${id}`,
   /** "Skip tips" pressed in a dungeon, by its short name. */

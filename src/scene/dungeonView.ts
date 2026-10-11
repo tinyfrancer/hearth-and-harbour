@@ -88,7 +88,13 @@ import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { dungeonScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
-import { stage, type Insets, type StageExtra, type StillPicture } from './stage';
+import {
+  stage,
+  type Insets,
+  type StageExtra,
+  type StageLook,
+  type StillPicture,
+} from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
 
@@ -686,15 +692,15 @@ export function dungeonView(options: DungeonViewOptions): View {
   /** Whether the room's doors have begun to open: the ground about them is lit from beyond. */
   const doorsAreOpen = (run: Run): boolean => !!run.battle && doorsOpen(run.battle, run.room) > 0;
 
-  /** What the camera showed last frame, in art pixels, less the edges kept for the HUD. */
-  const viewBox = (): Box | null => {
-    if (!lookedAt || lookedAt.cssPerArt <= 0) return null;
-    const per = lookedAt.cssPerArt;
+  /** What the camera shows this frame, in art pixels, less the edges kept for the HUD. */
+  const viewBox = (look: StageLook): Box | null => {
+    const per = look.cssPerArt;
+    if (!(per > 0)) return null;
     return {
-      x: lookedAt.camera.x + DUNGEON_INSETS.left / per,
-      y: lookedAt.camera.y + DUNGEON_INSETS.top / per,
-      w: (size.width - DUNGEON_INSETS.left - DUNGEON_INSETS.right) / per,
-      h: (size.height - DUNGEON_INSETS.top - DUNGEON_INSETS.bottom) / per,
+      x: look.camera.x + DUNGEON_INSETS.left / per,
+      y: look.camera.y + DUNGEON_INSETS.top / per,
+      w: look.view.width - (DUNGEON_INSETS.left + DUNGEON_INSETS.right) / per,
+      h: look.view.height - (DUNGEON_INSETS.top + DUNGEON_INSETS.bottom) / per,
     };
   };
 
@@ -817,9 +823,9 @@ export function dungeonView(options: DungeonViewOptions): View {
         if (!door) return point;
         return centreOf(runLocked(run) ? door.inside : door.cell, DUNGEON.tile);
       },
-      extra: (now) => {
+      extra: (now, _palette, seenNow) => {
         const run = options.run();
-        const extra = fightExtra(dungeon, run, look, art, { view: viewBox(), barredTap });
+        const extra = fightExtra(dungeon, run, look, art, { view: viewBox(seenNow), barredTap });
         const lesson = run.doorway ? null : shownLesson(run.lessons, lessons);
         return lesson ? withRing(extra, lesson.ring(dungeon, run), now) : extra;
       },

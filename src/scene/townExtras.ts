@@ -9,13 +9,22 @@
  */
 import type { Palette } from '../art/palette';
 import type { Standing } from './draw';
-import { townMarker, townRing } from './fromLaneB';
+import { townMarker, townPointer, townRing, type PointerDirection } from './fromLaneB';
 import type { TimeOfDay } from './daylight';
 import type { Play } from './play';
 import type { StageExtra } from './stage';
 import type { Box, Scene } from './things';
 import { pieceBox, STAND_IN_PIECES } from './town2';
-import { BEACON, BEACON_MS, markFrame, marksNow, ringOf, type MarkOptions } from './townMarks';
+import {
+  BEACON,
+  BEACON_MS,
+  markFrame,
+  marksNow,
+  ringOf,
+  type BoatPointer,
+  type MarkOptions,
+} from './townMarks';
+import type { Point } from './tileMap';
 
 export interface TownExtraInput {
   readonly scene: Scene;
@@ -27,6 +36,51 @@ export interface TownExtraInput {
   readonly marks: MarkOptions;
   /** The thing a tap beside the hero would use (`ringed`), or none. */
   readonly ring: string | null;
+  /** The chevron at the screen's edge toward the boat (`boatPointer`), or none. */
+  readonly pointer?: BoatPointer | null;
+}
+
+/**
+ * A plain chevron for the screen's edge, drawn here until lane B's
+ * `townPointer2` is in: gold, keyed in ink, its tip at `at` (art pixels),
+ * nudged toward where it points as the markers bob. 9 by 9 before the key.
+ */
+function plainPointer(
+  ctx: CanvasRenderingContext2D,
+  at: Point,
+  dir: PointerDirection,
+  frame: number,
+  gold: string,
+  ink: string,
+): void {
+  const nudge = [0, 1, 2, 1][frame % 4]!;
+  // Rows of the chevron pointing right, tip at (0, 0): each row's x from the tip.
+  const cells: [number, number][] = [];
+  for (let r = -4; r <= 4; r++) for (let d = 0; d < 3; d++) cells.push([-(Math.abs(r) + d) - 1, r]);
+  const turn = ([x, y]: [number, number]): [number, number] =>
+    dir === 'right' ? [x, y] : dir === 'left' ? [-x, y] : dir === 'down' ? [y, x] : [y, -x];
+  const shift =
+    dir === 'right'
+      ? [nudge - 2, 0]
+      : dir === 'left'
+        ? [2 - nudge, 0]
+        : dir === 'down'
+          ? [0, nudge - 2]
+          : [0, 2 - nudge];
+  const draw = (colour: string, grow: number) => {
+    ctx.fillStyle = colour;
+    for (const c of cells) {
+      const [x, y] = turn(c);
+      ctx.fillRect(
+        at.x + x + shift[0]! - grow,
+        at.y + y + shift[1]! - grow,
+        1 + 2 * grow,
+        1 + 2 * grow,
+      );
+    }
+  };
+  draw(ink, 1);
+  draw(gold, 0);
 }
 
 /** An ellipse's outline in whole art pixels. */
@@ -54,7 +108,7 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
   }
   const frame = markFrame(input.now);
   const drawn = marksNow(input.scene, input.play, input.marks).flatMap((m) => {
-    const mark = townMarker(m.kind, frame, input.time);
+    const mark = townMarker(m.kind, frame, input.time, m.size);
     if (!mark) return [];
     const x = Math.round(m.at.x - mark.anchor.x);
     const y = Math.round(m.at.y - mark.anchor.y);
@@ -85,6 +139,27 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
       h: 2 * BEACON.ry + 16,
     });
   const spread = (((input.now % BEACON_MS) + BEACON_MS) % BEACON_MS) / BEACON_MS;
+  // The way to the boat from off the screen: lane B's chevron, or a plain one until it is in.
+  const pointer = input.pointer ?? null;
+  const pointed = pointer ? townPointer(pointer.dir, frame, input.time) : null;
+  const pointerAt =
+    pointer && pointed
+      ? {
+          x: Math.round(pointer.at.x - pointed.anchor.x),
+          y: Math.round(pointer.at.y - pointed.anchor.y),
+        }
+      : null;
+  if (pointer)
+    boxes.push(
+      pointed && pointerAt
+        ? {
+            x: pointerAt.x - 1,
+            y: pointerAt.y - 1,
+            w: pointed.canvas.width + 2,
+            h: pointed.canvas.height + 2,
+          }
+        : { x: pointer.at.x - 12, y: pointer.at.y - 12, w: 24, h: 24 },
+    );
   return {
     actors,
     boxes,
@@ -105,10 +180,15 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
             if (ringMark && ringAt) ctx.drawImage(ringMark.canvas, ringAt.x, ringAt.y);
           }
         : undefined,
-    over: drawn.length
-      ? (ctx) => {
-          for (const d of drawn) ctx.drawImage(d.image, d.x, d.y);
-        }
-      : undefined,
+    over:
+      drawn.length || pointer
+        ? (ctx) => {
+            for (const d of drawn) ctx.drawImage(d.image, d.x, d.y);
+            if (pointer && pointed && pointerAt)
+              ctx.drawImage(pointed.canvas, pointerAt.x, pointerAt.y);
+            else if (pointer)
+              plainPointer(ctx, pointer.at, pointer.dir, frame, gold, palette.colours.ink1);
+          }
+        : undefined,
   };
 }
