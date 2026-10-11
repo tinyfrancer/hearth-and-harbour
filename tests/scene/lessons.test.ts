@@ -101,7 +101,7 @@ describe('the cave’s lessons', () => {
     expect(rememberingIn()).toBe('save');
     let run = step(beginCave(novice(), 1));
     run = { ...run, play: { ...run.play, walker: { at: { x: 400, y: 120 }, path: [] } } };
-    run = step(run);
+    step(run);
     expect([...store]).toEqual(['cave.lesson.walk']);
     // A reload: the page forgets, the save keeps.
     forgetLessons();
