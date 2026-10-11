@@ -19,6 +19,7 @@ import { mass } from './beasts';
 import { BUST, disc } from './bust';
 import * as BEAST from './beastFaces';
 import { OLD_SNAPPER } from './snapperFace';
+import { FERRYMAN } from './ferrymanFace';
 import * as FOLK from './folkFaces';
 import * as MARKS from './markFaces';
 import { drawHero, type HeroBust } from './heroFace';
@@ -524,6 +525,8 @@ const FACES2: Readonly<Record<string, FaceDef>> = {
   market: FOLK.MARKET,
   docker: FOLK.DOCKER,
   elder: FOLK.ELDER,
+  // The ferryman by the rowing boat (B15).
+  ferryman: FERRYMAN,
   dock_rat: RAT,
   sand_crab: BEAST.SAND_CRAB,
   thieving_gull: GULL,

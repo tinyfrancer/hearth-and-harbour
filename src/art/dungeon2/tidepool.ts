@@ -42,8 +42,8 @@ function sandAt(x: number, y: number): Cell {
     (y + 3 * Math.sin(x / 6 + y / 13) + 4 * Math.sin(x / 17) + 6 * noise(x, y, 14, 304)) / 6,
   );
   const show = noise(x, y, 20, 305) * 0.7 + noise(x, y, 5, 307) * 0.3;
-  if (show > 0.6 && f > 0.86) t += 1;
-  else if (show > 0.64 && f < 0.1) t -= 1;
+  if (show > 0.68 && f > 0.86) t += 1;
+  else if (show > 0.72 && f < 0.1) t -= 1;
   const gr = hash(x, y, 306);
   if (gr < 0.004) return cell('shell', 1);
   if (gr > 0.992) t += 1;
@@ -67,10 +67,13 @@ function wetAt(x: number, y: number): Cell {
  * left with a rounded lip, a dark seam where two meet, green film in the
  * hollows, barnacles in crusts and water in the deepest cracks.
  */
-function rockAt(x: number, y: number): Cell {
+function rockAt(x0: number, y0: number): Cell {
+  // Slabs' edges wander (worn by the sea), never the straight cuts of paving.
+  const x = x0 + Math.round((noise(x0, y0, 9, 330) - 0.5) * 7);
+  const y = y0 + Math.round((noise(x0, y0, 9, 331) - 0.5) * 7);
   const S = 21;
   const seam = cracked(x, y, S, 321, false);
-  if (seam) return noise(x, y, 6, 322) > 0.72 ? cell('pool', 3) : cell('tiderock', 5);
+  if (seam) return noise(x0, y0, 6, 322) > 0.88 ? cell('pool', 3) : cell('tiderock', 5);
   const l = lumpAt(x, y, S, 321);
   // The lip just inside a seam above or to the left catches the light.
   if (cracked(x, y - 1, S, 321, false) || cracked(x - 1, y, S, 321, false))
@@ -78,18 +81,18 @@ function rockAt(x: number, y: number): Cell {
   if (cracked(x, y + 1, S, 321, false) || cracked(x + 1, y, S, 321, false))
     return cell('tiderock', 4);
   let t = cround(
-    2.5 + l.tilt * 0.4 - l.lit * 0.9 + (noise(x, y, 7, 323) - 0.5) * 0.6,
-    x,
-    y,
+    2.6 + l.tilt * 0.3 - l.lit * 1.5 + (noise(x0, y0, 7, 323) - 0.5) * 0.5,
+    x0,
+    y0,
     324,
     0.5,
   );
   // Green film low on each slab, barnacles in crusts.
-  const film = noise(x, y, 9, 325);
+  const film = noise(x0, y0, 9, 325);
   if (film > 0.64 && l.lit < 0.1) return cell('moss', lim(t + 1, 3, 5));
-  if (noise(x, y, 5, 326) > 0.78 && hash(x, y, 327) < 0.4)
-    return cell('cream', hash(x, y, 328) < 0.5 ? 1 : 3);
-  if (hash(x, y, 329) < 0.015) t += 1;
+  if (noise(x0, y0, 5, 326) > 0.78 && hash(x0, y0, 327) < 0.4)
+    return cell('cream', hash(x0, y0, 328) < 0.5 ? 1 : 3);
+  if (hash(x0, y0, 329) < 0.015) t += 1;
   return cell('tiderock', lim(t, 1, 4));
 }
 

@@ -779,6 +779,108 @@ said something, beards with a silhouette, a little caricature. B11 drew every fa
   and hoods, the hair at the temples under a brim; the head gear and the shirt and body garment
   worn. A likeable adventurer in every look.
 
+### The tide-pool cave (B15)
+
+The first dungeon a new player sees, so it is the friendliest place in the game: a shallow sea cave
+open to daylight. It must never read as the grotto recoloured, so it differs in what things are,
+not only their colour.
+
+- **A theme, not a copy.** The same tile kinds, wears and footprints as the grotto (rooms are laid
+  out in the same rows); its own textures, doors, light and palette behind the trailing `theme`
+  argument (`'tidepool'`) or `dungeonTheme2('tidepool')`. The grotto's drawing is held byte for byte
+  by a test; a new theme is a `TileLook` (`dungeon2/tidepool.ts`) and its own door painters.
+- **Daylight palette** (`CAVE_TIDEPOOL`): the town's day colours, so the hero and foes are drawn as
+  in the sun (`characterSprite2(look, worn, 'day')`), and its own ramps: `tiderock` (warm, pale,
+  water-worn sandstone with a blush of ochre), `tidesand` (a beach's), `pool` (clear turquoise
+  water), `tidedeep` (blue-green sea, bright but plainly deeper than a pool), `kelp` (olive-brown
+  wrack, never the grotto's green weed), `anemone` (soft sea pink, props only). Floors still never
+  use red or orange; its floor starfish are purple.
+- **Rock in beds, not lumps.** The walls' faces are strata: beds of their own thickness and tone,
+  some pale and hard standing proud, some dark and worn back under them, a broken shadow at each
+  join, wide worn lumps within a bed, an upright joint now and then, sea-worn pockets; at the tide's
+  mark a band of green weed and a crust of blue-black mussels with barnacles, then a wet dark foot.
+  The rock's top is broad quiet masses in two tones with weed in its cracks. The floor's rock is
+  broad smooth slabs, each with a lit rounded lip, green film in its hollows, barnacles in crusts.
+- **Sand and water.** Sand is a beach's: bright, ripples only in patches and wavy, a little shell
+  grit. Pools are clear: the sand shows through and the sun's caustics net their floor (a web of
+  bright lines where two wandering waves meet), the sea a slow blue-green swell.
+- **Light by day.** Nothing is darkened near a light (one step only past 3.2 pools, the far corners);
+  each light lifts its heart a step. Its lights are shafts of sun through cracks above
+  (`light_shaft`: a slit of sky at the top, motes, a chain of warm glows falling down and to the
+  right, a pool on the floor), the cave's mouth (`cave_mouth`: a ragged opening three tiles tall
+  in the back wall with the sky, a far headland and the bright sea, its rim lit on the sunward
+  side, kelp hanging from its crown) and each open door. Its glows shine by day (`always`).
+- **Doors by daylight.** An open way is lit from beyond by the day (bright sand and the sea's edge
+  down a side passage; the sky and the sea through a natural arch in the face), a glass float in its
+  net hanging by it; a barred way is driftwood stakes lashed with rope (and a net in the arch), dark
+  behind. Same footprints, same lit-or-shut rule as the grotto's.
+- **Props** belong on a shore: a rock pool with an anemone and a purple starfish under the water,
+  a heap of kelp the tide left (a tangle of olive ribbons, strands trailing over the sand, bladders), starfish and limpets on a rock, anemones and mussels, a silvered
+  driftwood log, an old rowing boat's ribs half buried (seen from above: the hull's line, ribs
+  across, the stem post). Boulders are lumpy domes of the cave's rock with a wet band where they sit.
+
+### Old Snapper (B15)
+
+The tide-pool cave's boss, the first boss of the game: a giant old snapping turtle, big, grumpy and
+slow, plainer to read than the grotto's giant crab.
+
+- **Silhouette first**: a high domed shell like a mossy rock, the keel a row of knobs, the back edge
+  sawn into points; a big blunt head with a pale hooked beak under a heavy brow; thick scaly legs;
+  a saw-crested tail. Two thirds of the hero's height, longer than a rowing boat is wide.
+- **Character**: the shell's plates grooved and ringed with age, moss cushions in the sun, kelp
+  hanging from the rim, barnacles low on the flank, a limpet and a purple starfish clinging on; a
+  small cross gold eye, wattles under the chin, an old fishhook in the corner of his mouth with its
+  snapped line.
+- **He stands tight to his feet**: his feet point is a little behind his front feet, his shell and
+  tail behind it, so his head is all that is ahead of it (27 columns) and a hero at the 36-pixel
+  stand is never drawn over him.
+- **The telegraph is the plainest in the game** (the fight teaches dodging and bracing): rearing,
+  the front of the shell tipped up (the body layer sheared up at the front), front feet off the
+  ground, the head drawn high and back, the jaws gaping pink. The snap is the neck out low, the beak
+  shut 47 columns ahead. Struck, he pulls his head into his shell (drawn behind its front edge);
+  beaten, he lies on his back, pale plastron up with its seams, legs in the air, head lolling.
+- **His face** (B11 style): the big head pushed out in front of his mossy shell, gold eyes with a
+  slot pupil under lids slanting to the middle and brows like ledges, the hooked beak turned down at
+  its corners, the hook in his mouth.
+
+### The harbour chart (B15)
+
+The chart the rowing boat opens: a hand-drawn sea chart in the game's pixels, day only (paper).
+
+- **Paper that stays quiet**: old paper, faint foxing, browned and torn at its edge, a double ink
+  rule inset with squared corners. Sepia `ink`, `parchment`, the sea's `chartsea` wash
+  (`town2/ramps.ts`).
+- **Land and sea read apart at a glance**: the sea washed pale blue-green, deepest along the coast
+  and fading out to paper; two broken wave lines offshore following every coast; the land warm
+  paper with a green band behind the shore, an inked coast lit on its seaward lip, hachured hills
+  and tiny inked pines.
+- **Charts' furniture**: soundings in tiny figures over open water, rocks awash as little crosses,
+  rhumb lines dotted faint from the compass rose (an eight-pointed star in a ring, each point split
+  lit and dark, the north point red with a fleur over it, a gold hub), a sea serpent in the margin.
+- **Home is drawn**: the town on its bay (red tile and slate roofs, the quay, the pier), a little
+  lighthouse on the headland east of the bay.
+- **State goes on top, never in the picture**: markers (a red pennant open, gold with a seal
+  cleared, furled grey with a padlock locked, a dotted ring of mist round a question unknown, a gold
+  ring with ticks selected), each dungeon's emblem (or its ink silhouette while locked), the red
+  dotted route, the rowing boat token. No words in the picture: names are the scene's.
+
+### Interaction markers in town (B15)
+
+Cody: "make it more apparent we need to click the boat". The town must say what can be used
+without looking like a menu.
+
+- **Make the thing inviting first**: the rowing boat has its oars shipped (pale ash, red-tipped
+  blades), a painted blue top strake, a coil of rope, and a lantern on a pole at its bow that lights
+  at dusk; a painted sign on a post by the mooring (a rowing boat on blue water, a red border, its
+  own lantern); and the ferryman in a yellow oilskin and sou'wester, his oar upright beside him,
+  standing by the boat: the one person plainly waiting to take you somewhere.
+- **Markers are few and quiet**: a small cream badge on a pointer with a dark keyline (so it reads
+  over cobbles and over the sea), one pictogram in it (speech dots, a doorway, a hand axe, an
+  anchor; a gold sparkle with no badge for something new), bobbing a pixel or two on a slow loop.
+  One over each thing worth tapping near the hero, never one over everything at once.
+- **The nearest thing gets a ring**: a thin dashed ellipse of pale light on the ground (or the water)
+  round its foot, the dashes creeping round; light, not a thing, so no outline.
+
 ## Colour
 
 _The first scale's palette (`src/art/palette.ts`), still the icons' and the menus' art; the C scale's

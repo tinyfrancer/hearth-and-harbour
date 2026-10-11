@@ -201,7 +201,9 @@ describe('the C-scale pieces', () => {
 describe('the C-scale town', () => {
   it('places only pieces from the index, and every piece somewhere', SLOW, () => {
     const placed = new Set(town2Layout().map((p) => p.id));
-    expect([...placed].sort()).toEqual([...TOWN2_IDS].sort());
+    // B15: the ferry's sign and the boat's lantern are lane C's to place (by the mooring, at the bow).
+    const laneC = ['boat_sign', 'boat_lantern'];
+    expect([...placed].sort()).toEqual([...TOWN2_IDS].filter((id) => !laneC.includes(id)).sort());
     const names = town2Layout().map((p) => p.name);
     expect(new Set(names).size).toBe(names.length);
   });

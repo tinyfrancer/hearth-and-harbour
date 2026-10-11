@@ -13,7 +13,7 @@ import { hash, outlined, put, tgrid, type Cell, type TGrid } from '../town2/cell
 import { cell } from './cave';
 import type { Glow } from '../raster';
 import { SHAFT_LIGHT2, type Light2 } from './light';
-import { lim, paint, poly, rod, shaped, sprite } from './kit';
+import { paint, poly, rod, shaped, sprite } from './kit';
 
 export interface TideProp {
   readonly grid: TGrid;
@@ -97,37 +97,60 @@ function rockPool(): TideProp {
   return { grid: outlined(g), base: H, glows: [] };
 }
 
-/** Kelp on a rock: olive fronds with bladders draped over it and lying on the sand. */
+/** A heap of kelp the tide left: a low tangle of olive ribbons, strands trailing out over the sand, bladders. */
 function kelpClump(): TideProp {
-  const W = 34;
-  const H = 28;
+  const W = 40;
+  const H = 18;
   const g = tgrid(W, H);
-  boulder(g, 16, 16, 11, 9, 11);
-  for (const [x0, y0, x1, y1, w] of [
-    [12, 8, 4, 24, 3],
-    [16, 7, 10, 26, 3],
-    [19, 8, 27, 25, 3],
-    [22, 10, 31, 22, 2],
-    [10, 10, 2, 18, 2],
+  const ground = H - 2;
+  // Strands trailing out flat over the sand, under the heap.
+  for (const [x0, x1, y, k] of [
+    [2, 18, ground - 1, 1],
+    [22, 38, ground - 1, 2],
+    [6, 20, ground, 3],
+    [20, 34, ground, 4],
   ] as const) {
-    const n = 10;
-    for (let i = 0; i <= n; i++) {
-      const t = i / n;
-      const x = x0 + (x1 - x0) * t + Math.sin(t * 5 + x0) * 1.5;
-      const y = y0 + (y1 - y0) * t;
-      for (let j = 0; j < w; j++)
-        put(
-          g,
-          Math.round(x + j - w / 2),
-          Math.round(y),
-          cell('kelp', lim(1 + j + (t > 0.7 ? 1 : 0), 1, 5)),
-        );
-      if (i % 4 === 2) {
-        put(g, Math.round(x) + 1, Math.round(y) - 1, cell('kelp', 0));
-        put(g, Math.round(x) + 2, Math.round(y), cell('kelp', 3));
-      }
+    let px: number = x0;
+    let py: number = y;
+    for (let i = 1; i <= 6; i++) {
+      const x = x0 + ((x1 - x0) * i) / 6;
+      const yy = y - Math.round(Math.sin(i * 1.3 + k) * 1.2);
+      rod(g, px, py, x, yy, 2, 'kelp', [3, 4]);
+      px = x;
+      py = yy;
     }
   }
+  // The heap: overlapping folds, each lit along its top edge, darker in the folds between.
+  for (let i = 0; i < 9; i++) {
+    const cx = 9 + i * 2.6 + Math.sin(i * 2.1) * 2;
+    const cy = ground - 3 - Math.sin((i / 8) * Math.PI) * 5 + Math.cos(i * 1.7);
+    const rx = 4 + (i % 3);
+    const ry = 2.2 + (i % 2);
+    paint(
+      g,
+      Math.floor(cx - rx),
+      Math.floor(cy - ry),
+      Math.ceil(rx * 2) + 1,
+      Math.ceil(ry * 2) + 1,
+      (x, y) => {
+        const d = ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2;
+        if (d > 1) return 0;
+        return cell('kelp', y + 0.5 < cy - ry * 0.4 ? 2 : d > 0.6 && y > cy ? 4 : 3);
+      },
+    );
+  }
+  // Bladders, pale and round, and a broken frond end curling up.
+  for (const [x, y] of [
+    [12, ground - 6],
+    [21, ground - 8],
+    [28, ground - 5],
+    [5, ground - 2],
+  ] as const) {
+    put(g, x, y, cell('kelp', 0));
+    put(g, x + 1, y, cell('kelp', 1));
+    put(g, x, y + 1, cell('kelp', 2));
+  }
+  rod(g, 30, ground - 6, 34, ground - 11, 2, 'kelp', [2, 3]);
   return { grid: outlined(g), base: H, glows: [] };
 }
 

@@ -16,10 +16,12 @@ import { town2Scale } from '../town2/scale';
 import { foePicture2, foeFrames2, FOE2_IDS, FOE2_POSES, type Foe2Facing } from '../dungeonArt2';
 import { heroPortrait2, portrait2, PORTRAIT2_IDS } from '../portraits2';
 import type { Look } from '../character';
-import { CAVE_DAY, CAVE_DUSK } from './cave';
+import { CAVE_DAY, CAVE_DUSK, CAVE_TIDEPOOL, type CavePalette } from './cave';
+import { chartDressed, chartPieces, ferryPlate, markersPlate, tidePropsPlate } from './tideGallery';
+import { TOWN_MARKER2_FRAME_MS } from '../town2/markers';
 import { prop2, PROP2_IDS } from './props';
 import { roomPicture2 } from './room';
-import { poolsRoom2, storeRoom2 } from './sample';
+import { poolsRoom2, storeRoom2, tideRoom2 } from './sample';
 
 /** A little room with a door of each kind (B13), in the room key (room.ts). */
 const DOORS_ROOM: readonly string[] = [
@@ -140,6 +142,8 @@ interface Job {
   /** Device pixels per art pixel: the game's, or twice it for a close look. */
   readonly zoom: 1 | 2;
   readonly day?: boolean;
+  /** Its own palette, whatever the button says (the tide-pool cave's daylight). */
+  readonly palette?: CavePalette;
   canvas?: HTMLCanvasElement;
 }
 
@@ -151,7 +155,11 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
   const section = el('div', 'gallery-town2');
   section.id = 'dungeon2';
   section.append(
-    el('h3', 'gallery-subhead', 'The dungeon at the finer scale (B10a, B11), not yet approved'),
+    el(
+      'h3',
+      'gallery-subhead',
+      'The dungeons at the finer scale (B10a, B11; the tide-pool cave and the chart B15), not yet approved',
+    ),
     el(
       'p',
       'gallery-caption muted',
@@ -167,18 +175,82 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
   section.append(body);
   const jobs: Job[] = [];
   let day = false;
+  let markFrame = 0;
+  let markJob: Job | null = null;
 
   const sub = (text: string) => body.append(el('h3', 'gallery-subhead', text));
-  const shot = (label: string, make: () => Picture2, zoom: 1 | 2 = 1, fixedDay?: boolean) => {
+  const shot = (
+    label: string,
+    make: () => Picture2,
+    zoom: 1 | 2 = 1,
+    fixedDay?: boolean,
+    palette?: CavePalette,
+  ) => {
     const cell = el('figure', 'gallery-shot');
     cell.append(el('figcaption', 'muted', label));
     const box = el('div', 'gallery-scroll');
     box.append(cell);
     body.append(box);
-    jobs.push({ cell, label, make, zoom, ...(fixedDay !== undefined ? { day: fixedDay } : {}) });
+    jobs.push({
+      cell,
+      label,
+      make,
+      zoom,
+      ...(fixedDay !== undefined ? { day: fixedDay } : {}),
+      ...(palette ? { palette } : {}),
+    });
+    return jobs[jobs.length - 1]!;
   };
 
   const build = () => {
+    sub(
+      'The tide-pool cave (B15): by daylight, its props, Old Snapper; the harbour chart; the ferry and the town’s markers',
+    );
+    shot(
+      'The tide-pool cave, a sample room one sideways screen across: the level-1 hero, a rat, a sand crab and Old Snapper',
+      () => tideRoom2(),
+      1,
+      undefined,
+      CAVE_TIDEPOOL,
+    );
+    shot(
+      'The pools’ room shape in the tide-pool look (the same rows as the grotto’s pools below)',
+      () => poolsRoom2({ level: 1, theme: 'tidepool' }),
+      1,
+      undefined,
+      CAVE_TIDEPOOL,
+    );
+    shot('Its props, beside the hero and Old Snapper', tidePropsPlate, 2, undefined, CAVE_TIDEPOOL);
+    shot(
+      'Old Snapper in every pose, beside the hero, by daylight',
+      () => foePlate('old_snapper', 'right'),
+      2,
+      undefined,
+      CAVE_TIDEPOOL,
+    );
+    shot(
+      'The harbour chart (340 × 300): landings open, cleared, locked and unknown, one selected, the routes and the boat',
+      chartDressed,
+      2,
+      true,
+    );
+    shot(
+      'Chart pieces: markers open, cleared, locked, unknown, selected; the boat both ways; a route’s dot; the emblems and their silhouettes',
+      chartPieces,
+      2,
+      true,
+    );
+    shot(
+      'The ferry: the hero for scale, the ferryman, the boat’s sign, the boat with its bow lantern (the button above shows them at dusk)',
+      ferryPlate,
+      2,
+    );
+    const marks = shot(
+      'The town’s markers, animated (talk, enter, gather, travel, new) and the ring round the nearest thing',
+      () => markersPlate(markFrame),
+      2,
+    );
+    markJob = marks;
     sub('Two rooms of the grotto, re-cut on 24-pixel tiles, as a phone held sideways shows them');
     shot('The smugglers’ store at the first rise of the tide (768 × 288)', () => storeRoom2());
     shot('The tide pools at the first rise, the whole grotto cast in them', () => poolsRoom2());
@@ -249,6 +321,7 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
     body.append(grid);
   };
 
+  let markTimer: ReturnType<typeof setInterval> | null = null;
   const dpr = () => window.devicePixelRatio || 1;
   const game = () => town2Scale(Math.min(window.innerWidth || 390, 480), dpr());
 
@@ -260,7 +333,7 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
       status.textContent = `Drawing ${i} of ${jobs.length}…`;
       const scale = game() * job.zoom;
       const pic = job.make();
-      const palette = (job.day ?? day) ? CAVE_DAY : CAVE_DUSK;
+      const palette = job.palette ?? ((job.day ?? day) ? CAVE_DAY : CAVE_DUSK);
       if (job.canvas) repaint2(job.canvas, pic, palette, scale);
       else {
         job.canvas = pixelCanvas2(pic, palette, scale, dpr(), job.label);
@@ -271,6 +344,14 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
     next();
   };
   const finished = () => {
+    // The markers' loop, once drawn: their own frames, repainted in place.
+    if (markJob && !markTimer)
+      markTimer = setInterval(() => {
+        const job = markJob;
+        if (!job?.canvas) return;
+        markFrame++;
+        repaint2(job.canvas, job.make(), day ? CAVE_DAY : CAVE_DUSK, game() * job.zoom);
+      }, TOWN_MARKER2_FRAME_MS);
     status.textContent = `${day ? 'By day' : 'At dusk, as it is played'}. Game scale on this screen: ${game()} device pixels per art pixel.`;
     toggle.disabled = false;
   };

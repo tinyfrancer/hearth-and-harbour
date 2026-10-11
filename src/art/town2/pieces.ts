@@ -13,6 +13,7 @@
 import { outlined, type Picture2 } from './cells';
 import { FACTS_TABLE } from './facts';
 import { pier, rowboat, ship, wreckRock } from './harbour';
+import { boatLantern, boatSign } from './ferry';
 import { house } from './house';
 import {
   anvil,
@@ -73,6 +74,9 @@ export const TOWN2_IDS = [
   'gull',
   'tavern_smoke',
   'smithy_smoke',
+  // B15: the ferry's sign by the mooring and the lantern for the rowing boat's bow.
+  'boat_sign',
+  'boat_lantern',
 ] as const;
 
 export type Town2Id = (typeof TOWN2_IDS)[number];
@@ -274,7 +278,34 @@ const MAKE: Readonly<Record<Town2Id, () => [Picture2, Meta]>> = {
   gull: () => [asPicture(gull(), outlined), { layer: 'above', ground: { w: 0, d: 0 } }],
   tavern_smoke: () => unlined(smoke(false), 'above'),
   smithy_smoke: () => unlined(smoke(true), 'above'),
+  boat_sign: () => {
+    const pic = asPicture(boatSign(), outlined);
+    // It stands on its post: the foot is the post's, its ground a post's.
+    const foot = Math.round(m(1.1) * 0.3) + 3;
+    return [
+      pic,
+      {
+        layer: 'stand',
+        foot,
+        shadow: { kind: 'oval', cx: foot, rx: m(0.3), ry: 3 },
+        ground: { w: m(0.4), d: m(0.4) },
+      },
+    ];
+  },
+  boat_lantern: () => {
+    // Afloat with the boat: no ground of its own. Stand its foot at `ROWBOAT_LANTERN_AT`.
+    const pic = asPicture(boatLantern(), outlined);
+    return [pic, { layer: 'stand', foot: 6, ground: { w: 0, d: 0 } }];
+  },
 };
+
+/**
+ * Where the boat's lantern pole stands in the rowing boat, from the boat's
+ * top-left (B15): just inside its bow. Draw `boat_lantern` with its foot
+ * there and its base row there, right after the boat, and bob it with the
+ * boat.
+ */
+export const ROWBOAT_LANTERN_AT: Point = { x: 114, y: 23 };
 
 /** Everything about a piece but its drawing: what a scene needs to lay out the town before (or without) drawing it. */
 export type Town2Facts = Omit<Town2Piece, 'picture'>;
