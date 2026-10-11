@@ -50,6 +50,7 @@ import { heroFace } from './face';
 import { fullLook } from './look';
 import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
+import { nowDoing, type NowTarget } from './nowDoing';
 import { skillListView, skillPageView } from './skillsScreen';
 import { entryName, storeView } from './storeScreen';
 import { TABS, type TabId } from './tabs';
@@ -213,6 +214,16 @@ export function mountApp(
   /** The away report's overlay while it is up: laid over the screen, which is left alone. */
   let awayEl: HTMLElement | null = null;
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
+  /** The "now doing" strip above the tabs: made once, kept across every screen. */
+  const doing = nowDoing(content, (target: NowTarget) => {
+    tab = 'skills';
+    combatPage = null;
+    fightOver = null;
+    openSkill = null;
+    if (target.kind === 'skill') openSkill = content.skills[target.skill] ? target.skill : null;
+    if (target.kind === 'fight') combatPage = 'fight';
+    turnTo();
+  });
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
   const awards = h('div', { class: 'awards', attrs: { role: 'status' } });
@@ -823,6 +834,7 @@ export function mountApp(
       awards,
       toasts,
       ...(away ? [awayOverlay()] : []),
+      doing.el,
       h(
         'nav',
         { class: 'tabbar', attrs: { 'aria-label': 'Sections' } },
@@ -863,10 +875,17 @@ export function mountApp(
         ),
       ),
     );
+    doing.update(state, now());
   };
 
+  /** Every frame: the game's step, then the strip, which shows wherever the game is. */
   const tick = (): void => {
     const time = now();
+    step(time);
+    if (state && doing.el.isConnected) doing.update(state, time);
+  };
+
+  const step = (time: number): void => {
     const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
     if (!state) {

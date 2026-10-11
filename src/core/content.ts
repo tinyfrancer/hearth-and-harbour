@@ -12,6 +12,13 @@ export interface SkillDef {
   verb: string;
   /** The heading the Skills tab lists it under: "Gathering". Groups appear in table order. */
   group: string;
+  /**
+   * What the hero is drawn doing while an action of this skill runs (or, for
+   * a combat skill, while fighting in its style): an id of the art's loops of
+   * the hero at work. Named here, in the tables, so the menus never guess it
+   * from a skill's name. Left out, the hero stands and breathes.
+   */
+  activity?: string;
 }
 
 export interface ItemDef {
