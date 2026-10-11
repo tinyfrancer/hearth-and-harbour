@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { spoilsOf } from '../../src/scene/battle';
+import { runSpoils, runStats } from '../../src/scene/modifiers';
 import { advanceRun, type Run } from '../../src/scene/dungeon';
 import { RUN_SCENE_VERSION, restoreRun, savedRunOf, snapshotRun } from '../../src/scene/runSave';
 import { begin, decide, GROTTO_DUNGEON, prepared } from './grottoBot';
@@ -59,7 +60,14 @@ describe('a run kept as plain data', () => {
     const saved = savedRunOf(run);
     expect(saved.dungeon).toBe('brinebeards_grotto');
     expect(saved.scene).toBe(RUN_SCENE_VERSION);
-    expect(saved.spoils).toEqual(spoilsOf(run.battle!));
+    // The fight's spoils, with the dungeon, its modifier and what the run has done so far (S16).
+    expect(saved.spoils).toEqual(runSpoils(run));
+    expect(saved.spoils).toMatchObject({
+      ...spoilsOf(run.battle!),
+      dungeon: 'brinebeards_grotto',
+      modifier: null,
+      stats: runStats(run),
+    });
     expect(JSON.stringify(saved).length).toBeLessThan(256 * 1024);
   });
 

@@ -27,6 +27,7 @@ import {
   type RoomTile,
 } from './ground';
 import type { LessonsState } from './lessons';
+import { battleMods, modifiedFighter, modifiedMonsters, type RunModifier } from './modifiers';
 import { advancePlay, startPlay, type Facing, type Play } from './play';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
 
@@ -270,6 +271,8 @@ export interface Run {
   readonly battle: Battle | null;
   /** Where the dungeon's lessons stand for this run (`lessons.ts`); absent for one with none. */
   readonly lessons?: LessonsState;
+  /** The day's modifier, as it was when the boat rowed out (`modifiers.ts`); absent for none. */
+  readonly modifier?: RunModifier;
 }
 
 /** What a run fights with: the character as they rowed out, the monsters' rows, the dice's seed, and the items the game knows. */
@@ -280,14 +283,17 @@ export interface RunSetup {
   readonly known?: Iterable<string>;
   /** How much each kind of food heals, by item id: food found in the run can be eaten. */
   readonly heals?: Readonly<Record<string, number>>;
+  /** The day's modifier, fixed as the boat rows out; none for a plain run. */
+  readonly modifier?: RunModifier;
 }
 
 export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
   const room = dungeon.rooms[dungeon.first]!;
-  const battle = setup
+  const effects = setup?.modifier?.effects;
+  const fought = setup
     ? startBattle(
-        setup.fighter,
-        setup.monsters,
+        modifiedFighter(setup.fighter, effects),
+        modifiedMonsters(setup.monsters, effects),
         Object.values(dungeon.rooms).flatMap((r) =>
           r.foes.map((f) => ({
             room: r.id,
@@ -304,7 +310,10 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
         },
       )
     : null;
+  const mods = battleMods(effects);
+  const battle = fought && mods ? { ...fought, mods } : fought;
   return {
+    ...(setup?.modifier ? { modifier: setup.modifier } : {}),
     dungeon: dungeon.id,
     room: room.id,
     play: startPlay(centreOf(room.start!, T)),

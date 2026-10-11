@@ -172,6 +172,11 @@ export interface Telegraph {
   readonly damage: number;
   /** A lit keg, which goes out if it lands in water. */
   readonly douse?: boolean;
+  /**
+   * He has stood in it while it was marked: if he is out of it when it
+   * lands, he stepped out of it (`BattleCount.stepOuts`). Counting only.
+   */
+  readonly stoodIn?: true;
 }
 
 /** Whether feet at `p` are in a mark's ground when it lands. */
@@ -365,6 +370,34 @@ export interface Battle {
   readonly larder?: Readonly<Record<string, number>>;
   /** How the fighting ended, and when: the room cleared, or the hero down. */
   readonly over: { readonly why: 'cleared' | 'fell'; readonly at: number } | null;
+  /**
+   * What the run has done that its spoils do not say (wave 17, `RunStats`):
+   * hit points lost (after a brace's halving, the sea's too), heavy blows
+   * taken braced, and times he stepped out of one to go back in. Counted
+   * from the fight's events as they happen, never read by a rule; absent
+   * until the first.
+   */
+  readonly count?: BattleCount;
+  /** The day's modifier, as far as the rules need it (`BattleMods`); absent for a plain run. */
+  readonly mods?: BattleMods;
+}
+
+/** What a battle counts as it goes (`Battle.count`). */
+export interface BattleCount {
+  readonly damage: number;
+  readonly braces: number;
+  readonly stepOuts: number;
+}
+
+/**
+ * The parts of a day's modifier the rules read as the fight goes (the rest
+ * are applied to the rows a run starts with, or to its spoils): a volley's
+ * damage, the tide's pace, and whether anything may be eaten.
+ */
+export interface BattleMods {
+  readonly foeDamage?: number;
+  readonly tidePace?: number;
+  readonly noFood?: boolean;
 }
 
 /** Where the battle is being fought: the room, its ground, whether it is the last, and its perches and landings. */
@@ -525,7 +558,7 @@ export function roomLocked(battle: Battle, room: string): boolean {
 export function tideOf(battle: Battle, place: Place): TideNow {
   return place.ground.ownTide
     ? surgeTide(battle.clock, battle.surge, battle.ebb)
-    : cycleTide(battle.clock);
+    : cycleTide(battle.clock, battle.mods?.tidePace ?? 1);
 }
 
 /** The room's ground now, to walk and path on: the tide, barred doors, open cells. */
@@ -676,8 +709,12 @@ export function bossOf(battle: Battle, room: string): Foe | null {
 /* ----- The working copy: rules edit this, and hand back a new battle ----- */
 
 interface Work extends Writable<
-  Omit<Battle, 'foes' | 'tally' | 'ready' | 'piles' | 'effects' | 'opened' | 'released' | 'volleys'>
+  Omit<
+    Battle,
+    'foes' | 'tally' | 'ready' | 'piles' | 'effects' | 'opened' | 'released' | 'volleys' | 'count'
+  >
 > {
+  count?: Writable<BattleCount>;
   opened: Record<string, number>;
   released: Record<string, number>;
   foes: Writable<Foe>[];
@@ -710,7 +747,15 @@ function working(b: Battle): Work {
     piles: [...b.piles],
     volleys: [...b.volleys],
     effects: [...b.effects],
+    ...(b.count ? { count: { ...b.count } } : {}),
   };
+}
+
+/** Adds to what the battle counts (`Battle.count`). */
+function tallyCount(w: Work, key: keyof BattleCount, n: number): void {
+  if (!(n > 0)) return;
+  w.count ??= { damage: 0, braces: 0, stepOuts: 0 };
+  w.count[key] += n;
 }
 
 const effect = (w: Work, e: Effect): void => {
@@ -819,8 +864,10 @@ function struck(w: Work, dice: Dice, def: MonsterDef, damage: number | null, her
   hurtHero(w, dealt, hero);
 }
 
-function hurtHero(w: Work, dealt: number, hero: Point): void {
+function hurtHero(w: Work, dealt: number, hero: Point, blow = true): void {
   if (dealt <= 0) return;
+  // Hit points lost to blows (`RunStats.damageTaken`); the sea's wash is not a blow.
+  if (blow) tallyCount(w, 'damage', Math.min(dealt, w.hp));
   w.hp = Math.max(0, w.hp - dealt);
   w.struckAt = w.clock;
   effect(w, { kind: 'hit', at: hero, amount: dealt, on: 'hero', from: w.clock });
@@ -843,8 +890,10 @@ function land(
   if (doused) return;
   const inside = inMark(t, hero);
   let damage = inside ? t.damage : 0;
+  if (!inside && t.stoodIn) tallyCount(w, 'stepOuts', 1);
   if (inside && w.braceUntil > w.clock) {
     damage = Math.ceil(damage / 2);
+    tallyCount(w, 'braces', 1);
     w.braceUntil = 0;
     w.blowMs = 0;
     if (by) {
@@ -1029,7 +1078,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       w.chase = false;
       next = { ...next, walker: { at: hero, path: [shore] }, heading: null };
       effect(w, { kind: 'splash', at: hero, from: w.clock });
-      hurtHero(w, Math.min(Math.ceil(w.fighter.maxHp * FLOOD_HURT), w.hp - 1), hero);
+      hurtHero(w, Math.min(Math.ceil(w.fighter.maxHp * FLOOD_HURT), w.hp - 1), hero, false);
     }
   } else if (!w.wash && !w.dash && next.walker.path.length > 0) {
     // A walk the water has since cut is planned again round it.
@@ -1083,6 +1132,13 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     if (foeKind(foe.monster).boss && !foe.heavy) foe.volleyMs = Math.max(0, foe.volleyMs - TICK_MS);
   }
 
+  // Whatever is marked under him now, he has stood in (counting only: `stoodIn`).
+  for (const foe of here)
+    if (foe.heavy && !foe.heavy.stoodIn && inMark(foe.heavy, hero))
+      foe.heavy = { ...foe.heavy, stoodIn: true };
+  if (w.volleys.some((t) => !t.stoodIn && inMark(t, hero)))
+    w.volleys = w.volleys.map((t) => (!t.stoodIn && inMark(t, hero) ? { ...t, stoodIn: true } : t));
+
   // Heavy attacks land first: where the hero stands at this instant is all that counts.
   for (const foe of here) {
     if (!foe.heavy || foe.heavy.lands > w.clock) continue;
@@ -1098,7 +1154,10 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       w.volleys = w.volleys.filter((t) => t.lands > w.clock);
       // One blow for a volley, however many of its lines he stands in.
       const hit = landing.find((t) => inMark(t, hero));
-      for (const t of landing) if (t !== hit) land(w, t, map, { x: -1e6, y: -1e6 }, null);
+      // A volley he stood in some line of, and is clear of now, is one heavy blow stepped out of.
+      if (!hit && landing.some((t) => t.stoodIn)) tallyCount(w, 'stepOuts', 1);
+      for (const t of landing)
+        if (t !== hit) land(w, { ...t, stoodIn: undefined }, map, { x: -1e6, y: -1e6 }, null);
       if (hit) land(w, hit, map, hero, null);
       if (w.over) return next;
     }
@@ -1415,7 +1474,7 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
       from: w.clock,
       lands: w.clock + volley.warnMs,
       origin: null,
-      damage: volleys.damage,
+      damage: w.mods?.foeDamage ? Math.round(volleys.damage * w.mods.foeDamage) : volleys.damage,
     });
   }
 }
@@ -1700,8 +1759,12 @@ export function useAbility(
 }
 
 /** Why the food button does nothing just now, or null if it eats. */
-export function foodProblem(battle: Battle): 'none' | 'cooling' | 'full' | 'over' | null {
+export function foodProblem(
+  battle: Battle,
+): 'none' | 'banned' | 'cooling' | 'full' | 'over' | null {
   if (battle.over) return 'over';
+  // The day's modifier forbids it (`noFood`): the button says so.
+  if (battle.mods?.noFood) return 'banned';
   if (!nextFood(battle)) return 'none';
   if (cooldownLeft(battle, 'food') > 0) return 'cooling';
   if (battle.hp >= battle.fighter.maxHp) return 'full';

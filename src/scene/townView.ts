@@ -4,7 +4,7 @@ import { h } from '../ui/dom';
 import type { Shell, View } from '../ui/view';
 import { other, timeOfDayAt, type TimeOfDay } from './daylight';
 import { seedFrom } from '../core/rng';
-import { fighterOf, spoilsOf } from './battle';
+import { fighterOf } from './battle';
 import { startRun, type Dungeon, type Run } from './dungeon';
 import { builtDungeons, castOf, dungeonById, dungeonScene, healsOf } from './dungeons';
 import { dungeonView } from './dungeonView';
@@ -16,7 +16,15 @@ import { stage } from './stage';
 import type { Cell, Point } from './tileMap';
 import type { Thing } from './things';
 import { chartPanel, type ChartPanel } from './chartPanel';
-import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './fromLaneA';
+import {
+  chartOpened,
+  dungeonsInOrder,
+  dungeonStatus,
+  effectsOf,
+  takeRequest,
+  todaysModifier,
+} from './fromLaneA';
+import { runSpoils, type RunModifier } from './modifiers';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -562,12 +570,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (!run?.battle || settled) return;
     settled = true;
     kept = null;
-    // A clear is the boss down and the end reached: the run ended by itself, cleared.
-    // With how long it took, for the dungeon's best time.
-    shell?.settleRun({
-      ...spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined),
-      timeMs: run.ms,
-    });
+    // A clear is the boss down and the end reached: the run ended by itself, cleared. With what
+    // the run did (its time to the boss's fall is the dungeon's best time), and the day's bonus.
+    // Its modifier's rewards are paid by settling, never here.
+    shell?.settleRun(runSpoils(run, run.ending === 'cleared'));
     shell?.keepRun?.(null);
   };
 
@@ -582,8 +588,15 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     const dungeon = dungeons(id);
     if (!dungeon || rowing) return;
     rowedTo.add(id);
+    // The day's modifier, by the shell's clock and time zone, fixed now: a run that crosses
+    // midnight keeps it, and keeps what it does.
+    const today = todaysModifier(shell, id);
+    const modifier: RunModifier | undefined = today
+      ? { id: today, effects: effectsOf(content, today) }
+      : undefined;
     // A run reads the character as they row out, and rolls its own dice, never the save's.
     const started = startRun(dungeon, {
+      ...(modifier ? { modifier } : {}),
       fighter: fighterOf(latest, content),
       // A dungeon's own cast fights by its rows here; the tables' monsters by theirs.
       monsters: castOf(content, id),

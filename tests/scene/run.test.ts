@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hitPoints } from '../../src/core/combat';
+import { spoilsUnder } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 import { alive } from '../../src/scene/battle';
 import { CONTENT } from '../../src/data';
@@ -271,8 +272,8 @@ describe('the way into the grotto', () => {
     expect(shell.calls).toEqual([
       'full:true',
       'pause:true',
-      // With how long the run took, for a best time.
-      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20,"kills":{},"timeMs":150}',
+      // With how long the run took, for a best time; the dungeon, no modifier, and what it did (S16).
+      'settle:{"xp":{},"loot":{},"coins":0,"foodEaten":0,"arrowsUsed":0,"hp":20,"kills":{},"dungeon":"brinebeards_grotto","modifier":null,"stats":{"timeMs":150,"damageTaken":0,"foodEaten":0,"braces":0,"stepOuts":0,"knockedOut":false,"kills":0},"timeMs":150}',
       'full:false',
       'pause:false',
     ]);
@@ -588,17 +589,28 @@ describe('a run’s spoils in the real app', () => {
     }
     const tally = runNow()!.battle!.tally;
     const hpLeft = runNow()!.battle!.hp;
+    // Rowed out under the day's modifier, if it has one: its rewards are paid as it is settled.
+    const paid = spoilsUnder(
+      {
+        xp: tally.xp,
+        loot: tally.loot,
+        coins: tally.coins,
+        dungeon: 'brinebeards_grotto',
+        modifier: runNow()!.modifier?.id ?? null,
+      },
+      CONTENT,
+    );
     root.querySelector<HTMLButtonElement>('.dungeon-leave')!.click();
     click(root, 'Row back');
     const saved = saves.load()!;
     // Whatever was picked up is in the bank: only things the game's tables know.
-    for (const [item, qty] of Object.entries(tally.loot)) {
+    for (const [item, qty] of Object.entries(paid.loot)) {
       expect(CONTENT.items[item], item).toBeDefined();
       expect(saved.bank[item]).toBe((start.bank[item] ?? 0) + qty);
     }
-    expect(saved.coins).toBe(start.coins + tally.coins);
-    expect(saved.skills.melee).toBe(start.skills.melee! + tally.xp.melee!);
-    expect(saved.skills.vitality).toBe(start.skills.vitality! + tally.xp.vitality!);
+    expect(saved.coins).toBe(start.coins + paid.coins);
+    expect(saved.skills.melee).toBe(start.skills.melee! + paid.xp.melee!);
+    expect(saved.skills.vitality).toBe(start.skills.vitality! + paid.xp.vitality!);
     expect(saved.food).toEqual({ item: 'cooked_cod', qty: 4 - tally.eaten });
     // Hurt in the grotto is hurt in town.
     expect(hitPoints(saved)).toBe(hpLeft);
