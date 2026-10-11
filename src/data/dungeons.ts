@@ -1,4 +1,66 @@
-import type { DungeonDef } from '../core/content';
+import type { DungeonDef, ModifierDef } from '../core/content';
+
+// What a day can do to a dungeon (S16). Each dungeon draws its days from a
+// pool of these (`DungeonDef.modifiers`), every one in turn, shuffled each
+// time round (`dailyModifier`, src/core/progress.ts). The learning cave draws
+// only kind ones: easier, or more found, never harder. Every other is a trade,
+// harder and paid for it, and each has a catch the idle game feels too (not
+// only the tide or the lamps, which it has none of), so none is a free gift
+// to a hero sent through unattended. tests/data/content.test.ts holds both.
+export const DUNGEON_MODIFIERS = {
+  // Kind: for the Tidepool Cave.
+  slack_tide: {
+    id: 'slack_tide',
+    name: 'Slack Tide',
+    text: 'Not a ripple. Everything in the pools is half asleep.',
+    effects: { foeSpeed: 0.8 },
+    kind: true,
+  },
+  rich_pickings: {
+    id: 'rich_pickings',
+    name: 'Rich Pickings',
+    text: 'The night tide left more than usual lying about.',
+    effects: { loot: 1.5, coins: 1.5 },
+    kind: true,
+  },
+  // Trades: for Brinebeard’s Grotto.
+  thick_skulls: {
+    id: 'thick_skulls',
+    name: 'Thick Skulls',
+    text: 'The crew slept well for once, and it shows.',
+    effects: { foeHealth: 1.3, xp: 1.3 },
+  },
+  angry_crew: {
+    id: 'angry_crew',
+    name: 'An Angry Crew',
+    text: 'Somebody told the crew what you said about their boat.',
+    effects: { foeDamage: 1.3, loot: 1.3 },
+  },
+  quick_tempers: {
+    id: 'quick_tempers',
+    name: 'Quick Tempers',
+    text: 'A double rum went round at breakfast. Everyone is very fast and very loud.',
+    effects: { foeSpeed: 1.25, xp: 1.15, loot: 1.15 },
+  },
+  spring_tide: {
+    id: 'spring_tide',
+    name: 'Spring Tide',
+    text: 'The moon is full and the sea is in a hurry.',
+    effects: { tideFaster: 1.5, foeDamage: 1.1, loot: 1.35 },
+  },
+  no_rations: {
+    id: 'no_rations',
+    name: 'No Rations',
+    text: 'Gulls got into your pack on the way over. Every last crumb.',
+    effects: { noFood: true, xp: 1.2, loot: 1.25 },
+  },
+  unlit_lamps: {
+    id: 'unlit_lamps',
+    name: 'Unlit Lamps',
+    text: 'Someone forgot the lamp oil. Mind your swing.',
+    effects: { darker: true, heroDamage: 0.85, xp: 1.25 },
+  },
+} satisfies Record<string, ModifierDef>;
 
 // The dungeons, as far as the idle rules know them: where each sits on the
 // harbour chart, what opens it, its loot, and its cast with their numbers.
@@ -78,6 +140,41 @@ export const DUNGEONS = {
         coins: [4, 8],
         always: [{ item: 'seashells', min: 1, max: 2 }],
         rare: [{ item: 'pearl', min: 1, max: 1, oneIn: 40 }],
+      },
+    ],
+    // Its days are only ever kind to a newcomer.
+    modifiers: ['slack_tide', 'rich_pickings'],
+    // Gentle goals for a return visit, each practising something the cave
+    // teaches. (Their ids name what lane B's icons draw: a clock, an unhurt
+    // hero, an empty plate, the boss.)
+    challenges: [
+      {
+        id: 'tidepool_cave.quick',
+        name: 'Brisk',
+        text: 'Clear the cave in two minutes or less.',
+        rule: { kind: 'atMost', stat: 'timeMs', n: 120_000 },
+        reward: { coins: 250, bountyPoints: 2 },
+      },
+      {
+        id: 'tidepool_cave.unhurt',
+        name: 'Mostly in One Piece',
+        text: 'Clear the cave taking no more than 10 damage.',
+        rule: { kind: 'atMost', stat: 'damageTaken', n: 10 },
+        reward: { coins: 250, bountyPoints: 2 },
+      },
+      {
+        id: 'tidepool_cave.no_food',
+        name: 'Packed Lunch, Uneaten',
+        text: 'Clear the cave without eating a thing.',
+        rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
+        reward: { coins: 100, items: [{ item: 'cooked_shrimp', qty: 5 }] },
+      },
+      {
+        id: 'tidepool_cave.snapper_dodge',
+        name: 'Out of the Snapper’s Way',
+        text: 'Clear the cave having stepped out of three heavy blows.',
+        rule: { kind: 'atLeast', stat: 'stepOuts', n: 3 },
+        reward: { coins: 150 },
       },
     ],
   },
@@ -184,6 +281,53 @@ export const DUNGEONS = {
         pick: { items: ['captains_coat', 'spyglass'], oneIn: 2 },
       },
     ],
+    // Its first clear opens the next tier of idle content (plan S22, not built yet).
+    opens: {
+      tier: 2,
+      brings:
+        'deep-water fishing, driftwood, salt-iron to mine and smith, richer pockets to pick and somewhere new to fight',
+    },
+    modifiers: [
+      'thick_skulls',
+      'angry_crew',
+      'quick_tempers',
+      'spring_tide',
+      'no_rations',
+      'unlit_lamps',
+    ],
+    // Real goals: a careful player at the end of tier 1 clears it in seven to
+    // ten minutes, eating everything brought and taking 290 to 480 damage
+    // all told (tests/scene/grottoRun.test.ts), so none comes with a first clear.
+    challenges: [
+      {
+        id: 'brinebeards_grotto.swift',
+        name: 'Ahead of the Tide',
+        text: 'Clear the grotto in seven minutes or less.',
+        rule: { kind: 'atMost', stat: 'timeMs', n: 420_000 },
+        reward: { coins: 6000, bountyPoints: 10 },
+      },
+      {
+        id: 'brinebeards_grotto.no_food',
+        name: 'Hard Tack',
+        text: 'Clear the grotto without eating a thing.',
+        rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
+        reward: { coins: 8000, bountyPoints: 10 },
+      },
+      {
+        id: 'brinebeards_grotto.nearly_unhurt',
+        name: 'Barely a Scratch',
+        text: 'Clear the grotto taking no more than 150 damage.',
+        rule: { kind: 'atMost', stat: 'damageTaken', n: 150 },
+        reward: { coins: 6000, bountyPoints: 10 },
+      },
+      {
+        id: 'brinebeards_grotto.spring_tide',
+        name: 'Spring Tide Sailor',
+        text: 'Clear the grotto on a day of the Spring Tide.',
+        rule: { kind: 'withModifier', id: 'spring_tide' },
+        reward: { coins: 4000, bountyPoints: 5 },
+      },
+    ],
   },
   // Landings to come: silhouettes on the chart with what will open them, by
   // the ids lane B's chart has landings for (`harbourChart2`). Their ids are
@@ -198,6 +342,7 @@ export const DUNGEONS = {
     unlock: { kind: 'cleared', dungeon: 'brinebeards_grotto' },
     unlockText: 'Clear Brinebeard’s Grotto.',
     comingSoon: true,
+    opens: { tier: 3, brings: 'the third tier' },
     loot: [],
   },
   unknown_2: {
@@ -209,6 +354,7 @@ export const DUNGEONS = {
     unlock: { kind: 'cleared', dungeon: 'unknown_1' },
     unlockText: 'Clear the landing before it.',
     comingSoon: true,
+    opens: { tier: 4, brings: 'the fourth tier' },
     loot: [],
   },
   unknown_3: {

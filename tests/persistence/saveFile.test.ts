@@ -53,6 +53,8 @@ const V8_FIELDS = ['collection', 'achievements', 'dungeons', 'stats', 'perks'];
 const V9_FIELDS = ['bountyBoard', 'lastBounty', 'autoBounty', 'run'];
 /** What version 10 adds to a save from before it: nothing remembered. */
 const V10_FIELDS = ['seen'];
+/** What version 11 adds to a save from before it: no dungeon run idle. */
+const V11_FIELDS = ['idleRun'];
 /** The look an older save comes in with: as it was, with the art's bare chin. */
 const bearded = { look: { ...state.look, beard: 'none' } };
 /** A save as a version before 6 wrote it. */
@@ -67,10 +69,30 @@ const before6 = (version: number): Record<string, unknown> => {
     ...V8_FIELDS,
     ...V9_FIELDS,
     ...V10_FIELDS,
+    ...V11_FIELDS,
   ]) {
     delete old[field];
   }
   return old;
+};
+
+/** A dungeon run idle, walking to its first room. */
+const IDLE = {
+  dungeon: 'tidepool_cave',
+  clock: 5,
+  utcOffset: 0,
+  modifier: null,
+  room: 0,
+  walkMs: 1000,
+  hp: 10,
+  playerMs: 2400,
+  foes: [],
+  runs: 0,
+  kills: 0,
+  coins: 0,
+  loot: {},
+  eaten: 0,
+  arrows: 0,
 };
 
 describe('save export and import', () => {
@@ -215,11 +237,90 @@ describe('save export and import', () => {
 
   it('loads a version 9 save with nothing remembered and everything else as it was', () => {
     const v9: Record<string, unknown> = { ...state, version: 9, autoBounty: true };
-    for (const field of V10_FIELDS) delete v9[field];
+    for (const field of [...V10_FIELDS, ...V11_FIELDS]) delete v9[field];
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v9 }))).toEqual({
       ok: true,
       state: { ...state, autoBounty: true, seen: [] },
     });
+  });
+
+  it('loads a version 10 save with no dungeon run idle and its dungeon records as they were', () => {
+    const v10: Record<string, unknown> = {
+      ...state,
+      version: 10,
+      dungeons: { tidepool_cave: { clears: 2, bestMs: 95_000 } },
+    };
+    for (const field of V11_FIELDS) delete v10[field];
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v10 }))).toEqual({
+      ok: true,
+      state: { ...state, dungeons: { tidepool_cave: { clears: 2, bestMs: 95_000 } } },
+    });
+  });
+
+  it('round-trips a dungeon’s records, a run’s statistics and modifier, and a dungeon run idle', () => {
+    const progressed: GameState = {
+      ...state,
+      dungeons: {
+        tidepool_cave: {
+          clears: 12,
+          bestMs: 81_000,
+          leastDamage: 0,
+          leastFood: 0,
+          challenges: ['tidepool_cave.quick', 'tidepool_cave.unhurt'],
+          modifiers: ['rich_pickings'],
+          idleRuns: 40,
+        },
+      },
+      run: {
+        dungeon: 'brinebeards_grotto',
+        scene: 1,
+        spoils: {
+          coins: 0,
+          dungeon: 'brinebeards_grotto',
+          modifier: 'spring_tide',
+          stats: {
+            timeMs: 61_000,
+            damageTaken: 30,
+            foodEaten: 2,
+            braces: 1,
+            stepOuts: 4,
+            knockedOut: false,
+            kills: 3,
+          },
+        },
+        data: { room: 'store' },
+      },
+    };
+    expect(readSave(writeSaveExport('code', progressed).text)).toEqual({
+      ok: true,
+      state: progressed,
+    });
+    const idling: GameState = {
+      ...state,
+      action: null,
+      health: null,
+      idleRun: {
+        dungeon: 'tidepool_cave',
+        clock: 1_700_000_100_000,
+        utcOffset: 60,
+        modifier: 'slack_tide',
+        room: 1,
+        walkMs: 0,
+        hp: 17,
+        playerMs: 1200,
+        foes: [
+          { id: 'dock_rat', hp: 4, ms: 900 },
+          { id: 'dock_rat', hp: 6, ms: 2000 },
+        ],
+        runs: 3,
+        kills: 21,
+        coins: 30,
+        loot: { seashells: 4 },
+        eaten: 2,
+        arrows: 0,
+      },
+    };
+    expect(readSave(writeSaveExport('file', idling).text)).toEqual({ ok: true, state: idling });
   });
 
   it('round-trips what is remembered, in the order it was remembered', () => {
@@ -444,6 +545,55 @@ describe('save export and import', () => {
           data: { junk: 'x'.repeat(300 * 1024) },
         },
       },
+      // A dungeon's records: whole numbers, lists of ids each once.
+      { ...state, dungeons: { tidepool_cave: { clears: 1, leastDamage: -1 } } },
+      { ...state, dungeons: { tidepool_cave: { clears: 1, leastFood: 0.5 } } },
+      { ...state, dungeons: { tidepool_cave: { clears: 1, idleRuns: 'many' } } },
+      { ...state, dungeons: { tidepool_cave: { clears: 1, challenges: 'all' } } },
+      { ...state, dungeons: { tidepool_cave: { clears: 1, challenges: ['a', 'a'] } } },
+      { ...state, dungeons: { tidepool_cave: { clears: 1, modifiers: [3] } } },
+      // A kept run's statistics and modifier.
+      {
+        ...state,
+        run: { dungeon: 'tidepool_cave', scene: 1, spoils: { stats: 'good' }, data: {} },
+      },
+      {
+        ...state,
+        run: { dungeon: 'tidepool_cave', scene: 1, spoils: { stats: { braces: -1 } }, data: {} },
+      },
+      {
+        ...state,
+        run: {
+          dungeon: 'tidepool_cave',
+          scene: 1,
+          spoils: { stats: { knockedOut: 'no' } },
+          data: {},
+        },
+      },
+      { ...state, run: { dungeon: 'tidepool_cave', scene: 1, spoils: { modifier: 4 }, data: {} } },
+      { ...state, run: { dungeon: 'tidepool_cave', scene: 1, spoils: { dungeon: 4 }, data: {} } },
+      // A dungeon run idle: its shape, and never beside another task or hit points kept outside it.
+      { ...state, idleRun: undefined },
+      { ...state, idleRun: 'cave' },
+      { ...state, action: null, idleRun: { ...IDLE, hp: 0 } },
+      { ...state, action: null, idleRun: { ...IDLE, utcOffset: 15 * 60 } },
+      { ...state, action: null, idleRun: { ...IDLE, utcOffset: 1.5 } },
+      { ...state, action: null, idleRun: { ...IDLE, modifier: 3 } },
+      { ...state, action: null, idleRun: { ...IDLE, playerMs: 0 } },
+      { ...state, action: null, idleRun: { ...IDLE, loot: { seashells: -1 } } },
+      { ...state, action: null, idleRun: { ...IDLE, walkMs: 0 } },
+      {
+        ...state,
+        action: null,
+        idleRun: { ...IDLE, foes: [{ id: 'dock_rat', hp: 3, ms: 100 }] },
+      },
+      {
+        ...state,
+        action: null,
+        idleRun: { ...IDLE, walkMs: 0, foes: [{ id: 'dock_rat', hp: 0, ms: 100 }] },
+      },
+      { ...state, idleRun: IDLE },
+      { ...state, action: null, health: { hp: 3, regenMs: 0 }, idleRun: IDLE },
       // What is remembered: short plain keys, each once, and not without end.
       { ...state, seen: undefined },
       { ...state, seen: 'town.pan' },

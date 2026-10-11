@@ -67,6 +67,11 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   // dungeon's lessons), which until now lasted only as long as the page.
   // Nothing older can be known, so nothing is remembered yet.
   9: (state) => ({ ...state, seen: [] }),
+  // Wave 17 (S16), one step for all of it: a dungeon can be run unattended
+  // once cleared (none is yet). A dungeon's record gains challenges done, the
+  // modifiers cleared under, the least damage and food of a clear and idle
+  // runs, all optional and none known for an older clear, so the records stand.
+  10: (state) => ({ ...state, idleRun: null }),
 };
 
 /** A save's field as a plain object, or an empty one if it is not one. */

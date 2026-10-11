@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 16** (the cave's new numbers, the combat balance in greaves, the
-strip at 2x), and whatever it asks for.
+**Next: wave 17, part 2** (S16's rules and menus: the idle dungeon, the Dungeons card,
+achievements), then Cody's review of wave 17.
 
 ## Done
 
@@ -976,6 +976,65 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     greaves "for a decision" block removed from `pacing.test.ts`. New: the strip cap, the dot on
     a level, the landing frames, the cast's faces.
 
+- Wave 17, part 1: S16's shared contract (branch `lane-a/s16-progression`). **Save version 11.**
+  - **Run statistics**: `RunSpoils.stats?: RunStats` (`src/core/content.ts`): `timeMs`,
+    `damageTaken` (hit points lost to blows, before food), `foodEaten` (from the slot and found),
+    `braces`, `stepOuts`, `knockedOut`, `kills`. Every field to be filled by a new run; a reader
+    takes any missing one as unknown, never nothing (`readStats`). Also new on `RunSpoils`:
+    `dungeon?` (the dungeon the run was in, cleared or not) and `modifier?: string | null` (the
+    day's modifier it was played under). A kept run carries them in its `spoils` (`saveProblem`
+    checks them), so nothing is duplicated outside lane C's opaque blob.
+  - **Challenges**: `DungeonDef.challenges` (`ChallengeDef`: `id`, `name`, `text`, `rule`,
+    `reward`). `ChallengeRule` is a closed set: `{ kind: 'atMost', stat, n }`,
+    `{ kind: 'atLeast', stat, n }`, `{ kind: 'withModifier', id? }`, `stat` one of `timeMs`,
+    `damageTaken`, `foodEaten`, `braces`, `stepOuts`, `kills`. `challengeMet(rule, stats, {
+cleared, modifier })` (`src/core/progress.ts`): only a clear, never knocked out, never on a
+    statistic not reported. Rewards (`ChallengeReward`): `coins`, `bountyPoints`, `items`.
+    Cave (gentle): `tidepool_cave.quick` (2:00 or less; 250 coins and 2 points),
+    `tidepool_cave.unhurt` (10 damage or less; 250 and 2), `tidepool_cave.no_food` (nothing
+    eaten; 100 and 5 cooked shrimp), `tidepool_cave.snapper_dodge` (step out of three heavy
+    blows; 150). Grotto (real): `brinebeards_grotto.swift` (7:00 or less; 6,000 and 10),
+    `brinebeards_grotto.no_food` (nothing eaten; 8,000 and 10), `brinebeards_grotto.nearly_unhurt`
+    (150 damage or less; 6,000 and 10), `brinebeards_grotto.spring_tide` (on a Spring Tide day;
+    4,000 and 5). The scripted grotto player takes 7:35 to 9:00, eats 13 to 20 cod and takes 290
+    to 480 damage, so none of these comes with a first clear. **The ids are chosen so lane B's
+    icon matcher (B17, `challengeKind`/`modifierKind`, which reads words in the id) draws the
+    right picture**: its test reads this table, so an id it cannot place fails CI.
+  - **The day's modifier**: `DUNGEON_MODIFIERS` (`src/data/dungeons.ts`, `Content.modifiers`),
+    `ModifierEffects` a closed set documented on the type: fight effects `foeHealth`,
+    `foeDamage`, `foeSpeed`, `heroDamage`, `noFood` (scene and idle, through `foeUnder` and
+    `heroMaxHitUnder`); scene-only `tideFaster`, `darker`; rewards `loot` (the dungeon's regular
+    drops only: what some foe drops on every kill), `coins`, `xp`, **paid by `settleRun` from
+    `spoils.modifier`, never by the scene** (`spoilsUnder` says what will be paid, for a results
+    card). Ids: kind, for the cave, `slack_tide` (foes strike 20% less often) and
+    `rich_pickings` (50% more shells and coins); trades, for the grotto, `thick_skulls` (health
+    1.3, XP 1.3), `angry_crew` (damage 1.3, loot 1.3), `quick_tempers` (speed 1.25, XP and loot
+    1.15), `spring_tide` (tide 1.5, damage 1.1, loot 1.35), `no_rations` (no food, XP 1.2, loot
+    1.25), `unlit_lamps` (darker, hero damage 0.85, XP 1.25). Every trade has a catch the idle
+    game feels.
+    `dailyModifier(now, dungeonId, content, utcOffset)`: the day from `now` and the phone's
+    offset (minutes ahead of UTC), turning at local midnight; a dungeon's pool comes round in
+    turn, each once, shuffled afresh each time round by a hash of the turn and the dungeon's id
+    (never the save's dice), never the same two days running. `modifierOn(day, …)`,
+    `localDay`, `msToMidnight`, `effectWords` (the plain effect text), `isKind`.
+  - **Records**: a clear keeps the least damage and food (`leastDamage`, `leastFood`), the
+    modifiers cleared under (`modifiers`) and the challenges done (`challenges`) on
+    `DungeonRecord`; each challenge pays once (`newChallenges` for the toast: "Challenge done:
+    Stand Firm! 100 coins and 5 Cooked shrimp.").
+  - **Tier unlock**: `tierUnlocked(state, n, content)`, read from clears (`DungeonDef.opens`:
+    the grotto opens tier 2), so no state. `mayIdle(state, id, content)`: cleared by hand and the
+    row has `idle` (none has until part 2).
+  - **The Shell**: `todaysModifier?(dungeon)` (the app's clock and time zone; `AppDeps.utcOffset`,
+    the phone's by default) and `sendIdle?(dungeon)` (declared; the app answers it in part 2).
+  - **Save version 11**: `GameState.idleRun: IdleRun | null` (part 2 runs it; always null now) and
+    the record fields above, optional. Migration 10 → 11 adds `idleRun: null`; `saveProblem`
+    checks the record fields, a kept run's `stats`/`modifier`/`dungeon`, and `idleRun` (its
+    shape, never beside an action or a fight, never with `health` kept).
+  - **Tests**: `tests/core/progress.test.ts` (new), content and pacing cases (challenge rewards
+    all told under half an hour of gathering at the dungeon's level), save and migration cases,
+    the shell's two new behaviours. Changed: the version pin (11) and the version-9 migration
+    case (it now also gains `idleRun`).
+
 ## Deferred
 
 - Wave 14: greaves and the combat pins. **Done in wave 16** (Cody: "We can rebalance around the
@@ -1001,6 +1060,17 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   notes).
 
 ## Needs from another lane
+
+- **For lane C (wave 17)**: (1) fill `RunSpoils.stats` (all seven fields), `dungeon` and
+  `modifier` in `spoilsOf`, so a kept run carries them too; (2) read `shell.todaysModifier?.(id)`
+  once as a run rows out, keep it in the run, apply `foeUnder`/`heroMaxHitUnder` and `noFood`
+  and your own `tideFaster`/`darker`, and do **not** apply `loot`/`coins`/`xp` (settling pays
+  them; `spoilsUnder(spoils, content)` gives the paid amounts for the results card); (3) the
+  results card may show `challengeMet` for each of `content.dungeons[id].challenges`; the toast
+  of rewards is the shell's; (4) the chart may show `dailyModifier` and `mayIdle`, and call
+  `shell.sendIdle?.(id)` (part 2).
+- **For lane B (wave 17)**: `modifierIcon(id)` for the eight ids above, and an activity under
+  `dungeon` for the strip (part 2 uses both when present).
 
 - **For lane C (wave 16)**: `shell.remembered?.(key)` / `shell.remember?.(key)` are on `main`
   (save version 10). Keys: letters and digits in parts joined by `.`, `_` or `-`, at most 48
@@ -1075,7 +1145,7 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 
 ## Notes for this lane's next session
 
-- Save is version 10 (wave 16: `seen`). The next shape change is 11.
+- Save is version 11 (wave 17: `idleRun`, dungeon records). The next shape change is 12.
 - **Remembered for good, in the save**: `remember`/`remembered` (`src/core/remembered.ts`, the
   Shell's two calls). A one-off a player should not see twice on any phone is a key there; how
   the menus are arranged on one phone is still `Prefs`.
