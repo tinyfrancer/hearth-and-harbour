@@ -57,7 +57,7 @@ export const TIDEPOOL: DungeonPlan = {
       '#.....:::::::::::::::......#',
       '#....::::::~~~~~::::::.....#',
       '#...::::::~~~~~~~:::::::...#',
-      'a:::::::::::~~~~::::::::::::b',
+      'a::::::::::~~~~::::::::::::b',
       '#::::::::::::::::::::::::::#',
       '#::::::::::::::::::::::,,::#',
       '#~~~~::::::::::::::::,,,,~~#',
@@ -84,9 +84,9 @@ export const TIDEPOOL: DungeonPlan = {
   foes: {
     landing: [{ monster: 'dock_rat', at: { col: 22, row: 4 } }],
     pools: [
-      { monster: 'dock_rat', at: { col: 13, row: 6 } },
-      { monster: 'dock_rat', at: { col: 15, row: 7 } },
-      { monster: 'dock_rat', at: { col: 14, row: 5 } },
+      { monster: 'dock_rat', at: { col: 12, row: 6 } },
+      { monster: 'dock_rat', at: { col: 14, row: 7 } },
+      { monster: 'dock_rat', at: { col: 15, row: 6 } },
       { monster: 'sand_crab', at: { col: 24, row: 4 } },
     ],
     snapper: [{ monster: 'old_snapper', at: { col: 18, row: 5 } }],

@@ -51,7 +51,8 @@ export interface Lesson {
   readonly blocks: boolean;
   /** Its words, for the run as it is (a bow's buttons are not a blade's). */
   text(dungeon: Dungeon, run: Run): string;
-  due(dungeon: Dungeon, run: Run): boolean;
+  /** Whether it is useful now; `done` is the lessons already done this run. */
+  due(dungeon: Dungeon, run: Run, done: readonly string[]): boolean;
   done(dungeon: Dungeon, run: Run): boolean;
   ring(dungeon: Dungeon, run: Run): LessonRing;
 }
@@ -104,7 +105,7 @@ export function stepLessons(
   }
   if (!next.shown && !run.doorway) {
     const due = lessons.find(
-      (l) => !next.done.includes(l.id) && l.due(dungeon, run) && !l.done(dungeon, run),
+      (l) => !next.done.includes(l.id) && l.due(dungeon, run, next.done) && !l.done(dungeon, run),
     );
     if (due) next = { ...next, shown: due.id };
   }
@@ -279,9 +280,14 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     id: 'eat',
     blocks: true,
     text: () => 'You are hurt. Tap Eat to have one of the fish from the crate.',
-    due: (_dungeon, run) => {
+    // Hurt, once the heavy blow has been shown (so the lessons come in their order); at once if
+    // badly hurt; and at the latest at a boss's door, hurt at all, so it is learned before the boss.
+    due: (_dungeon, run, done) => {
       const b = run.battle!;
-      return b.hp * 10 <= b.fighter.maxHp * 6 && foodProblem(b) === null;
+      if (foodProblem(b) !== null) return false;
+      const boss = bossOf(b, run.room);
+      if (boss && alive(boss)) return true;
+      return b.hp * 10 <= b.fighter.maxHp * (done.includes('heavy') ? 6 : 4);
     },
     done: (_dungeon, run) =>
       cooldownLeft(run.battle!, 'food') > 0 || foodProblem(run.battle!) === 'none',
@@ -295,9 +301,12 @@ export const CAVE_LESSONS: readonly Lesson[] = [
       const name = boss ? run.battle!.monsters[boss.monster]?.name : null;
       return `${name ?? 'The boss'}: slow, but it hits hard. Tap it to fight, and step out when the ground round it is marked.`;
     },
-    due: (dungeon, run) => {
-      const boss = bossOf(run.battle!, run.room);
-      return !!boss && alive(boss) && meeting(dungeon, run)?.key === boss.key;
+    // As the hero comes into its room, before it is near enough to notice him: after the fish,
+    // if there is one to eat.
+    due: (_dungeon, run, done) => {
+      const b = run.battle!;
+      const boss = bossOf(b, run.room);
+      return !!boss && alive(boss) && (done.includes('eat') || foodProblem(b) !== null);
     },
     done: (_dungeon, run) => {
       const boss = bossOf(run.battle!, run.room);
