@@ -1,8 +1,7 @@
 # Lane A: idle rules
 
-**Next: wave 15's second half** (the menus: the first-steps card, the Town tab's marker,
-achievements for the cave, the strip and the bank panel), then Cody's review. Waiting on Cody:
-whether the combat pins move to greaves (below).
+**Next: Cody's review of wave 15** (the harbour chart, the Tidepool Cave, the menus pointing at
+it), and whatever it asks for. Waiting on Cody: whether the combat pins move to greaves (below).
 
 ## Done
 
@@ -837,6 +836,50 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     fields. New: `tests/core/dungeons.test.ts`, `tests/data/tidepool.test.ts`, the cave's pacing
     case, shell and Dungeons card tests.
 
+- Wave 15, part 2: the menus point at the boat (branch `lane-a/w15-menus`; Cody: "make it more
+  apparent we need to click the boat"). **Save version unchanged (9).** Sheets in
+  `/home/claude/lane-shots/w15-a/` (390 x 844 and 360 x 740 at 3x; the strip also at 2x).
+  - **First steps** (`src/ui/hints.ts`): at the top of the Skills tab for a character whose
+    learning dungeon (the first on the chart at the lowest recommended level: the cave) is open
+    and never cleared, a card naming it, what it teaches and that the rowing boat at the quay
+    goes there, with "To the harbour" and "Not now". Either puts it away for good.
+  - **The Town tab's dot**: a gold dot (never a number) while some dungeon is open, never
+    cleared, and was not open the last time the chart was seen. Gone when the scene takes a
+    chart request, calls `chartOpened`, or rows out to a dungeon (`keepRun`); a landing that
+    opens later brings it back once. Updated on every full render and at once on those calls
+    and a settle; a dungeon opened by combat level alone (none today) shows it at the next
+    render. A mid-game character who has never seen the chart gets it once for the grotto.
+  - **Where the hints are kept: the menus' preferences on this device** (`Prefs`), keyed by the
+    character's `createdAt`, not the save: they are about learning these menus, not progress,
+    so no save version, nothing exported, and a hint seen again on another phone does no harm;
+    a new character on the same phone is shown them afresh.
+  - **Achievements**: Sea Legs (clear the Tidepool Cave) and Quick Study (clear it in under a
+    minute and a half), the latter read from the best time the save keeps: `AchievementRule`
+    `cleared` gains `withinMs` (a best time under it; an untimed clear never counts). Ninety
+    seconds asks for clean play bare-handed (the model's quickest fight is 60 s, about 72 with
+    the walk; one with heavy blows taken is slower) and comes easily with the first clear's
+    bronze sword (12 s of fighting at best). Not done: a no-damage
+    clear, which would need a new field in the save (the run's health at the end is not kept).
+  - **The strip** (`src/ui/nowDoing.ts`, `src/ui/atWork.ts`): its stage is fitted to the work
+    under way (`workColumns`: every frame of this loop in this look and gear, and its prop, read
+    off the art's pictures, a pixel of air each side; as tall as every loop so he stands on one
+    line), so no other loop's prop leaves air beside him. The hero is shown at the fewest whole
+    device pixels that give at least 0.6 CSS an art pixel (`stripScale`): 2 at 3x (48 CSS tall,
+    unchanged), 2 at 2.625x, **2 at 2x (72 CSS, was 36)**, 1 at 1x; he fills his canvas's
+    height, so at 2x the strip is 75 tall (55 at 3x). **It folds** to a slim bar (the line and
+    the progress bar, 34 tall) with a ▾/▴ button at its right (48 wide; folded, its target
+    reaches above the bar to 48), remembered on the device (`strip-folded`); folded, the hero is
+    not drawn. The strip is now a `div.now-strip` holding the strip's button (still
+    `[data-now-doing]`) and the fold button.
+  - **The bank's card**: at most `min(44dvh, 340px)` (was 58dvh), its head and body padding
+    trimmed; measured 295 of 740 (40%) at 360 x 740 and 281 of 844 (33%) at 390 x 844, the sell
+    line still on screen without scrolling the card.
+  - `activityHitFrame2`: not on `main` when this was built, so `LANDS` stays.
+  - **Tests changed**: `content.test.ts`'s achievement count bound 30 → 36 (31 now). New:
+    `tests/ui/harbour.test.ts` (first steps, the dot, the strip folding, fitting and scale), the
+    `withinMs` rule in `achievements.test.ts`.
+  - **Greaves, reported, not retuned** (item 7): unchanged from wave 14 (below); pacing as is.
+
 ## Deferred
 
 - Wave 14: **greaves and the combat pins, a decision for Cody.** In greaves (bronze from 5, iron
@@ -878,9 +921,11 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   `DUNGEONS.tidepool_cave.cast` (rats and crabs share the tables' ids but fight by the cave's
   rows, as the grotto's cast does). Budget the cave was tuned to: two rats, two crabs, then the
   boss; the boss's heavy at most three times its max hit (3), no oftener than every 7 s, first
-  after 4 s or more; no tide. A clear reports `cleared: 'tidepool_cave'`. (4) Under-a-minute-
-  and-a-half is an achievement (part 2) read from the best time: say if the rooms make that
-  out of reach.
+  after 4 s or more; no tide. A clear reports `cleared: 'tidepool_cave'` with `timeMs`. (4)
+  Quick Study asks a clear under 90 s, read from the best time: say if the rooms make that out
+  of reach with a bronze sword. (5) The Town tab's dot clears on `takeRequest` giving `'chart'`,
+  on `chartOpened`, and on rowing out; calling `chartOpened` from the boat is what clears it
+  for a player who walks there.
 - **For lane B (wave 15)**: `old_snapper`'s face (`portrait2`) and picture; the Combat page shows
   a framed initial until then. Landing ids for the chart: `tidepool_cave`, `brinebeards_grotto`,
   and the two to come, `uncharted_1`, `uncharted_2` (placeholders, silhouettes).
