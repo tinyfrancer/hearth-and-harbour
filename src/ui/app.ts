@@ -36,7 +36,6 @@ import { newGame, skillLevel, stat, type Fight, type GameState } from '../core/s
 import type { SaveService } from '../persistence/SaveService';
 import { memoryPrefs, type Prefs } from '../persistence/Prefs';
 import { awayReportOverlay } from './awayReport';
-import { artGallery } from '../art/gallery';
 import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
 import { isBankSort, type BankView } from './bankOrder';
@@ -50,6 +49,7 @@ import { heroFace } from './face';
 import { fullLook } from './look';
 import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
+import { titleScreen, type TitleScreen } from './titleScreen';
 import { nowDoing, type NowTarget } from './nowDoing';
 import { skillListView, skillPageView } from './skillsScreen';
 import { entryName, storeView } from './storeScreen';
@@ -62,6 +62,11 @@ export interface AppDeps {
   now(): number;
   /** How the menus are arranged on this device; kept for the page's life alone if left out. */
   prefs?: Prefs;
+  /**
+   * Open on the title screen, as every cold start of the real game does
+   * (src/main.ts). Left out (the tests), the app opens straight on the game.
+   */
+  title?: boolean;
 }
 
 /** The bank's sort, kept on this device across sessions (a preference, never the save). */
@@ -163,7 +168,7 @@ function bringIntoView(screen: HTMLElement, el: HTMLElement, under?: HTMLElement
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
 export function mountApp(
   root: HTMLElement,
-  { saves, content, now, prefs = memoryPrefs() }: AppDeps,
+  { saves, content, now, prefs = memoryPrefs(), title = false }: AppDeps,
 ): App {
   let state: GameState | null = saves.load();
   let tab: TabId = 'skills';
@@ -255,8 +260,14 @@ export function mountApp(
     return stocked.state;
   };
 
+  /** The title screen while it is up: the game waits behind it, unpaid and unsaved. */
+  let titleUp: TitleScreen | null = null;
+
   const save = (): boolean => {
-    if (!state) return false;
+    // `savedAt` means "paid up to here"; on the title nothing has been paid
+    // since it was last written, so nothing is written (a phone hiding the
+    // page now must not turn the time away into time already paid).
+    if (!state || titleUp) return false;
     state = takeStockOf(state);
     lastSave = now();
     state = { ...state, savedAt: lastSave };
@@ -491,6 +502,12 @@ export function mountApp(
 
   const buildView = (game: GameState): View => {
     if (tab === 'menu' && galleryOpen) {
+      // Loaded when opened: it holds every picture art has, the title's among
+      // them, which would otherwise ride in with the game's first load.
+      const holder = h('div', { class: 'stack' }, [
+        h('p', { class: 'muted', text: 'Fetching the pictures…' }),
+      ]);
+      void import('../art/gallery').then(({ artGallery }) => holder.replaceChildren(artGallery()));
       return {
         el: h('div', { class: 'stack' }, [
           button(
@@ -501,7 +518,7 @@ export function mountApp(
             },
             'back',
           ),
-          artGallery(),
+          holder,
         ]),
       };
     }
@@ -518,6 +535,11 @@ export function mountApp(
             saves.clear();
             state = null;
             render();
+          },
+          showTitle: () => {
+            // Paid and saved up to now; from here the title is time away like a closed game.
+            save();
+            showTitle();
           },
         }),
       };
@@ -790,6 +812,8 @@ export function mountApp(
   };
 
   const render = (): void => {
+    // The title stays until it is left by its own button.
+    if (titleUp) return;
     if (tab !== 'town' || !state) {
       // Only a scene on the Town tab may hold the clock or the whole screen.
       idlePaused = false;
@@ -886,6 +910,12 @@ export function mountApp(
   };
 
   const step = (time: number): void => {
+    if (titleUp) {
+      // Nothing passes in the game while the title is up; it is paid on Continue.
+      titleUp.tick(time);
+      lastTick = time;
+      return;
+    }
     const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
     if (!state) {
@@ -983,20 +1013,50 @@ export function mountApp(
   // scene asks for it, `savedRun`), and no idle time is owed for the gap, as
   // the run had the idle clock stopped. Left longer, the run is over: what was
   // picked up comes home as from a run rowed back early, and then the time
-  // away is paid to the idle task like any other.
-  if (state) {
-    const gap = now() - state.savedAt;
-    if (state.run && gap < AWAY_MS) {
+  // away is paid to the idle task like any other. Whether the run is kept is
+  // judged by the gap at opening; the time is paid when the game is entered
+  // (on Continue, behind the title), measured from `savedAt` then.
+  const runKept = Boolean(state?.run && now() - state.savedAt < AWAY_MS);
+  const welcomeBack = (): void => {
+    if (!state) return;
+    if (state.run && runKept) {
       lastTick = now();
-    } else {
-      if (state.run) {
-        // Rowed home early: no clear, whatever the snapshot says.
-        state = settleRun(state, { ...state.run.spoils, cleared: undefined }, content);
-        toast('Your dungeon run was cut short. What you carried came home with you.');
-      }
-      returnFrom(gap);
+      return;
     }
+    if (state.run) {
+      // Rowed home early: no clear, whatever the snapshot says.
+      state = settleRun(state, { ...state.run.spoils, cleared: undefined }, content);
+      toast('Your dungeon run was cut short. What you carried came home with you.');
+    }
+    returnFrom(now() - state.savedAt);
+    lastTick = now();
+  };
+
+  /** The title screen over everything: Continue (or begin) takes the player in. */
+  function showTitle(): void {
+    titleUp?.dispose();
+    view = null;
+    creator = null;
+    root.classList.remove('fullscreen');
+    titleUp = titleScreen({
+      name: state?.name ?? null,
+      awayMs: state ? Math.max(0, now() - state.savedAt) : null,
+      now: now(),
+      go: () => {
+        titleUp?.dispose();
+        titleUp = null;
+        welcomeBack();
+        render();
+      },
+    });
+    root.replaceChildren(titleUp.el);
   }
-  render();
+
+  if (title) {
+    showTitle();
+  } else {
+    welcomeBack();
+    render();
+  }
   return { save, tick };
 }

@@ -66,7 +66,8 @@ describe('the Combat section', () => {
     // A combat skill's card leads to the fighting too: it has nothing else to do.
     q<HTMLButtonElement>('[data-skill="defence"]').click();
     expect(root.querySelectorAll('[data-area]')).toHaveLength(4);
-  });
+    // The first areas list in a worker draws every monster's face: seconds in jsdom.
+  }, 20_000);
 
   it('lists every monster with its level, and its drops as "?" until they are seen', () => {
     playing();

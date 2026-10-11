@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 14** (the bank as a grid, the hero at work, the new icon, and the
-title screen once lane B's art for it lands), and whatever it asks for. Waiting on Cody: whether
+**Next: Cody's review of wave 14** (the bank as a grid, the hero at work, the new icon, the title
+screen), and whatever it asks for. Waiting on Cody: whether
 the combat pins move to greaves (below).
 
 ## Done
@@ -736,6 +736,23 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     `favicon.svg` (crisp squares). The manifest names "any" and "maskable" separately;
     `background_color` is the dusk sea (`#2e2450`), `theme_color` stays the menus' panel
     (`#1e1a2a`, the bars a player sees). The service worker's cache is `hearth-and-harbour-v2`.
+  - **The title screen** (`src/ui/titleScreen.ts`, on lane B's `titleScene` from B14): the
+    first screen on every cold start (`AppDeps.title`, set by `src/main.ts`; tests leave it out
+    and open on the game as before), and the Menu's new "Title screen" entry (which saves first).
+    With no game, "Tap to begin" (a tap anywhere does it too) leads to the creator; with one,
+    "Continue" with the name and how long it has been left ("Cody · away 3h 12m", from a minute)
+    leads in. **Time away is paid on Continue**, by the same code as before (`welcomeBack`: the
+    run kept or settled, then `returnFrom(now - savedAt)`), so the away report comes after
+    Continue; while the title is up the game is neither advanced nor saved (`save()` writes
+    nothing, so a phone hiding the page cannot stamp `savedAt`). Whether a dungeon run left a
+    moment ago is kept is judged by the gap at opening, not after the title. A page coming back
+    from the background never shows the title. The picture's code is loaded only when the title
+    shows (its own 52 KB chunk; the art gallery, which also holds it, is now loaded when opened
+    too): until it arrives the screen is the dusk colour with the name in words and the button
+    already there, so it is never blank and Continue never waits for it. It is drawn from the
+    app's tick every `TITLE_FRAME_MS` with the time since it appeared, `dispose()`d on leaving,
+    rebuilt on a resize; with less motion, frame 0 alone. The button, the name and the version
+    line sit in the picture's `safe` box (the button 52 px tall, the safe-area inset added).
   - **Wave 13's weak spots**: the away report names the monsters whose bounties auto bounty
     handed in (`AwayReport.claimed.monsters`, read off the bestiary: every kill in that time is of
     a bounty's monster, so each monster killed was handed in, but for the bounty now held unless
@@ -747,7 +764,8 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     marked (was: the card replaced the row) in `inPlace.test.ts`; the store's beginner things
     are bought from their card (a tap on the cell first) in `records.test.ts`; the fight's faces
     moved to the duel in `faces.test.ts`; the store door says "General store" (the test matches
-    it without case). `tests/data/pacing.test.ts`: cases added, none changed.
+    it without case); the auto bounty away line names its monsters (`roguery.test.ts`); the first
+    combat list's test has 20 s (it draws every face, about 3.5 s in jsdom on main too). `tests/data/pacing.test.ts`: cases added, none changed.
   - **Checked** at 390 x 844, 360 x 740 and 430 x 932 at 3x: `/home/claude/lane-shots/w14-a/`.
 
 ## Deferred
@@ -761,7 +779,6 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   troll or the wyrm asks take a little over twenty minutes (20.25 to 21). Nothing retuned: the
   pins stay in linen until Cody says whether they follow (and if so, the bounty counts and the
   troll's coins with them).
-- Wave 14: **the title screen** (item 4) waits on lane B's `src/art/title.ts`.
 
 - Wave 13: nothing from the brief. Not done: greaves in the simulations' gear ladder
   (`tests/data/fighting.ts` still wears linen trousers, so fights are a little easier in play
@@ -788,7 +805,6 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   (the axe in the log, the pick on the rock; the blow's `STRIKE2_HIT_FRAME` for combat). Until
   then `LANDS` in `src/ui/atWork.ts` holds it, read off the beats (woodcutting 2, fishing 3,
   mining 2, foraging 1, cooking 3, smithing 2, crafting 0, fletching 2, alchemy 3, thieving 2).
-  And the title door (`titleScene`, `TITLE_FRAME_MS` in `src/art/title.ts`) as briefed.
 
 - **For lane C (wave 13), the run's save**: call `shell.keepRun?.(savedRunOf(run))` on entering a
   room, every few seconds and on `pagehide`, and take `shell.savedRun?.()` back when `townView`

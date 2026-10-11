@@ -13,6 +13,7 @@ const app = mountApp(document.getElementById('app')!, {
   content: CONTENT,
   now: () => Date.now(),
   prefs: new LocalStoragePrefs(),
+  title: true,
 });
 
 // The game moves once a frame. A hidden page gets no frames; the first one

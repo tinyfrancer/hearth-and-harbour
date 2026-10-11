@@ -13,6 +13,9 @@
   --danger: #d85a50;
   --line: #3b3350;
   --scrim: rgb(21 17 31 / 85%);
+  /* The title's dusk: the deepest of the harbour's evening water, behind the picture while it loads. */
+  --dusk: #2e2450;
+  --dusk-glow: #f6c47a;
   --px: 2px;
   --tabbar-height: 60px;
   color-scheme: dark;
@@ -1838,4 +1841,76 @@ button.card:active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * The title screen (wave 14): lane B's harbour at dusk covering the app, the
+ * button and the version line inside the picture's safe box over the calm
+ * water. Before the picture loads, the dusk colour, the name in words and the
+ * button already in place, so the screen is never blank.
+ */
+.title-screen {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--dusk);
+  margin-top: calc(-1 * env(safe-area-inset-top));
+}
+
+.title-picture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  image-rendering: pixelated;
+}
+
+.title-words {
+  position: absolute;
+  top: 26%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 34px;
+  color: var(--gold-bright);
+}
+
+.title-screen.drawn .title-words {
+  display: none;
+}
+
+.title-menu {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.btn.title-go {
+  width: min(100%, 280px);
+  min-height: 52px;
+  font-size: 20px;
+  box-shadow: 0 4px 0 var(--backdrop);
+}
+
+.title-who {
+  color: var(--text);
+  text-shadow:
+    1px 1px 0 var(--backdrop),
+    -1px -1px 0 var(--backdrop),
+    1px -1px 0 var(--backdrop),
+    -1px 1px 0 var(--backdrop);
+  text-align: center;
+}
+
+.title-version {
+  color: var(--dusk-glow);
+  font-size: 14px;
+  opacity: 0.8;
 }

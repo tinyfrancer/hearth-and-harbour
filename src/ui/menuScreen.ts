@@ -10,6 +10,8 @@ export interface MenuActions {
   importSave(state: GameState): void;
   showGallery(): void;
   deleteCharacter(): void;
+  /** Back to the title screen (the game is saved first). */
+  showTitle(): void;
 }
 
 /**
@@ -75,6 +77,7 @@ export function menuScreen(current: () => GameState, actions: MenuActions): HTML
   ]);
 
   return h('div', { class: 'stack' }, [
+    button('Title screen', actions.showTitle),
     save,
     importPanel({ replacing: name, onImport: actions.importSave }),
     remove,
