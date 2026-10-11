@@ -509,6 +509,13 @@ the blow's machinery (the walk's skeleton posed per frame):
   thieving crouch.
 - Combat's loops are the blow (`melee`, `defence` as worn; `ranged` with the bow worn or a pine
   shortbow) and the breath (`vitality`).
+- **B14, after the B13 review sheets**: every prop stands at least two pixels clear of the front
+  foot in every frame, and the work touches its prop in its contact frame (both tested). A prop a
+  hand must reach standing is drawn tall enough to be reached (the bramble is waist-high on its
+  stems; the arm is 14 pixels from shoulder to wrist). What the off hand holds is held out in
+  front of the body, not tucked behind it (the basket at the belly, the shaft level and long). The
+  rod is a rod: a cork grip, the reel under it, ferrules, the butt thicker than the tip, the line
+  sagging to a float the line can reach on the hero's canvas.
 
 #### The blow (B12)
 
@@ -558,6 +565,9 @@ door `src/art/title.ts`.
   from the middle, so a wider screen shows more of it and never moves the town. One art pixel is a
   whole number of device pixels: the largest scale that keeps 360 art pixels across and 560 down
   (3 on every portrait 3x phone).
+- **The menu's place** (`safe`) is the calm water under the town's reflection, about 150 CSS
+  pixels tall; on a screen much wider than tall (a phone on its side) it is the calm water beside
+  the town instead, where there is room for a button. The water under it is kept calm (`calm`).
 - **Ground carries every building**: the house stands on a broad shoulder of the hill, its flat top
   three times the house's width, seen as a strip of ground before and beside the house, fenced as
   a garden, a low dry-stone wall along its front edge, falling away in slopes that go down behind
@@ -569,8 +579,13 @@ door `src/art/title.ts`.
   behind (the `haze` ramp, farthest first). No noise in a silhouette.
 - **The sky is bands**: sixteen flat bands from the plum-navy zenith to the amber afterglow, deep at
   the top, thinner toward the hills; where two meet, a row of short dashes of the lower colour
-  pokes up into the upper and the upper hangs a row down between them, unevenly spaced. Never a
-  gradient, never clumped noise (it read as mud).
+  pokes up into the upper and the upper hangs a row down between them, unevenly spaced (in the
+  zenith, where neighbours are close, only a sparse single row: a full interlock there read as
+  stripes behind the name). Never a gradient, never clumped noise (it read as mud).
+- **The afterglow is behind the town**: the sky's last bands end just above the far ridges, so the
+  amber glows between the peaks behind the house and comes back warm in the water below the
+  town's reflection, above the menu's band. The zenith's bands always reach below the logotype,
+  however short the screen (the afterglow is squeezed instead), so the name sits on the dark.
 - **Stars are placed**: a jittered grid (never clumped, never in lines), thinning toward the
   afterglow and absent where the sky is warm, kept off the logotype and the moon; four bright
   crosses where the eye rests between the words and the edges; the Plough low on the left. A star
@@ -1020,6 +1035,11 @@ every action card), so they follow the same hand as the town and the figures.
   string cut for thieving. Brass is the `bronze` ramp, as on the worn layers.
 - **The velvet cap** (B10b): soft plum velvet slouched to one side, a sheen along its crown, its
   band below, a gold pin at the front; a new icon ramp, `velvet`, the C-scale figure's plum.
+- **A worn shell shows the body's shape** (B14, the greaves): two symmetric plates with a bulb on
+  top and a flared foot read as vases. Leg armour is drawn in profile with the leg's own
+  silhouette (the knee cop domed over the knee, the shin straight in front, the calf swelling
+  behind, the ankle narrow, a small lip over the instep), round as a shin, its straps buckled
+  behind the calf; the pair overlapped, the far one higher and a step darker.
 - **Tab icons** (B10b, `tabArt.ts`, through `tabIcon`): one object each, in the item icons' hand
   and size (24 x 24, shown at the same whole-pixel scale), told apart by silhouette: crossed pick
   and axe (Skills), an iron-bound strongbox with a gold lock (Bank), the hero's head and shoulders
