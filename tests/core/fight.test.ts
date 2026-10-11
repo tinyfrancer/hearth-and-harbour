@@ -419,7 +419,8 @@ describe('however the time is cut up', () => {
     const away = catchUp(start, night, content);
     expect(away.state).toEqual(live);
     expect(away.state.fight!.kills).toBeGreaterThan(1000);
-  });
+    // 1.8 million frames: under two seconds alone, but more beside the other suites.
+  }, 30_000);
 });
 
 describe('the away report for a fight', () => {

@@ -33,7 +33,13 @@ import {
   scaled,
 } from './progress';
 import { Dice } from './rng';
-import { skillLevel, type GameState, type IdleFoe, type IdleRun, type MonsterRecord } from './state';
+import {
+  skillLevel,
+  type GameState,
+  type IdleFoe,
+  type IdleRun,
+  type MonsterRecord,
+} from './state';
 import { Trained } from './xp';
 
 /**

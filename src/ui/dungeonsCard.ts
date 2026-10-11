@@ -1,4 +1,4 @@
-import { challengeIcon, challengeMedal, modifierIconFor } from '../art/dungeonIcons';
+import { challengeIcon, challengeMedal, modifierIcon } from '../art/dungeonIcons';
 import { maxHp } from '../core/combat';
 import type { ChallengeDef, Content, DungeonDef } from '../core/content';
 import { dungeonStatus, dungeonsInOrder, type DungeonState } from '../core/dungeons';
@@ -49,7 +49,7 @@ function factsOf(state: GameState, dungeon: DungeonDef, content: Content): strin
 }
 
 /**
- * Today's modifier on a dungeon: its icon (lane B's, chosen by its effects),
+ * Today's modifier on a dungeon: its icon (lane B's, chosen by its id),
  * its name and what it does, plainly. Moves in place at local midnight.
  */
 function todayLine(dungeon: DungeonDef, content: Content, actions: DungeonsCardActions) {
@@ -69,7 +69,9 @@ function todayLine(dungeon: DungeonDef, content: Content, actions: DungeonsCardA
     el.hidden = !modifier;
     el.setAttribute('data-modifier', id ?? '');
     if (!modifier) return;
-    icon.replaceChildren(modifierIconFor(modifier.effects));
+    // By its id, whose words were chosen for lane B's pictures: a slack tide is
+    // a tide, where its effects alone (foes slower) would draw it as haste.
+    icon.replaceChildren(modifierIcon(modifier.id));
     setText(name, `Today: ${modifier.name}`);
     setText(words, `${effectWords(modifier.effects).join('. ')}.`);
   };

@@ -54,12 +54,7 @@ export interface IdleHour {
 export function idleHourOf(
   level: number,
   dungeon: string,
-  {
-    modifier = null as string | null,
-    seed = 1,
-    hours = 1,
-    state = null as GameState | null,
-  } = {},
+  { modifier = null as string | null, seed = 1, hours = 1, state = null as GameState | null } = {},
 ): IdleHour {
   const content = withDay(dungeon, modifier);
   const plenty = 100_000;
