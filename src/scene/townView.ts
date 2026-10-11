@@ -499,6 +499,11 @@ export function resetTown(): void {
   asked.full = false;
 }
 
+/** Lets every dungeon room's painted ground go, as a fresh page has none. For tests. */
+export function forgetRooms(): void {
+  if (grotto) for (const room of Object.values(grotto.rooms)) roomLook(room).forget();
+}
+
 /** Where the hero is, whether he is on his way somewhere, and what is open. For tests. */
 export function heroAt(): { x: number; y: number; walking: boolean; open: string | null } {
   const play = shownPlay();

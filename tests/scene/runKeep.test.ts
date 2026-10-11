@@ -17,6 +17,7 @@ import {
   ROW_OUT_SHOW_MS,
   ROW_OUT_WAIT_MS,
   TAKE_UP_MS,
+  forgetRooms,
   heroAt,
   keepRun,
   resetTown,
@@ -327,6 +328,8 @@ describe('a run kept through a reload', () => {
 
 describe('rowing out with a slow worker', () => {
   it('keeps the town up and moving and says it is rowing out, then rows out', () => {
+    // A fresh page: no room's ground painted yet (other tests here painted them on the spot).
+    forgetRooms();
     const shell = keeper();
     const view = shown(shell);
     // A worker for the rooms that never answers: a very slow phone.
