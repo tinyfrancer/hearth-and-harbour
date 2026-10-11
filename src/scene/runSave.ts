@@ -114,7 +114,8 @@ export function restoreRun(data: unknown, scene = RUN_SCENE_VERSION): Run | null
   let run: unknown;
   try {
     if (keptAtOf(data) !== null) {
-      const { [KEPT_AT]: _kept, ...rest } = data as Record<string, Plain>;
+      const rest = { ...(data as Record<string, Plain>) };
+      delete rest[KEPT_AT];
       data = rest;
     }
     run = decode(data as Plain);
