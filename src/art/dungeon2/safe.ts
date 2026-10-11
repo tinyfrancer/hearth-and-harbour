@@ -75,6 +75,8 @@ export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
   giant_crab: { x: 0, y: 0, w: 72, h: 56 },
   ships_parrot: { x: 5, y: 8, w: 63, h: 48 },
   brinebeard: { x: 0, y: 0, w: 72, h: 56 },
+  // The tide-pool cave's boss (B15): his shell fills the frame behind his head.
+  old_snapper: { x: 0, y: 0, w: 72, h: 56 },
   // The thieving marks (B12).
   steal_fisherman: { x: 6, y: 3, w: 61, h: 53 },
   steal_fish_stall: { x: 6, y: 0, w: 62, h: 56 },

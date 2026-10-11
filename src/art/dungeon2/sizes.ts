@@ -98,15 +98,17 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     shadow: 19,
     hover: 0,
   },
+  // B15: on a canvas wide and tall enough for its legs and raised claws (they had run off its
+  // edges); the drawing is unchanged, so a little more of it is now counted.
   sand_crab: {
-    w: 40,
-    h: 26,
-    anchor: { x: 20, y: 24 },
-    tall: 24,
-    front: 19,
-    back: 20,
-    strike: 19,
-    box: { w: 40, h: 24 },
+    w: 48,
+    h: 32,
+    anchor: { x: 24, y: 30 },
+    tall: 26,
+    front: 22,
+    back: 22,
+    strike: 22,
+    box: { w: 41, h: 26 },
     shadow: 20,
     hover: 0,
   },
@@ -255,6 +257,21 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     strike: 26,
     box: { w: 29, h: 55 },
     shadow: 14,
+    hover: 0,
+  },
+  // B15, the tide-pool cave's boss: he stands a little behind his front feet, his shell and tail
+  // behind (`back` 56), so his head (`front` 27) clears a hero at the 36-pixel stand; the snap
+  // reaches 47 ahead. His tap box is the measured body's width centred on that point.
+  old_snapper: {
+    w: 108,
+    h: 66,
+    anchor: { x: 60, y: 64 },
+    tall: 43,
+    front: 27,
+    back: 56,
+    strike: 47,
+    box: { w: 67, h: 43 },
+    shadow: 33,
     hover: 0,
   },
   bramble_wyrm: {

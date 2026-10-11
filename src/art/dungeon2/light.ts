@@ -22,6 +22,7 @@
 import { darker, hash, isMat, type TGrid } from '../town2/cells';
 import { noise } from '../town2/texture';
 import type { Glow } from '../raster';
+import type { Dungeon2Theme } from './theme';
 
 /** A light in a room: its glow (where the flame is) and the pool it lays on the floor below. */
 export interface Light2 extends Glow {
@@ -52,6 +53,32 @@ export const DUNGEON2_LIGHT = {
   ragged: 0.16,
 } as const;
 
+/**
+ * The tide-pool cave's scheme (B15): a cave open to daylight is lit
+ * everywhere, so nothing beyond a light is darkened until well out of every
+ * pool (past `deep`, one step: the far corners), and a shaft of sun lifts
+ * the ground a step in its pool's heart, a wider heart than a lantern's.
+ */
+export const TIDEPOOL2_LIGHT = {
+  heartSteps: 1,
+  ringSteps: 0,
+  heart: 0.6,
+  darkSteps: 0,
+  deep: 3.2,
+  squash: 0.62,
+  ragged: 0.16,
+} as const;
+
+/** A shaft of sun through a crack above, in its own picture's coordinates (the `light_shaft` prop). */
+export const SHAFT_LIGHT2 = {
+  radius: 40,
+  strength: 0.32,
+  drop: 0,
+  pool: 52,
+  flicker: 0,
+  always: true,
+} as const;
+
 /** A lantern's light, in its own picture's coordinates (the lantern prop carries this). */
 export const LANTERN_LIGHT2 = {
   radius: 66,
@@ -71,8 +98,12 @@ export const FUSE_LIGHT2 = { radius: 14, strength: 0.75, drop: 0, pool: 18, flic
  * outline never brightens into the colour it bounds. Pure; the same lights
  * always give the same picture.
  */
-export function lightGround2(ground: TGrid, lights: readonly Light2[]): TGrid {
-  const L = DUNGEON2_LIGHT;
+export function lightGround2(
+  ground: TGrid,
+  lights: readonly Light2[],
+  theme: Dungeon2Theme = 'grotto',
+): TGrid {
+  const L = theme === 'tidepool' ? TIDEPOOL2_LIGHT : DUNGEON2_LIGHT;
   const out: TGrid = { w: ground.w, h: ground.h, d: ground.d.slice() };
   for (let y = 0; y < ground.h; y++)
     for (let x = 0; x < ground.w; x++) {
@@ -95,6 +126,7 @@ export function lightGround2(ground: TGrid, lights: readonly Light2[]): TGrid {
       else if (u > L.deep) steps = L.darkSteps + 1;
       else steps = L.darkSteps;
       const s = c & 7;
+      if (steps === 0) continue;
       out.d[i] = steps < 0 ? (c & ~7) | Math.max(0, s + steps) : darker(c, steps);
     }
   return out;

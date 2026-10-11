@@ -18,6 +18,7 @@ import {
   type Tile2Kind,
 } from './tiles';
 import { isDoorKind2, placeDoor2 } from './doors';
+import type { Dungeon2Theme } from './theme';
 
 /** What each character in a room's rows is. `#` is rock: resolved to a face or a top by what is below it. */
 const KEY: Readonly<Record<string, Tile2Kind | 'rock'>> = {
@@ -85,7 +86,10 @@ export function wearAt(kind: Tile2Kind, col: number, row: number): number {
 }
 
 /** The room's ground: every tile joined to its neighbours. */
-export function roomGround2(rows: readonly string[]): {
+export function roomGround2(
+  rows: readonly string[],
+  theme: Dungeon2Theme = 'grotto',
+): {
   grid: TGrid;
   kinds: Tile2Kind[][];
   lights: Light2[];
@@ -97,7 +101,7 @@ export function roomGround2(rows: readonly string[]): {
     r.forEach((kind, col) =>
       stamp(
         g,
-        tile2Grid(kind, wearAt(kind, col, row), aroundOf(kinds, col, row), { col, row }),
+        tile2Grid(kind, wearAt(kind, col, row), aroundOf(kinds, col, row), { col, row }, theme),
         col * TILE2,
         row * TILE2,
       ),
@@ -110,7 +114,8 @@ export function roomGround2(rows: readonly string[]): {
   kinds.forEach((r, row) =>
     r.forEach((kind, col) => {
       if (!isDoorKind2(kind)) return;
-      const { piece, x, y } = placeDoor2(kind, roomIsWest(aroundOf(kinds, col, row)), col, row);
+      const west = roomIsWest(aroundOf(kinds, col, row));
+      const { piece, x, y } = placeDoor2(kind, west, col, row, theme);
       stamp(g, piece.grid, x, y);
       for (const glow of piece.glows) glows.push({ ...glow, x: glow.x + x, y: glow.y + y });
       if (piece.light) lights.push(lightAt(piece.light, x, y));
@@ -141,9 +146,10 @@ export interface Stood {
 export function roomPicture2(
   rows: readonly string[],
   stood: readonly Stood[],
-  o: { lit?: boolean } = {},
+  o: { lit?: boolean; theme?: Dungeon2Theme } = {},
 ): Picture2 {
-  const ground = roomGround2(rows);
+  const theme = o.theme ?? 'grotto';
+  const ground = roomGround2(rows, theme);
   const kinds = ground.kinds;
   const lights = [
     ...ground.lights,
@@ -151,7 +157,7 @@ export function roomPicture2(
       s.light ? [lightAt(s.light, s.x - s.anchor.x, s.y - s.anchor.y)] : [],
     ),
   ];
-  const g = o.lit === false ? ground.grid : lightGround2(ground.grid, lights);
+  const g = o.lit === false ? ground.grid : lightGround2(ground.grid, lights, theme);
   for (const s of stood) {
     const rx = s.shadow ?? 0;
     if (!rx) continue;

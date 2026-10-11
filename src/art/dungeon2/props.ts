@@ -12,6 +12,7 @@ import type { Glow } from '../raster';
 import { LANTERN_LIGHT2, type Light2 } from './light';
 import { cyl } from '../town2/texture';
 import { dome, lim, line, litBy, paint, rod, sprite, stepFor } from './kit';
+import { TIDE_PROPS } from './tideProps';
 
 export interface Prop2 {
   readonly grid: TGrid;
@@ -525,7 +526,7 @@ function lootPile(): Omit<Prop2, 'foot'> {
   return { grid: outlined(g), base: H - 1, glows: [] };
 }
 
-const MAKE: Readonly<Record<string, () => Omit<Prop2, 'foot'>>> = {
+const MAKE: Readonly<Record<string, () => Omit<Prop2, 'foot'> & { readonly foot?: number }>> = {
   powder_keg: powderKeg,
   crate,
   treasure_chest: treasureChest,
@@ -536,6 +537,8 @@ const MAKE: Readonly<Record<string, () => Omit<Prop2, 'foot'>>> = {
   cannon,
   perch,
   loot_pile: lootPile,
+  // B15, the tide-pool cave's.
+  ...TIDE_PROPS,
 };
 
 export const PROP2_IDS: readonly string[] = Object.keys(MAKE);
@@ -553,7 +556,7 @@ export function prop2(id: string): Prop2 | null {
     p = {
       grid: m.grid,
       base: m.base,
-      foot: Math.floor(m.grid.w / 2),
+      foot: m.foot !== undefined ? m.foot + 1 : Math.floor(m.grid.w / 2),
       glows,
       ...(m.seat ? { seat: { x: m.seat.x + 1, y: m.seat.y + 1 } } : {}),
       ...(m.light ? { light: { ...m.light, x: m.light.x + 1, y: m.light.y + 1 } } : {}),

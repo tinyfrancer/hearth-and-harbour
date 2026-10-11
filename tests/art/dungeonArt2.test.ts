@@ -20,6 +20,7 @@ import {
   MONSTER2_IDS,
   PROP2_IDS,
   roomKinds2,
+  TIDEPOOL2_IDS,
   TILE2_KINDS,
   TILE2_WEARS,
 } from '../../src/art/dungeonArt2';
@@ -420,8 +421,11 @@ describe('every foe at the C scale', () => {
     const monsters = Object.keys(MONSTERS);
     expect(monsters).toContain('goblin_poacher');
     expect(monsters).toContain('bramble_wyrm');
-    expect([...MONSTER2_IDS].sort()).toEqual([...monsters].sort());
-    expect(new Set(FOE2_IDS)).toEqual(new Set([...FOE_IDS, ...monsters]));
+    // Every monster in the tables is drawn (B15: a table may gain a dungeon's cast, as long as it is drawn).
+    for (const id of monsters) expect(FOE2_IDS, id).toContain(id);
+    for (const id of MONSTER2_IDS) expect(monsters, id).toContain(id);
+    // B15: the tide-pool cave's cast with them.
+    expect(new Set(FOE2_IDS)).toEqual(new Set([...FOE_IDS, ...monsters, ...TIDEPOOL2_IDS]));
   });
 
   it('draws every foe in every pose and frame, facing both ways, standing on its feet', () => {

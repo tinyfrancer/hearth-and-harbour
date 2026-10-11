@@ -18,6 +18,7 @@ import { furTex, paint, poly, rod, seam, shaped, sprite } from './kit';
 import { mass } from './beasts';
 import { BUST, disc } from './bust';
 import * as BEAST from './beastFaces';
+import { OLD_SNAPPER } from './snapperFace';
 import * as FOLK from './folkFaces';
 import * as MARKS from './markFaces';
 import { drawHero, type HeroBust } from './heroFace';
@@ -538,6 +539,8 @@ const FACES2: Readonly<Record<string, FaceDef>> = {
   giant_crab: BEAST.GIANT_CRAB,
   ships_parrot: BEAST.PARROT,
   brinebeard: FOLK.BRINEBEARD,
+  // The tide-pool cave's boss (B15).
+  old_snapper: OLD_SNAPPER,
   // The thieving marks (B12), by the game's action ids.
   steal_fisherman: MARKS.FISHERMAN,
   steal_fish_stall: MARKS.STALLHOLDER,

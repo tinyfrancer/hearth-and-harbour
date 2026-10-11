@@ -203,6 +203,7 @@ function crabBody(
   cx: number,
   ground: number,
   barnacles: boolean,
+  reach = 1,
 ): void {
   const [bx, by] = o('body');
   const [lx, ly] = o('legs');
@@ -214,8 +215,8 @@ function crabBody(
     for (let i = 0; i < 3; i++) {
       const lift = (i + (side > 0 ? 1 : 0)) % 2 === 0 ? ly : -ly;
       const hip = cx + bx + side * (R * 0.55 + i * 2 * s);
-      const knee = cx + bx + side * (R * 0.9 + i * 3.2 * s) + lx * side;
-      const tipX = cx + bx + side * (R * 1.0 + i * 4.4 * s) + lx * side;
+      const knee = cx + bx + side * (R * 0.9 + i * 3.2 * s * reach) * reach + lx * side;
+      const tipX = cx + bx + side * (R * 1.0 + i * 4.4 * s * reach) * reach + lx * side;
       const tipY = ground - Math.max(0, lift);
       const far = i === 0;
       rod(
@@ -374,13 +375,18 @@ function crabBody(
   }
 }
 
+// B15: the sand crab on a canvas wide and tall enough for its legs and raised claws in every pose
+// (they had run off the canvas's edges, unoutlined); the drawing is as it was, its sizes measured
+// again. It is the first foe a new player meets, in the tide-pool cave.
 const SAND_CRAB: Beast = {
-  w: 40,
-  h: 26,
-  anchor: { x: 20, y: 24 },
-  draw: (g, o, p) => crabBody(g, o, p, 1, 20, 23, false),
+  w: 48,
+  h: 32,
+  anchor: { x: 24, y: 30 },
+  draw: (g, o, p) => crabBody(g, o, p, 1, 24, 29, false),
 };
 
+// The giant crab's canvas and sizes are what lane C's drawn-apart rule is tuned to, so it keeps
+// them; what ran off its edges now ends in its outline there (`edged`, cast2.ts, B15).
 const GIANT_CRAB: Beast = {
   w: 84,
   h: 52,

@@ -27,6 +27,9 @@ import { darker, tgrid, type Cell, type TGrid } from '../town2/cells';
 import { cell } from './cave';
 import { faceAt, faceHighAt, rockAt, TILE2 as P, wallTopAt } from './tiles';
 import type { Light2 } from './light';
+import type { Glow } from '../raster';
+import type { Dungeon2Theme } from './theme';
+import { tideFaceDoorPiece, tideSideDoorPiece } from './tideDoors';
 
 export type DoorKind2 = 'door_open' | 'door_barred' | 'door_side_open' | 'door_side_barred';
 
@@ -54,7 +57,7 @@ export const DOOR2_FOOTPRINTS: Readonly<Record<DoorKind2, DoorFootprint2>> = {
 export interface DoorPiece2 {
   readonly grid: TGrid;
   /** Lanterns' glows, in the piece's own coordinates. */
-  readonly glows: readonly { x: number; y: number; radius: number; strength: number }[];
+  readonly glows: readonly Glow[];
   /** An open door's light from beyond, to light the room's floor by (as a lantern's), in its own coordinates. */
   readonly light?: Light2;
 }
@@ -75,15 +78,21 @@ export function placeDoor2(
   roomWest: boolean,
   col: number,
   row: number,
+  theme: Dungeon2Theme = 'grotto',
 ): { piece: DoorPiece2; x: number; y: number } {
   const f = footprint2(kind, roomWest);
   const x = (col - f.door[0]) * P;
   const y = (row - f.door[1]) * P;
   const barred = kind === 'door_barred' || kind === 'door_side_barred';
+  const side = kind === 'door_side_open' || kind === 'door_side_barred';
   const piece =
-    kind === 'door_side_open' || kind === 'door_side_barred'
-      ? sideDoorPiece(barred, x, y, roomWest)
-      : faceDoorPiece(barred, x, y);
+    theme === 'tidepool'
+      ? side
+        ? tideSideDoorPiece(barred, x, y, roomWest)
+        : tideFaceDoorPiece(barred, x, y)
+      : side
+        ? sideDoorPiece(barred, x, y, roomWest)
+        : faceDoorPiece(barred, x, y);
   return { piece, x, y };
 }
 
@@ -199,6 +208,12 @@ export function sideDoorPiece(
   }
   // A lantern on the upper post: lit where the way is open, dark where it is shut.
   lantern(g, 40, O0 - 18, !barred);
+  if (!barred) {
+    const shut = sideDoorPiece(true, x0, y0, roomWest).grid;
+    cheeks(g, roomWest ? flip(shut) : shut, O0, O1, (x, y) =>
+      wallTopAt(x0 + (roomWest ? W - 1 - x : x), y0 + y),
+    );
+  }
   const out = roomWest ? flip(g) : g;
   const mx = (x: number) => (roomWest ? W - 1 - x : x);
   return {
@@ -224,6 +239,57 @@ export function sideDoorPiece(
           },
         }),
   };
+}
+
+/**
+ * B15: the open passage's rock where it runs on past the room's edge (the
+ * cell beyond the door's, which a scene may show only where the open piece
+ * differs from the barred one). Its jambs are lit from beyond, a step
+ * lighter than when the way is shut, and the rock either side of the
+ * passage catches that light too, out to a ragged edge a few rows off, so
+ * the lit passage reads as cut through rock rather than floating in the dark.
+ * Every pixel of that surround differs from the barred piece's.
+ */
+/** The highest and lowest rows the open passage's surround reaches past the room's edge. */
+const CHEEK_TOP = 9;
+const CHEEK_BOTTOM = 62;
+
+export function cheeks(
+  g: TGrid,
+  barred: TGrid,
+  top0: number,
+  bottom0: number,
+  rockAt: (x: number, y: number) => Cell,
+): void {
+  const W = g.w;
+  for (let x = 0; x < 31; x++) {
+    // The passage narrows a little as it goes away from the room (as the pieces draw it).
+    const pinch = x < 24 ? Math.round((24 - x) / 8) : 0;
+    const top = top0 + pinch;
+    const bottom = bottom0 - pinch;
+    // A ragged edge, kept inside the rows a scene shows of the passage past the room's edge (it
+    // shows where the pieces differ and four rows round that, inside the piece's middle rows).
+    const raggedUp = 4 + Math.round(Math.abs(Math.sin(x * 1.7)) * 2 + (x % 5 === 0 ? 1 : 0));
+    const raggedDown = 4 + Math.round(Math.abs(Math.cos(x * 1.3)) * 2 + (x % 4 === 1 ? 1 : 0));
+    const reachUp = Math.min(raggedUp, top - CHEEK_TOP);
+    const reachDown = Math.min(raggedDown, CHEEK_BOTTOM - bottom);
+    for (let y = top - reachUp; y <= bottom + reachDown; y++) {
+      if (y >= top && y <= bottom) continue;
+      if (y < 0 || y >= g.h) continue;
+      const i = y * W + x;
+      const near = y < top ? top - y : y - bottom;
+      let c = g.d[i]!;
+      if (near > 2) {
+        // The rock beyond the jamb, lit from the passage and fading out.
+        const lit = rockAt(x, y);
+        c = (lit & ~7) | Math.max(1, Math.min(5, (lit & 7) - (near < 6 ? 2 : 1)));
+      } else c = (c & ~7) | Math.max(0, (c & 7) - 1);
+      if (c === barred.d[i])
+        c = (c & ~7) | Math.max(0, Math.min(5, (c & 7) + ((c & 7) > 2 ? -1 : 1)));
+      if (c === barred.d[i]) c = (c & ~7) | ((c & 7) === 1 ? 2 : 1);
+      g.d[i] = c;
+    }
+  }
 }
 
 /** A stone of a door's jamb seen from above: squared blocks with dark joints, lit on the side toward the light. */
