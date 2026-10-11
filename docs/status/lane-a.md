@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 15** (the harbour chart, the Tidepool Cave, the menus pointing at
-it), and whatever it asks for. Waiting on Cody: whether the combat pins move to greaves (below).
+**Next: wave 16, part 2** (the combat simulations rebalanced around greaves, `activityHitFrame2`,
+the strip's height, the Town dot at once), then Cody's review.
 
 ## Done
 
@@ -881,6 +881,48 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     `withinMs` rule in `achievements.test.ts`.
   - **Greaves, reported, not retuned** (item 7): unchanged from wave 14 (below); pacing as is.
 
+- Wave 16, part 1: things remembered, and the cave's numbers (branch `lane-a/w16-rebalance`).
+  **Save version 10.**
+  - **Things remembered** (`src/core/remembered.ts`): `GameState.seen`, a list of short keys
+    chosen by the caller, each once, in the order first remembered, only ever added to.
+    `remembered(state, key)`, `remember(state, key)` (the same state back when there is nothing to
+    add) and `isSeenKey`. A key is letters and digits in parts joined by `.`, `_` or `-`, at most
+    48 characters (`town.pan`, `cave.lesson.wide_swing`); any other shape is never remembered and
+    is ignored when asked to be. At most 256 keys (`SEEN_MAX`); past that new ones are ignored.
+  - **The Shell** (`src/ui/view.ts`): `remembered?(key): boolean` and `remember?(key): void`, as
+    lane C is coding against. `remember` saves at once (a reload straight after keeps it) and
+    rebuilds nothing, so the scene is not disturbed; it does not touch the idle task.
+  - **Save version 10**: migration 9 → 10 adds `seen: []`; `saveProblem` wants a list of keys of
+    that shape, none twice, at most 256 (a save failing it is set aside, never deleted, as any).
+  - **The menus' own hints stay in `Prefs`** (the first-steps card, the chart-seen dot), not moved
+    onto `seen`: they are about these menus on this phone, already survive a reload, and moving
+    them would need their device keys carried into the save for no gain to the player. Lane C's
+    flags needed the save because a scene cannot reach `Prefs` (it imports no persistence).
+  - **The Tidepool Cave's numbers** (lane C's measure, wave 15 → 16): dock rat hp 4 → 6, attack
+    1 → 4; sand crab hp 4 → 6, attack 1 → 5; Old Snapper hp 12 → 18, attack 2 → 5, max hit 1 → 2
+    (defences, speeds, coins and drops as they were; the idle monsters of the same ids untouched).
+    Lane C's scripted novice on them, rerun here: 12 of 12 seeds cleared bracing or not, 2:23 to
+    2:56 of run, lowest 7 to 19 of 20 (7 to 12 bracing); bare-handed and with nothing worn the
+    same. **Quick Study stays at 90 s**: out of reach bare-handed now; with the first clear's
+    bronze sword and no lessons the scripted player takes 59 to 83 s (median 74; lane C's
+    `caveRun` test holds the median under 90), so it asks for clean play on a return visit.
+  - **The cave's model** (`tests/data/cave.ts`) now has the scene's cast in the groups it is met
+    (a rat; four rats; two crabs; the boss; it held two rats and two crabs before, and
+    undercounted), the boss's slam at twice its max hit as the scene has it (was a budget of
+    three), and the four cooked shrimp the landing holds, eaten under half health. **Changed
+    expectations** (`tests/data/tidepool.test.ts`): "cleared with health to spare dodging two in
+    three" became "dodging nine in ten and eating what is found" (99.5%, 56% left); "every time
+    dodging nine in ten" became "every time dodging every heavy blow"; new: the usual run falls
+    under half health (median lowest 40%) and without the fish the same play is a knock-out 95%
+    of the time; the bronze sword case eats the found fish too (100%, 63% left).
+  - **The cave's economy** (`tests/data/pacing.test.ts`): a run is now 98 coins' worth and 300
+    XP (was 75 and 140 on the undercounted model), the quickest 71 s with the walk and round
+    trip (was 39): about 5,000 coins an hour (under a quarter of level-1 Woodcutting) and **1.08
+    times dock rats' XP idle at level 1** (was under it). The case said "less XP than the rats";
+    it now says about the rats', never more than 1.15 times, pinned at 1.08. A decision for Cody
+    if he wants it under: the cave's XP is its hit points, which are what make it two and a half
+    minutes and worth eating in.
+
 ## Deferred
 
 - Wave 14: **greaves and the combat pins, a decision for Cody.** In greaves (bronze from 5, iron
@@ -913,6 +955,11 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   notes).
 
 ## Needs from another lane
+
+- **For lane C (wave 16)**: `shell.remembered?.(key)` / `shell.remember?.(key)` are on `main`
+  (save version 10). Keys: letters and digits in parts joined by `.`, `_` or `-`, at most 48
+  characters, e.g. `town.pan`, `cave.lesson.attack`; anything else is ignored. `remember` saves
+  at once. The cave's numbers are lane C's (above); `caveRun.test.ts` passes on them unchanged.
 
 - **For lane C (wave 15)**: (1) poll `shell.takeRequest?.()` when `townView` mounts and on each
   update, and open the chart on `'chart'`; call `shell.chartOpened?.()` whenever the chart opens
@@ -986,7 +1033,10 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 
 ## Notes for this lane's next session
 
-- Save is version 9 (wave 15 changed nothing in it). The next shape change is 10.
+- Save is version 10 (wave 16: `seen`). The next shape change is 11.
+- **Remembered for good, in the save**: `remember`/`remembered` (`src/core/remembered.ts`, the
+  Shell's two calls). A one-off a player should not see twice on any phone is a key there; how
+  the menus are arranged on one phone is still `Prefs`.
 - **Menu preferences are not the save**: `Prefs` (`src/persistence/Prefs.ts`) keeps how the menus
   are arranged on a device (today `bank-sort`). A new preference is a key there, never a save
   field.

@@ -153,6 +153,10 @@ const ROWS: Record<string, Row> = {
     text: 'Clear the Tidepool Cave.',
     rule: { kind: 'cleared', dungeon: 'tidepool_cave' },
   },
+  // Out of reach bare-handed (two and a half minutes at best on wave 16's
+  // numbers); with the first clear's bronze sword, lane C's scripted player
+  // takes 59 to 83 s with no lessons, so it asks for clean play on a return
+  // visit (tests/scene/caveRun.test.ts holds the median under it).
   cave_quick: {
     name: 'Quick Study',
     text: 'Clear the Tidepool Cave in under a minute and a half.',
