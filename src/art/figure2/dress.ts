@@ -14,6 +14,8 @@ import { HEADGEAR2 } from './headgear';
 import { KNIGHT2 } from './knight';
 import { TRINKETS2 } from './trinkets';
 import { HELD2 } from './held';
+import { GREAVES2 } from './greaves';
+import { BEARDS2 } from './beard';
 
 export interface Wardrobe2 {
   readonly bodies: readonly Body2[];
@@ -22,7 +24,17 @@ export interface Wardrobe2 {
 
 export const WARDROBE2: Wardrobe2 = {
   bodies: BODIES2,
-  gear: [...HAIR2, ...CLOTHES2, ...HEADGEAR2, ...ARMOUR2, ...HELD2, ...KNIGHT2, ...TRINKETS2],
+  gear: [
+    ...HAIR2,
+    ...CLOTHES2,
+    ...HEADGEAR2,
+    ...ARMOUR2,
+    ...HELD2,
+    ...KNIGHT2,
+    ...TRINKETS2,
+    ...GREAVES2,
+    ...BEARDS2,
+  ],
 };
 
 const gearById = new Map<string, Gear2>();
@@ -102,6 +114,7 @@ export function boneOf(part: Part2, slot: string): Bone {
   if (part.bone) return part.bone;
   switch (slot) {
     case 'hair':
+    case 'beard':
     case 'head':
       return 'head';
     case 'weapon':

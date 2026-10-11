@@ -58,6 +58,9 @@ const ITEMS = [
   'linen_hood',
   'linen_trousers',
   'linen_tunic',
+  // B13: the smithy's leg armour (lane A adds the items this wave).
+  'bronze_greaves',
+  'iron_greaves',
   'arrow_shafts',
   'bronze_arrows',
   'iron_arrows',

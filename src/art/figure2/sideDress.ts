@@ -20,6 +20,8 @@ import { KNIGHT2 } from './knight';
 import { HAIR_VIEWS, HEAD_SIDE, HEADGEAR_SIDE } from './sideHeads';
 import { SIDE, type SideDress, type SkirtSpec } from './side';
 import type { Cover } from './rig2';
+import { GREAVES_SIDE } from './greaves';
+import { BEARD_SIDE } from './beard';
 
 const rows = (a: number, b: number, x0: number, x1: number): Extent[] =>
   Array.from({ length: b - a + 1 }, (_, i): Extent => [a + i, x0, x1]);
@@ -371,6 +373,8 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
       depth: SIDE.SKIRT + 1,
     });
   },
+  bronze_greaves: (d) => greaves(d, 'bronze_greaves'),
+  iron_greaves: (d) => greaves(d, 'iron_greaves'),
   knight_knees: (d) => {
     d.kneeCap = ['.0112.', '011223', '112334', '.4455.'];
     d.capMat = 'plate';
@@ -390,6 +394,14 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
     );
   },
 };
+
+/** Greaves in profile: plate and straps along the shin, the cop on the knee (dressed after the boots). */
+function greaves(d: SideDress, id: string): void {
+  const g = GREAVES_SIDE[id]!;
+  d.leg.push(...g.covers);
+  d.kneeCap = g.cop;
+  d.kneeMat = g.mat;
+}
 
 /** The mail shirt in profile: rings in offset rows, lit high on the back, darker under the arm. */
 function mailTorso(): Part2 {
@@ -488,11 +500,19 @@ export function sideDress(gearIds: readonly string[]): SideDress | null {
   // What is worn under goes on first, so a jerkin's, mail's or coat's skirt and
   // sleeves are laid over the tunic's (B12: the everyday tunic came last and
   // its skirt and sleeves replaced the coat's and the armour's in profile).
-  const under = (id: string) => (id === 'teal_tunic' || id === 'linen_tunic' ? 0 : 1);
+  // Greaves go on last, over the boots' tops.
+  const under = (id: string) =>
+    id === 'teal_tunic' || id === 'linen_tunic' ? 0 : GREAVES_SIDE[id] ? 2 : 1;
   for (const id of [...gearIds].sort((a, b) => under(a) - under(b))) {
     const hair = HAIR_VIEWS[id];
     if (hair) {
       d.head.push(...hair.map((p) => ({ ...p, depth: SIDE.HEAD + 5 })));
+      continue;
+    }
+    const beard = BEARD_SIDE[id];
+    if (beard) {
+      // Over head gear: on the chin below a helm's rim, over a hood's cape.
+      d.head.push(...beard.map((p) => ({ ...p, depth: DEPTH.HELMET + 3 })));
       continue;
     }
     const dresser = SIDE_GEAR[id];

@@ -400,6 +400,24 @@ frames' provenance (`posedTagged` in `walk.ts`, the side view's tags) holds it i
   jerkin's skirt and sleeves are laid over it (until B12 the tunic came last and its skirt and
   sleeves replaced theirs in profile: the captain's coat was a short jacket, mail had teal sleeves).
 
+#### Greaves (B13)
+
+Cody: "Leg armor from smithing?" Two rungs of leg armour (`figure2/greaves.ts`), worn in the art's
+`knees` slot so the trousers stay on under them:
+
+- **Bronze (militia)**: a shin plate under a domed knee cop, lit down its ridge, two hide straps
+  across, narrower than the shin so the trouser shows either side. **Iron (town guard)**: a plate
+  as wide as the shin with a ridge, a knee cop of two lames, leather straps at its edges. Iron
+  covers more of the leg than bronze, as mail covers more than the jerkin.
+- **What covers what**: over the trousers and the boots' tops (`DEPTH.FEET + 1`), under every
+  shirt, skirt, tabard and coat (a coat's skirt takes the knee cop; the shin shows below it), and
+  under the cloak from behind.
+- **From behind** only the plates' edges where they wrap the calf and the straps across it show;
+  **in profile** the plate is stretches of the shin from the knee to the boot's top, the straps
+  their own short stretches, the cop riding on the knee in its own metal (`kneeMat`).
+- The icons are the pair stood side by side, the far one lower: a domed cop over a plate that
+  narrows to the ankle and flares at the foot.
+
 #### The blow (B12)
 
 Lane C struck with a lunge and a glint. The hero's blow is four frames, the same in every facing
@@ -716,15 +734,15 @@ Both read as held at game scale, so they were left as approved.
 Gear starts simple and climbs with the player's power, so how strong someone is reads at a glance
 from across the town. One rung per stage of the game:
 
-| Rung                                   | Who                     | What it is                                                                                                                                                                                |
-| -------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Linen (start of tier 1)                | A villager              | Undyed linen tunic, trousers and hood. No metal. Nothing held: the hand rests at the belt.                                                                                                |
-| Leather (tier 1, a side rung)          | A hunter or woodsman    | A snug tan cap with ear flaps and a stitched seam; a tan jerkin laced with linen cord, its skirt in tabs; laced cuffs on both forearms; a bow. No metal.                                  |
-| Bronze (tier 1, early)                 | A militia volunteer     | A close bronze skullcap with a ridge and a riveted rim; a hide jerkin over the tunic with one bronze disc; a small round wooden shield with a bronze boss; a short leaf blade; a hatchet. |
-| Iron (tier 1, late)                    | A town guard            | A conical helm with a nasal; a mail shirt to the thigh, sleeves to the elbow, no pauldrons; a plain iron heater; a straight arming sword; a bearded axe. One metal, no gold.              |
-| Tier 2 (opened by Brinebeard's Grotto) | The knight              | The approved hero: plate with pauldrons and knee cops, the kite shield with its cross, the long raised sword with a gilt guard, the red cloak. Drawn; waiting for tier 2's items.         |
-| Tier 3 (opened by Thistlewood Burrow)  | A warden (words only)   | Plate with gilded edges, a crest or plume on a taller helm, a surcoat or cloak in a forest colour with a device, a larger heraldic shield, layered pauldrons.                             |
-| Tier 4 (opened by the Wobbling Spire)  | A champion (words only) | Enamelled or tinted plate with trim that glows at dusk like the forge, a tall plume, a full cape, the largest blades and shields, a light of its own.                                     |
+| Rung                                   | Who                     | What it is                                                                                                                                                                                                                  |
+| -------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linen (start of tier 1)                | A villager              | Undyed linen tunic, trousers and hood. No metal. Nothing held: the hand rests at the belt.                                                                                                                                  |
+| Leather (tier 1, a side rung)          | A hunter or woodsman    | A snug tan cap with ear flaps and a stitched seam; a tan jerkin laced with linen cord, its skirt in tabs; laced cuffs on both forearms; a bow. No metal.                                                                    |
+| Bronze (tier 1, early)                 | A militia volunteer     | A close bronze skullcap with a ridge and a riveted rim; a hide jerkin over the tunic with one bronze disc; a small round wooden shield with a bronze boss; a short leaf blade; a hatchet; shin plates on hide straps (B13). |
+| Iron (tier 1, late)                    | A town guard            | A conical helm with a nasal; a mail shirt to the thigh, sleeves to the elbow, no pauldrons; a plain iron heater; a straight arming sword; a bearded axe; ridged greaves with lamed knee cops (B13). One metal, no gold.     |
+| Tier 2 (opened by Brinebeard's Grotto) | The knight              | The approved hero: plate with pauldrons and knee cops, the kite shield with its cross, the long raised sword with a gilt guard, the red cloak. Drawn; waiting for tier 2's items.                                           |
+| Tier 3 (opened by Thistlewood Burrow)  | A warden (words only)   | Plate with gilded edges, a crest or plume on a taller helm, a surcoat or cloak in a forest colour with a device, a larger heraldic shield, layered pauldrons.                                                               |
+| Tier 4 (opened by the Wobbling Spire)  | A champion (words only) | Enamelled or tinted plate with trim that glows at dusk like the forge, a tall plume, a full cape, the largest blades and shields, a light of its own.                                                                       |
 
 What grows from rung to rung, and the rules that hold it:
 

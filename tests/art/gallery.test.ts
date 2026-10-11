@@ -34,7 +34,8 @@ describe('artGallery', () => {
     expect(heads[0]).toBe('Logs');
     expect(heads).toContain('Skills');
     const cells = [...icons.querySelectorAll('.icon-cell')];
-    expect(cells.length).toBe(59 + 13 + 13 + 1 + 1);
+    // B13: two more item icons, the greaves (59 before).
+    expect(cells.length).toBe(61 + 13 + 13 + 1 + 1);
     // And the five tab icons, each lit and muted (B10b).
     expect(icons.querySelectorAll('.tab-cell canvas').length).toBe(10);
     for (const cell of cells) expect(cell.querySelector('canvas')).not.toBeNull();

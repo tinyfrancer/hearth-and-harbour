@@ -11,7 +11,7 @@
  * once per look, outfit and time of day and kept, to be drawn with `drawImage`
  * at the scene's scale and never rasterized in a frame.
  */
-import { DEFAULT_LOOK, LOOK_CHOICES, type Look } from './character';
+import { BEARD_CHOICES, DEFAULT_LOOK, LOOK_CHOICES, type Look } from './character';
 import type { Cell, Picture2, TGrid } from './town2/cells';
 import { mirror } from './town2/cells';
 import { mirrorLit } from './figure2/relight';
@@ -24,6 +24,7 @@ import { backParts, frontWalkParts, taggedParts } from './figure2/views';
 import { outlineIn, recolour } from './figure2/engine';
 import { FOLK2, FOLK_HALF_STEP, folkBoned, folkGrid, folkRig, folkSwap } from './figure2/folk';
 import { HAIRSTYLES2 } from './figure2/hair';
+import { beardGear } from './figure2/beard';
 import { lookSwap } from './figure2/look';
 import { sideWalkGrid } from './figure2/side';
 import {
@@ -65,6 +66,8 @@ export const FIGURE2_SOLE_Y = SOLE;
 
 /** The same choices as the current character: the creator needs no change. */
 export const LOOK_CHOICES2 = LOOK_CHOICES;
+/** The beards (B13): the same array as `LOOK_CHOICES2.beard`; `none` first, and a missing beard is `none`. */
+export const BEARD_CHOICES2 = BEARD_CHOICES;
 
 /**
  * The gear each wearable item is drawn with at the C scale. Every wearable
@@ -110,6 +113,8 @@ export const ITEM_LAYERS2: Readonly<Record<string, string>> = {
   spyglass: 'spyglass',
   brinebeards_anchor: 'brinebeards_anchor',
   velvet_cap: 'velvet_cap',
+  bronze_greaves: 'bronze_greaves',
+  iron_greaves: 'iron_greaves',
 };
 
 /**
@@ -158,6 +163,8 @@ export function characterGear2(
   for (const id of extra) wear(id);
   const style = HAIRSTYLES2[look.hair ?? ''] ?? HAIRSTYLES2[DEFAULT_LOOK.hair]!;
   wear(slots.has('head') ? style.under : style.gear);
+  // A beard is worn under any head gear (it is drawn over a helm's rim and a hood's cape).
+  wear(beardGear(look.beard));
   for (const id of EVERYDAY) wear(id);
   return gear;
 }
@@ -169,7 +176,7 @@ export function characterBody2(gear: readonly string[]): 'standard' | 'standard_
 
 const pictures = new Map<string, Picture2>();
 const keyOf = (look: Partial<Look>, worn: readonly string[], extra: readonly string[]) =>
-  `${look.skin}|${look.hair}|${look.hairColour}|${worn.join(',')}|${extra.join(',')}`;
+  `${look.skin}|${look.hair}|${look.hairColour}|${beardGear(look.beard) ?? ''}|${worn.join(',')}|${extra.join(',')}`;
 
 /**
  * The character with this look, wearing these items: 56 x 72, outlined,
