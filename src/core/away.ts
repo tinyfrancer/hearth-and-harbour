@@ -54,10 +54,11 @@ export interface AwayReport {
    */
   bounty: null | { monster: string; gained: number; done: number; count: number; ready: boolean };
   /**
-   * What auto bounty handed in while away: how many bounties, and the points
-   * they paid (their coins are in `coins`). Null when it handed in none.
+   * What auto bounty handed in while away: how many bounties, the points
+   * they paid (their coins are in `coins`), and the monsters they were on
+   * (MonsterDef ids, each once, in table order). Null when it handed in none.
    */
-  claimed: null | { bounties: number; points: number };
+  claimed: null | { bounties: number; points: number; monsters: string[] };
   /** Why the action or fight is no longer running, or null if it still is. */
   stopped:
     | null
@@ -70,6 +71,23 @@ export interface AwayReport {
    * them. Null when no potion helped with anything.
    */
   potion: null | { item: string; used: number; ranOut: boolean };
+}
+
+/**
+ * The monsters whose bounties auto bounty handed in between `before` and
+ * `after`, read off the bestiary with no new state: it hands one in only on
+ * the kill that finishes the bounty on the monster being fought, and then the
+ * fight follows the next bounty, so every kill in that time was of a bounty's
+ * monster. Each monster killed was handed in, but for the bounty now held,
+ * unless more of its monster fell than that bounty counts (it was handed in
+ * earlier in the chain too).
+ */
+function claimedOn(before: GameState, after: GameState, content: Content): string[] {
+  const held = after.bounty;
+  return Object.keys(content.monsters ?? {}).filter((id) => {
+    const killed = (after.bestiary[id]?.kills ?? 0) - (before.bestiary[id]?.kills ?? 0);
+    return killed > (held?.monster === id ? held.done : 0);
+  });
 }
 
 /**
@@ -155,7 +173,13 @@ export function catchUp(
   // with auto bounty by handing one in and taking the next.
   const handed = stat(after, 'bounties') - stat(state, 'bounties');
   const claimed: AwayReport['claimed'] =
-    handed > 0 ? { bounties: handed, points: after.bountyPoints - state.bountyPoints } : null;
+    handed > 0
+      ? {
+          bounties: handed,
+          points: after.bountyPoints - state.bountyPoints,
+          monsters: claimedOn(state, after, content),
+        }
+      : null;
   let bounty: AwayReport['bounty'] = null;
   if (after.bounty && (state.bounty || claimed)) {
     const { monster, done, count } = after.bounty;

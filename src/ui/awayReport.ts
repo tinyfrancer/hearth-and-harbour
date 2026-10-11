@@ -2,7 +2,7 @@ import { OFFLINE_CAP_MS, type AwayReport } from '../core/away';
 import { COINS_PER_POINT } from '../core/bounty';
 import type { Content } from '../core/content';
 import { button, h } from './dom';
-import { formatDuration, formatNumber } from './format';
+import { formatDuration, formatNumber, listed } from './format';
 
 /**
  * The away report: what the character got done while the game was shut, and
@@ -106,8 +106,11 @@ export function awayReportOverlay(
       : `${progress} (${formatNumber(gained)} while you were away).`;
   }
   // What auto bounty handed in on its own.
+  const on = report.claimed
+    ? listed(report.claimed.monsters.map((id) => content.monsters?.[id]?.name ?? id))
+    : '';
   const claimed = report.claimed
-    ? `Auto bounty handed in ${report.claimed.bounties === 1 ? 'a bounty' : `${formatNumber(report.claimed.bounties)} bounties`} for ${formatNumber(report.claimed.points)} ${report.claimed.points === 1 ? 'point' : 'points'} and ${formatNumber(report.claimed.points * COINS_PER_POINT)} coins, and took the next.`
+    ? `Auto bounty handed in ${report.claimed.bounties === 1 ? 'a bounty' : `${formatNumber(report.claimed.bounties)} bounties`}${on ? ` (on the ${on})` : ''} for ${formatNumber(report.claimed.points)} ${report.claimed.points === 1 ? 'point' : 'points'} and ${formatNumber(report.claimed.points * COINS_PER_POINT)} coins, and took the next.`
     : '';
 
   let stopped = '';

@@ -20,8 +20,14 @@ const one = (item: string): Worn => ({ item, qty: 1 });
  * tier 1 makes, the way the gear ladder climbs. Linen and a bronze sword to
  * start; bronze plate from level 5 (a few hours of Smithing in); iron from
  * 10, when it may be worn; shell jewellery from 15. An archer wears leather.
+ *
+ * `greaves`: the smithy's greaves (wave 13) in place of the linen trousers,
+ * bronze from 5 and iron from 10, as a player would wear them. The pins were
+ * set before greaves existed and are held without them; the cases in
+ * tests/data/pacing.test.ts that pass `greaves` show what wearing them moves
+ * (wave 14), for a decision on whether the pins follow.
  */
-export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee'): Gear {
+export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee', greaves = false): Gear {
   if (style === 'ranged') {
     return {
       main_hand: one(
@@ -49,7 +55,7 @@ export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee'): Gear
     off_hand: one(`${metal}_shield`),
     head: one(`${metal}_helmet`),
     body: one(`${metal}_breastplate`),
-    legs: one('linen_trousers'),
+    legs: one(greaves ? `${metal}_greaves` : 'linen_trousers'),
     ...(level >= 15 ? { neck: one('shell_necklace'), wrist: one('shell_bracelet') } : {}),
   };
 }
@@ -62,14 +68,14 @@ export function foodAt(level: number): string {
 /** A character with every combat skill at `level`, in that level's gear, with dice of `seed`. */
 export function characterAt(
   level: number,
-  { style = 'melee' as 'melee' | 'ranged', seed = 1, food = 0 } = {},
+  { style = 'melee' as 'melee' | 'ranged', seed = 1, food = 0, greaves = false } = {},
 ): GameState {
   const xp = xpForLevel(level);
   return {
     ...newGame('Sim', 0),
     rng: seedFrom(seed),
     skills: level > 1 ? { melee: xp, ranged: xp, defence: xp, vitality: xp } : {},
-    equipment: gearAt(level, style),
+    equipment: gearAt(level, style, greaves),
     food: food > 0 ? { item: foodAt(level), qty: food } : null,
   };
 }
@@ -131,10 +137,10 @@ export function duels(
 export function hourOf(
   level: number,
   monster: string,
-  { style = 'melee' as 'melee' | 'ranged', seed = 1 } = {},
+  { style = 'melee' as 'melee' | 'ranged', seed = 1, greaves = false } = {},
 ): { kills: number; eaten: number; deaths: number; xpPerHour: number } {
   const food = 100_000;
-  let state = fight(characterAt(level, { style, seed, food }), monster);
+  let state = fight(characterAt(level, { style, seed, food, greaves }), monster);
   const skill = playerCombat(state, CONTENT).skill;
   const xpBefore = state.skills[skill] ?? 0;
   let deaths = 0;
