@@ -70,21 +70,23 @@ export function doingNow(state: GameState, content: Content): Doing {
 
 /**
  * The frame of each loop where the work lands (the axe in the log, the pick
- * on the rock, the blow), read off lane B's beats: a completion shows it.
- * Lane B is asked to export this beside the loops; until then it lives here,
- * and an unknown loop lands on its first frame.
+ * on the rock, the blow): a completion shows it. These are lane B's own
+ * contact frames (tests/art/activity2.test.ts holds the tool on the prop at
+ * each; fletching, not in that table, read off its beats). Lane B is asked to
+ * export them beside the loops; until then they live here, and an unknown
+ * loop lands on its first frame.
  */
 const LANDS: Readonly<Record<string, number>> = {
   woodcutting: 2,
-  fishing: 3,
-  mining: 2,
+  fishing: 0,
+  mining: 3,
   foraging: 1,
-  cooking: 3,
+  cooking: 1,
   smithing: 2,
   crafting: 0,
   fletching: 2,
   alchemy: 3,
-  thieving: 2,
+  thieving: 1,
   melee: STRIKE2_HIT_FRAME,
   ranged: STRIKE2_HIT_FRAME,
   defence: STRIKE2_HIT_FRAME,

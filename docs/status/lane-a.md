@@ -803,8 +803,9 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
 
 - **For lane B (wave 14)**: export where each loop's work lands, e.g. `activityHitFrame2(activity)`
   (the axe in the log, the pick on the rock; the blow's `STRIKE2_HIT_FRAME` for combat). Until
-  then `LANDS` in `src/ui/atWork.ts` holds it, read off the beats (woodcutting 2, fishing 3,
-  mining 2, foraging 1, cooking 3, smithing 2, crafting 0, fletching 2, alchemy 3, thieving 2).
+  then `LANDS` in `src/ui/atWork.ts` copies lane B's contact frames from
+  `tests/art/activity2.test.ts` (woodcutting 2, fishing 0, mining 3, foraging 1, cooking 1,
+  smithing 2, crafting 0, alchemy 3, thieving 1) and fletching 2 read off its beats.
 
 - **For lane C (wave 13), the run's save**: call `shell.keepRun?.(savedRunOf(run))` on entering a
   room, every few seconds and on `pagehide`, and take `shell.savedRun?.()` back when `townView`
