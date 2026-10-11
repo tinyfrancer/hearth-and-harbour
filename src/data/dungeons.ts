@@ -181,11 +181,12 @@ export const DUNGEONS = {
       },
     ],
   },
-  // Landings to come: silhouettes on the chart with what will open them. Their
-  // ids are placeholders, renamed when each is designed (no save can hold a
+  // Landings to come: silhouettes on the chart with what will open them, by
+  // the ids lane B's chart has landings for (`harbourChart2`). Their ids are
+  // placeholders, renamed when each is designed (no save can hold a
   // clear of one, so nothing needs migrating).
-  uncharted_1: {
-    id: 'uncharted_1',
+  unknown_1: {
+    id: 'unknown_1',
     name: 'Uncharted',
     description: 'Not yet charted.',
     order: 3,
@@ -195,13 +196,24 @@ export const DUNGEONS = {
     comingSoon: true,
     loot: [],
   },
-  uncharted_2: {
-    id: 'uncharted_2',
+  unknown_2: {
+    id: 'unknown_2',
     name: 'Uncharted',
     description: 'Not yet charted.',
     order: 4,
     recommended: 60,
-    unlock: { kind: 'cleared', dungeon: 'uncharted_1' },
+    unlock: { kind: 'cleared', dungeon: 'unknown_1' },
+    unlockText: 'Clear the landing before it.',
+    comingSoon: true,
+    loot: [],
+  },
+  unknown_3: {
+    id: 'unknown_3',
+    name: 'Uncharted',
+    description: 'Not yet charted.',
+    order: 5,
+    recommended: 80,
+    unlock: { kind: 'cleared', dungeon: 'unknown_2' },
     unlockText: 'Clear the landing before it.',
     comingSoon: true,
     loot: [],
