@@ -13,7 +13,6 @@ import {
 } from '../core/combat';
 import type { Content, DungeonFoe, MonsterDef } from '../core/content';
 import type { FightEnd } from '../core/fight';
-import { dungeonStatus, dungeonsInOrder, type DungeonState } from '../core/dungeons';
 import { foeDrops } from '../core/run';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
@@ -21,7 +20,8 @@ import { bountyEntry } from './bountyScreen';
 import { button, h, setText, titled } from './dom';
 import { keyedList } from './keyed';
 import { face } from './face';
-import { formatClock, formatNumber } from './format';
+import { dungeonsCard, idleRunPanel } from './dungeonsCard';
+import { formatNumber } from './format';
 import type { View } from './view';
 import { workStage } from './atWork';
 
@@ -47,6 +47,12 @@ export interface CombatActions {
   bounties(): void;
   /** To the Town tab with the harbour chart open: the way into a dungeon. */
   harbour(): void;
+  /** Send the hero through a cleared dungeon idle. */
+  sendIdle(dungeonId: string): void;
+  /** Call the hero home from a dungeon run idle. */
+  stopIdle(): void;
+  /** Today's modifier on a dungeon, by the app's clock and the phone's time zone. */
+  today(dungeonId: string): string | null;
   fight(monsterId: string): void;
   stop(): void;
   loadFood(itemId: string): void;
@@ -96,72 +102,6 @@ function levelRange(cast: readonly DungeonFoe[]): string {
   const least = Math.min(...levels);
   const most = Math.max(...levels);
   return least === most ? `${least}` : `${least} to ${most}`;
-}
-
-/** The word for where the character stands with a dungeon, as its row shows it. */
-const STANDING: Readonly<Record<DungeonState, string>> = {
-  open: 'Open',
-  cleared: 'Cleared',
-  locked: 'Locked',
-  soon: 'Not yet charted',
-};
-
-/**
- * Every dungeon on the harbour chart, in its order: whether it is open,
- * cleared or locked (and what unlocks it), the combat level it is meant for,
- * and its clears and best time. Landings to come show as a "?" with what will
- * open them. The way in is the boat at the quay: "To the harbour" opens the
- * Town tab with the chart open.
- */
-export function dungeonsCard(
-  state: GameState,
-  content: Content,
-  harbour: () => void,
-): HTMLElement | null {
-  const rows = dungeonsInOrder(content).flatMap((dungeon) => {
-    const status = dungeonStatus(state, dungeon.id, content);
-    if (!status) return [];
-    const soon = status.state === 'soon';
-    const facts = soon
-      ? [status.unlock]
-      : [
-          `Recommended combat level ${status.recommended}`,
-          ...(status.clears > 0
-            ? [
-                `cleared ${status.clears === 1 ? 'once' : `${formatNumber(status.clears)} times`}`,
-                ...(status.bestMs !== undefined ? [`best ${formatClock(status.bestMs)}`] : []),
-              ]
-            : []),
-        ];
-    return [
-      h(
-        'div',
-        {
-          class: `dungeon-row stack tight${soon ? ' soon' : ''}`,
-          attrs: { 'data-dungeon-row': dungeon.id, 'data-status': status.state },
-        },
-        [
-          h('div', { class: 'card-head' }, [
-            h('h3', { text: soon ? '?' : dungeon.name }),
-            h('span', { class: `standing ${status.state}`, text: STANDING[status.state] }),
-          ]),
-          !soon && h('p', { class: 'small muted', text: dungeon.description }),
-          status.state === 'locked' &&
-            h('p', { class: 'small', attrs: { 'data-unlock': '' }, text: status.unlock }),
-          h('p', { class: 'small muted', text: facts.join(' · ') }),
-        ],
-      ),
-    ];
-  });
-  if (rows.length === 0) return null;
-  return h('section', { class: 'panel stack dungeons', attrs: { 'data-dungeons': '' } }, [
-    h('div', { class: 'card-head' }, [
-      h('h2', { text: 'Dungeons' }),
-      h('span', { class: 'hint', text: 'By boat from the quay' }),
-    ]),
-    ...rows,
-    button('To the harbour', harbour, 'primary'),
-  ]);
 }
 
 /** "12 kills · 30 coins", what dropped, and what was eaten and shot. */
@@ -369,7 +309,7 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
   // yet met stays a "?", so there is someone to find out about.
   // One met on the shore as well (the cave's dock rats) has the one card, the
   // area's, and is named here only.
-  const dungeons = Object.values(content.dungeons ?? {})
+  const casts = Object.values(content.dungeons ?? {})
     .filter((dungeon) => dungeon.cast?.length && !dungeon.comingSoon)
     .map((dungeon) => {
       const own = dungeon.cast!.filter((foe) => !content.monsters?.[foe.id]);
@@ -421,6 +361,10 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
       ]);
     });
 
+  const idle = idleRunPanel(state, content, actions.stopIdle);
+  if (idle) updates.push(idle.update);
+  const dungeons = dungeonsCard(state, content, actions);
+  if (dungeons) updates.push(dungeons.update);
   const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
   const food = foodPanel(state, content, actions, updates);
   const bounty = bountyEntry(state, content, actions.bounties);
@@ -437,17 +381,19 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
       button('‹ All skills', actions.back, 'back'),
       now,
       bounty.el,
-      dungeonsCard(state, content, actions.harbour),
+      idle?.el,
+      dungeons?.el,
       you,
       food,
       ...areas,
-      ...dungeons,
+      ...casts,
     ]),
     update,
     // Built for the fight under way, the bounty held (which monsters are open)
     // and the food slot's state; a kill, a level or a drop changes none of those.
     stale: (before, after) =>
       before.fight?.monster !== after.fight?.monster ||
+      before.idleRun?.dungeon !== after.idleRun?.dungeon ||
       before.bounty?.monster !== after.bounty?.monster ||
       Boolean(before.food) !== Boolean(after.food),
   };
@@ -636,6 +582,7 @@ export function fightView(
     // the food slot emptying.
     stale: (before, after) =>
       before.fight?.monster !== after.fight?.monster ||
+      before.idleRun?.dungeon !== after.idleRun?.dungeon ||
       (before.bounty?.monster === monster.id) !== (after.bounty?.monster === monster.id) ||
       Boolean(before.food) !== Boolean(after.food),
   };

@@ -142,6 +142,21 @@ export const DUNGEONS = {
         rare: [{ item: 'pearl', min: 1, max: 1, oneIn: 40 }],
       },
     ],
+    // Run idle once cleared (src/core/idleRun.ts): the scene's rooms as it
+    // meets them (a rat; three rats under the pool, then two crabs by the far
+    // door; the snapper), at a stroll, and the row home and back between runs.
+    // tests/data/pacing.test.ts holds it below play by hand and below the
+    // rats idle at level 1.
+    idle: {
+      rooms: [
+        { foes: ['dock_rat'], walkMs: 8000 },
+        { foes: ['dock_rat', 'dock_rat', 'dock_rat'], walkMs: 8000 },
+        { foes: ['sand_crab', 'sand_crab'], walkMs: 4000 },
+        { foes: ['old_snapper'], walkMs: 8000 },
+      ],
+      tripMs: 60_000,
+      lootPercent: 50,
+    },
     // Its days are only ever kind to a newcomer.
     modifiers: ['slack_tide', 'rich_pickings'],
     // Gentle goals for a return visit, each practising something the cave
@@ -286,6 +301,31 @@ export const DUNGEONS = {
       tier: 2,
       brings:
         'deep-water fishing, driftwood, salt-iron to mine and smith, richer pockets to pick and somewhere new to fight',
+    },
+    // Run idle once cleared (src/core/idleRun.ts): the scene's rooms in order,
+    // in the groups their places put together (src/scene/grotto.ts): the two
+    // crabs; the store's three spread along it, met one by one; the parrot on
+    // its perch before the three deckhands by the far door; the brig's two
+    // waves; and in the cove the two who come ashore (at two thirds of the
+    // captain's health in the scene) met with him, and dealt with first. The
+    // trophies and the anchor are only ever found by hand (docs/design.md).
+    // tests/data/pacing.test.ts holds it below play by hand and below the best
+    // idle fight at level 20.
+    idle: {
+      rooms: [
+        { foes: ['giant_crab', 'giant_crab'], walkMs: 15_000 },
+        { foes: ['deckhand'], walkMs: 10_000 },
+        { foes: ['deckhand'], walkMs: 6000 },
+        { foes: ['powder_monkey'], walkMs: 5000 },
+        { foes: ['ships_parrot'], walkMs: 10_000 },
+        { foes: ['deckhand', 'deckhand', 'deckhand'], walkMs: 8000 },
+        { foes: ['deckhand', 'deckhand'], walkMs: 10_000 },
+        { foes: ['deckhand', 'powder_monkey'], walkMs: 3000 },
+        { foes: ['deckhand', 'deckhand', 'brinebeard'], walkMs: 15_000 },
+      ],
+      tripMs: 120_000,
+      lootPercent: 50,
+      activeOnly: ['brinebeards_anchor', 'ships_figurehead'],
     },
     modifiers: [
       'thick_skulls',

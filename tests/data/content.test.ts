@@ -9,6 +9,8 @@ import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { PORTRAIT2_IDS } from '../../src/art/portraits2';
+import { foeKind } from '../../src/scene/foes';
+import { DUNGEON_PLANS } from '../../src/scene/plans';
 
 // Fixed in docs/lanes.md (wave 6): the dungeon drops them, and art draws them, by these ids.
 const GROTTO_LOOT = [
@@ -519,6 +521,48 @@ describe('the content tables', () => {
     }
   });
 
+  // S16: how a dungeon is run idle (src/core/idleRun.ts). Its rooms are the
+  // scene's own cast, so who is met idle is who is met by hand: every foe the
+  // scene places (src/scene/plans.ts), and those a boss calls in, once each.
+  it('runs each built dungeon idle on the scene’s own cast, at a walk, keeping a share and never the rarest', () => {
+    for (const dungeon of Object.values(CONTENT.dungeons!)) {
+      if (dungeon.comingSoon) {
+        expect(dungeon.idle, dungeon.id).toBeUndefined();
+        continue;
+      }
+      const idle = dungeon.idle!;
+      expect(idle, dungeon.id).toBeDefined();
+      const cast = new Set(dungeon.cast!.map((foe) => foe.id));
+      for (const room of idle.rooms) {
+        expect(room.foes.length, dungeon.id).toBeGreaterThan(0);
+        for (const id of room.foes) expect(cast.has(id), `${dungeon.id} ${id}`).toBe(true);
+        expect(Number.isInteger(room.walkMs) && room.walkMs >= 1000, dungeon.id).toBe(true);
+      }
+      expect(idle.tripMs, dungeon.id).toBeGreaterThanOrEqual(30_000);
+      expect(idle.lootPercent, dungeon.id).toBeGreaterThan(0);
+      expect(idle.lootPercent, dungeon.id).toBeLessThan(100);
+      for (const item of idle.activeOnly ?? []) expect(dungeon.loot, dungeon.id).toContain(item);
+      const tally = (ids: string[]): Record<string, number> =>
+        ids.reduce<Record<string, number>>((all, id) => ({ ...all, [id]: (all[id] ?? 0) + 1 }), {});
+      const plan = DUNGEON_PLANS[dungeon.id]!;
+      const placed = Object.values(plan.foes ?? {}).flatMap((foes) =>
+        foes.map((foe) => foe.monster),
+      );
+      const called = placed.flatMap((id) => {
+        const calls = foeKind(id).boss?.calls;
+        return calls ? Array.from({ length: calls.count }, () => calls.monster) : [];
+      });
+      expect(tally(idle.rooms.flatMap((room) => [...room.foes])), dungeon.id).toEqual(
+        tally([...placed, ...called]),
+      );
+    }
+    // The grotto's rarest things are only found by hand (docs/design.md, open question 2).
+    expect(CONTENT.dungeons!.brinebeards_grotto!.idle!.activeOnly).toEqual([
+      'brinebeards_anchor',
+      'ships_figurehead',
+    ]);
+  });
+
   it('opens the cave from the start at level 1, and the grotto by advice alone', () => {
     const cave = CONTENT.dungeons!.tidepool_cave!;
     expect([cave.recommended, cave.unlock]).toEqual([1, { kind: 'none' }]);
@@ -632,11 +676,12 @@ describe('the content tables', () => {
     expect(sources.map((source) => source.id)).toContain('bounty_shop');
   });
 
-  // Thirty-one since the Tidepool Cave's two (wave 15); the set grows with the content.
-  it('has about thirty achievements over real things, with names and lines', () => {
+  // Thirty-one since the Tidepool Cave's two (wave 15), forty-two since S16's
+  // eleven (wave 17); the set grows with the content.
+  it('has about forty achievements over real things, with names and lines', () => {
     const all = Object.values(CONTENT.achievements!);
     expect(all.length).toBeGreaterThanOrEqual(22);
-    expect(all.length).toBeLessThanOrEqual(36);
+    expect(all.length).toBeLessThanOrEqual(48);
     expect(all.some((def) => def.hidden)).toBe(true);
     const names = new Set<string>();
     for (const def of all) {

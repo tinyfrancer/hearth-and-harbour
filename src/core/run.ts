@@ -194,8 +194,8 @@ export function rewardOf(
  * more can be eaten or shot than was carried.
  *
  * It touches neither the idle task nor the dice (`rng`): a run rolls its own.
- * (A run happens with the idle clock paused, so no idle fight is under way to
- * own the hit points; if one somehow is, its hit points stand.)
+ * (A run happens with the idle clock paused; a fight or a dungeon run idle
+ * paused under it keeps its own hit points, which stand.)
  */
 /**
  * Kills and a clear count only against the tables in `content`: without them
@@ -314,7 +314,12 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
   }
 
   // Read after the XP is in: a Vitality level from the run raises the most there can be.
-  if (typeof spoils.hp === 'number' && Number.isFinite(spoils.hp) && !state.fight) {
+  if (
+    typeof spoils.hp === 'number' &&
+    Number.isFinite(spoils.hp) &&
+    !state.fight &&
+    !state.idleRun
+  ) {
     const most = maxHp(settled);
     const hp = Math.min(Math.floor(spoils.hp), most);
     settled.health = hp > 0 ? hurt(hp, most) : comeRound(most);

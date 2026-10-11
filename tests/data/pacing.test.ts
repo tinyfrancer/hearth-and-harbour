@@ -17,7 +17,20 @@ import {
   madeWorth,
 } from './economy';
 import { CAVE, ROOMS as CAVE_ROOMS, many as manyCaveRuns } from './cave';
-import { characterAt, hourOf, hoursToLevel as hoursOfFighting } from './fighting';
+import { characterAt, fight, hourOf, hoursToLevel as hoursOfFighting } from './fighting';
+import { handRunOf, idleHourOf } from './idleRuns';
+import { novice, playCave } from '../scene/caveBot';
+import { playThrough, prepared } from '../scene/grottoBot';
+
+/** The pins of the idle dungeon cases, measured (S16). */
+const HAND_CAVE_XP = 11530;
+const IDLE_CAVE: number[][] = [
+  [26, 7265],
+  [26, 7170],
+  [26, 7265],
+];
+const HAND_GROTTO_XP = 22631;
+const IDLE_GROTTO: number[] = [5, 18750, 8095];
 import {
   bountyChoices,
   bountyPoints,
@@ -397,9 +410,9 @@ describe('what an hour of bounties pays', () => {
 //
 // Its XP is about what dock rats pay idle at level 1, and never much more.
 // Until wave 16 this case said "less than the rats", on a model of two rats
-// and two crabs; the scene has five rats and two crabs, and lane C's numbers
-// (wave 16: more hit points, a longer run) give the honest count 1.08 times
-// the rats' at the speed of a player who never misses a tap. It needs hands
+// and two crabs; lane C's numbers (wave 16: more hit points, a longer run)
+// gave 1.08 times the rats' on a model of five rats, and the scene's four
+// rats (wave 17) give 1.05, at the speed of a player who never misses a tap. It needs hands
 // and the rats do not, and from level 2 or 3 the idle fights pay far more.
 describe('the Tidepool Cave run again and again (wave 15)', () => {
   const WALK_MS = 12_000;
@@ -428,12 +441,13 @@ describe('the Tidepool Cave run again and again (wave 15)', () => {
     const { worth, xp } = perRun();
     const coins = Math.round(worth * runs);
     const xpHour = Math.round(xp * runs);
-    // Pinned so a change to the cave's numbers is seen: about 98 coins and 300 XP a run, 71 s.
-    expect([Math.round(worth), xp, Math.round(fastest / 1000)]).toEqual([98, 300, 71]);
+    // Pinned so a change to the cave's numbers is seen: about 90 coins and 270 XP a run, 66 s
+    // (wave 17: the model's three rats under the pool, as the scene has them; it had four).
+    expect([Math.round(worth), xp, Math.round(fastest / 1000)]).toEqual([90, 270, 66]);
     expect(coins).toBeLessThan(skillHour('woodcutting', 1).gross / 2);
     expect(coins).toBeLessThan(bestFightHour(1).earned / 2);
     const rats = hourOf(1, 'dock_rat').xpPerHour;
-    expect(Math.round((xpHour / rats) * 100) / 100).toBe(1.08);
+    expect(Math.round((xpHour / rats) * 100) / 100).toBe(1.05);
     expect(xpHour).toBeLessThan(rats * 1.15);
   });
 });
@@ -461,6 +475,108 @@ describe('what challenges pay, all told (S16)', () => {
     // An hour of bounties pays at least 22 points from combat level 5, and 42 from 20.
     expect(earned).toBeLessThan(dungeon.recommended >= 20 ? 42 : 22);
   });
+});
+
+// A dungeon run idle (S16: "send the hero through it idle") is never the best
+// way to spend an hour: strictly worse than playing the same dungeon by hand,
+// and no better than the best idle fight at the level it is first cleared at,
+// on any day. Play by hand is lane C's scripted players' median clear
+// (tests/scene/caveBot.ts, grottoBot.ts) plus fifteen seconds of round trip,
+// each foe felled once, with every drop at its odds (`handRunOf`). Idle is an
+// hour of the real rules (src/core/idleRun.ts) in that level's gear with
+// plenty of fish (`idleHourOf`), each day's modifier in turn. XP is the
+// attacking skill's, as the other combat cases count it, and all three combat
+// skills together where several foes at once give Defence more to do.
+describe('a dungeon run idle (S16)', () => {
+  const ROUND_TRIP_MS = 15_000;
+  const REACT_MS = 400;
+  const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
+  const median = (xs: readonly number[]): number =>
+    [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+  /** An idle fight's hour, all three combat skills' XP together. */
+  const fightAllXp = (level: number, monster: string): number => {
+    let state = fight(characterAt(level, { seed: 1, food: 100_000 }), monster);
+    const before = { ...state.skills };
+    for (let minute = 0; minute < 60; minute += 1) {
+      state = advance(state, 60_000, CONTENT);
+      if (!state.fight) state = fight(state, monster);
+    }
+    return ['melee', 'defence', 'vitality'].reduce(
+      (sum, id) => sum + (state.skills[id] ?? 0) - (before[id] ?? 0),
+      0,
+    );
+  };
+  const open = (level: number): string[] =>
+    Object.values(CONTENT.monsters!)
+      .filter((monster) => monster.level <= level && !monster.bountyOnly)
+      .map((monster) => monster.id);
+
+  it('runs the Tidepool Cave idle for less than by hand, and less than dock rats idle at level 1', () => {
+    const cave = CONTENT.dungeons!.tidepool_cave!;
+    const armed = {
+      ...novice(),
+      equipment: { ...novice().equipment, main_hand: { item: 'bronze_sword', qty: 1 } },
+    };
+    const clear = median(
+      SEEDS.map(
+        (seed) => playCave(armed, seed, { reactMs: REACT_MS, brace: true, lessons: false }).ms,
+      ),
+    );
+    const hand = handRunOf(cave);
+    const handRuns = HOUR / (clear + ROUND_TRIP_MS);
+    const handXp = hand.xp * handRuns;
+    const handWorth = hand.worth * handRuns;
+    const rats = hourOf(1, 'dock_rat').xpPerHour;
+    const ratsAll = fightAllXp(1, 'dock_rat');
+    const ratsEarned = bestFightHour(1).earned;
+    const days = [null, ...cave.modifiers!].map((modifier) =>
+      idleHourOf(1, 'tidepool_cave', { modifier }),
+    );
+    // Pinned so a change is seen: by hand about 270 XP and 90 coins' worth a run; idle 26 runs an hour.
+    expect([hand.xp, Math.round(hand.worth), Math.round(handXp)]).toEqual([270, 90, HAND_CAVE_XP]);
+    expect(days.map((day) => [day.runs, day.xp])).toEqual(IDLE_CAVE);
+    for (const day of days) {
+      expect(day.knockedOut).toBe(false);
+      expect(day.xp).toBeLessThan(handXp * 0.8);
+      expect(day.loot + day.coins).toBeLessThan(handWorth);
+      expect(day.xp).toBeLessThan(rats);
+      expect(day.allXp).toBeLessThan(ratsAll);
+      expect(day.earned).toBeLessThan(ratsEarned);
+    }
+  }, 120_000);
+
+  it('runs Brinebeard’s Grotto idle for less than by hand, and less than the best idle fight at level 20, on any day', () => {
+    const grotto = CONTENT.dungeons!.brinebeards_grotto!;
+    const clears = SEEDS.map((seed) => playThrough(prepared(), seed, { reactMs: REACT_MS })).filter(
+      (run) => run.cleared,
+    );
+    const clear = median(clears.map((run) => run.ms));
+    const hand = handRunOf(grotto);
+    const handRuns = HOUR / (clear + ROUND_TRIP_MS);
+    const handXp = hand.xp * handRuns;
+    const handWorth = hand.worth * handRuns;
+    const level = 20;
+    const bestXp = Math.max(...open(level).map((id) => hourOf(level, id).xpPerHour));
+    const bestAll = Math.max(...open(level).map((id) => fightAllXp(level, id)));
+    const bestEarned = bestFightHour(level).earned;
+    const plain = idleHourOf(level, 'brinebeards_grotto');
+    // Pinned so a change is seen: by hand 3,230 XP and about 10,086 coins' worth a run.
+    expect([hand.xp, Math.round(hand.worth), Math.round(handXp)]).toEqual([
+      3230,
+      10086,
+      HAND_GROTTO_XP,
+    ]);
+    expect([plain.runs, plain.xp, Math.round(plain.earned)]).toEqual(IDLE_GROTTO);
+    // Day for day, worse than by hand.
+    expect(plain.xp).toBeLessThan(handXp * 0.9);
+    expect(plain.loot + plain.coins).toBeLessThan(handWorth / 2);
+    for (const modifier of [null, ...grotto.modifiers!]) {
+      const day = idleHourOf(level, 'brinebeards_grotto', { modifier });
+      expect(day.xp, String(modifier)).toBeLessThan(bestXp);
+      expect(day.allXp, String(modifier)).toBeLessThan(bestAll);
+      expect(day.earned, String(modifier)).toBeLessThan(bestEarned);
+    }
+  }, 240_000);
 });
 
 function ok(result: { ok: true; state: GameState } | { ok: false; reason: string }): GameState {

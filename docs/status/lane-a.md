@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: wave 17, part 2** (S16's rules and menus: the idle dungeon, the Dungeons card,
-achievements), then Cody's review of wave 17.
+**Next: Cody's review of wave 17** (the idle dungeon, the day's modifiers, challenges, the
+Dungeons card), and whatever it asks for.
 
 ## Done
 
@@ -1035,6 +1035,90 @@ cleared, modifier })` (`src/core/progress.ts`): only a clear, never knocked out,
     the shell's two new behaviours. Changed: the version pin (11) and the version-9 migration
     case (it now also gains `idleRun`).
 
+- Wave 17, part 2: S16's rules and menus (branch `lane-a/s16-idle`). **Save version unchanged
+  (11)**: `idleRun` and the record fields were in part 1's one bump.
+  - **A dungeon run idle** (`src/core/idleRun.ts`; `startIdleRun(state, id, content, now,
+utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
+    `idleRunEnded`). Once cleared by hand (`mayIdle`), the hero runs it over and over as the idle
+    task, replacing whatever ran (and anything started replaces it, carrying the hit points out).
+    **The model**: `DungeonDef.idle.rooms` are the scene's own groups (a content test holds them
+    to `src/scene/plans.ts`, boss calls included): a walk to each, then everyone there at once,
+    each foe striking from the moment it is met, the hero striking the first still up, with idle
+    combat's own ratings, chances, max hits, waits and XP on the cast's rows. Telegraphed blows,
+    bracing and the tide are not modelled (the hero sent alone is taken to step out and do nothing
+    clever). No breather between foes; eating by idle combat's rule; between runs `tripMs`
+    rowing home and back, a hit point back every 6 s of it. The cave: a rat; three rats; two
+    crabs; the snapper; walks 8, 8, 4, 8 s; trip 60 s. The grotto: two crabs; the store's three
+    one by one; the parrot; three deckhands; the brig's two waves; in the cove the two deckhands
+    who come ashore met with the captain and dealt with first; trip 120 s. **Each run sets out
+    under its day's modifier**, read from the run's own calendar (`IdleRun.clock`, moved on by
+    the time `advance` spends, and `utcOffset`), so crossing midnight changes the next run's,
+    the same live or away; the app sets the calendar to its clock when the idle clock starts again
+    after a hand run and after time away is paid (`alignIdleClock`: nothing paid, the run under
+    way keeps its day). **What falls**: each drop (and a kill's purse) kept on a 50% roll
+    (`lootPercent`), the modifier's `loot` on regular drops and `coins`/`xp` as by hand; the
+    grotto's anchor and figurehead never idle (`activeOnly`). Never a clear, a first-clear reward
+    or a challenge; `DungeonRecord.idleRuns` counts runs. Kills count to the bestiary and a
+    bounty held; **auto bounty** hands in on the kill that finishes one and takes the next, and
+    the runs go on (the away report cannot name which monsters were handed in, and says only how
+    many). **Potions**: none helps a fight, so none helps an idle run (unchanged rule). A
+    knock-out ends it as any does; out of arrows likewise.
+  - **The invariants** (`tests/core/idleRun.test.ts`): walked event by event (walk ends, blows;
+    at the same moment the hero first, then foes in order), dice only inside events in a fixed
+    order. Random 1 to 40 ms frames equal one advance over 30 minutes (twice, two frame seeds);
+    cuts at ±1 ms of a room met, the first kill, the next room met and a run's end agree; cuts
+    round the knock-out agree; a run across local midnight takes the new day's modifier and every
+    cut and frame series agrees; a night (8 h + 1,234 ms) of 16 ms frames equals `catchUp`.
+  - **Per hour** (`tests/data/pacing.test.ts`, pinned; hand play is lane C's bots' median clear
+    plus 15 s round trip, every foe once, drops at their odds):
+
+    | Level 1, the cave      |  Melee XP/h | Coins' worth/h |
+    | ---------------------- | ----------: | -------------: |
+    | By hand (bronze sword) |      11,530 |         ~3,850 |
+    | Idle, any of its days  | 7,170-7,265 |    1,040-1,600 |
+    | Dock rats idle         |      14,130 |   32,953 (net) |
+
+    | Level 20, the grotto             |       Melee XP/h | All combat XP/h | Earned/h (after fish) |
+    | -------------------------------- | ---------------: | --------------: | --------------------: |
+    | By hand (level 19, iron)         |           22,631 |         ~71,000 |         ~70,700 gross |
+    | Idle, no modifier                |           18,750 |          62,326 |                 8,095 |
+    | Idle, best day (Thick Skulls XP) |           27,477 |          85,495 |      -1,255 to 19,935 |
+    | Best idle fight                  | 31,085 (footpad) |  97,865 (troll) |      66,979 (footpad) |
+
+    The idle grotto eats about 137 cod an hour at level 20 (the hand bot about 20 a run): it is
+    for XP, kills and the collection, not money.
+
+  - **The menus** (`src/ui/dungeonsCard.ts`, moved out of `combatScreen.ts`): per dungeon its
+    facts (clears, best time, least damage, runs idle), today's modifier (lane B's
+    `modifierIcon(id)`, the name and its plain effect words; turns at local midnight in place),
+    its challenges (lane B's `challengeIcon`, what each asks and pays, a gold or dull
+    `challengeMedal`, "n of 4 done"), what its first clear opens ("Tier 2 unlocked. It is still
+    being built; when it comes, it brings …" or "Its first clear unlocks tier 2, still being
+    built: …"), and once cleared "Send the hero through idle" / "Call the hero home". While
+    running, a panel at the top of the Combat page (room n of m, health, runs, foes, food, what
+    was kept, Call the hero home), moving in place. The strip: "Running Tidepool Cave idle",
+    "Fighting, 2 of 4 · 7 runs · Slack Tide", the bar the room's health gone; a tap opens the
+    Combat page; the hero rows on lane B's `dungeon` loop on the way out, strikes while fighting,
+    breathes between rooms. The away report: "running Tidepool Cave idle", "237 runs through
+    Tidepool Cave, 1,659 foes felled.", food and arrows, "Knocked out in …". The Shell's
+    `sendIdle(id)` answers (a toast says why not). Challenge rewards toast on settling (part 1).
+  - **Achievements** (eleven, 42 in all): Regular and Part of the Furniture (cave 10 and 50),
+    Not a Scratch (a cave clear with no damage, from `leastDamage`), Top of the Class (every cave
+    challenge), Fair Weather Sailor (the cave on both its days), Old Salt and Scourge of the Grotto
+    (10 and 50), Shipshape (every grotto challenge), All Weathers (the grotto on all six days),
+    Sent Ahead (an idle run), Knows the Way Blindfold (a hundred).
+  - **Weak spot fixed**: the cave model (`tests/data/cave.ts`) reads its groups from the cave's
+    idle rooms, so it has the scene's three rats under the pool.
+  - **Changed expectations**: `tidepool.test.ts` "without the fish, a knock-out" from under 10%
+    cleared to under 30% (three rats, not four: 24% cleared); the cave economy pin `[98, 300, 71]`
+    → `[90, 270, 66]` and its XP 1.08 → 1.05 times the rats'; the achievement bound 36 → 48;
+    away-report fixtures gain `dungeon: null`. New: `tests/core/idleRun.test.ts`,
+    `tests/ui/dungeonReplay.test.ts`, `tests/data/idleRuns.ts`, two pacing cases, a content case
+    for the idle rooms against the scene's plans.
+  - **Checked** at 390 x 844 and 360 x 740, 3x: `/home/claude/lane-shots/w17-a/` (the card new,
+    mid and all done, the idle run in the strip and on the Combat page, the away report after a
+    night, achievements).
+
 ## Deferred
 
 - Wave 14: greaves and the combat pins. **Done in wave 16** (Cody: "We can rebalance around the
@@ -1068,9 +1152,11 @@ cleared, modifier })` (`src/core/progress.ts`): only a clear, never knocked out,
   them; `spoilsUnder(spoils, content)` gives the paid amounts for the results card); (3) the
   results card may show `challengeMet` for each of `content.dungeons[id].challenges`; the toast
   of rewards is the shell's; (4) the chart may show `dailyModifier` and `mayIdle`, and call
-  `shell.sendIdle?.(id)` (part 2).
-- **For lane B (wave 17)**: `modifierIcon(id)` for the eight ids above, and an activity under
-  `dungeon` for the strip (part 2 uses both when present).
+  `shell.sendIdle?.(id)` (answered since part 2: false with a toast if not allowed). (5) The
+  rooms of `DungeonDef.idle` are your plans' groups; a content test fails if a plan's foes change
+  without them, so a change to a plan's cast needs lane A to move the idle rooms too.
+- **For lane B (wave 17)**: done and used (B17): `modifierIcon(id)`, `challengeIcon(id)`,
+  `challengeMedal`, the `dungeon` loop; B17b's `slow` picture for Slack Tide (by its id). Not used yet: `dungeonSeal`, the `new` medal's sparkle.
 
 - **For lane C (wave 16)**: `shell.remembered?.(key)` / `shell.remember?.(key)` are on `main`
   (save version 10). Keys: letters and digits in parts joined by `.`, `_` or `-`, at most 48
@@ -1209,6 +1295,21 @@ was picked up with it (nothing is settled until the run ends).
   scene. Reloading to dodge a blow gets the snapshot at most a few seconds old, with the same
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
+
+### Weak list (wave 17)
+
+- On a No Rations day the idle grotto knocks a level-20 hero out in the first run (nothing can
+  be eaten), which ends the idle task; a night that crosses into one ends there. Honest to the
+  modifier, but harsh: Cody may want idle runs to skip a no-food day's catch, or the menus to warn.
+- The idle grotto loses money at level 20 on its harder days (cod eaten outweighs half the
+  doubloons); only XP, kills and finds recommend it.
+- The idle model's simultaneous groups and ignored heavy blows are a reduction, tuned only
+  against the bots' totals; the cove's two deckhands are there from the start.
+- The calendar resyncs only on the idle clock restarting and after time away; a phone changing
+  time zone mid-session keeps the old offset until then.
+- Challenges for the grotto cannot be checked until lane C reports `stats`; "Not a Scratch" in
+  the cave is untested by a person (the bots never get there).
+- The Dungeons card is long on a phone (four challenges each); not folded.
 
 ### Weak list (wave 12)
 

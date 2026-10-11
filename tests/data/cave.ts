@@ -25,18 +25,14 @@ import { CONTENT } from '../../src/data';
 export const CAVE = CONTENT.dungeons!.tidepool_cave!;
 const foe = (id: string): DungeonFoe => CAVE.cast!.find((row) => row.id === id)!;
 /**
- * Who the scene puts in the cave (src/scene/tidepool.ts, wave 15), in the
- * groups it is met in: a rat on the landing; four rats under the pool, then
- * two crabs by the far door; the boss. (Until wave 16 this model held two
- * rats and two crabs, the cast it was first tuned to, and undercounted the
- * scene's.)
+ * Who the scene puts in the cave (src/scene/tidepool.ts), in the groups it is
+ * met in: a rat on the landing; three rats under the pool, then two crabs by
+ * the far door; the boss. Read from the cave's idle rooms
+ * (`DungeonDef.idle.rooms`), which are the scene's groups, so the two cannot
+ * drift. (Until wave 16 this model held two rats and two crabs; wave 16 had
+ * four under the pool, one more than the scene's three, until wave 17.)
  */
-export const ROOMS: readonly (readonly string[])[] = [
-  ['dock_rat'],
-  ['dock_rat', 'dock_rat', 'dock_rat', 'dock_rat'],
-  ['sand_crab', 'sand_crab'],
-  ['old_snapper'],
-];
+export const ROOMS: readonly (readonly string[])[] = CAVE.idle!.rooms.map((room) => room.foes);
 /** The cooked shrimp the scene leaves lying on the cave's landing. */
 export const FOUND_FISH = 4;
 /** Heavy blows by foe: how many times its max hit, the first after, then every. */

@@ -32,6 +32,7 @@ import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
 import { dungeonDef } from '../core/dungeons';
 import { dailyModifier, newChallenges } from '../core/progress';
+import { alignIdleClock, idleRunEnded, startIdleRun, stopIdleRun } from '../core/idleRun';
 import { remember, remembered } from '../core/remembered';
 import { firstClearOf, settleRun } from '../core/run';
 import { buyFromStore } from '../core/store';
@@ -265,6 +266,7 @@ export function mountApp(
       openSkill = null;
       if (target.kind === 'skill') openSkill = content.skills[target.skill] ? target.skill : null;
       if (target.kind === 'fight') combatPage = 'fight';
+      if (target.kind === 'dungeons') combatPage = 'areas';
       turnTo();
     },
     prefs,
@@ -322,7 +324,10 @@ export function mountApp(
     if (!state) return;
     const result = catchUp(state, ms, content);
     const had = state.achievements.length;
-    state = result.state;
+    // Paid up to now, but for anything past the 24-hour cap: a dungeon run
+    // idle reads its days from the clock as it is.
+    const time = now();
+    state = alignIdleClock(result.state, time, utcOffset(time));
     save();
     // A quick reload is paid like any other gap but is not worth a report.
     // Coming back twice before reading the first report keeps the newer one,
@@ -420,6 +425,25 @@ export function mountApp(
     if (screen) screen.scrollTop = 0;
   };
 
+  /**
+   * Send the hero through a cleared dungeon idle, from now on the app's clock;
+   * it replaces whatever was running. False (and said why) if it may not.
+   */
+  const sendIdle = (dungeonId: string): boolean => {
+    if (!state) return false;
+    const time = now();
+    const result = startIdleRun(state, dungeonId, content, time, utcOffset(time));
+    if (!result.ok) {
+      toast(result.reason);
+      return false;
+    }
+    fightOver = null;
+    const name = dungeonDef(content, dungeonId)?.name ?? 'the dungeon';
+    toast(`The hero sets off for ${name}, and will keep at it till called home.`);
+    act(result.state);
+    return true;
+  };
+
   /** "To the harbour": the Town tab, with the harbour chart asked for. */
   const toHarbour = (): void => {
     request = 'chart';
@@ -446,6 +470,14 @@ export function mountApp(
       turnTo();
     },
     harbour: toHarbour,
+    sendIdle: (dungeonId) => {
+      sendIdle(dungeonId);
+    },
+    stopIdle: () => act(stopIdleRun(state ?? game)),
+    today: (dungeonId) => {
+      const time = now();
+      return dailyModifier(time, dungeonId, content, utcOffset(time));
+    },
     fight: (monsterId) => {
       const result = startFight(state ?? game, monsterId, content);
       if (!result.ok) {
@@ -792,6 +824,9 @@ export function mountApp(
         // ends cleanly and nothing before it is lost.
         tick();
         idlePaused = on;
+        // A dungeon run idle reads its days from its own calendar, which a
+        // pause leaves behind: set it to the clock again as it carries on.
+        if (!on && state) state = alignIdleClock(state, lastTick, utcOffset(lastTick));
       },
       fullScreen: (on) => {
         root.classList.toggle('fullscreen', on);
@@ -858,6 +893,7 @@ export function mountApp(
         chartSeen(state, content, prefs);
         syncTownDot();
       },
+      sendIdle: (dungeon) => sendIdle(dungeon),
       todaysModifier: (dungeon) => {
         const time = now();
         return dailyModifier(time, dungeon, content, utcOffset(time));
@@ -1110,6 +1146,18 @@ export function mountApp(
     if (before.action && !state.action) {
       const short = missingInput(state, content.actions[before.action.id]!);
       toast(short ? `Out of ${content.items[short.item]?.name ?? short.item}.` : 'Stopped.');
+      save();
+    }
+    if (before.idleRun && !state.idleRun) {
+      const reason = idleRunEnded(before, state, content) ?? 'gone';
+      const name = dungeonDef(content, before.idleRun.dungeon)?.name ?? 'the dungeon';
+      toast(
+        reason === 'died'
+          ? `Knocked out in ${name}. You come round on the quay, sore, and heal as you rest.`
+          : reason === 'no_arrows'
+            ? `Out of arrows in ${name}. The hero comes home.`
+            : 'Those runs are over.',
+      );
       save();
     }
     if (before.fight && !state.fight) {
