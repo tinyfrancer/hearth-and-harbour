@@ -17,7 +17,8 @@ const logged = (collection: string[]) => ({
 
 /**
  * What version 9 adds (wave 13): an unread notice board, no last target,
- * auto bounty off, no run kept, and a bare chin on whatever look there was.
+ * auto bounty off, no run kept, and a bare chin on whatever look there was;
+ * and what version 10 adds (wave 16): nothing remembered yet.
  */
 const boarded = (look: Record<string, string> = {}) => ({
   bountyBoard: [],
@@ -25,6 +26,7 @@ const boarded = (look: Record<string, string> = {}) => ({
   autoBounty: false,
   run: null,
   look: { beard: 'none', ...look },
+  seen: [],
 });
 
 /** What versions 6 and 7 add to a save made at `createdAt`: no fight, no food, dice of its own. */
@@ -244,7 +246,7 @@ describe('migrateGameState', () => {
       stats: { bounties: 9, streak: 3, bestStreak: 5 },
       coins: 5000,
     } as Record<string, unknown>;
-    for (const key of ['bountyBoard', 'lastBounty', 'autoBounty', 'run']) delete v8[key];
+    for (const key of ['bountyBoard', 'lastBounty', 'autoBounty', 'run', 'seen']) delete v8[key];
     const v9 = migrateGameState(structuredClone(v8))!;
     expect(v9).toEqual({
       ...v8,
@@ -253,7 +255,24 @@ describe('migrateGameState', () => {
     });
     // The bounty held keeps no offered pay: it pays its monster's old row, as it was taken.
     expect(v9.bounty).toEqual({ monster: 'marsh_troll', count: 18, done: 7 });
-    expect(GAME_STATE_VERSION).toBe(9);
+  });
+
+  it('brings a version 9 save (waves 13 to 15) up to date with nothing remembered, and all else as it was', () => {
+    const v9 = {
+      ...newGame('Cody', 5),
+      version: 9,
+      look: { skin: 'tan', beard: 'full' },
+      dungeons: { tidepool_cave: { clears: 2, bestMs: 101_400 } },
+      autoBounty: true,
+      coins: 5000,
+    } as Record<string, unknown>;
+    delete v9.seen;
+    expect(migrateGameState(structuredClone(v9))).toEqual({
+      ...v9,
+      version: GAME_STATE_VERSION,
+      seen: [],
+    });
+    expect(GAME_STATE_VERSION).toBe(10);
   });
 
   it('walks every step in order and stamps the version as it goes', () => {

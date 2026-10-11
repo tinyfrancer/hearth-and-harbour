@@ -326,3 +326,46 @@ describe('the harbour chart, asked for from the menus', () => {
     expect(saved()!.dungeons.tidepool_cave).toEqual({ clears: 2, bestMs: 100_000 });
   });
 });
+
+describe('things remembered for a scene (wave 16)', () => {
+  const reopen = (after: number): void => {
+    root.replaceChildren();
+    clock += after;
+    shell = undefined;
+    mountApp(root, { saves: new LocalStorageSaveService(), content: CONTENT, now: () => clock });
+    click('.tab[data-tab="town"]');
+  };
+
+  it('remembers a key at once, in the save, through a reload', () => {
+    inTown();
+    expect(shell!.remembered!('town.pan')).toBe(false);
+    shell!.remember!('town.pan');
+    expect(shell!.remembered!('town.pan')).toBe(true);
+    // Saved there and then, without waiting for the next save.
+    expect(saved()!.seen).toEqual(['town.pan']);
+    reopen(5_000);
+    expect(shell!.remembered!('town.pan')).toBe(true);
+    expect(shell!.remembered!('cave.lesson.attack')).toBe(false);
+  });
+
+  it('keeps each key once, in the order remembered, and ignores keys of the wrong shape', () => {
+    inTown();
+    for (const key of ['cave.lesson.attack', 'town.pan', 'cave.lesson.attack']) {
+      shell!.remember!(key);
+    }
+    shell!.remember!('not a key');
+    shell!.remember!('x'.repeat(49));
+    expect(saved()!.seen).toEqual(['cave.lesson.attack', 'town.pan']);
+    expect(shell!.remembered!('not a key')).toBe(false);
+  });
+
+  it('does not rebuild the screen under the scene, nor disturb the idle task', () => {
+    const app = inTown();
+    const screen = root.querySelector('#screen')!.firstElementChild;
+    clock += 3000;
+    app.tick();
+    shell!.remember!('town.pan');
+    expect(root.querySelector('#screen')!.firstElementChild).toBe(screen);
+    expect(saved()!.bank).toEqual({ pine_logs: 1 });
+  });
+});

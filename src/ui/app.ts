@@ -30,6 +30,7 @@ import { equip, unequip, wornItemIds } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
 import { dungeonDef } from '../core/dungeons';
+import { remember, remembered } from '../core/remembered';
 import { firstClearOf, settleRun } from '../core/run';
 import { buyFromStore } from '../core/store';
 import { SLOTS, type AchievementDef, type Content } from '../core/content';
@@ -832,6 +833,16 @@ export function mountApp(
         if (!state) return;
         chartSeen(state, content, prefs);
         syncTownDot();
+      },
+      remembered: (key) => (state ? remembered(state, key) : false),
+      remember: (key) => {
+        if (!state) return;
+        const next = remember(state, key);
+        if (next === state) return;
+        // Saved at once, so a reload straight after does not show it again;
+        // nothing else changes, so nothing is redrawn under the scene.
+        state = next;
+        save();
       },
     });
   };

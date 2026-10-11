@@ -63,6 +63,10 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     run: null,
     look: { beard: 'none', ...record(state.look) },
   }),
+  // Wave 16: one-off things remembered for good (the town's first pan, a
+  // dungeon's lessons), which until now lasted only as long as the page.
+  // Nothing older can be known, so nothing is remembered yet.
+  9: (state) => ({ ...state, seen: [] }),
 };
 
 /** A save's field as a plain object, or an empty one if it is not one. */

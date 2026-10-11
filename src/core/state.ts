@@ -10,7 +10,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 9;
+export const GAME_STATE_VERSION = 10;
 
 export interface ActiveAction {
   /** An ActionDef id. */
@@ -241,6 +241,12 @@ export interface GameState {
   perks: string[];
   /** A dungeon run under way, as the scene last handed it over; null when none is. */
   run: SavedRun | null;
+  /**
+   * One-off things remembered for good (src/core/remembered.ts): short keys a
+   * scene or menu chose, such as `'town.pan'`, each once, in the order first
+   * remembered. Only ever added to.
+   */
+  seen: string[];
 }
 
 /** Eat below half health, unless the player says otherwise. */
@@ -297,6 +303,7 @@ export function newGame(name: string, now: number, look: Look = {}): GameState {
     stats: {},
     perks: [],
     run: null,
+    seen: [],
   };
 }
 
