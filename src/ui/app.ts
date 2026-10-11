@@ -7,8 +7,11 @@ import {
   bountyReady,
   bountyReward,
   buyFromShop,
+  giveUpBounty,
   handInBounty,
-  swapBounty,
+  readBoard,
+  rerollBoard,
+  setAutoBounty,
   takeBounty,
 } from '../core/bounty';
 import {
@@ -29,7 +32,7 @@ import { drinkPotion } from '../core/potions';
 import { settleRun } from '../core/run';
 import { buyFromStore } from '../core/store';
 import { SLOTS, type AchievementDef, type Content } from '../core/content';
-import { newGame, skillLevel, type Fight, type GameState } from '../core/state';
+import { newGame, skillLevel, stat, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
 import { awayReportOverlay } from './awayReport';
 import { artGallery } from '../art/gallery';
@@ -405,25 +408,39 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       combatPage = null;
       turnTo();
     },
-    take: () =>
+    read: () => bountyAct(readBoard(state ?? game, content)),
+    take: (index) =>
       bountyAct(
-        takeBounty(state ?? game, content),
+        takeBounty(state ?? game, content, index),
         (next) => `Wanted: ${counted(next.bounty!.count, monsterName(next.bounty!.monster))}.`,
       ),
+    reroll: () =>
+      bountyAct(rerollBoard(state ?? game, content), () => 'Fresh notices on the board.'),
     handIn: () => {
       const before = state ?? game;
       const { points, coins } = bountyReward(before, content);
       bountyAct(handInBounty(before, content), (next) => {
         const stopped = before.fight && !next.fight ? ' The hunt is over.' : '';
-        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Next: ${counted(next.bounty?.count ?? 0, monsterName(next.bounty?.monster))}.`;
+        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Pick the next from the board.`;
       });
     },
-    swap: () =>
+    giveUp: () =>
       bountyAct(
-        swapBounty(state ?? game, content),
-        (next) =>
-          `Swapped. Wanted now: ${counted(next.bounty!.count, monsterName(next.bounty!.monster))}.`,
+        giveUpBounty(state ?? game, content),
+        () => 'Given up. Pick another from the board.',
       ),
+    auto: (on) => {
+      const before = state ?? game;
+      const next = setAutoBounty(before, on, content);
+      toast(
+        on
+          ? stat(next, 'bounties') > stat(before, 'bounties')
+            ? `Auto bounty on. Paid, and next: ${counted(next.bounty?.count ?? 0, monsterName(next.bounty?.monster))}.`
+            : 'Auto bounty on: a finished bounty hands itself in.'
+          : 'Auto bounty off.',
+      );
+      act(next);
+    },
     hunt: (monsterId) => {
       const current = state ?? game;
       if (current.fight?.monster === monsterId) {
@@ -890,7 +907,15 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         `Out of ${content.items[before.food.item]?.name ?? 'food'}. Fighting on without eating.`,
       );
     }
-    if (bountyReady(state) && !bountyReady(before)) {
+    const handed = stat(state, 'bounties') - stat(before, 'bounties');
+    if (handed > 0) {
+      // Auto bounty handed it in and took the next, mid-fight.
+      const paid = state.bountyPoints - before.bountyPoints;
+      toast(
+        `Bounty paid: ${counted(paid, 'point')}. Next: ${counted(state.bounty?.count ?? 0, monsterName(state.bounty?.monster))}.`,
+      );
+      save();
+    } else if (bountyReady(state) && !bountyReady(before)) {
       toast(
         `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
       );

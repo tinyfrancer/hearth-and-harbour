@@ -122,19 +122,45 @@ describe('Thieving', () => {
 });
 
 describe('bounties', () => {
-  it('are reached from the Combat section, and taken from the board', () => {
+  it('are reached from the Combat section, read off the board and chosen', () => {
     playing();
     q<HTMLButtonElement>('[data-bounties]').click();
     expect(q('[data-points]').textContent).toBe('0');
-    press('Take a bounty');
+    press('Read the notice board');
+    // At level 1 only the rat is open: one notice, with what it pays.
+    const offer = q('[data-offer="dock_rat"]');
+    expect(offer.textContent).toMatch(/Wanted: \d+ Dock rats/);
+    expect(offer.textContent).toMatch(/Pays \d+ bounty points? and [\d,]+ coins\./);
+    // No points yet, so no fresh notices.
+    expect(q<HTMLButtonElement>('[data-reroll]').disabled).toBe(true);
+    offer.querySelector<HTMLButtonElement>('button')!.click();
     expect(saved().bounty).toMatchObject({ monster: 'dock_rat', done: 0 });
+    expect(saved().bountyBoard).toEqual([]);
     expect(lastToast()).toMatch(/^Wanted: \d+ Dock rats\.$/);
     expect(q('[data-bounty="dock_rat"]').textContent).toContain('Wanted:');
   });
 
+  it('offer a choice of three at a higher level, and fresh ones for a point', () => {
+    playing({ skills: trained(20), bountyPoints: 4 });
+    q<HTMLButtonElement>('[data-bounties]').click();
+    press('Read the notice board');
+    const shown = () =>
+      [...root.querySelectorAll('[data-offer]')].map((el) => el.getAttribute('data-offer'));
+    const first = shown();
+    expect(first).toHaveLength(3);
+    expect(new Set(first).size).toBe(3);
+    press('Fresh notices (1 point)');
+    expect(saved().bountyPoints).toBe(3);
+    for (const monster of shown()) expect(first).not.toContain(monster);
+    // Taking the second notice takes that one.
+    const second = saved().bountyBoard[1]!;
+    root.querySelectorAll<HTMLElement>('[data-offer]')[1]!.querySelector('button')!.click();
+    expect(saved().bounty).toEqual({ ...second, done: 0 });
+  });
+
   it('are hunted, progressed by fighting, handed in, and spent', () => {
     const app = playing({
-      bounty: { monster: 'dock_rat', count: 5, done: 0 },
+      bounty: { monster: 'dock_rat', count: 5, done: 0, points: 2 },
       bountyPoints: 29,
       coins: 0,
     });
@@ -147,7 +173,7 @@ describe('bounties', () => {
       play(app, 1000);
       toasts += lastToast();
     }
-    expect(saved().bounty).toEqual({ monster: 'dock_rat', count: 5, done: 5 });
+    expect(saved().bounty).toEqual({ monster: 'dock_rat', count: 5, done: 5, points: 2 });
     expect(toasts).toContain('Bounty done: 5 Dock rats. Hand it in.');
     expect(q('[data-wanted]').textContent).toContain('Hand it in');
     press('‹ Areas');
@@ -157,8 +183,10 @@ describe('bounties', () => {
     expect(saved().bountyPoints).toBe(31);
     expect(saved().coins).toBe(coinsBefore + 200);
     expect(lastToast()).toMatch(/^Bounty paid: 2 points and 200 coins\./);
-    // A fresh one is posted at once.
-    expect(saved().bounty).toMatchObject({ done: 0 });
+    // Fresh notices are up at once, to choose from.
+    expect(saved().bounty).toBeNull();
+    expect(saved().bountyBoard.length).toBeGreaterThan(0);
+    expect(root.querySelector('[data-offer]')).toBeTruthy();
     // And something bought with the points.
     expect(buttonSaying('Buy for 90').disabled).toBe(true);
     q<HTMLButtonElement>('[data-buy="feathered_hat"]').click();
@@ -168,19 +196,56 @@ describe('bounties', () => {
     expect(q('[data-shop="feathered_hat"]').textContent).toContain('You have one already.');
   });
 
-  it('can be swapped, with a second tap, for a few points', () => {
+  it('can be given up, with a second tap, for a few points', () => {
     playing({
       skills: trained(8),
-      bounty: { monster: 'dock_rat', count: 60, done: 3 },
+      bounty: { monster: 'dock_rat', count: 60, done: 3, points: 5 },
       bountyPoints: 10,
     });
     q<HTMLButtonElement>('[data-bounties]').click();
-    press('Swap it (3 points)');
+    press('Give it up (3 points)');
     expect(saved().bountyPoints).toBe(10);
     press('Tap again to spend 3 points');
     expect(saved().bountyPoints).toBe(7);
-    expect(saved().bounty!.monster).not.toBe('dock_rat');
-    expect(lastToast()).toMatch(/^Swapped\./);
+    expect(saved().bounty).toBeNull();
+    expect(saved().bountyBoard.map((offer) => offer.monster)).not.toContain('dock_rat');
+    expect(lastToast()).toMatch(/^Given up\./);
+  });
+
+  it('hand themselves in with auto bounty on, and the hunt goes on, live and away', () => {
+    const app = playing({
+      skills: trained(20),
+      equipment: { main_hand: { item: 'iron_sword', qty: 1 } },
+      bounty: { monster: 'dock_rat', count: 3, done: 0, points: 2 },
+      food: { item: 'cooked_cod', qty: 500 },
+    });
+    q<HTMLButtonElement>('[data-bounties]').click();
+    const toggle = q<HTMLButtonElement>('[data-auto]');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    toggle.click();
+    expect(saved().autoBounty).toBe(true);
+    expect(q('[data-auto]').getAttribute('aria-checked')).toBe('true');
+    expect(q('[data-auto]').textContent).toContain('On');
+    press('Hunt the Dock rat');
+    let toasts = '';
+    for (let i = 0; i < 120 && !saved().stats.bounties; i += 1) {
+      play(app, 1000);
+      app.save();
+      toasts += lastToast();
+    }
+    const after = saved();
+    expect(after.stats.bounties).toBe(1);
+    expect(after.bountyPoints).toBe(2);
+    expect(toasts).toMatch(/Bounty paid: 2 points\. Next: \d+ /);
+    // On to the next, already fighting it, on the fight screen built for it.
+    expect(after.bounty!.monster).not.toBe('dock_rat');
+    expect(after.fight!.monster).toBe(after.bounty!.monster);
+    expect(q(`[data-foe="${after.bounty!.monster}"]`)).toBeTruthy();
+    // And away: the report says what it handed in.
+    const report = away(app, 6 * HOUR);
+    expect(report).toMatch(
+      /Auto bounty handed in [\d,a-z ]+ for [\d,]+ points? and [\d,]+ coins, and took the next\./,
+    );
   });
 
   it('open the way to a monster only bounty hunters go after', () => {

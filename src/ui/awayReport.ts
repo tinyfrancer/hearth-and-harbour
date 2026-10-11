@@ -1,4 +1,5 @@
 import { OFFLINE_CAP_MS, type AwayReport } from '../core/away';
+import { COINS_PER_POINT } from '../core/bounty';
 import type { Content } from '../core/content';
 import { button, h } from './dom';
 import { formatDuration, formatNumber } from './format';
@@ -104,6 +105,10 @@ export function awayReportOverlay(
       ? `${progress}. Ready to hand in.`
       : `${progress} (${formatNumber(gained)} while you were away).`;
   }
+  // What auto bounty handed in on its own.
+  const claimed = report.claimed
+    ? `Auto bounty handed in ${report.claimed.bounties === 1 ? 'a bounty' : `${formatNumber(report.claimed.bounties)} bounties`} for ${formatNumber(report.claimed.points)} ${report.claimed.points === 1 ? 'point' : 'points'} and ${formatNumber(report.claimed.points * COINS_PER_POINT)} coins, and took the next.`
+    : '';
 
   let stopped = '';
   if (report.stopped?.reason === 'ran_out') {
@@ -136,6 +141,7 @@ export function awayReportOverlay(
           : h('p', { class: 'muted', text: 'Nothing finished in that time.' }),
         ...fight.map((text) => h('p', { class: 'fight-text', text })),
         ...theft.map((text) => h('p', { class: 'theft-text', text })),
+        claimed && h('p', { class: 'bounty-text', attrs: { 'data-claimed': '' }, text: claimed }),
         bounty &&
           h('p', { class: `bounty-text${report.bounty?.ready ? ' ready' : ''}`, text: bounty }),
         ...levels,

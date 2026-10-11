@@ -204,7 +204,7 @@ describe('achievements', () => {
     localStorage.setItem('hearth-and-harbour:save', JSON.stringify(old));
     mountApp(root, { saves: saves(), content: CONTENT, now: () => clock });
     expect(saved()).toMatchObject({
-      version: 8,
+      version: 9,
       coins: 120,
       collection: ['pine_logs'],
       achievements: ['first_log'],

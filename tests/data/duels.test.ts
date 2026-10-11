@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advance } from '../../src/core/actions';
-import { BOUNTY_BELOW, bountyChoices } from '../../src/core/bounty';
+import { bountyChoices, bountyWeight } from '../../src/core/bounty';
 import { CONTENT } from '../../src/data';
 import { HOUR, characterAt, duels, fight, hourOf } from './fighting';
 
@@ -91,18 +91,22 @@ describe('bounties', () => {
   );
 
   // The board never posts something hopeless: the hardest it may post at each
-  // combat level is a fair fight at that level, in that level's gear. Nor
-  // anything trivial: nothing more than six levels below.
+  // combat level is a fair fight at that level, in that level's gear. Since
+  // wave 13 (Cody: "I only got marsh trolls over and over") it posts anything
+  // easier too, so there is always variety; but the trivial are the exception:
+  // what is more than six levels below the strongest open is under a third
+  // of what is posted.
   it.each(Array.from({ length: 22 }, (_, i) => i + 1))(
-    'posts nothing hopeless or trivial at combat level %i',
+    'posts nothing hopeless, and the trivial seldom, at combat level %i',
     (level) => {
       const choices = bountyChoices(characterAt(level), CONTENT);
       expect(choices.length).toBeGreaterThan(0);
-      for (const monster of choices) {
-        expect(monster.level).toBeLessThanOrEqual(level);
-        expect(monster.level).toBeGreaterThanOrEqual(level - BOUNTY_BELOW);
-      }
+      for (const monster of choices) expect(monster.level).toBeLessThanOrEqual(level);
       const hardest = choices.at(-1)!;
+      const weight = (list: typeof choices): number =>
+        list.reduce((sum, monster) => sum + bountyWeight(monster, hardest.level), 0);
+      const trivial = choices.filter((monster) => monster.level < hardest.level - 6);
+      expect(weight(trivial) / weight(choices)).toBeLessThan(1 / 3);
       expect(duels(level, hardest.id, 100).winRate, hardest.id).toBeGreaterThanOrEqual(0.7);
     },
   );

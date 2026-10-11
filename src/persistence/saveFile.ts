@@ -1,3 +1,4 @@
+import { BOARD_SIZE } from '../core/bounty';
 import { SLOTS } from '../core/content';
 import { GAME_STATE_VERSION, nameProblem, type GameState } from '../core/state';
 import { migrateGameState } from './migrations';
@@ -138,7 +139,7 @@ function saveProblem(state: Record<string, unknown>): string | null {
     !isRecord(look) ||
     !Object.entries(look).every(([part, id]) => LOOK_PARTS.includes(part) && typeof id === 'string')
   ) {
-    return 'the look should be a skin, a hair and a hair colour';
+    return 'the look should be a skin, a hair, a hair colour and a beard';
   }
   const { equipment } = state;
   if (
@@ -210,13 +211,41 @@ function saveProblem(state: Record<string, unknown>): string | null {
       isWhole(bounty.count) &&
       bounty.count > 0 &&
       isWhole(bounty.done) &&
-      bounty.done <= bounty.count
+      bounty.done <= bounty.count &&
+      // Left out only on a bounty taken before offers carried their pay.
+      (bounty.points === undefined || isWhole(bounty.points))
     )
   ) {
-    return 'the bounty should be a monster and a count of kills made of those asked';
+    return 'the bounty should be a monster, a count of kills made of those asked, and its pay';
   }
   if (!isWhole(state.bountyPoints)) {
     return 'bounty points should be a whole number';
+  }
+  const board = state.bountyBoard;
+  if (
+    !Array.isArray(board) ||
+    board.length > BOARD_SIZE ||
+    !board.every(
+      (offer) =>
+        isRecord(offer) &&
+        typeof offer.monster === 'string' &&
+        isWhole(offer.count) &&
+        offer.count > 0 &&
+        isWhole(offer.points) &&
+        offer.points > 0,
+    ) ||
+    new Set(board.map((offer: Record<string, unknown>) => offer.monster)).size !== board.length
+  ) {
+    return 'the notice board should be up to three offers, each on a different monster';
+  }
+  if (bounty !== null && board.length > 0) {
+    return 'it holds a bounty with offers still on the board';
+  }
+  if (state.lastBounty !== null && typeof state.lastBounty !== 'string') {
+    return 'the last bounty should be a monster or nothing';
+  }
+  if (typeof state.autoBounty !== 'boolean') {
+    return 'auto bounty should be on or off';
   }
   const { health } = state;
   if (
@@ -260,7 +289,41 @@ function saveProblem(state: Record<string, unknown>): string | null {
   if (!isIdList(state.perks)) {
     return "the store's lasting things should be a list of those bought, each once";
   }
+  if (state.run !== null && !isSavedRun(state.run)) {
+    return 'the dungeon run under way is not one';
+  }
   return null;
+}
+
+/** The most a kept run may take up, as JSON: a run is a few dozen foes and piles, far below it. */
+export const RUN_MAX_CHARS = 256 * 1024;
+
+/**
+ * A kept dungeon run: a dungeon, the scene's snapshot version, spoils in the
+ * shape `settleRun` takes (numbers not below nothing; it rounds them itself),
+ * and the snapshot itself, a plain object under the cap. The snapshot
+ * is the scene's to judge; the save checks only that it is data.
+ */
+function isSavedRun(run: unknown): boolean {
+  if (!isRecord(run) || typeof run.dungeon !== 'string') return false;
+  if (!isWhole(run.scene) || run.scene < 1) return false;
+  const spoils = run.spoils;
+  if (!isRecord(spoils)) return false;
+  for (const field of ['coins', 'foodEaten', 'arrowsUsed', 'timeMs', 'hp']) {
+    if (spoils[field] !== undefined && !isCount(spoils[field])) return false;
+  }
+  for (const field of ['xp', 'loot', 'kills']) {
+    const counts = spoils[field];
+    if (counts !== undefined && !(isRecord(counts) && Object.values(counts).every(isCount))) {
+      return false;
+    }
+  }
+  if (!isRecord(run.data)) return false;
+  try {
+    return JSON.stringify(run.data).length <= RUN_MAX_CHARS;
+  } catch {
+    return false;
+  }
 }
 
 /** The running counts a save may hold (StatId in src/core/state.ts). */
@@ -295,7 +358,7 @@ function isFight(fight: unknown): boolean {
 }
 
 /** The parts of a look a save may name. Their values are the art's to judge. */
-const LOOK_PARTS: readonly string[] = ['skin', 'hair', 'hairColour'];
+const LOOK_PARTS: readonly string[] = ['skin', 'hair', 'hairColour', 'beard'];
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;

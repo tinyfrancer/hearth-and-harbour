@@ -18,10 +18,11 @@ import {
   monsterDef,
   rest,
 } from './combat';
+import { combatLevelOf, payBounty, type BountyBook } from './bounty';
 import type { Content } from './content';
 import { combatStyle, equipmentTotals } from './equipment';
 import { Dice } from './rng';
-import type { GameState, MonsterRecord } from './state';
+import { skillLevel, type GameState, type MonsterRecord } from './state';
 import { Trained } from './xp';
 
 /** Why a fight that was under way before some time passed is not any more. */
@@ -45,6 +46,12 @@ export type FightEnd = 'died' | 'no_arrows' | 'gone';
  * A fight that ends partway through the time leaves the rest of it to heal
  * in, as any time out of a fight is, so where the time was cut still does not
  * matter.
+ *
+ * With auto bounty on, the kill that finishes the bounty held hands it in and
+ * takes the next (`payBounty`, src/core/bounty.ts), rolling the board's dice
+ * inside that kill after its drops; the next monster to arrive is the new
+ * bounty's. It is one more thing that happens at an event, so it too falls
+ * the same however the time is cut.
  */
 export function advanceFight(state: GameState, ms: number, content: Content): GameState {
   const { state: after, left } = walkFight(state, ms, content);
@@ -63,9 +70,10 @@ function walkFight(
 ): { state: GameState; left: number } {
   const fight = state.fight;
   if (!fight || !(ms > 0)) return { state, left: 0 };
-  const monster = monsterDef(content, fight.monster);
+  const first = monsterDef(content, fight.monster);
   // A save can outlive the monster it was fighting; stop rather than guess.
-  if (!monster) return { state: leaveFight(state), left: ms };
+  if (!first) return { state: leaveFight(state), left: ms };
+  let monster = first;
 
   const totals = equipmentTotals(state, content);
   const ranged = totals.style === 'ranged';
@@ -82,29 +90,62 @@ function walkFight(
   // Copied on the first drop, so a frame with no kill copies nothing.
   let loot: Record<string, number> | null = null;
   let bank: Record<string, number> | null = null;
-  let record: MonsterRecord | null = null;
+  /** What has been learnt of each monster met in this walk (auto bounty can bring another). */
+  let records: Record<string, MonsterRecord> | null = null;
   let ended = false;
   let knockedOut = false;
   let time = ms;
   // Kills count towards a bounty on this monster until it asks for no more.
-  const hunting = state.bounty?.monster === monster.id ? state.bounty : null;
+  let hunting = state.bounty?.monster === monster.id ? state.bounty : null;
   let hunted = hunting?.done ?? 0;
+  // The bounty's side of the state, once auto bounty has handed one in.
+  let book: BountyBook | null = null;
+  const otherAttack = skillLevel(state, attackSkill(ranged ? 'melee' : 'ranged'));
+
+  /** With auto bounty on, the bounty just finished is handed in and the next taken. */
+  const claim = (): void => {
+    const level = combatLevelOf(
+      Math.max(attacking.level, otherAttack),
+      defence.level,
+      vitality.level,
+    );
+    const was = book ?? state;
+    book = payBounty(
+      {
+        bounty: { ...hunting!, done: hunted },
+        bountyPoints: was.bountyPoints,
+        coins: was.coins,
+        stats: was.stats,
+        lastBounty: was.lastBounty,
+        bountyBoard: was.bountyBoard,
+      },
+      content,
+      level,
+      dice,
+      true,
+    );
+    const next = book.bounty && monsterDef(content, book.bounty.monster);
+    if (next) monster = next;
+    hunting = book.bounty;
+    hunted = 0;
+  };
 
   const kill = (): void => {
     kills += 1;
     loot ??= { ...fight.loot };
     bank ??= { ...state.bank };
-    record ??= {
+    records ??= {};
+    const record = (records[monster.id] ??= {
       kills: state.bestiary[monster.id]?.kills ?? 0,
       seen: [...(state.bestiary[monster.id]?.seen ?? [])],
-    };
+    });
     record.kills += 1;
     if (hunting && hunted < hunting.count) hunted += 1;
     coins += dice.between(monster.coins[0], monster.coins[1]);
     const drop = (item: string, qty: number): void => {
       loot![item] = (loot![item] ?? 0) + qty;
       bank![item] = (bank![item] ?? 0) + qty;
-      if (!record!.seen.includes(item)) record!.seen.push(item);
+      if (!record.seen.includes(item)) record.seen.push(item);
     };
     for (const { item, min, max } of monster.always) {
       drop(item, dice.between(min, max));
@@ -115,6 +156,7 @@ function walkFight(
     hp = Math.min(maxHpFor(vitality.level), hp + breatherFor(maxHpFor(vitality.level)));
     foeHp = 0;
     foeMs = RESPAWN_MS;
+    if (state.autoBounty && hunting && hunted >= hunting.count) claim();
   };
 
   /** The character's blow. */
@@ -195,7 +237,8 @@ function walkFight(
   // Assigned inside the closures above, which the compiler does not follow.
   const dropped = loot as Record<string, number> | null;
   const banked = bank as Record<string, number> | null;
-  const learnt = record as MonsterRecord | null;
+  const learnt = records as Record<string, MonsterRecord> | null;
+  const paid = book as BountyBook | null;
   const skills = { ...state.skills };
   // A skill gains an entry only once it has XP, as everywhere else.
   for (const [id, trained] of [
@@ -235,8 +278,18 @@ function walkFight(
   };
   if (banked) next.bank = banked;
   if (coins !== fight.coins) next.coins = state.coins + coins - fight.coins;
-  if (learnt) next.bestiary = { ...state.bestiary, [monster.id]: learnt };
-  if (hunting && hunted !== hunting.done) next.bounty = { ...hunting, done: hunted };
+  if (learnt) next.bestiary = { ...state.bestiary, ...learnt };
+  if (paid) {
+    // What the bounties handed in paid, on top of what the fight itself brought.
+    next.coins = (next.coins ?? state.coins) + paid.coins - state.coins;
+    next.bountyPoints = paid.bountyPoints;
+    next.stats = paid.stats;
+    next.lastBounty = paid.lastBounty;
+    next.bountyBoard = paid.bountyBoard;
+    next.bounty = paid.bounty && { ...paid.bounty, done: hunted };
+  } else if (hunting && hunted !== hunting.done) {
+    next.bounty = { ...hunting, done: hunted };
+  }
   return { state: next, left: ended ? time : 0 };
 }
 

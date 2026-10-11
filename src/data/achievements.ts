@@ -129,7 +129,7 @@ const ROWS: Record<string, Row> = {
   },
   bounty_streak: {
     name: 'On a Roll',
-    text: 'Hand in five bounties in a row without a swap.',
+    text: 'Hand in five bounties in a row without giving one up.',
     rule: { kind: 'stat', stat: 'bestStreak', count: 5 },
   },
   caught_50: {
