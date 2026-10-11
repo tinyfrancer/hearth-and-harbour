@@ -157,7 +157,7 @@ export const HAIR2: readonly Gear2[] = [
   { id: 'shaggy_hair_under', slot: 'hair', parts: [SHAGGY_LOCKS, SHAGGY_BACK] },
   ...Object.entries(NEW_HAIR).flatMap(([id, d]): Gear2[] => [
     { id: `${id}_hair`, slot: 'hair', parts: d.front },
-    { id: `${id}_hair_under`, slot: 'hair', parts: underOf(d.front) },
+    { id: `${id}_hair_under`, slot: 'hair', parts: underOf(d.under?.front ?? d.front) },
   ]),
 ];
 

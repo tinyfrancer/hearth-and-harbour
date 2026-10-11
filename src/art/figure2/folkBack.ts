@@ -133,10 +133,19 @@ const HEADS: Readonly<Record<string, readonly Part2[]>> = {
       ],
       'hair',
     ),
+    // B17: the broad bun low at the back, rimmed a step darker all round so it stands off the
+    // hair it is wound from (it was lost in it at true size).
     hd(
-      3,
+      2,
       6,
-      ['...1223...', '.11222334.', '1122223344', '1222233344', '.12233344.', '..23344...'],
+      [
+        '...445544...',
+        '.4411223354.',
+        '411122223354',
+        '412222333345',
+        '.4223333455.',
+        '..44555554..',
+      ],
       'hair',
       undefined,
       62,
@@ -266,6 +275,67 @@ const HEADS: Readonly<Record<string, readonly Part2[]>> = {
  * (B11: the front drawing turned round still showed its knot).
  */
 const EXTRA: Readonly<Record<string, readonly Part2[]>> = {
+  // B17: her elbows, rounded and turning in toward the tankard she holds in front (from behind
+  // her forearms ended square at her sides, like stumps), and her apron's strings tied in a bow
+  // at the small of her back.
+  alewife: [
+    {
+      at: [14, 33],
+      depth: 40,
+      rows: ['stt..', 'sttu.', '.tuuv', '.tuvw', '..vw.', '...w.'],
+    },
+    {
+      at: [37, 33],
+      depth: 40,
+      rows: ['..tuv', '.tuvv', 'uuvv.', 'uvvw.', '.vw..', '.w...'],
+    },
+    {
+      at: [20, 38],
+      depth: 41,
+      rows: [
+        'ccccccCcCcccccc',
+        '.....CccCcC....',
+        '......CcC......',
+        '.....C...C.....',
+        '....C.....C....',
+      ],
+      pins: { c: ['cream', 1], C: ['cream', 3] },
+    },
+  ],
+  // B17: the old man's coat from behind, a seam down its back from a half-belt with two
+  // buttons to a vent at the hem.
+  elder: [
+    {
+      at: [22, 38],
+      depth: 8,
+      rows: ['abbbbbbbbbbc', 'cg.....g...c'],
+      pins: { a: ['umber', 2], b: ['umber', 3], c: ['umber', 5], g: ['bronze', 1] },
+    },
+    {
+      at: [27, 40],
+      depth: 8,
+      rows: [
+        'c',
+        'c',
+        'c',
+        'c',
+        'c',
+        'c',
+        'c',
+        'c',
+        'c',
+        'c',
+        'cd',
+        'cd',
+        'cd',
+        'c.d',
+        'c.d',
+        'c.d',
+        'c..d',
+      ],
+      pins: { c: ['umber', 5], d: ['umber', 1] },
+    },
+  ],
   market: [
     {
       at: [18, 22],
@@ -289,6 +359,27 @@ const EXTRA: Readonly<Record<string, readonly Part2[]>> = {
     },
   ],
   smith: [
+    // B17: the apron's straps crossed on his back, from his shoulders to the strings at his waist.
+    {
+      at: [22, 23],
+      depth: 7,
+      rows: [
+        'aa.........aa',
+        '.ab.......ba.',
+        '..ab.....ba..',
+        '...ab...ba...',
+        '....ab.ba....',
+        '.....aba.....',
+        '.....bab.....',
+        '....ba.ab....',
+        '...ba...ab...',
+        '..ba.....ab..',
+        '.ba.......ab.',
+        'ba.........ab',
+        'a...........a',
+      ],
+      pins: { a: ['leather', 2], b: ['leather', 4] },
+    },
     {
       at: [21, 36],
       depth: 7,
