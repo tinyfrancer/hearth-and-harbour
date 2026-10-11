@@ -40,7 +40,7 @@ export function titleGallery(): { button: HTMLElement; section: HTMLElement } {
       drawn = true;
       draw(body);
     }
-    section.scrollIntoView({ block: 'start' });
+    section.scrollIntoView?.({ block: 'start' });
   });
   return { button, section };
 }
