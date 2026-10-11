@@ -613,7 +613,10 @@ export function characterStrikePicture2(
     grid = null;
   }
   const pic: Picture2 = grid
-    ? { grid: smeared(recolour(grid, lookSwap(safe)), safe, wornItemIds, extra, facing, f), glows: [] }
+    ? {
+        grid: smeared(recolour(grid, lookSwap(safe)), safe, wornItemIds, extra, facing, f),
+        glows: [],
+      }
     : characterWalkPicture2(look, wornItemIds, facing, 0, extra);
   posedPics.set(key, pic);
   return pic;

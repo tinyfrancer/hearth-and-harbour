@@ -8,6 +8,7 @@ import {
   STRIKE2_HIT_FRAME,
   characterStrike2,
   characterStrikePicture2,
+  characterFrameTagged2,
   characterStrikeTagged2,
   characterWalkPicture2,
   forgetWalks2,
@@ -15,7 +16,7 @@ import {
 } from '../../src/art/character2';
 import { strikeKind } from '../../src/art/figure2/strike';
 import { foePicture2 } from '../../src/art/dungeonArt2';
-import type { TGrid } from '../../src/art/town2/cells';
+import { isMat, type TGrid } from '../../src/art/town2/cells';
 
 // The hero's blow (docs/style-guide.md, "The blow"): four frames in every
 // facing, for every weapon class and outfit, on the walk's canvas and anchor.
@@ -191,6 +192,113 @@ describe('the blow, in every facing', () => {
     });
     expect(reach).toBeGreaterThan(FIGURE2_ANCHOR_X + 12);
     expect(rest.w).toBe(56);
+  });
+});
+
+// B17: the blow toward the camera and away read much weaker than across (B12's weak list).
+describe('the blow toward and away reads at true size (B17)', () => {
+  /** How long a held thing shows: the diagonal of the box round its pixels. */
+  const heldCount = (tags: readonly (string | null)[]) => {
+    const px = tags.flatMap((t, i) => (t === 'held' ? [[i % W, Math.floor(i / W)]] : []));
+    const xs = px.map((p) => p[0]!);
+    const ys = px.map((p) => p[1]!);
+    return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  };
+  const standing = (worn: string[], extra: string[] = []) =>
+    heldCount(characterFrameTagged2({}, worn, 'down', 0, extra).tags);
+
+  it('lands a swung weapon with its length showing, toward the camera and across', () => {
+    for (const [worn, extra] of [
+      [['iron_sword'], []],
+      [['boarding_axe'], []],
+      [[], [...KNIGHT_GEAR2]],
+    ] as const) {
+      const stand = standing([...worn], [...extra]);
+      for (const facing of ['down', 'right', 'left'] as const) {
+        const hit = heldCount(
+          characterStrikeTagged2({}, [...worn], facing, STRIKE2_HIT_FRAME, [...extra])!.tags,
+        );
+        // B12 drew a long sword at about half its length at the blow.
+        expect(
+          hit / stand,
+          `${worn.join()}${extra.length ? 'knight' : ''} ${facing}`,
+        ).toBeGreaterThan(worn[0] === 'boarding_axe' && facing !== 'down' ? 0.35 : 0.75);
+      }
+    }
+  });
+
+  it('lands the cut toward the camera beside the body, not pointing at the viewer over the legs', () => {
+    const t = characterStrikeTagged2({}, ['iron_sword'], 'down', STRIKE2_HIT_FRAME)!.tags;
+    const xs = t.flatMap((x, i) => (x === 'held' ? [i % W] : []));
+    // The blade reaches out past the body on its left (the viewer's right).
+    expect(Math.max(...xs)).toBeGreaterThan(FIGURE2_ANCHOR_X + 14);
+  });
+
+  it('shows the blow from behind past the body, the weapon on both sides of the swing', () => {
+    const side = (f: number) => {
+      const t = characterStrikeTagged2({}, ['iron_sword'], 'up', f)!.tags;
+      const xs = t.flatMap((x, i) => (x === 'held' ? [i % W] : []));
+      return xs.reduce((a, b) => a + b, 0) / xs.length;
+    };
+    // Cocked on the right, landing on the left: a cut across, seen.
+    expect(side(0)).toBeGreaterThan(FIGURE2_ANCHOR_X + 4);
+    expect(side(STRIKE2_HIT_FRAME)).toBeLessThan(FIGURE2_ANCHOR_X - 4);
+  });
+
+  it('trails an arc behind a swung weapon on the swing and the landing, never over the figure', () => {
+    for (const facing of FACINGS) {
+      const g = characterStrikePicture2({}, ['iron_sword'], facing, STRIKE2_HIT_FRAME).grid;
+      const t = characterStrikeTagged2({}, ['iron_sword'], facing, STRIKE2_HIT_FRAME)!.tags;
+      let arc = 0;
+      g.d.forEach((c, i) => {
+        if (c && isMat(c, 'smoke')) {
+          arc++;
+          expect(t[i], `${facing} arc over the figure`).toBeNull();
+        }
+      });
+      expect(arc, facing).toBeGreaterThan(6);
+    }
+    // A punch and a bow have none.
+    const plain = characterStrikePicture2({}, ['pine_shortbow'], 'down', 1).grid;
+    expect([...plain.d].some((c) => c && isMat(c, 'smoke'))).toBe(false);
+  });
+
+  it('draws a bow toward and away at full draw seen three-quarter, not a stick', () => {
+    for (const facing of ['down', 'up'] as const) {
+      const t = characterStrikeTagged2({}, ['oak_shortbow'], facing, 1)!.tags;
+      const xs = t.flatMap((x, i) => (x === 'held' ? [i % W] : []));
+      expect(Math.max(...xs) - Math.min(...xs), facing).toBeGreaterThan(9);
+      expect(xs.length, facing).toBeGreaterThan(30);
+    }
+  });
+
+  it('keeps a shield worn with a bow, in every facing', () => {
+    for (const facing of FACINGS) {
+      const worn = ['oak_shortbow', 'iron_shield'];
+      const frames = Array.from(
+        { length: STRIKE2_FRAMES },
+        (_, f) =>
+          characterStrikeTagged2({}, worn, facing, f)!.tags.filter((x) => x === 'shield').length,
+      );
+      // Toward the camera it is slung on his back, hidden but for its rim; seen everywhere else.
+      if (facing === 'down') continue;
+      for (const n of frames) expect(n, facing).toBeGreaterThan(8);
+    }
+  });
+
+  it('throws a punch toward the camera clear of the chest, larger, with a flash about it', () => {
+    const t = characterStrikeTagged2({}, [], 'down', STRIKE2_HIT_FRAME)!.tags;
+    const hand = t.flatMap((x, i) => (x === 'hand' ? [i] : []));
+    const xs = hand.map((i) => i % W);
+    // Out beside the shoulder, past where the body is.
+    expect(Math.min(...xs)).toBeLessThan(FIGURE2_ANCHOR_X - 12);
+    const flash = (g: TGrid) =>
+      [...g.d].filter((c) => c && (isMat(c, 'smoke') || isMat(c, 'gold'))).length;
+    for (const facing of FACINGS) {
+      const hit = characterStrikePicture2({}, [], facing, STRIKE2_HIT_FRAME).grid;
+      const after = characterStrikePicture2({}, [], facing, 3).grid;
+      expect(flash(hit) - flash(after), facing).toBeGreaterThan(6);
+    }
   });
 });
 

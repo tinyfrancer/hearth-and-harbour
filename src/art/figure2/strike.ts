@@ -124,11 +124,24 @@ function turnedAt(parts: readonly Part2[], t: Turn, keep: number): Part2[] {
  * it takes to stay a pixel inside the canvas once the fist is moved by
  * (`dx`, `dy`).
  */
-export function turnHeld(parts: readonly Part2[], t: Turn, dx: number, dy: number): Part2[] {
+export function turnHeld(
+  parts: readonly Part2[],
+  t: Turn,
+  dx: number,
+  dy: number,
+  prefer: 'lean' | 'length' = 'lean',
+): Part2[] {
   // Room for the outline and for the body's turn of a column either way, and its drop.
   const fits = (x: number, y: number) =>
     x + dx >= 3 && x + dx <= FIG_W - 4 && y + dy >= 2 && y + dy <= FIG_H - 5;
   const inside = (ps: readonly Part2[]) => ps.every((p) => pixels(p).every(([x, y]) => fits(x, y)));
+  // B17: a blow's landing keeps the weapon's length and gives up its lean first.
+  if (prefer === 'length')
+    for (const keep of [1, 0.9, 0.8])
+      for (const lean of [1, 0.85, 0.7, 0.55, 0.4, 0.25]) {
+        const turned = turnedAt(parts, { ...t, lean: t.lean * lean }, keep);
+        if (inside(turned)) return turned;
+      }
   // Shorter first (down to half its length), then less leant, then shorter again.
   for (const lean of [1, 0.75, 0.5, 0.25, 0])
     for (let keep = 1; keep >= (lean === 0 ? 0.2 : 0.5); keep -= 0.05) {
@@ -278,13 +291,22 @@ export function sideStrikePose(dress: SideDress, f: number): SidePose {
       }
       if (shield) {
         // B17: the shield stays strapped to the bow arm, seen on its edge by the grip.
-        const mid: Pt = [(at.off.elbow[0] + at.off.wrist[0]) / 2, (at.off.elbow[1] + at.off.wrist[1]) / 2];
+        const mid: Pt = [
+          (at.off.elbow[0] + at.off.wrist[0]) / 2,
+          (at.off.elbow[1] + at.off.wrist[1]) / 2,
+        ];
         for (const p of edgeOn(dress.shield)) {
           const px = pixels(p);
           const cx = (Math.min(...px.map((q) => q[0])) + Math.max(...px.map((q) => q[0]))) / 2;
           const cy = (Math.min(...px.map((q) => q[1])) + Math.max(...px.map((q) => q[1]))) / 2;
           for (const [x, y, c] of px)
-            sheet.add(x + Math.round(mid[0] - cx) - 1, y + Math.round(mid[1] - cy), c, at.off.depth - 0.5, 'shield');
+            sheet.add(
+              x + Math.round(mid[0] - cx) - 1,
+              y + Math.round(mid[1] - cy),
+              c,
+              at.off.depth - 0.5,
+              'shield',
+            );
         }
       }
     };
@@ -297,6 +319,7 @@ export function sideStrikePose(dress: SideDress, f: number): SidePose {
         { ...b.turn!, rigid: turnsRigid(dress.heldId) },
         weaponMove[0],
         weaponMove[1],
+        f === STRIKE_HIT ? 'length' : 'lean',
       ),
       bend: b.bend,
     };
@@ -444,7 +467,7 @@ const FRONT_BEATS: Readonly<
     swing: [
       { weapon: [13, 13], turn: { q: 0, lean: -0.55 }, key: legsApart(0, -1) },
       { weapon: [28, 29], turn: { q: 1, lean: -0.55 }, key: legsApart(0, 0) },
-      { weapon: [34, 41], turn: { q: 2, lean: 0.8 }, key: legsApart(1, 1) },
+      { weapon: [34, 37], turn: { q: 2, lean: 0.8 }, key: legsApart(1, 1) },
       { weapon: [35, 45], turn: { q: 2, lean: 0.5 }, key: legsApart(0, 1) },
     ],
     bow: [
@@ -608,7 +631,8 @@ export function frontStrike(
     beat.near,
   );
   if (kit.kind === 'swing') {
-    for (const p of turnHeld(kit.held, { ...beat.turn!, rigid: kit.rigid }, dx, dy))
+    const landing = f === STRIKE_HIT ? 'length' : 'lean';
+    for (const p of turnHeld(kit.held, { ...beat.turn!, rigid: kit.rigid }, dx, dy, landing))
       for (const [x, y, c] of pixels(p))
         sheet.add(
           x + dx,
@@ -637,9 +661,7 @@ export function frontStrike(
       const pull: Pt = [Math.round(beat.weapon[0]), Math.round(beat.weapon[1]) + 2];
       // Nocked and drawn the string makes a V to the hand; loosed it is straight.
       const drawn = f <= 1;
-      for (const [x, y] of drawn
-        ? [...line(top, pull), ...line(pull, bottom)]
-        : line(top, bottom))
+      for (const [x, y] of drawn ? [...line(top, pull), ...line(pull, bottom)] : line(top, bottom))
         sheet.add(x, y, string, sDepth, 'held');
       if (drawn) {
         // The arrow, from the string hand past the grip, its head beyond the bow.
@@ -692,8 +714,10 @@ export function strikeSmear(
   let a1 = Math.atan2(to[1] - pivot[1], to[0] - pivot[0]);
   if (dir > 0) while (a1 <= a0) a1 += Math.PI * 2;
   else while (a1 >= a0) a1 -= Math.PI * 2;
-  const r0 = Math.hypot(from[0] - pivot[0], from[1] - pivot[1]);
-  const r1 = Math.hypot(to[0] - pivot[0], to[1] - pivot[1]);
+  // Traced a little inside the tip's path (where the blade's upper part goes), so it stays on
+  // the canvas over the head: the tip's own path from the shoulder runs off the top.
+  const r0 = Math.hypot(from[0] - pivot[0], from[1] - pivot[1]) * 0.82;
+  const r1 = Math.hypot(to[0] - pivot[0], to[1] - pivot[1]) * 0.82;
   const sweep = Math.abs(a1 - a0);
   const steps = Math.ceil(sweep * Math.max(r0, r1) * 2) + 2;
   const put1 = (x: number, y: number, c: Cell) => {
