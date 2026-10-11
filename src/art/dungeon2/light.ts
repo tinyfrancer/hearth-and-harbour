@@ -69,6 +69,13 @@ export const TIDEPOOL2_LIGHT = {
   ragged: 0.16,
 } as const;
 
+/**
+ * Daylight's glow (B16): a cool, nearly white light for the tide-pool cave's
+ * sun (its shafts, its mouth, its open doors), where the town lamp's warm
+ * `GLOW_RGB` read as late-afternoon sun. Carried on each such glow as `rgb`.
+ */
+export const DAYLIGHT2_RGB: readonly [number, number, number] = [222, 242, 255];
+
 /** A shaft of sun through a crack above, in its own picture's coordinates (the `light_shaft` prop). */
 export const SHAFT_LIGHT2 = {
   radius: 40,
@@ -77,6 +84,7 @@ export const SHAFT_LIGHT2 = {
   pool: 52,
   flicker: 0,
   always: true,
+  rgb: DAYLIGHT2_RGB,
 } as const;
 
 /** A lantern's light, in its own picture's coordinates (the lantern prop carries this). */
@@ -140,6 +148,7 @@ export function flicker2(light: Light2, ms: number, k = 0): Glow {
     y: light.y,
     radius: light.radius,
     strength: light.strength * (1 - light.flicker * w),
+    ...(light.rgb ? { rgb: light.rgb } : {}),
   };
 }
 

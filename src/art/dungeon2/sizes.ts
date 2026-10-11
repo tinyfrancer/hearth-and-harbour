@@ -27,7 +27,19 @@ export interface Foe2Size {
   readonly shadow: number;
   /** Rows of air its standing picture leaves between its lowest drawn row and its feet (a bird aloft). */
   readonly hover: number;
+  /**
+   * B16, drawing only: where the middle of its body is, in columns ahead of
+   * the anchor (negative: behind it; facing right, mirror for left), when that
+   * is well away from its feet, as with a long-tailed beast standing on its
+   * front feet. Centre its tap box and contact shadow there; the box is then
+   * its whole drawn body. Absent when the body is centred on its feet. No
+   * reach changes: `front`, `back` and `strike` are measured from the anchor.
+   */
+  readonly mid?: number;
 }
+
+/** How far off its feet a body's middle must be before the sizes say so (`mid`). */
+const MID_AT = 8;
 
 /** The sizes worked out from a foe's drawings. */
 export function measureFoe2(id: string): Foe2Size | null {
@@ -70,6 +82,8 @@ export function measureFoe2(id: string): Foe2Size | null {
   widths.sort((p, q) => p - q);
   const body = widths[Math.floor(widths.length * 0.75)] ?? 0;
   const tall = idle.feet.y - top;
+  const mid = Math.round((x0 + x1) / 2 - ax);
+  const offset = Math.abs(mid) >= MID_AT;
   return {
     w: g.w,
     h: g.h,
@@ -78,9 +92,13 @@ export function measureFoe2(id: string): Foe2Size | null {
     front: x1 - ax,
     back: ax - x0,
     strike: sx1 - strike.feet.x,
-    box: { w: Math.min(x1 - x0 + 1, Math.max(12, body + 2)), h: Math.max(12, idle.feet.y - top) },
+    box: {
+      w: offset ? x1 - x0 + 1 : Math.min(x1 - x0 + 1, Math.max(12, body + 2)),
+      h: Math.max(12, idle.feet.y - top),
+    },
     shadow: Math.max(6, Math.round(body / 2)),
     hover: Math.max(0, idle.feet.y - 1 - bottom),
+    ...(offset ? { mid } : {}),
   };
 }
 
@@ -261,7 +279,9 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
   },
   // B15, the tide-pool cave's boss: he stands a little behind his front feet, his shell and tail
   // behind (`back` 56), so his head (`front` 27) clears a hero at the 36-pixel stand; the snap
-  // reaches 47 ahead. His tap box is the measured body's width centred on that point.
+  // reaches 47 ahead. B16: his body's middle is 14 behind his feet (`mid`), and his tap box is his
+  // whole body, head to tail, centred there (it was 67 centred on his feet, his tail outside it);
+  // his contact shadow centres there too. Reach unchanged.
   old_snapper: {
     w: 108,
     h: 66,
@@ -270,9 +290,10 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     front: 27,
     back: 56,
     strike: 47,
-    box: { w: 67, h: 43 },
+    box: { w: 84, h: 43 },
     shadow: 33,
     hover: 0,
+    mid: -14,
   },
   bramble_wyrm: {
     w: 96,

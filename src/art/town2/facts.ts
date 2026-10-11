@@ -389,9 +389,9 @@ export const FACTS_TABLE: Readonly<Record<Town2Id, Town2Facts>> = {
   },
   boat_lantern: {
     id: 'boat_lantern',
-    w: 14,
-    h: 50,
-    base: 48,
+    w: 26,
+    h: 64,
+    base: 62,
     layer: 'stand',
     foot: 6,
     spots: {},

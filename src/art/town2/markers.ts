@@ -8,7 +8,7 @@
  *
  * - `talk`: speech dots, for someone to talk to.
  * - `enter`: a doorway, for a building to go into.
- * - `gather`: a hand axe, for something to work at.
+ * - `gather`: a leaf with a glint, for something to work at (B16; a hand axe before).
  * - `travel`: an anchor, for the rowing boat (a journey).
  * - `new`: a gold sparkle, no badge, for something not yet seen.
  *
@@ -67,6 +67,28 @@ function rowsAt(
 const ICONS: Readonly<
   Record<Exclude<TownMarker2Kind, 'new'>, { rows: readonly string[]; pins: Record<string, Cell> }>
 > = {
+  // B16: a leaf with a glint (a hand axe before, the least clear at true size), drawn by hand
+  // at this size so its keyline and vein hold.
+  gather: {
+    rows: [
+      '.y....kkkk',
+      'yYy..kgggk',
+      '.y..kgggvk',
+      '...kgggvhk',
+      '..kggvhhk.',
+      '.kgvhhhk..',
+      '.kvkkkk...',
+      'k.........',
+    ],
+    pins: {
+      k: pin('leaf', 5),
+      g: pin('leaf', 2),
+      h: pin('leaf', 3),
+      v: pin('leaf', 5),
+      y: pin('gold', 3),
+      Y: pin('gold', 1),
+    },
+  },
   talk: {
     rows: ['..........', '..........', '..........', '.aa.aa.aa.', '.aa.aa.aa.', '..........'],
     pins: { a: pin('tar', 5) },
@@ -83,19 +105,6 @@ const ICONS: Readonly<
       'aaaaaaaaaa',
     ],
     pins: { a: pin('wood', 4), b: pin('tar', 5), c: pin('gold', 2) },
-  },
-  gather: {
-    rows: [
-      '..aaa.....',
-      '.aaaab....',
-      '.aaa.b....',
-      '..a...b...',
-      '......b...',
-      '.......b..',
-      '.......b..',
-      '.......bb.',
-    ],
-    pins: { a: pin('iron', 4), b: pin('wood', 4) },
   },
   travel: {
     rows: [
@@ -467,11 +476,13 @@ export function townPointer2(direction: TownPointer2Direction, frame = 0): TownM
 }
 
 /**
- * A soft ring on the ground round the thing the hero is nearest: a broken
- * ellipse of pale light `w` across (and a third as deep), its dashes
- * creeping round by frame. Centre it on the thing's foot (its anchor is the
- * ring's middle) and draw it on the ground, under everything standing. No
- * outline: it is light on the ground, not a thing.
+ * A ring on the ground round the thing the hero is nearest (B16; B15's was
+ * a broken ellipse of pale light, whose dashes on the sea were taken for
+ * foam): a thin unbroken ellipse of gold `w` across (and a third as deep),
+ * kept between two dark keylines so it reads on cobbles, grass, sand,
+ * planks and water alike, a brighter glint creeping round it by frame.
+ * Centre it on the thing's foot (its anchor is the ring's middle) and draw
+ * it on the ground, under everything standing.
  */
 export function townHighlight2(w: number, frame = 0): TownMarker2 {
   const W = Math.max(12, Math.round(w)) | 1;
@@ -480,20 +491,34 @@ export function townHighlight2(w: number, frame = 0): TownMarker2 {
   const key = `ring ${W} ${f}`;
   let out = made.get(key);
   if (out) return out;
-  const g = tgrid(W + 2, D + 2);
-  const cx = (W + 1) / 2;
-  const cy = (D + 1) / 2;
-  const rx = W / 2;
-  const ry = D / 2;
-  for (let y = 0; y < D + 2; y++)
-    for (let x = 0; x < W + 2; x++) {
-      const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
-      if (d < 1 - 1.4 / ry || d > 1) continue;
-      const a = Math.atan2((y - cy) / ry, (x - cx) / rx);
-      const dash = (((a + Math.PI) / (Math.PI * 2)) * 24 + f * 0.5) % 1;
-      if (dash > 0.7) continue;
-      // Lit on the far side (the top of the ellipse), softer toward the near side.
-      put(g, x, y, pin('lamp', y < cy ? 0 : 1));
+  const GW = W + 4;
+  const GH = D + 4;
+  const g = tgrid(GW, GH);
+  const cx = (GW - 1) / 2;
+  const cy = (GH - 1) / 2;
+  const rx = (W - 1) / 2;
+  const ry = (D - 1) / 2;
+  // The gold line: the ellipse walked finely, one pixel thick, each pixel knowing its angle.
+  const angle = new Float32Array(GW * GH).fill(NaN);
+  const n = Math.ceil((W + D) * 4);
+  for (let k = 0; k < n; k++) {
+    const t = (k / n) * Math.PI * 2;
+    const x = Math.round(cx + Math.cos(t) * rx);
+    const y = Math.round(cy + Math.sin(t) * ry);
+    angle[y * GW + x] = t;
+  }
+  const on = (x: number, y: number): boolean =>
+    x >= 0 && y >= 0 && x < GW && y < GH && !Number.isNaN(angle[y * GW + x]!);
+  // The glint: an eighth of the way round, a quarter further each frame.
+  const glint = (f / TOWN_MARKER2_FRAMES) * Math.PI * 2 - Math.PI / 2;
+  for (let y = 0; y < GH; y++)
+    for (let x = 0; x < GW; x++) {
+      if (on(x, y)) {
+        const t = angle[y * GW + x]!;
+        const d = Math.abs(((t - glint + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        put(g, x, y, pin('gold', d < Math.PI / 8 ? 0 : 1));
+      } else if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1))
+        put(g, x, y, pin('tar', 5));
     }
   out = { picture: { grid: g, glows: [] }, anchor: { x: Math.round(cx), y: Math.round(cy) } };
   made.set(key, out);

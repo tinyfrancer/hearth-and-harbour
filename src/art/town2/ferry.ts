@@ -87,29 +87,37 @@ export function boatSign(): Drawn {
       else c = C('cream', y < by + 4 ? 0 : 1);
       put(g, x, y, c);
     }
-  // The picture: a rowing boat with its oars out, on a band of blue water.
-  const ix = bx + Math.round((bw - 22) / 2);
-  const iy = by + 4;
+  // The picture: a rowing boat with its oars raised, on a band of blue water. B16: bolder (it was
+  // thin lines at true size): a dark hull filling the board, the boat's own white and red strake,
+  // thick oars, two rows of sea.
+  const ix = bx + Math.round((bw - 30) / 2);
+  const iy = by + 3;
   rowsAt(
     g,
     ix,
     iy,
     [
-      '..o..............o....',
-      '...o............o.....',
-      '....o..........o......',
-      '..hhhhhhhhhhhhhhhhh...',
-      '...whhhhhhhhhhhhhhhh..',
-      '....wwwwwwwwwwwwwwh...',
-      '.....o........o.......',
-      'ssssosssssssssossssss.',
-      '.s.ss.sss.ss.sss.ss.s.',
+      'OO..........................OO',
+      '.OO........................OO.',
+      '..OO......................OO..',
+      '...OO....................OO...',
+      'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+      '.wwwwwwwwwwwwwwwwwwwwwwwwwwww.',
+      '..rrrrrrrrrrrrrrrrrrrrrrrrrr..',
+      '...hhhhhhhhhhhhhhhhhhhhhhhh...',
+      '.....hhhhhhhhhhhhhhhhhhhh.....',
+      '.......kkkkkkkkkkkkkkkk.......',
+      'ssssssssssssssssssssssssssssss',
+      '.SS..SSS..SS..SSS..SS..SSS..S.',
     ],
     {
+      O: C('pinewood', 3),
+      k: C('wood', 5),
+      w: C('sail', 0),
+      r: C('crimson', 2),
       h: C('wood', 3),
-      w: C('wood', 4),
-      o: C('wood', 2),
-      s: C('sea', 2),
+      s: C('sea', 3),
+      S: C('sea', 2),
     },
   );
   // The board's cords up to the post.
@@ -125,23 +133,39 @@ export function boatSign(): Drawn {
  * shows across the harbour), a ribbon of red at the top.
  */
 export function boatLantern(): Drawn {
-  const W = 12;
-  const H = m(1.25);
+  // B16: the pole a staff's length taller with a red pennant flying from its head (the boat had
+  // nothing standing above the quay's edge to catch the eye from across the square).
+  const W = 24;
+  const lift = 14;
+  const H = m(1.25) + lift;
   const g = tgrid(W, H);
   const cx = 5;
-  for (let y = 9; y < H; y++)
+  for (let y = 1; y < H; y++)
     for (let i = 0; i < 2; i++) {
       const nx = i === 0 ? -0.6 : 0.6;
       put(g, cx + i, y, C('pinewood', clamp(cyl(nx, 2, 1.2), 1, 4)));
     }
+  // A gilt knob on the staff's head.
+  put(g, cx, 0, C('gold', 1));
+  put(g, cx + 1, 0, C('gold', 3));
+  // The pennant, long and tapering, rippling out to the right; lit along its top.
+  rowsAt(
+    g,
+    cx + 2,
+    1,
+    [
+      'RRRRRRRRR........',
+      'rrrrrrrrrrrrRR...',
+      'rrrrrrrrrrrrrrrrr',
+      'sssssssssssss....',
+      'ssssss...........',
+    ],
+    { R: C('crimson', 1), r: C('crimson', 2), s: C('crimson', 3) },
+  );
   // Lashing at the foot.
   for (const y of [H - 6, H - 4]) for (let i = -1; i < 3; i++) put(g, cx + i, y, C('linen', 2));
-  lantern(g, cx - 2, 1);
-  put(g, cx + 1, 0, C('iron', 2));
-  // A ribbon tied under the lantern, blowing out.
-  put(g, cx + 2, 9, C('crimson', 2));
-  put(g, cx + 3, 10, C('crimson', 3));
-  put(g, cx + 4, 10, C('crimson', 2));
-  const glows: Glow[] = [{ x: cx + 1, y: 5, radius: m(1.4), strength: 0.6 }];
+  lantern(g, cx - 2, lift + 1);
+  put(g, cx + 1, lift, C('iron', 2));
+  const glows: Glow[] = [{ x: cx + 1, y: lift + 5, radius: m(1.4), strength: 0.6 }];
   return { grid: g, glows };
 }

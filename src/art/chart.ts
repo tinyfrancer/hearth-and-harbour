@@ -34,7 +34,8 @@ export const CHART2_LANDINGS: Readonly<Record<string, ChartPoint2>> = {
   tidepool_cave: { x: 239, y: 116 },
   brinebeards_grotto: { x: 106, y: 170 },
   unknown_1: { x: 250, y: 178 },
-  unknown_2: { x: 52, y: 133 },
+  // B16: in the open water south of the western islets (it stood on the first islet's edge).
+  unknown_2: { x: 42, y: 154 },
   unknown_3: { x: 196, y: 262 },
 };
 /** Where the boat sets out from: the town's quay in the bay. */
@@ -479,26 +480,33 @@ export function harbourChart2(): HarbourChart2 {
     if (Math.abs(x - 128) < 30 && y > 40) continue;
     pine(x, y);
   }
-  // Home: the town on the bay, its roofs red and slate, the quay out into the water.
+  // Home: the town on the bay, its roofs red and slate, the quay out into the water. B16: half as
+  // big again (it was a few pixels of roof): the tavern, the smithy and its chimney, the thatched
+  // house up behind them, each with windows and a door, outlined so the pale walls hold on the land.
+  const home = tgrid(34, 18);
   marks(
-    g,
-    110,
-    76,
+    home,
+    0,
+    0,
     [
-      '.........ttt..........',
-      '........ttttt.........',
-      '.......tttttttc.......',
-      '........hhhhh.c.......',
-      '..rrrrrr.hdhh....sss..',
-      '.rrrrrrrr.......sssss.',
-      'rrrrrrrrrr.....sssssss',
-      'RRRRRRRRRR.....SSSSSSS',
-      'hwhwhwhwhh.....hhwhhhh',
-      'hhhhhhdhhh.....hhhdhhh',
-      'hhhhhhdhhh.....hhhdhhh',
-      '......................',
-      'qqqqqqqqqqqqqqqqqqqqqq',
-      'QQQQQQQQQQQQQQQQQQQQQQ',
+      '..............ttttt...............',
+      '.............ttttttt..c...........',
+      '............ttttttttt.c...........',
+      '...........tttttttttttc...........',
+      '............hhwhhwhh..............',
+      '............hhhhdhhh.......c......',
+      '...rrrrrrrrr...............c......',
+      '..rrrrrrrrrrr..........sssssss....',
+      '.rrrrrrrrrrrrr........sssssssss...',
+      'rrrrrrrrrrrrrrr......sssssssssss..',
+      'RRRRRRRRRRRRRRR......SSSSSSSSSSS..',
+      'hwhhwhhwhhwhhwh......hhwhhhdhhwh..',
+      'hwhhwhhwhhwhhwh......hhwhhhdhhwh..',
+      'hhhhhhhdhhhhhhh......hhhhhhdhhhh..',
+      'hhhhhhhdhhhhhhh......hhhhhhdhhhh..',
+      '..................................',
+      'qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq',
+      'QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ',
     ],
     {
       r: ['tile', 1],
@@ -514,6 +522,7 @@ export function harbourChart2(): HarbourChart2 {
       Q: ['stone', 4],
     },
   );
+  stamp(g, outlined(home), 105, 71);
   for (let y = 90; y < 108; y++) {
     put(g, 127, y, cell('wood', 2));
     put(g, 128, y, cell('wood', 3));
