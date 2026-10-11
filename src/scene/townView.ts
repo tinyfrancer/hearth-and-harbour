@@ -116,8 +116,17 @@ const dungeons = (id: string): Dungeon | null => {
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
 
-/** The longest the town waits, as a boat rows out, for the first room's ground to come from the worker. */
-export const ROW_OUT_WAIT_MS = 1500;
+/**
+ * The longest the town waits, as a boat rows out, for the first room's ground
+ * to come from the worker, before working it out on the spot (a pause with
+ * the town held still). Meanwhile the town stays up and moving, and after
+ * `ROW_OUT_SHOW_MS` says it is rowing out with a moving bar, so a slow phone
+ * sees progress, not a freeze.
+ */
+export const ROW_OUT_WAIT_MS = 8000;
+
+/** How long rowing out may take before it says so: under this, the room is in before anyone notices. */
+export const ROW_OUT_SHOW_MS = 300;
 
 /**
  * Starts painting a dungeon's first room, every state of its tide, in the
@@ -324,13 +333,31 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     rowOn();
   };
 
+  /** Over the town while a slow boat rows out: words and a moving bar, so it is plainly on its way. */
+  let rowingCard: HTMLElement | null = null;
+
   /** Out in the boat once the first room's ground is in, or the wait is over. */
   const rowOn = (): void => {
     if (!rowing) return;
     const waited = performance.now() - rowing.since;
     // Without a worker the room is worked out on the spot as it is shown: nothing to wait for.
     const waiting = !!painter?.offThread && !groundIn(rowing.dungeon, rowing.run);
-    if (waiting && waited < ROW_OUT_WAIT_MS) return;
+    if (waiting && waited < ROW_OUT_WAIT_MS) {
+      if (waited >= ROW_OUT_SHOW_MS && !rowingCard) {
+        rowingCard = h(
+          'div',
+          { class: 'scene-rowing', attrs: { role: 'status', 'aria-live': 'polite' } },
+          [
+            h('p', { text: 'Rowing out…' }),
+            h('span', { class: 'scene-rowing-bar', attrs: { 'aria-hidden': 'true' } }, [h('i')]),
+          ],
+        );
+        host.append(rowingCard);
+      }
+      return;
+    }
+    rowingCard?.remove();
+    rowingCard = null;
     const { dungeon } = rowing;
     run = rowing.run;
     rowing = null;

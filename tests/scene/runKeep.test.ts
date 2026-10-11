@@ -11,9 +11,11 @@ import { RUN_SCENE_VERSION, keptAtOf, snapshotRun } from '../../src/scene/runSav
 import { centreOf, type Point } from '../../src/scene/tileMap';
 import { TOWN2_H, TOWN2_W } from '../../src/art/town2/town';
 import { town2Scene } from '../../src/scene/town2';
-import { FOCUS_RISE2 } from '../../src/scene/town2Place';
+import { FOCUS_RISE2, strollersAt } from '../../src/scene/town2Place';
 import {
   KEEP_EVERY_MS,
+  ROW_OUT_SHOW_MS,
+  ROW_OUT_WAIT_MS,
   TAKE_UP_MS,
   heroAt,
   keepRun,
@@ -320,5 +322,41 @@ describe('a run kept through a reload', () => {
     // A reload now builds the town, not an old run.
     reload(shell);
     expect(runNow()).toBeNull();
+  });
+});
+
+describe('rowing out with a slow worker', () => {
+  it('keeps the town up and moving and says it is rowing out, then rows out', () => {
+    const shell = keeper();
+    const view = shown(shell);
+    // A worker for the rooms that never answers: a very slow phone.
+    vi.stubGlobal(
+      'Worker',
+      class {
+        onmessage: unknown = null;
+        onerror: unknown = null;
+        postMessage() {}
+        terminate() {}
+      },
+    );
+    const box = town2Scene().things.find((t) => t.id === 'rowboat')!.tap!;
+    tapTown(view.el, { x: box.x + box.w / 2, y: box.y + box.h / 2 });
+    wait(view, 6000);
+    click(view.el, 'Row out to Brinebeard’s Grotto');
+    wait(view, 100);
+    // Still in town, nothing said yet.
+    expect(runNow()).toBeNull();
+    expect(view.el.querySelector('.scene-rowing')).toBeNull();
+    wait(view, ROW_OUT_SHOW_MS);
+    expect(view.el.querySelector('.scene-rowing')?.textContent).toMatch(/Rowing out/);
+    // The town still runs under it: the strollers walk on.
+    const before = strollersAt().map((p) => ({ ...p }));
+    wait(view, 2000);
+    expect(strollersAt()).not.toEqual(before);
+    // At the end of the wait the room is worked out here, and out he goes.
+    wait(view, ROW_OUT_WAIT_MS);
+    expect(runNow()).not.toBeNull();
+    expect(view.el.querySelector('.scene-rowing')).toBeNull();
+    expect(view.el.querySelector('.dungeon')).not.toBeNull();
   });
 });
