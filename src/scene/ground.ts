@@ -13,7 +13,9 @@
  *   x  the end of the run (rock floor)
  *   B  the bars of a cell that opens first     D  of one that opens second
  *   K  powder kegs   C  crates   T  a chest   A  an anchor
- *   R  a coil of rope   N  a cannon   (each stands on its tile, which is solid)
+ *   R  a coil of rope   N  a cannon
+ *   P  a rock pool   G  kelp   S  starfish   E  anemones   W  driftwood   H  a boat's ribs
+ *   (each stands on its tile, which is solid)
  *   L  a lantern hung on the rock
  *   any other lower-case letter: a door, joined to the door with the same
  *   letter in exactly one other room.
@@ -53,6 +55,13 @@ export const PROP_LETTERS: Readonly<Record<string, string>> = {
   A: 'anchor',
   R: 'rope_coil',
   N: 'cannon',
+  // The tide-pool cave's (B15).
+  P: 'rock_pool',
+  G: 'kelp_clump',
+  S: 'starfish_cluster',
+  E: 'anemone_rock',
+  W: 'driftwood',
+  H: 'boat_ribs',
 };
 
 const FIXED: Readonly<Record<string, RoomTile>> = {

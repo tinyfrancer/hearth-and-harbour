@@ -1166,7 +1166,15 @@
 .chart-map {
   position: relative;
   flex: none;
+  overflow: hidden;
   border: var(--px) solid var(--line);
+}
+
+/* The map and what is on it, slid to keep the landings in the middle of a narrow phone. */
+.chart-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .chart-paper,
@@ -1186,7 +1194,7 @@
   inset: 0;
 }
 
-/* Each landing: a thumb's width at the least, its pin in the middle, its name under it. */
+/* Each landing: a thumb's width at the least over its drawn marker, its name under it. */
 .chart-landing {
   position: absolute;
   display: flex;
@@ -1201,35 +1209,6 @@
   color: var(--panel);
   font: inherit;
   cursor: pointer;
-}
-
-.chart-pin {
-  width: 16px;
-  height: 16px;
-  background: var(--gold);
-  border: var(--px) solid var(--panel);
-  transform: rotate(45deg);
-}
-
-.chart-landing[data-state='open'] .chart-pin {
-  background: var(--gold-bright);
-}
-
-.chart-landing[data-state='cleared'] .chart-pin {
-  background: var(--green);
-}
-
-.chart-landing[data-state='locked'] .chart-pin {
-  background: var(--text-muted);
-}
-
-.chart-landing[data-state='soon'] .chart-pin {
-  background: var(--line);
-  border-style: dashed;
-}
-
-.chart-landing[aria-pressed='true'] .chart-pin {
-  box-shadow: 0 0 0 3px var(--danger);
 }
 
 .chart-pin-name {

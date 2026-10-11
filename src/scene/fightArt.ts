@@ -23,6 +23,7 @@
  */
 import {
   CAVE_DUSK,
+  type CavePalette,
   FOE2_SIZES,
   FUSE_LIGHT2,
   dungeonPropSprite2,
@@ -336,8 +337,11 @@ const LIT_KEPT = 32;
 export class FoePictures {
   private readonly lit = new Map<string, Map<string, HTMLCanvasElement | null>>();
   private readonly glows: readonly Glow[];
-  constructor(glows: readonly Glow[]) {
+  private readonly palette: CavePalette;
+  /** Lit by `glows`, in a cave's palette (the grotto's dusk unless said). */
+  constructor(glows: readonly Glow[], palette: CavePalette = CAVE_DUSK) {
     this.glows = glows;
+    this.palette = palette;
   }
 
   /** The foe drawn as `shown` with its feet at `feet`: its canvas and where its feet are on it. */
@@ -350,13 +354,13 @@ export class FoePictures {
     const art = foeArtId(monster);
     const pic = foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
     if (!pic) return null;
-    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, CAVE_DUSK);
+    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, this.palette);
     if (!plain) return null;
     const qx = Math.round(feet.x / LIGHT_STEP) * LIGHT_STEP;
     const qy = Math.round(feet.y / LIGHT_STEP) * LIGHT_STEP;
     const { w, h } = pic.picture.grid;
     const box = { x: qx - pic.feet.x, y: qy - pic.feet.y, w, h };
-    const local = glowsIn(this.glows, box);
+    const local = glowsIn(this.glows, box, this.palette);
     if (local.length === 0) return { image: plain, feet: pic.feet, glows: pic.picture.glows };
     let mine = this.lit.get(key);
     if (!mine) {
@@ -367,10 +371,11 @@ export class FoePictures {
     let image = mine.get(k);
     if (image === undefined) {
       if (mine.size >= LIT_KEPT) mine.delete(mine.keys().next().value!);
-      image = paintCells({
-        grid: pic.picture.grid,
-        glows: [...pic.picture.glows, ...local],
-      });
+      image = paintCells(
+        { grid: pic.picture.grid, glows: [...pic.picture.glows, ...local] },
+        undefined,
+        this.palette,
+      );
       mine.set(k, image);
     } else {
       // Shown again: last to go.
@@ -1020,7 +1025,7 @@ export interface FightArt {
 /** What a fight in a room draws with, made once for the room's look. */
 export function fightArtFor(look: RoomLook): FightArt {
   return {
-    foes: new FoePictures(look.glows),
+    foes: new FoePictures(look.glows, look.theme.palette),
     shadows: new Map(),
     loot: lootArt(),
     doorsDrawn: { opening: -1, shown: null },
@@ -1299,7 +1304,7 @@ export function fightExtra(
         shadow = new CaveShadow();
         art.shadows.set(foe.key, shadow);
       }
-      const placed = shadow.at(cells, kinds, look.glows, feet, size.shadow);
+      const placed = shadow.at(cells, kinds, look.glows, feet, size.shadow, look.theme.palette);
       if (placed) {
         shadows.push(placed);
         boxes.push({

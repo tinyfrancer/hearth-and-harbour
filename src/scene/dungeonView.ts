@@ -733,8 +733,10 @@ export function dungeonView(options: DungeonViewOptions): View {
           const run = options.run();
           // Striking, timed from the fight's state; otherwise walking or breathing as anywhere.
           const pose = heroStrikePose(dungeon, run) ?? heroPose(play, now);
-          const image = hero.at(feet, pose, 'dusk');
-          hero.warm('dusk', FIGHT_POSES);
+          // By the room's light: the grotto's dusk, the tide-pool cave's day.
+          const time = look.theme.figureTime;
+          const image = hero.at(feet, pose, time);
+          hero.warm(time, FIGHT_POSES);
           return (
             image && {
               image,
@@ -756,6 +758,7 @@ export function dungeonView(options: DungeonViewOptions): View {
             open ? look.openGlows : look.glows,
             feet,
             HERO_SHADOW,
+            look.theme.palette,
           );
           return (
             placed && {
@@ -766,8 +769,8 @@ export function dungeonView(options: DungeonViewOptions): View {
         },
         life: look.flicker,
       },
-      // A sea cave at dusk, lit by its lanterns.
-      time: 'dusk',
+      // A sea cave at dusk, lit by its lanterns; or the tide-pool cave by day.
+      time: look.theme.figureTime,
       play: run.play,
       keep: () => {},
       press: () => {},

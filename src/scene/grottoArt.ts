@@ -21,9 +21,12 @@ import {
   dungeonProp2,
   dungeonTile2,
   flicker2,
+  dungeonTheme2,
   lightAt,
   lightGround2,
+  type CavePalette,
   type DoorPiece2Picture,
+  type DungeonTheme2,
   type Light2,
   type PropPicture2,
   type Tile2Kind,
@@ -43,6 +46,15 @@ import { WALK_SPEED } from './walker';
 
 /** A tile's side, in art pixels. */
 const T = DUNGEON.tile;
+
+/**
+ * A room's look as the art lane themes it (B15): the grotto's by default, the
+ * tide-pool cave's (`'tidepool'`: its own tiles and doors, lit by day, its
+ * own palette, the hero drawn by day) for a room whose plan says so.
+ */
+export function themeOf(room: Room): DungeonTheme2 {
+  return dungeonTheme2(room.theme ?? 'grotto');
+}
 
 /** A cell's variant, as the art lane asks for it: its index in the room, so neighbours differ. */
 export const cellVariant = (cols: number, col: number, row: number): number => row * cols + col;
@@ -169,7 +181,8 @@ export function propsOf(room: Room): PropAt[] {
     if (!art) return;
     const w = art.picture.grid.w;
     // As the art lane's sample room has it: nothing under a lantern's post or a coil of rope.
-    const shadow = id === 'lantern' || id === 'rope_coil' ? 0 : Math.floor(w / 2.4);
+    const shadow =
+      id === 'lantern' || id === 'rope_coil' || id === 'light_shaft' ? 0 : Math.floor(w / 2.4);
     made.push({
       key,
       id,
@@ -182,8 +195,13 @@ export function propsOf(room: Room): PropAt[] {
   room.ground.props.forEach((p, i) =>
     add(p.id, `${p.id} ${i}`, p.cell.col * T + T / 2, p.cell.row * T + T - 2),
   );
+  // In the tide-pool cave the day comes in through cracks above (B15): a shaft of sun for each
+  // lantern, stood on the floor spot it lights, two rows down from the wall it would hang on.
+  const tidepool = themeOf(room).theme === 'tidepool';
   room.ground.lanterns.forEach((c, i) =>
-    add('lantern', `lantern ${i}`, c.col * T + T / 2, (c.row + 1) * T + LANTERN_FOOT),
+    tidepool
+      ? add('light_shaft', `light_shaft ${i}`, c.col * T + T / 2, c.row * T + 3 * T + 6)
+      : add('lantern', `lantern ${i}`, c.col * T + T / 2, (c.row + 1) * T + LANTERN_FOOT),
   );
   room.perches.forEach((p, i) => {
     const c = cellAt(p, T);
@@ -256,8 +274,9 @@ export function doorPieces(room: Room): DoorAt[] {
   for (const d of room.doors) {
     const { col, row } = d.cell;
     const around = aroundOf(kinds, col, row);
-    const open = dungeonDoor2(doorTile(room, col, false), around, { col, row });
-    const barred = dungeonDoor2(doorTile(room, col, true), around, { col, row });
+    const theme = themeOf(room).theme;
+    const open = dungeonDoor2(doorTile(room, col, false), around, { col, row }, theme);
+    const barred = dungeonDoor2(doorTile(room, col, true), around, { col, row }, theme);
     if (!open || !barred) continue;
     const x = col * T + open.dx;
     const y = row * T + open.dy;
@@ -515,6 +534,7 @@ function tileCells(room: Room, level: number, warn: boolean): { g: TGrid; kinds:
         cellVariant(room.ground.cols, col, row),
         aroundOf(kinds, col, row),
         { col, row },
+        themeOf(room).theme,
       );
       if (tile) stamp(g, tile.grid, col * T, row * T);
     }),
@@ -553,6 +573,7 @@ function litCells(
   return lightGround2(
     g,
     open ? [...lights, ...doors.flatMap((d) => (d.light ? [d.light] : []))] : lights,
+    themeOf(room).theme,
   );
 }
 
@@ -577,10 +598,14 @@ export function groundWithDoors(
 /** Whether this browser can paint pixels (not jsdom). */
 const canPaint = (): boolean => typeof ImageData !== 'undefined' && typeof document !== 'undefined';
 
-/** Cells in the cave's dusk onto a canvas of their size, empty cells empty. */
-export function paintCells(pic: Picture2, into?: HTMLCanvasElement): HTMLCanvasElement | null {
+/** Cells in a cave's palette (the grotto's dusk unless said) onto a canvas of their size, empty cells empty. */
+export function paintCells(
+  pic: Picture2,
+  into?: HTMLCanvasElement,
+  palette: CavePalette = CAVE_DUSK,
+): HTMLCanvasElement | null {
   if (!canPaint()) return null;
-  const image = rasterize2(pic, CAVE_DUSK, 1);
+  const image = rasterize2(pic, palette, 1);
   const d = pic.grid.d;
   for (let i = 0; i < d.length; i++) if (!d[i]) image.data[i * 4 + 3] = 0;
   const canvas = into ?? document.createElement('canvas');
@@ -597,12 +622,16 @@ export function paintCells(pic: Picture2, into?: HTMLCanvasElement): HTMLCanvasE
 }
 
 /** The glows that reach a box, moved into its own pixels. */
-export function glowsIn(glows: readonly Glow[], box: Box): Glow[] {
+export function glowsIn(
+  glows: readonly Glow[],
+  box: Box,
+  palette: CavePalette = CAVE_DUSK,
+): Glow[] {
   return glows
     .filter((g) => {
       const nx = Math.max(box.x, Math.min(g.x, box.x + box.w));
       const ny = Math.max(box.y, Math.min(g.y, box.y + box.h));
-      return shines(g, CAVE_DUSK) && Math.hypot(g.x - nx, g.y - ny) < g.radius;
+      return shines(g, palette) && Math.hypot(g.x - nx, g.y - ny) < g.radius;
     })
     .map((g) => ({ ...g, x: g.x - box.x, y: g.y - box.y }));
 }
@@ -632,7 +661,7 @@ export function groundPixels(
   const { cells, doors } = groundWithDoors(room, level, warn);
   return {
     cells,
-    data: rasterize2({ grid: cells, glows: steadyGlows(room) }, CAVE_DUSK, 1).data,
+    data: rasterize2({ grid: cells, glows: steadyGlows(room) }, themeOf(room).palette, 1).data,
     doors,
   };
 }
@@ -730,6 +759,8 @@ export interface RoomLook {
   ready(level: number, warn: boolean): boolean;
   /** The glows that light whoever stands near a lantern, in room pixels. */
   readonly glows: readonly Glow[];
+  /** The room's theme, as the art lane draws it: its palette, and the hero's time of day. */
+  readonly theme: DungeonTheme2;
   /** The lanterns flickering: their glow wavering on the passed-in time. */
   readonly flicker: readonly Life[];
   /** Lets every picture go: the run has left this room behind. */
@@ -752,6 +783,7 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
   let made = looks.get(room);
   if (made) return made;
   const lock = { map: room.map };
+  const palette = themeOf(room).palette;
   const glows = glowsOf(room);
   const props = propsOf(room);
   let painterNow = painter;
@@ -788,10 +820,14 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       for (const p of props) {
         const { w, h } = p.art.picture.grid;
         const box = { x: p.topLeft.x, y: p.topLeft.y, w, h };
-        const image = paintCells({
-          grid: p.art.picture.grid,
-          glows: [...p.art.picture.glows, ...glowsIn(glows, box)],
-        });
+        const image = paintCells(
+          {
+            grid: p.art.picture.grid,
+            glows: [...p.art.picture.glows, ...glowsIn(glows, box, palette)],
+          },
+          undefined,
+          palette,
+        );
         if (image) standing.push({ image, x: box.x, y: box.y, base: p.feet.y });
       }
       standing.sort((a, b) => a.base - b.base);
@@ -861,8 +897,16 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     d.shown ??= doorPaintsOf(s, d).map((p) => ({
       letter: p.letter,
       box: p.box,
-      barred: paintCells({ grid: p.barred, glows: glowsIn(steady, p.box) }),
-      open: paintCells({ grid: p.open, glows: glowsIn(openSteady, p.box) }),
+      barred: paintCells(
+        { grid: p.barred, glows: glowsIn(steady, p.box, palette) },
+        undefined,
+        palette,
+      ),
+      open: paintCells(
+        { grid: p.open, glows: glowsIn(openSteady, p.box, palette) },
+        undefined,
+        palette,
+      ),
     }));
     return d.shown;
   };
@@ -890,6 +934,7 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     if (tidal && l < HIGH_WATER) states.push({ level: l, warn: true });
   }
   made = {
+    theme: themeOf(room),
     scene: {
       get map() {
         return lock.map;
@@ -1051,6 +1096,7 @@ export class CaveShadow {
     glows: readonly Glow[],
     feet: Point,
     rx: number,
+    palette: CavePalette = CAVE_DUSK,
   ): Placed | null {
     const fx = Math.round(feet.x);
     const fy = Math.round(feet.y);
@@ -1074,7 +1120,11 @@ export class CaveShadow {
       this.placed = null;
       return null;
     }
-    this.canvas = paintCells({ grid: dark, glows: glowsIn(glows, box) }, this.canvas ?? undefined);
+    this.canvas = paintCells(
+      { grid: dark, glows: glowsIn(glows, box, palette) },
+      this.canvas ?? undefined,
+      palette,
+    );
     this.placed = this.canvas && { image: this.canvas, x: box.x, y: box.y };
     return this.placed;
   }
