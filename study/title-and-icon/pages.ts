@@ -1,4 +1,5 @@
-import { tgrid } from '../../src/art/town2/cells';
+import { stamp, tgrid } from '../../src/art/town2/cells';
+import { characterWalkPicture2, KNIGHT_GEAR2 } from '../../src/art/character2';
 import { capsWord, uncialWord, uncialGlyph } from './glyphs';
 import { treat, stampF } from './logo';
 import { gridCanvas, xpal } from './pal';
@@ -25,4 +26,17 @@ export function logosPage(): void {
   const c = treat(uncialWord('Harbour', 18), 'carved', {});
   stampF(g, c, 6, y);
   document.body.append(gridCanvas(g, pal, [], 2));
+}
+
+/** The hero's walk frames in each facing, knight's gear, to choose a pose from. */
+export function heroPage(): void {
+  const g = tgrid(8 * 58, 2 * 74);
+  (['up', 'right'] as const).forEach((facing, row) => {
+    for (let f = 0; f < 8; f++) {
+      const pic = characterWalkPicture2({}, [], facing, f, KNIGHT_GEAR2);
+      stamp(g, pic.grid, f * 58, row * 74);
+    }
+  });
+  document.body.style.background = '#b0a890';
+  document.body.append(gridCanvas(g, xpal('day'), [], 3));
 }
