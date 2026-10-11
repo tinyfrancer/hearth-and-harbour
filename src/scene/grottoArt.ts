@@ -228,15 +228,24 @@ export function perchLift(room: Room, perch: Point): number {
 
 /** Each lantern's light, placed in the room: the pool it lays and the glow it gives. */
 export function lightsOf(room: Room): Light2[] {
-  return propsOf(room).flatMap((p) =>
+  const lights = propsOf(room).flatMap((p) =>
     p.art.light ? [lightAt(p.art.light, p.topLeft.x, p.topLeft.y)] : [],
   );
+  const k = room.dim ?? 1;
+  // A darker day: every pool smaller, so more of the room lies beyond them, in the dark.
+  return k === 1 ? lights : lights.map((l) => ({ ...l, radius: l.radius * k, pool: l.pool * k }));
 }
 
 /** Every glow in a room, in its pixels: what lights whoever stands near a lantern. */
 export function glowsOf(room: Room): Glow[] {
+  const k = room.dim ?? 1;
   return propsOf(room).flatMap((p) =>
-    p.art.picture.glows.map((g) => ({ ...g, x: g.x + p.topLeft.x, y: g.y + p.topLeft.y })),
+    p.art.picture.glows.map((g) => ({
+      ...g,
+      x: g.x + p.topLeft.x,
+      y: g.y + p.topLeft.y,
+      ...(k === 1 ? {} : { radius: g.radius * k }),
+    })),
   );
 }
 

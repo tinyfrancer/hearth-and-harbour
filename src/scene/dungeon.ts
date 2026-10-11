@@ -106,6 +106,11 @@ export interface Room {
   readonly perches: readonly Point[];
   readonly spawns: readonly Point[];
   readonly title: string | null;
+  /**
+   * How much of its light it has, 0 to 1: a darker day's (S16 `darker`,
+   * `dimOf`) lights lay pools this much as wide. Drawing only; absent is all.
+   */
+  readonly dim?: number;
 }
 
 export interface Dungeon {

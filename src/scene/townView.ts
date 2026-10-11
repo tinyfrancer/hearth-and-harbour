@@ -7,7 +7,7 @@ import { other, timeOfDayAt, type TimeOfDay } from './daylight';
 import { seedFrom } from '../core/rng';
 import { fighterOf } from './battle';
 import { startRun, type Dungeon, type Run } from './dungeon';
-import { builtDungeons, castOf, dungeonById, dungeonScene, healsOf } from './dungeons';
+import { builtDungeons, castOf, dimDungeon, dungeonById, dungeonScene, healsOf } from './dungeons';
 import { dungeonView } from './dungeonView';
 import { startLessons } from './lessons';
 import { closePanel, startPlay, visitsTo, type Play } from './play';
@@ -28,7 +28,7 @@ import {
   takeRequest,
   todaysModifier,
 } from './fromLaneA';
-import { runSpoils, type RunModifier } from './modifiers';
+import { dimOf, runSpoils, type RunModifier } from './modifiers';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -157,6 +157,12 @@ export const BOAT_LANDING: Cell = BOAT_LANDING2;
 
 /** A dungeon this scene can play, by id (`dungeons.ts`); null for one it does not know. */
 const dungeons = (id: string): Dungeon | null => dungeonById(id);
+
+/** A run's dungeon as its day shows it: dimmer on a darker day (drawing only). */
+const dungeonOf = (run: Run): Dungeon | null => {
+  const plain = dungeons(run.dungeon);
+  return plain && dimDungeon(plain, dimOf(run.modifier?.effects));
+};
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
 
@@ -665,8 +671,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
           lessons: startLessons(id, taught, (latest.dungeons[id]?.clears ?? 0) > 0),
         }
       : started;
-    paintAhead(dungeon);
-    rowing = { run: next, dungeon, since: performance.now() };
+    // Seen as its day shows it: dimmer on a darker day.
+    const seen = dungeonOf(next) ?? dungeon;
+    paintAhead(seen);
+    rowing = { run: next, dungeon: seen, since: performance.now() };
+
     rowOn();
   };
 
@@ -756,7 +765,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     }
   }
 
-  const inRun = run && dungeons(run.dungeon);
+  const inRun = run && dungeonOf(run);
   if (inRun) showDungeon(inRun, resuming);
   else showTown();
 
