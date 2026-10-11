@@ -1,8 +1,8 @@
 # Lane C: scenes
 
-**Next session: S16's second half, then Cody's review of wave 17** (the weak spots below; run
-statistics, the day's modifier, challenges and idle runs on lane A's contract). The third dungeon is
-a plan module and a row ("Adding a dungeon", below).
+**Next session: Cody's review of wave 17** (wave 16's weak spots; S16 in play: run statistics,
+the day's modifier, challenges, the results card, Send him in), and whatever it asks for. The third
+dungeon is a plan module and a row ("Adding a dungeon", below).
 
 ## The cave's map
 
@@ -90,6 +90,62 @@ target (`doorUnder`), and a tap or a held finger anywhere on it walks to that ce
   each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 17, second PR: S16 in play, on lane A's contract (#73) and lane B's pictures (#72).**
+  Nothing here is a stand-in: a stand-in of the contract was written behind `fromLaneA.ts` while
+  #73 was not on `main`, and deleted when it landed. Every grotto and cave balance case that was
+  here passes with its expectations untouched; a plain run is the run it always was (a run without
+  a modifier never passes through any of it; a modifier of rewards alone is proved tick for tick
+  identical to a plain run). Review sheets in `/home/claude/lane-shots/w17-c/`.
+  - **What a run did** (`runStats`, `runSpoils` in `modifiers.ts`; `Battle.count`): counted from the
+    fight as it happens, never read by a rule: hit points lost to blows after a brace's halving
+    (the sea's wash is not a blow), heavy blows (and cannon volleys) braced, and stepped out of (a
+    mark he stood in while it was marked and was clear of when it landed: `Telegraph.stoodIn`);
+    food eaten from the slot and found; kills; knocked out; time from rowing out to the boss's fall
+    (the run's clock, which stops behind the prompt, through a pause and while the page is away;
+    the beat after the last blow left out). Reported in every settle and in the kept run's spoils
+    with `dungeon` and `modifier`. `RUN_SCENE_VERSION` 2: a version-1 run is settled from its
+    spoils, as before. A run reloaded half way counts exactly what the unbroken run does (a test,
+    plain and under a modifier).
+  - **The day's modifier in play** (`modifiers.ts`, generic from its effects, no code per
+    modifier): read once from `shell.todaysModifier` as the boat rows out and kept in the run (a run
+    across midnight keeps it, and keeps what it does); foe health, damage and swing by lane A's
+    `foeUnder` on the rows the run starts with, hero damage by `heroMaxHitUnder`, the tide's pace
+    (`cycleTide(clock, pace)`, `Battle.mods.tidePace`), no food (`foodProblem` says `banned`: the
+    Eat button reads "No food", struck through, and does nothing), darker (every light pool
+    `DARKER_LIGHT`, 0.45, as wide: `Room.dim`, `dimDungeon`, painted in the worker; drawing only).
+    Loot, coins and XP are settling's (`spoilsUnder` for the card). A boss's cannon keeps its own
+    damage (it is not his blow).
+  - **Balance under each modifier** (`modifierRun.test.ts`, the grotto's careful player at combat
+    20, twelve seeds; plain: 12 of 12, median 8.2 minutes, 406 lost): thick skulls 4 of 12, 10.2
+    minutes; angry crew 3, 482 lost; quick tempers 5, 475 lost; spring tide 9, 428 lost; unlit
+    lamps 8, 8.8 minutes; **no rations 0 of 12** (he falls in the first rooms without the 18 fish
+    he eats on a plain day, at combat 20 and 28 alike: lane A's to decide, below). The cave's
+    novice clears every seed under slack tide (lowest health 14 against 7) and rich pickings (the
+    same runs exactly).
+  - **Challenges in play** (`runCard.ts`; judged only by lane A's `challengeMet`): the chart's
+    landing shows today's modifier (lane B's `modifierIcon`, its name, lane A's `effectWords`) and
+    the dungeon's challenges with a medal each, done or to do, and a pennant beside each landing
+    with a modifier today (`chartPennant2`). In a run, a quiet tracker in the lesson's corner (never
+    both; a slot in `hudLayout`) lists what can still be met: a challenge is open while the run,
+    cleared now, would meet it, lost (struck through) once it no longer would, waiting until it
+    would (brace three), met (green); a time challenge shows its clock; one only another day can
+    meet is left out. It folds to one 48-pixel button, and once folded starts folded on later runs
+    (`run.tracker.off`). The results card (two columns, buttons always in view): time, damage,
+    eaten, braced, stepped out, kills; each challenge met, new ones with lane B's medal glinting
+    once by the page's clock; the modifier and what it added; what the bank gets; **Row out again**
+    and **Back to town**.
+  - **Idle runs** (lane A's part 2 is not on `main`): the chart offers **Send him in** for a
+    cleared dungeon `mayIdle` allows, through `shell.sendIdle` (none without it); with an idle run
+    under way (`GameState.idleRun`) it says he is away there, the boat is gone from its mooring (open
+    water from the still laid over it, its lantern with it, no marker, ring, label, beacon or
+    pointer) and the ferryman has a line of his own.
+  - **Checked** in headless Chromium, production build, 3x, touch: the cave through from the
+    landing under slack tide (cleared in 2:55, three challenges new); the grotto through under unlit
+    lamps by its scripted player at the controls; first clear, a repeat meeting new challenges under
+    rich pickings, and a knock-out in the cove; the chart's panel for both dungeons; the captain's
+    fight at 4x CPU throttle with the tracker showing: 58.8 fps, median 16.7 ms, 2 frames over 40 ms
+    in 20 s.
 
 - **Wave 17, first PR: wave 16's weak spots.** No grotto or cave rule, position, pace, event or
   number moved: `scaleTimeline.test.ts`, `grottoRun.test.ts` (its three cases), `grottoRules.test.ts`
@@ -1237,6 +1293,13 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   ("Staggered!"); the rule and its number are as Cody was told.
 - **The cave with a notch** is drawn at 3x, not 4x (at 4x its doors would be under the notch). The
   Leave button's confirm panel, when open, is not kept off the room (a choice is being made).
+- **A darker day is subtle**: smaller pools, about a tenth darker on the whole.
+- **The tracker** uses a 13-pixel hand to fit four lines in its box; a dungeon with five
+  challenges would show four.
+- **Row out again** settles the run first and rows straight back; the first room is painted again
+  if it was let go, behind the results card's "Rowing out" line.
+- **No rations**: see Needs. The modifier balance cases hold lane A's numbers as they are; most of
+  the grotto's are much harder than a plain day for the scripted player (2 to 9 clears of 12).
 - **The grotto's rooms travel**: a cell far from the hero can be under a control until he walks
   toward it; he and the ground under him never are (`hudFit.test.ts`).
 - **Safe areas** are read from CSS (`env()`) and checked in Chromium with made-up numbers; not on a
@@ -1272,6 +1335,20 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Needs from another lane
 
+- **Lane A (wave 17)**: (1) **No rations makes the grotto unclearable** for the careful scripted
+  player at the recommended level and well above it (0 of 12 at combat 20 and at 28): the grotto is
+  balanced on eating what is brought. Likewise its "Hard Tack" challenge (clear without eating).
+  Held in `modifierRun.test.ts` so a change is seen. (2) Your toasts (achievements, challenge
+  rewards) cover most of the results card on a phone on its side for several seconds
+  (`results-cave-first-clear-toasts.png`). (3) `damageTaken` here is hit points lost to blows and
+  heavy blows (after a brace's halving), not the sea's wash; `stepOuts` counts cannon volleys as
+  heavy blows too. Say if either should differ. (4) When part 2 lands: the chart calls
+  `shell.sendIdle` and reads `GameState.idleRun`; the dungeons need their `idle` rows for Send him
+  in to show.
+- **Lane B (wave 17)**: nothing blocking. The diagonal pointers, modifier and challenge icons,
+  medals and the pennant are in use. A darker day is the existing light code with smaller pools
+  (a tenth darker on the whole, by measure); if it should read darker still, the scheme's
+  `darkSteps` for a darker day would be the lever.
 - **Lane A:** (1) `tests/data/cave.ts` models the pool room with four rats; the scene now has
   three there (four in all, with the landing's). Your model counts one rat more than the cave
   holds, which only makes it more careful; bring it to three if you want it exact. (2) Nothing
@@ -1307,7 +1384,11 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   `stageCamera` (pure), `holdOffset` and insets as a getter; `bodyMid` (`foes.ts`); `BOAT_MARK_LARGE`,
   `BOAT_HULL`, `pointerWay`, `labelPlace`'s `tall` (`townMarks.ts`); `diagonalPointersIn`
   (`fromLaneB.ts`); `PASS_BEHIND` (`stroll.ts`); the `reel` effect (`battle.ts`); the grotto bot's
-  `brace` option.
+  `brace` option; S16: `modifiers.ts` (`RunModifier`, `runStats`, `runSpoils`, `modifiedMonsters`,
+  `battleMods`, `dimOf`), `runCard.ts` (`trackerLines`, `trackerView`, `resultsCard`), `Battle.count`,
+  `Battle.mods`, `Telegraph.stoodIn`, `Room.dim` and `dimDungeon`, `cycleTide(clock, pace)`, the chart
+  panel's `today` and `sendIn`, `MOORING` (`townExtras.ts`) and `FERRYMAN_AWAY`; both bots take a
+  `modifier`. Lane A's S16 contract is read only through `fromLaneA.ts`, lane B's through `fromLaneB.ts`.
 - **Measuring (wave 17):** `.shots/` as before (`hooks.ts` adds `roomBoxes`, `toScreen`); saves
   with a kept run are written by a scratch vitest file and put in place by `addInitScript` with
   `savedAt` set to now, so the app takes the run up paused behind Resume, already sideways: a
