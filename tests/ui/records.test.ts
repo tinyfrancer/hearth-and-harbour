@@ -51,6 +51,9 @@ describe('the general store', () => {
     q<HTMLButtonElement>('[data-store-door]').click();
     expect(q('[data-store]').textContent).toContain('The general store');
     expect(q('.purse .qty').textContent).toBe('2,000');
+    // The beginner's things are cells with their prices; a tap opens one's card with Buy.
+    expect(q('[data-stock-cell="bronze_arrows"]').textContent).toContain('1.5k');
+    q<HTMLButtonElement>('[data-stock-cell="bronze_arrows"]').click();
     const arrows = q<HTMLButtonElement>('[data-buy="bronze_arrows"]');
     expect(arrows.textContent).toBe('Buy for 1,500 coins');
     arrows.click();
@@ -62,6 +65,7 @@ describe('the general store', () => {
     });
     expect(q('.purse .qty').textContent).toBe('500');
     // What the purse cannot reach says so, and waits.
+    q<HTMLButtonElement>('[data-stock-cell="bronze_sword"]').click();
     const sword = q<HTMLButtonElement>('[data-buy="bronze_sword"]');
     expect(sword.disabled).toBe(false);
     const cap = q<HTMLButtonElement>('[data-buy="velvet_cap"]');
@@ -108,6 +112,7 @@ describe('the general store', () => {
     playing({ coins: 0 });
     q<HTMLButtonElement>('.tab[data-tab="bank"]').click();
     q<HTMLButtonElement>('[data-store-door]').click();
+    q<HTMLButtonElement>('[data-stock-cell="shell_vial"]').click();
     expect(q('[data-stock="shell_vial"]').textContent).toContain('Used in Alchemy.');
     expect(q('[data-stock="potion_case"] .perk-effect').textContent).toBe(
       CONTENT.store!.potion_case!.perk!.effect,

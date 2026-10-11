@@ -26,6 +26,8 @@ export function gridIcon(itemId: string, name: string, cssScale = GRID_ICON_SCAL
   const icon = dollIcon(itemId, cssScale);
   if (icon) {
     icon.classList.add('grid-icon');
+    // The cell carries the item's id; its picture need not say it again.
+    delete icon.dataset.item;
     return icon as unknown as HTMLElement;
   }
   return h('span', { class: 'grid-icon grid-blank', attrs: { 'aria-hidden': 'true' } }, [
