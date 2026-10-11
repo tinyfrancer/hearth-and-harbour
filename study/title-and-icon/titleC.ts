@@ -424,11 +424,11 @@ export function drawC(t: number): Frame {
   glows.push({
     x: SUN.x,
     y: SUN.y - 6,
-    r: 170,
-    strength: 0.18,
+    r: 130,
+    strength: 0.12,
     bands: 4,
     colour: [255, 214, 150],
-    jitter: 0,
+    jitter: 0.5,
   });
   return { g, glows };
 }

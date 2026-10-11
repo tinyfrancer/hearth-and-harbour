@@ -48,11 +48,10 @@ function field(g: TGrid): void {
       put(g, x, y, X('azure', Math.min(7, s + n)));
     }
   // Gold studs where the lozenges' lines cross: a small lit diamond each.
-  for (let a = -40; a < 80; a++)
-    for (let b = -40; b < 120; b++) {
-      // Invert the lozenge coordinates: u + v = 2a, u - v + 200 = 2b.
-      const u = a + b - 100;
-      const v = a - b + 100;
+  // In the lozenge coordinates (u, v) the lines cross where u + v is even.
+  for (let u = 80; u <= 120; u++)
+    for (let v = -1; v <= 60; v++) {
+      if ((u + v) % 2 !== 0) continue;
       const x = Math.round(u * 13 + CX - 1300);
       const y = Math.round(v * 15 - 15);
       if (x < -3 || y < -3 || x > SCREEN_W + 3 || y > SCREEN_H + 3) continue;
