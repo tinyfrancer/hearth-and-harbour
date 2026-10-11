@@ -39,8 +39,20 @@ export interface TownMarker2 {
 export const TOWN_MARKER2_SIZES = ['small', 'large'] as const;
 export type TownMarker2Size = (typeof TOWN_MARKER2_SIZES)[number];
 
-/** Which way an edge-of-screen pointer points. */
-export const TOWN_POINTER2_DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
+/**
+ * Which way an edge-of-screen pointer points: the four along the edges, and
+ * (B17) the four diagonals, for a corner of the screen.
+ */
+export const TOWN_POINTER2_DIRECTIONS = [
+  'left',
+  'right',
+  'up',
+  'down',
+  'up-left',
+  'up-right',
+  'down-left',
+  'down-right',
+] as const;
 export type TownPointer2Direction = (typeof TOWN_POINTER2_DIRECTIONS)[number];
 
 /** How far the badge rises in each frame: a slow bob. */
@@ -425,6 +437,11 @@ export function townPointer2(direction: TownPointer2Direction, frame = 0): TownM
   const key = `pointer ${direction} ${f}`;
   let out = made.get(key);
   if (out) return out;
+  if (direction.includes('-')) {
+    out = diagonalPointer(direction, f);
+    made.set(key, out);
+    return out;
+  }
   const L = PL + 2;
   const across = direction === 'left' || direction === 'right';
   const w = across ? L : PW;
@@ -473,6 +490,65 @@ export function townPointer2(direction: TownPointer2Direction, frame = 0): TownM
   };
   made.set(key, out);
   return out;
+}
+
+/** The diagonal pointers' square canvas, before its keyline. */
+const PD = 20;
+
+/**
+ * The chevron turned to a diagonal (B17): the same arrow, its axis along the
+ * square's diagonal, nudging the same 0, 1, 2, 1 pixels along it, lit by its
+ * bevel as the straight ones are. Every frame one size, one anchor: the
+ * pixel just past the tip at its furthest frame, diagonally.
+ */
+function diagonalPointer(direction: TownPointer2Direction, f: number): TownMarker2 {
+  const dx = direction.endsWith('left') ? -1 : 1;
+  const dy = direction.startsWith('up') ? -1 : 1;
+  const ux = dx / Math.SQRT2;
+  const uy = dy / Math.SQRT2;
+  const half = (PW - 1) / 2;
+  const c = (PD - 1) / 2;
+  const inside = (x: number, y: number, shift: number): boolean => {
+    // Along the way (a, 0 at the back of the arrow's travel) and across it (b about the axis).
+    const a = (x - c) * ux + (y - c) * uy + (PL + 2) / 2 - 0.5;
+    const b = -(x - c) * uy + (y - c) * ux;
+    const d = Math.abs(b);
+    const tip = PL - 1 + shift;
+    const front = tip - (d / half) * (PL - 1);
+    // A shallower notch and a heavier back than the straight arrow's: turned to the
+    // diagonal, a deep notch leaves two arms along the rows and columns, which reads
+    // as a corner bracket rather than an arrowhead.
+    const notch = shift + 1.5 - (d / half) * 1.5 + 2.2;
+    return d <= half - 1 && a <= front + 0.5 && a >= notch - 0.5;
+  };
+  const mask = new Uint8Array(PD * PD);
+  for (let y = 0; y < PD; y++)
+    for (let x = 0; x < PD; x++) if (inside(x, y, PBOB[f]!)) mask[y * PD + x] = 1;
+  const light = bevel(mask, PD, PD, 2.5);
+  const g = tgrid(PD, PD);
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    const l = light[i]!;
+    put(g, i % PD, Math.floor(i / PD), pin('gold', l > 0.85 ? 0 : l > 0.7 ? 1 : l > 0.5 ? 2 : 3));
+  }
+  // The tip at its furthest (frame 2): the drawn pixel furthest along the way.
+  let best = -Infinity;
+  let tx = 0;
+  let ty = 0;
+  for (let y = 0; y < PD; y++)
+    for (let x = 0; x < PD; x++)
+      if (inside(x, y, 2)) {
+        const along = x * dx + y * dy;
+        if (along > best) {
+          best = along;
+          tx = x;
+          ty = y;
+        }
+      }
+  return {
+    picture: { grid: outlined(g), glows: [] },
+    anchor: { x: tx + 1 + dx, y: ty + 1 + dy },
+  };
 }
 
 /**

@@ -876,6 +876,31 @@ The chart the rowing boat opens: a hand-drawn sea chart in the game's pixels, da
   ring with ticks selected), each dungeon's emblem (or its ink silhouette while locked), the red
   dotted route, the rowing boat token. No words in the picture: names are the scene's.
 
+### Dungeon replay pictures (B17)
+
+S16's modifiers and challenges get icons by **kind**, not by id (`src/art/dungeonIcons.ts`): an id
+or a modifier's effects name what it does, and each kind has one pictogram. The rules:
+
+- **One object, lit from the upper left, filling the 22 x 22 inside its keyline**, in the town's
+  seven-step ramps (they carry a bevel better than the icons' three steps), so they sit beside the
+  item icons at the same size. A colour says whose it is: foes made worse are crimson (an
+  armoured heart, claw rakes over a burst, a racing double chevron), the hero's gain is steel and
+  gold (a raised sword with a spark), rewards gold (a heaped chest, coins, a book with a star),
+  the world's change its own (rising water, a crescent moon behind cloud), and a die for a
+  modifier never seen. Challenges: an hourglass, a bright heart sparkling (untouched), a fist, a
+  crowned skull, crossed swords, a target for one never seen.
+- **Forbidden is a red ring with a bar** from upper left to lower right over a smaller object
+  (meat on the bone, the brace's shield, a flask), the ring and bar with their own dark rims so
+  they hold over the object and off it.
+- **Medals** hang on a V of ribbon: gold with a star on red when met, dull iron and hollow on grey
+  when not; the first time, a glint sweeps the disc and a sparkle blooms once.
+- **Seals** put the chart's own emblem on chart paper in a round frame: bronze for a clear, gold
+  with a laurel, a star and red tails for every challenge. The chart's **daily pennant** is a
+  midnight-blue swallowtail with a gold star, taller than a landing's marker and never red.
+- **Rowing** (the idle dungeon run): the rower faces the stern, as rowers do; the blade's path is
+  set by hand (in at the bow, swept aft through the water, carried forward clear of it) because
+  side-on an oar is foreshortened and what reads is where the blade goes, not its length.
+
 ### Interaction markers in town (B15)
 
 Cody: "make it more apparent we need to click the boat". The town must say what can be used

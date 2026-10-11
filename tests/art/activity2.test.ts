@@ -6,12 +6,13 @@ import {
   KNIGHT_GEAR2,
   activityFrameMs2,
   activityFrames2,
+  activityHitFrame2,
   activityProp2,
   characterActivity2,
   characterActivityPicture2,
   characterPicture2,
 } from '../../src/art/character2';
-import type { TGrid } from '../../src/art/town2/cells';
+import { isMat, stepOf, type TGrid } from '../../src/art/town2/cells';
 
 // The hero at work (B13, for the idle menu next wave; docs/style-guide.md,
 // "Activity poses"): a short loop for each skill the game has, side-on, with
@@ -54,7 +55,8 @@ const same = (a: TGrid, b: TGrid) => a.d.every((c, i) => c === b.d[i]);
 
 describe('activity poses', () => {
   it('has a loop for every skill the game has', () => {
-    expect([...ACTIVITY2_IDS].sort()).toEqual([...SKILLS].sort());
+    // B17: and rowing, for a dungeon run idle (not a skill).
+    expect([...ACTIVITY2_IDS].sort()).toEqual([...SKILLS, 'dungeon'].sort());
     for (const id of SKILLS) {
       const n = activityFrames2(id);
       if (id === 'vitality') expect(n).toBe(2);
@@ -66,7 +68,7 @@ describe('activity poses', () => {
   });
 
   it('draws every frame on the figure’s canvas, moving, in every outfit and look', () => {
-    for (const id of SKILLS)
+    for (const id of [...SKILLS, 'dungeon'])
       for (const o of OUTFITS) {
         const frames = Array.from(
           { length: activityFrames2(id) },
@@ -188,5 +190,74 @@ describe('activity poses at work on their props (B14)', () => {
         }
       expect(touch, id).toBe(true);
     }
+  });
+});
+
+// B17: rowing the little boat, for a dungeon run idle (S16).
+describe('rowing (B17)', () => {
+  const frames = activityFrames2('dungeon');
+  const boat = activityProp2('dungeon')!;
+
+  it('is a four-frame stroke with its own boat round the hero, inside the strip’s stage', () => {
+    expect(frames).toBe(4);
+    expect(activityHitFrame2('dungeon')).toBe(1);
+    expect(activityFrameMs2('dungeon')).toBeGreaterThan(150);
+    // The boat's top-left is the hero canvas's: it never reaches left of it or below the soles,
+    // nor further right than the fishing prop, so the "now doing" stage keeps its size.
+    expect(boat.front).toBe(false);
+    expect(28 + boat.at.x - boat.foot.x).toBe(0);
+    expect(70 + boat.at.y - boat.foot.y).toBe(0);
+    const fish = activityProp2('fishing')!;
+    expect(boat.picture.grid.w).toBeLessThanOrEqual(
+      28 + fish.at.x - fish.foot.x + fish.picture.grid.w,
+    );
+    expect(boat.picture.grid.h).toBeLessThanOrEqual(71);
+  });
+
+  it('lays the near hull over him exactly as the boat has it, so the two meet without a seam', () => {
+    for (const o of OUTFITS)
+      for (let f = 0; f < frames; f++) {
+        const g = characterActivityPicture2(o.look, o.worn, 'dungeon', f, o.extra).grid;
+        const b = boat.picture.grid;
+        let same = 0;
+        let hull = 0;
+        // Below the hull's top row, under the hero's canvas, the frame is the boat but for the oar.
+        for (let y = 56; y < 63; y++)
+          for (let x = 2; x < 20; x++) {
+            hull++;
+            if (g.d[y * g.w + x] === b.d[y * b.w + x]) same++;
+          }
+        expect(same / hull, `${f}`).toBeGreaterThan(0.85);
+        // No boot or greave shows below the gunwale: the hero is seated in it.
+        for (let y = 56; y < 70; y++)
+          for (let x = 0; x < g.w; x++) {
+            const c = g.d[y * g.w + x]!;
+            if (c)
+              expect(
+                ['wood', 'sail', 'crimson', 'sea', 'willow'].some((m) => isMat(c, m as never)),
+                `${f} ${x},${y}`,
+              ).toBe(true);
+          }
+      }
+  });
+
+  it('dips the blade in the water through the stroke and carries it clear on the recovery', () => {
+    const wet = (f: number) => {
+      const g = characterActivityPicture2({}, [], 'dungeon', f).grid;
+      return [...g.d].filter(
+        (c, i) => c && isMat(c, 'sea') && Math.floor(i / g.w) >= 63 && stepOf(c) === 0,
+      ).length;
+    };
+    // Foam where the blade bites on the catch and the drive; none on the recovery.
+    expect(wet(1)).toBeGreaterThan(wet(3));
+    expect(wet(0)).toBeGreaterThan(0);
+    const oarRows = (f: number) => {
+      const g = characterActivityPicture2({}, [], 'dungeon', f).grid;
+      let low = 0;
+      for (let i = 0; i < g.d.length; i++)
+        if (g.d[i] && isMat(g.d[i]!, 'willow')) low = Math.max(low, Math.floor(i / g.w));
+      return low;
+    };
+    expect(oarRows(3)).toBeLessThan(62);
   });
 });

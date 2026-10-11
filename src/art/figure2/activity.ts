@@ -17,11 +17,11 @@
  * with its foot and its place as data, so the menu can compose it.
  */
 import { DEPTH } from '../depth';
-import { cell, outlined, put, tgrid, type TGrid } from '../town2/cells';
+import { at as cellAt, cell, outlined, put, tgrid, type TGrid } from '../town2/cells';
 import type { Mat } from '../town2/ramps';
 import type { Glow } from '../raster';
 import { FIST2 } from './body';
-import type { Part2, Pins } from './engine';
+import { outlineIn, type Part2, type Pins } from './engine';
 import { HELD2, gripPart, straightBlade } from './held';
 import { SIDE_SHOULDER, type SideDress, type SidePose } from './side';
 import { turnHeld, type Turn } from './strike';
@@ -40,6 +40,7 @@ export const ACTIVITY_IDS = [
   'fletching',
   'alchemy',
   'thieving',
+  'dungeon',
   'melee',
   'ranged',
   'defence',
@@ -186,6 +187,9 @@ const WIDE: readonly [number, number] = [36, 20];
 // Each loop's work lands on its prop: the hatchet's bit on the log's top (about
 // (49, 45) on the hero's canvas), the pick's point on the rock (55, 49), the
 // hammer on the anvil's face (47, 46), the ladle in the pot (50, 54).
+const SEAT: readonly [number, number] = [45, 43];
+const ROW_BOB = 11;
+
 const LOOPS: Readonly<Record<string, Loop>> = {
   // Raised behind the head, brought over, the bit into the log, wrenched free.
   woodcutting: {
@@ -558,6 +562,60 @@ const LOOPS: Readonly<Record<string, Loop>> = {
       },
     ],
   },
+  // Rowing (B17, for S16's idle dungeon runs): seated in the little boat on
+  // its thwart (the hips dropped to it), facing the stern as a rower does, the
+  // near oar in both fists. The catch (leant forward, arms out, the blade
+  // going in toward the bow), the drive (the blade deep, the splash), the
+  // finish (leant back, hands to the ribs, the blade lifting out toward the
+  // stern), the recovery (hands pressed low and forward, the blade raised
+  // clear of the water). The boat and the water are the prop, behind the
+  // hero; the hull's near side, the water in front and the oar are laid over
+  // the hero by `activityFinish`.
+  dungeon: {
+    frameMs: 230,
+    beats: [
+      {
+        lean: 3,
+        bob: ROW_BOB,
+        feet: SEAT,
+        weapon: [12, 4],
+        off: [11, 4],
+        offHand: 'fist',
+        bend: -1,
+        offBend: -1,
+      },
+      {
+        lean: 1,
+        bob: ROW_BOB,
+        feet: SEAT,
+        weapon: [8, 6],
+        off: [7, 6],
+        offHand: 'fist',
+        bend: -1,
+        offBend: -1,
+      },
+      {
+        lean: -3,
+        bob: ROW_BOB,
+        feet: SEAT,
+        weapon: [4, 7],
+        off: [3, 7],
+        offHand: 'fist',
+        bend: -1,
+        offBend: -1,
+      },
+      {
+        lean: 0,
+        bob: ROW_BOB,
+        feet: SEAT,
+        weapon: [12, 10],
+        off: [11, 10],
+        offHand: 'fist',
+        bend: -1,
+        offBend: -1,
+      },
+    ],
+  },
 };
 
 /** Frames in an activity's loop (combat's are the blow's four or the breath's two). */
@@ -750,6 +808,14 @@ class Canvas {
 }
 
 const PROPS: Readonly<Record<string, () => ActivityProp>> = {
+  // The boat he rows, round him on his own canvas (its top-left the hero canvas's).
+  dungeon: () => ({
+    grid: boat(),
+    glows: [{ x: 70, y: 37, radius: 8, strength: 0.4 }],
+    foot: { x: 28, y: 70 },
+    at: { x: 0, y: 0 },
+    front: false,
+  }),
   // A log on a chopping block, its cut end showing its rings.
   woodcutting: () => {
     const c = new Canvas(22, 26);
@@ -917,6 +983,182 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 27, y: 0 }, front: true };
   },
 };
+
+/*
+ * The little rowing boat (B17), side-on, for rowing: drawn on the hero's own
+ * canvas rows and columns (its top-left is the hero canvas's top-left), 79
+ * across so it reaches past the hero's canvas toward the stern without
+ * widening the "now doing" stage (the fishing prop already reaches column
+ * 79), and no lower than the hero's soles. Its bow to the left, its stern
+ * with the lantern pole and red pennant to the right, as the town's boat has.
+ */
+const BOAT_W = 79;
+const BOAT_H = 71;
+/** The gunwale's row at a column, the bow's sheer rising to the left. */
+const gunwale = (x: number): number => {
+  const t = Math.max(0, Math.min(1, (x - 3) / 71));
+  return 51 - 4.6 * (1 - t) ** 2.4 - 1.4 * t ** 5;
+};
+/** The water's surface row at a column, a gentle ripple. */
+const WATER = 63;
+const waterline = (x: number): number => WATER + (Math.sin(x * 0.55) > 0.6 ? -1 : 0);
+/**
+ * Where the near oar's blade ends in each frame of the stroke, on the hero's
+ * canvas: in the water toward the bow at the catch, sweeping toward the stern
+ * through the drive and the finish, then carried forward clear of the water.
+ * Set by hand rather than turned about an oarlock: seen side-on an oar is
+ * foreshortened, and what reads is the blade's path, not its length.
+ */
+const BLADE: readonly (readonly [number, number])[] = [
+  [15, 67],
+  [23, 68],
+  [32, 64],
+  [13, 57],
+];
+
+let boatGrid: TGrid | null = null;
+function boat(): TGrid {
+  if (boatGrid) return boatGrid;
+  const g = tgrid(BOAT_W, BOAT_H);
+  const bowX = (y: number) => 3 + 10 * Math.max(0, (y - 46) / 18) ** 2;
+  const sternX = (y: number) => 73 - Math.max(0, y - 50) * 0.35;
+  const keel = (x: number) => {
+    const t = (x - 3) / 70;
+    return 64 - 3 * Math.max(0, t - 0.8) * 5;
+  };
+  // The water first, a broad patch, darker under the hull.
+  for (let y = WATER - 1; y <= 69; y++)
+    for (let x = 1; x < BOAT_W - 1; x++) {
+      const k = Math.abs(x + 0.5 - 39) / 38;
+      if (y < waterline(x) || k ** 2 + ((y - 66) / 4.2) ** 2 > 1.15) continue;
+      const under = x > 6 && x < 72 && y < 67;
+      const ripple = (y === 66 && (x % 11 === 3 || x % 11 === 4)) || (y === 68 && x % 9 === 6);
+      put(g, x, y, cell('sea', y === waterline(x) ? 1 : ripple ? 1 : under ? 4 : y > 67 ? 3 : 3));
+    }
+  // The hull: a white top strake over a red line, planks below lit along their tops.
+  for (let y = 40; y <= 66; y++)
+    for (let x = 1; x < BOAT_W - 1; x++) {
+      const top = gunwale(x);
+      if (y < Math.round(top) || x < bowX(y) || x > sternX(y) || y > keel(x)) continue;
+      const s = y - Math.round(top);
+      let c;
+      if (s === 0) c = cell('wood', 1);
+      else if (s <= 2) c = cell('sail', s === 1 ? 1 : 2);
+      else if (s === 3) c = cell('crimson', 2);
+      else {
+        const plank = (s - 4) % 3;
+        const deep = y > 60 ? 1 : 0;
+        c = cell('wood', plank === 0 ? 4 : plank === 1 ? 2 + deep : 3 + deep);
+      }
+      // The bow's stem and the transom catch the light a step brighter or darker.
+      if (x < bowX(y) + 1.2 && s > 0) c = cell('wood', s <= 2 ? 1 : 2);
+      if (x > sternX(y) - 1.2 && s > 3) c = cell('wood', 4);
+      // Below the water's surface the hull is the water's.
+      if (y >= waterline(x)) continue;
+      put(g, x, y, c);
+    }
+  // The lantern pole at the stern, its lantern, and the red pennant streaming toward the bow.
+  for (let y = 33; y < Math.round(gunwale(70)); y++) {
+    put(g, 70, y, cell('wood', 2));
+    put(g, 71, y, cell('wood', 4));
+  }
+  for (let y = 36; y <= 39; y++)
+    for (let x = 69; x <= 72; x++)
+      put(
+        g,
+        x,
+        y,
+        cell(
+          y === 36 || y === 39 ? 'iron' : 'lamp',
+          y === 36 ? 2 : y === 39 ? 3 : x === 69 ? 1 : 2,
+        ),
+      );
+  for (let i = 0; i < 9; i++) {
+    const half = i < 6 ? 1 : 0;
+    for (let j = -half; j <= half + (i < 3 ? 1 : 0); j++)
+      put(g, 69 - i, 32 + j + (i > 5 ? 1 : 0), cell('crimson', j < 0 ? 1 : 2));
+  }
+  put(g, 70, 32, cell('gold', 1));
+  boatGrid = outlineIn(g);
+  return boatGrid;
+}
+
+/**
+ * What a loop lays over the hero once the frame is stacked (B17): for
+ * rowing, the boat's near side and the water in front of him over his legs
+ * (exactly the prop's pixels, so the two meet without a seam), then the near
+ * oar from under his fists to its blade (`BLADE`), in the water (a splash
+ * where it bites) or raised. Any other loop is returned as it is.
+ */
+export function activityFinish(
+  id: string,
+  f: number,
+  grid: TGrid,
+  fist: readonly [number, number],
+): TGrid {
+  if (id !== 'dungeon') return grid;
+  const n = LOOPS.dungeon!.beats.length;
+  const k = ((f % n) + n) % n;
+  const out: TGrid = { w: grid.w, h: grid.h, d: grid.d.slice() };
+  const b = boat();
+  for (let x = 0; x < out.w; x++) {
+    const top = Math.round(gunwale(x)) - 1;
+    for (let y = top; y < out.h - 1; y++) {
+      const c = cellAt(b, x, y);
+      // The hero is hidden inside the hull and below the water; above them he stands clear.
+      if (y >= top && x >= 2 && x <= 76) out.d[y * out.w + x] = c;
+    }
+  }
+  // The oar: a pale ash loom from the fists, the blade a step wider, red at its tip.
+  const hand: [number, number] = [fist[0] + 2, fist[1] + 2];
+  const end = BLADE[k]!;
+  const len = Math.hypot(end[0] - hand[0], end[1] - hand[1]);
+  const steps = Math.ceil(len);
+  const inFist = (x: number, y: number) =>
+    x >= fist[0] && x <= fist[0] + 4 && y >= fist[1] && y <= fist[1] + 4;
+  const oar = tgrid(out.w, out.h);
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = Math.round(hand[0] + (end[0] - hand[0]) * t);
+    const y = Math.round(hand[1] + (end[1] - hand[1]) * t);
+    if (inFist(x, y) || y >= out.h - 1) continue;
+    const blade = t > 0.74;
+    const wet = y >= waterline(x);
+    const tip = t > 0.93;
+    const c = wet ? cell('sea', 4) : cell(blade && tip ? 'crimson' : 'willow', blade ? 1 : 2);
+    put(oar, x, y, c);
+    if (blade) put(oar, x + 1, y, wet ? cell('sea', 5) : cell(tip ? 'crimson' : 'willow', 3));
+  }
+  // The splash: foam thrown up either side where the blade bites (the catch and the drive).
+  if (k <= 1) {
+    const sx = Math.round(
+      hand[0] + ((end[0] - hand[0]) * (WATER - hand[1])) / Math.max(1, end[1] - hand[1]),
+    );
+    const foam: readonly (readonly [number, number])[] =
+      k === 1
+        ? [
+            [-3, -1],
+            [-2, -2],
+            [-1, -1],
+            [2, -1],
+            [3, -2],
+            [4, -1],
+            [-4, 0],
+            [5, 0],
+          ]
+        : [
+            [-1, -1],
+            [1, -1],
+            [2, 0],
+            [-2, 0],
+          ];
+    for (const [dx, dy] of foam) put(oar, sx + dx, WATER + dy, cell('sea', 0));
+  }
+  const lined = outlineIn(oar);
+  for (let i = 0; i < out.d.length; i++)
+    if (lined.d[i] && i < out.w * (out.h - 1)) out.d[i] = lined.d[i]!;
+  return out;
+}
 
 const props = new Map<string, ActivityProp>();
 

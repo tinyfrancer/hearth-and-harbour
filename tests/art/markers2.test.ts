@@ -119,8 +119,8 @@ describe('the markers’ legibility (B16)', () => {
 
 describe('the edge pointer (B16)', () => {
   it('points each way, every frame one size with one anchor, nudging toward its point', () => {
-    expect(TOWN_POINTER2_DIRECTIONS).toEqual(['left', 'right', 'up', 'down']);
-    for (const d of TOWN_POINTER2_DIRECTIONS) {
+    expect(TOWN_POINTER2_DIRECTIONS.slice(0, 4)).toEqual(['left', 'right', 'up', 'down']);
+    for (const d of ['left', 'right', 'up', 'down'] as const) {
       const frames = Array.from({ length: TOWN_MARKER2_FRAMES }, (_, f) => townPointer2(d, f));
       const g0 = frames[0]!.picture.grid;
       for (const p of frames) {
@@ -154,6 +154,67 @@ describe('the edge pointer (B16)', () => {
           expect(l.d[y * l.w + (r.w - 1 - x)] !== 0).toBe(on);
           expect(dn.d[x * dn.w + y] !== 0).toBe(on);
           expect(u.d[(r.w - 1 - x) * u.w + y] !== 0).toBe(on);
+        }
+    }
+  });
+});
+
+// B17: diagonal pointers for a corner of the screen; the four straight ones untouched.
+describe('the diagonal edge pointers (B17)', () => {
+  const STRAIGHT: Record<string, readonly string[]> = {
+    left: ['7d2e5d66', '52546d5e', '53182736', '52546d5e'],
+    right: ['3930d215', 'd8989025', '640b49d5', 'd8989025'],
+    up: ['eb661db5', '49811ea5', '01e9c435', '49811ea5'],
+    down: ['5433e194', '965a49bc', 'ffa7e2c4', '965a49bc'],
+  };
+
+  it('keeps the four straight pointers byte for byte', () => {
+    for (const [d, prints] of Object.entries(STRAIGHT))
+      prints.forEach((h, f) => {
+        const g = townPointer2(d as 'left', f).picture.grid;
+        expect(fingerprint(g).split(' ')[1], `${d} ${f}`).toBe(h);
+      });
+  });
+
+  it('points each diagonal way, one size and anchor, the anchor just past the tip at its furthest', () => {
+    const diagonals = ['up-left', 'up-right', 'down-left', 'down-right'] as const;
+    expect(TOWN_POINTER2_DIRECTIONS.slice(4)).toEqual(diagonals);
+    for (const d of diagonals) {
+      const frames = Array.from({ length: TOWN_MARKER2_FRAMES }, (_, f) => townPointer2(d, f));
+      const g0 = frames[0]!.picture.grid;
+      for (const p of frames) {
+        expect([p.picture.grid.w, p.picture.grid.h], d).toEqual([g0.w, g0.h]);
+        expect(p.anchor, d).toEqual(frames[0]!.anchor);
+        expect(hasKeyline(p.picture.grid), d).toBe(true);
+      }
+      expect(g0.w).toBe(g0.h);
+      expect(g0.w * g0.h, d).toBeLessThanOrEqual(24 * 24);
+      const dx = d.endsWith('left') ? -1 : 1;
+      const dy = d.startsWith('up') ? -1 : 1;
+      // The anchor is toward the pointed-at corner of the picture.
+      expect(Math.sign(frames[0]!.anchor.x - g0.w / 2), d).toBe(dx);
+      expect(Math.sign(frames[0]!.anchor.y - g0.h / 2), d).toBe(dy);
+      // At its furthest the tip's keyline touches the anchor; at rest nothing is there.
+      const near = (f: number) => {
+        const { picture, anchor } = frames[f]!;
+        const g = picture.grid;
+        const c = (x: number, y: number) => g.d[y * g.w + x] ?? 0;
+        return c(anchor.x - dx, anchor.y) || c(anchor.x, anchor.y - dy);
+      };
+      expect(stepOf(near(2)), d).toBe(6);
+      expect(frames[0]!.picture.grid.d[frames[0]!.anchor.y * g0.w + frames[0]!.anchor.x]).toBe(0);
+      // The four are one drawing turned: up-right mirrors up-left, down-left flips it.
+      expect(townPointer2(d, 5), d).toBe(frames[1]);
+    }
+    for (let f = 0; f < TOWN_MARKER2_FRAMES; f++) {
+      const ul = townPointer2('up-left', f).picture.grid;
+      const ur = townPointer2('up-right', f).picture.grid;
+      const dl = townPointer2('down-left', f).picture.grid;
+      for (let y = 0; y < ul.h; y++)
+        for (let x = 0; x < ul.w; x++) {
+          const on = ul.d[y * ul.w + x] !== 0;
+          expect(ur.d[y * ur.w + (ul.w - 1 - x)] !== 0).toBe(on);
+          expect(dl.d[(ul.h - 1 - y) * dl.w + x] !== 0).toBe(on);
         }
     }
   });

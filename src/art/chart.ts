@@ -767,6 +767,56 @@ export function chartBoat2(facing: 'left' | 'right' = 'right'): ChartPiece2 {
   });
 }
 
+/** Frames of the daily-modifier pennant's flutter, and how long to show each. */
+export const CHART_PENNANT2_FRAMES = 4;
+export const CHART_PENNANT2_FRAME_MS = 200;
+
+/**
+ * The daily-modifier pennant (B17, for S16): a long swallow-tailed streamer
+ * in midnight blue with a gold star, on a tall pole, fluttering by frame
+ * (any whole number; it wraps at `CHART_PENNANT2_FRAMES`). Stand it beside a
+ * landing that has a modifier today, its anchor (the pole's foot) a few
+ * pixels to the left of the landing's marker: taller than the marker, so it
+ * reads over it, and blue, so it is never taken for the marker's red. Every
+ * frame is one size with one anchor. Day only: rasterize with `DAY2`.
+ */
+export function chartPennant2(frame = 0): ChartPiece2 {
+  const n = CHART_PENNANT2_FRAMES;
+  const f = ((Math.floor(Number.isFinite(frame) ? frame : 0) % n) + n) % n;
+  return kept(`pennant ${f}`, () => {
+    const W = 17;
+    const H = 20;
+    const g = tgrid(W, H);
+    // The pole, lit on its left, a gold finial at its head.
+    for (let y = 1; y < H; y++) put(g, 0, y, cell('wood', y < 3 ? 2 : 3));
+    put(g, 0, 0, cell('gold', 1));
+    // The streamer: from the pole's head, tapering to a forked tail, a wave running down it.
+    const L = 15;
+    const wave = (i: number) =>
+      Math.round(Math.sin((i / L) * Math.PI * 1.6 - f * (Math.PI / 2)) * 1.2 * (i / L));
+    for (let i = 0; i < L; i++) {
+      const x = 1 + i;
+      const half = 3.2 - (i / L) * 1.1;
+      const top = 3 - half + wave(i);
+      const fork = i > L - 5 ? (i - (L - 5)) * 0.45 : 0;
+      for (let y = Math.round(top); y <= Math.round(top + half * 2); y++) {
+        const v = (y - top) / (half * 2);
+        if (fork && Math.abs(v - 0.5) < fork / (half * 2)) continue;
+        const lit = v < 0.3 ? 2 : v > 0.75 ? 4 : 3;
+        put(g, x, y + 1, cell('midnight', lit - (wave(i) < wave(Math.max(0, i - 1)) ? 0 : 0)));
+      }
+    }
+    // The star on it near the pole.
+    const sy = 4 + wave(4);
+    put(g, 5, sy, cell('gold', 1));
+    put(g, 4, sy, cell('gold', 2));
+    put(g, 6, sy, cell('gold', 2));
+    put(g, 5, sy - 1, cell('gold', 2));
+    put(g, 5, sy + 1, cell('gold', 3));
+    return { picture: { grid: outlined(g), glows: [] }, anchor: { x: 1, y: H } };
+  });
+}
+
 /** One dot of a route, red ink. */
 export function chartDot2(): ChartPiece2 {
   return kept('dot', () =>
