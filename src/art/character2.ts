@@ -15,6 +15,7 @@ import { BEARD_CHOICES, DEFAULT_LOOK, LOOK_CHOICES, type Look } from './characte
 import type { Cell, Picture2, TGrid } from './town2/cells';
 import { mirror } from './town2/cells';
 import { mirrorLit } from './figure2/relight';
+import { turnFigure } from './figure2/turn';
 import { pixelCanvas2, spriteCanvas } from './town2/raster';
 import { DAY2, paletteFor, type TimeOfDay } from './town2/ramps';
 import { town2Scale } from './town2/scale';
@@ -453,6 +454,57 @@ export function characterIdlePicture2(
   if (f === 0) return characterPicture2(look, wornItemIds, extra);
   const key = `idle ${f} ${keyOf(look, wornItemIds, extra)}`;
   return posedPicture(key, () => heroParts(look, wornItemIds, extra), IDLE2[f]!, false)!;
+}
+
+/**
+ * The hero standing turned toward his facing (B17): the standing picture (or
+ * its breath, `frame` 1) turned three-quarter (`figure2/turn.ts`), the head
+ * furthest, the body less, the legs least, for every look and wearable. Same
+ * 56 x 72 canvas and anchor (28, 70); `'left'` is the right turned and then
+ * mirrored and re-lit from the left, so what he holds changes hands, as the
+ * standing picture's does through `facingLeft2` (the walk alone keeps the
+ * sword in the right hand). A new door: the standing picture itself is
+ * unchanged. Kept once drawn, until `forgetWalks2()`.
+ */
+export function characterThreeQuarterPicture2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  frame = 0,
+  extra: readonly string[] = [],
+  facing: 'right' | 'left' = 'right',
+): Picture2 {
+  const f = Math.abs(Math.floor(frame)) % IDLE2_FRAMES;
+  const key = `turned ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`;
+  const kept = posedPics.get(key);
+  if (kept) return kept;
+  const safe: Look = { ...DEFAULT_LOOK, ...look };
+  let pic: Picture2;
+  try {
+    const t = characterFrameTagged2(look, wornItemIds, 'idle', f, extra);
+    const grid = outlineIn(turnFigure(t.grid));
+    pic = { grid: recolour(facing === 'left' ? mirrorLit(grid) : grid, lookSwap(safe)), glows: [] };
+  } catch {
+    pic = characterIdlePicture2(look, wornItemIds, f, extra);
+  }
+  posedPics.set(key, pic);
+  return pic;
+}
+
+/** The turned standing hero on an offscreen canvas at one pixel per art pixel, kept like `characterWalk2`. */
+export function characterThreeQuarter2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  time: TimeOfDay,
+  frame = 0,
+  extra: readonly string[] = [],
+  facing: 'right' | 'left' = 'right',
+): HTMLCanvasElement {
+  const f = Math.abs(Math.floor(frame)) % IDLE2_FRAMES;
+  return spriteCanvas(
+    `hero turned ${facing} ${f} ${keyOf(look, wornItemIds, extra)}`,
+    characterThreeQuarterPicture2(look, wornItemIds, f, extra, facing),
+    paletteFor(time),
+  );
 }
 
 /**
