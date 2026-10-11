@@ -21,6 +21,7 @@ import { DEPTH } from '../depth';
 import { FIST2 } from './body';
 import { pixels, type Part2 } from './engine';
 import { fromPixels, rowsOf } from './views';
+import { turnsRigid } from './edges';
 
 /** Where a weapon turns: the middle of the fist. */
 export const CARRY_PIVOT = [FIST2.at[0] + 2, FIST2.at[1] + 2] as const;
@@ -39,8 +40,9 @@ export const CARRY: Readonly<
 > = {
   bronze_shortsword: { down: true, lean: 0.7, keep: 0.9 },
   iron_arming_sword: { down: true, lean: 0.75, keep: 0.7 },
-  smugglers_cutlass: { down: true, lean: 0.75, keep: 0.8 },
-  pirates_cutlass: { down: true, lean: 0.75, keep: 0.8 },
+  // Turned rigidly (edges.ts), so the blade's own lean now points back: more lean to carry it forward.
+  smugglers_cutlass: { down: true, lean: 1.05, keep: 0.8 },
+  pirates_cutlass: { down: true, lean: 1.05, keep: 0.8 },
   iron_bearded_axe: { down: true, lean: 0.7, keep: 0.85 },
   bronze_hatchet: { down: false, lean: 0.35, keep: 1 },
   cudgel: { down: true, lean: 0.6, keep: 1 },
@@ -84,13 +86,19 @@ export function foreshorten(
   return out;
 }
 
-/** (x, y) carried: turned point-down about the pivot's row if asked, then each row slid by `lean`. */
-function slid(x: number, y: number, down: boolean, lean: number): [number, number] {
-  const [, cy] = CARRY_PIVOT;
+/**
+ * (x, y) carried: turned point-down about the pivot's row if asked (or, for a
+ * curved blade, about the pivot itself, a true half turn, so its belly stays
+ * on its edge: edges.ts), then each row slid by `lean`.
+ */
+function slid(x: number, y: number, down: boolean, lean: number, rigid = false): [number, number] {
+  const [cx, cy] = CARRY_PIVOT;
   const ny = down ? 2 * cy - y : y;
+  if (down && rigid) x = 2 * cx - x;
   // Forward (+x) as the row goes away from the fist: down for a weapon turned point-down, up for a bow.
   const away = down ? ny - cy : cy - ny;
-  return [x + Math.round(lean * away), ny];
+  // A rigid blade's hilt above the fist stays over it (the hand rule): only the blade leans.
+  return [x + Math.round(lean * (rigid && away < 0 ? 0 : away)), ny];
 }
 
 /** A held thing's parts as carried walking across: turned, foreshortened, the grip only under the fist. */
@@ -105,7 +113,7 @@ export function carried(id: string, parts: readonly Part2[]): Part2[] {
     const seen = new Set<number>();
     const out: [number, number, string][] = [];
     for (const [x, y, ch] of foreshorten(px, c.keep)) {
-      const [nx, ny] = slid(x, y, c.down, c.lean);
+      const [nx, ny] = slid(x, y, c.down, c.lean, turnsRigid(id));
       // The grip only under the fingers; the rest never over them, so the fist shows whole.
       if ((p.depth === DEPTH.GRIP) !== fingers.has(ny * 1000 + nx)) continue;
       const k = ny * 1000 + nx;

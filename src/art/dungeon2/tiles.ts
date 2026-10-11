@@ -21,6 +21,7 @@
 import { darker, hash, tgrid, type Cell, type TGrid } from '../town2/cells';
 import { cell, isMat } from './cave';
 import { noise } from '../town2/texture';
+import { doorTileOf, placeDoor2 } from './doors';
 
 /** A tile's size in art pixels. */
 export const TILE2 = 24;
@@ -192,7 +193,7 @@ function wetAt(x: number, y: number): Cell {
 }
 
 /** Wet rock floor: broad worn planes, a crack where two meet at a step, lit on its lower lip, a damp shine. */
-function rockAt(x: number, y: number): Cell {
+export function rockAt(x: number, y: number): Cell {
   const S = 15;
   if (cracked(x, y, S, 14, true)) return cell('caverock', 5);
   const l = lumpAt(x, y, S, 14);
@@ -258,7 +259,7 @@ function planksAt(x: number, y: number): Cell {
  * catching a rim of light on its upper left, cracks between some of them.
  * Quiet: it is not somewhere to stand, and the eye should slide off it.
  */
-function wallTopAt(x: number, y: number): Cell {
+export function wallTopAt(x: number, y: number): Cell {
   if (cracked(x, y, 16, 40, true) && noise(x, y, 5, 39) < 0.5) return cell('caverock', 6);
   const l = lumpAt(x, y, 16, 40);
   if (l.lit > 0.62 - l.tilt * 0.12) return cell('caverock', 4);
@@ -272,7 +273,7 @@ function wallTopAt(x: number, y: number): Cell {
  * in big lumps, dark high up and lighter as it comes down toward the floor
  * the lanterns light.
  */
-function faceHighAt(x: number, y: number, wy: number): Cell {
+export function faceHighAt(x: number, y: number, wy: number): Cell {
   const lip = 2 + Math.round((noise(x, 0, 7, 43) - 0.5) * 4);
   if (y < lip - 1) return wallTopAt(x, wy);
   if (y === lip - 1) return cell('caverock', 3);
@@ -288,7 +289,7 @@ function faceHighAt(x: number, y: number, wy: number): Cell {
  * the tide's mark of barnacles and weed, and a wet dark foot that anything
  * standing in front reads against.
  */
-function faceAt(x: number, y: number, wy: number): Cell {
+export function faceAt(x: number, y: number, wy: number): Cell {
   if (y >= 22) return cell('caverock', y === 23 ? 6 : 5);
   if (y >= 20) return cell('caverock', hash(x, y, 48) < 0.15 ? 3 : 5);
   // The tide's mark: weed hanging in clumps, barnacles above it.
@@ -308,120 +309,8 @@ function faceAt(x: number, y: number, wy: number): Cell {
 
 /* ------------------------------------------------------------------- doors */
 
-/**
- * A door: a timber frame set in the rock's face, dark beyond with the floor
- * going on into it; barred, iron bars and two bands across.
- */
-function door(barred: boolean, x0: number, y0: number): TGrid {
-  const g = tgrid(P, P);
-  for (let y = 0; y < P; y++)
-    for (let x = 0; x < P; x++) {
-      let c: Cell;
-      const post = x <= 4 || x >= 19;
-      if (y <= 4 && x >= 1 && x <= 22) {
-        // The lintel: lit on top, grain, a dark underside.
-        c = cell('wood', y === 0 ? 6 : y === 1 ? 1 : y === 4 ? 4 : hash(x, y, 54) < 0.2 ? 3 : 2);
-      } else if (post && x >= 1 && x <= 22) {
-        // The posts, as cylinders lit from the left, darker where the lintel shades them.
-        const nx = x <= 4 ? (x - 2.5) / 2 : (x - 20.5) / 2;
-        let t = nx < -0.6 ? 1 : nx < 0.2 ? 2 : nx < 0.7 ? 3 : 4;
-        if (y === 5) t += 1;
-        if (x === 1 || x === 22) t = 6;
-        c = cell('wood', t);
-      } else if (post) {
-        c = faceAt(x0 + x, y, y0 + y);
-      } else {
-        // Beyond: dark, the floor coming out of it into the light.
-        c =
-          y >= 17
-            ? cell('caverock', y >= 21 ? 3 : y >= 19 ? 4 : 5)
-            : cell('shade', y < 8 ? 4 : y < 13 ? 3 : 2);
-      }
-      g.d[y * P + x] = c;
-    }
-  if (barred) {
-    for (const bx of [6, 10, 14]) {
-      for (let y = 5; y < P; y++) {
-        g.d[y * P + bx] = cell('iron', 1);
-        g.d[y * P + bx + 1] = cell('iron', 3);
-        g.d[y * P + bx + 2] = cell('iron', 5);
-      }
-    }
-    for (const by of [8, 16]) {
-      for (let x = 5; x <= 18; x++) {
-        g.d[by * P + x] = cell('iron', 2);
-        g.d[(by + 1) * P + x] = cell('iron', 4);
-      }
-      for (const bx of [7, 11, 15]) g.d[by * P + bx] = cell('iron', 0);
-    }
-  }
-  return g;
-}
-
-/**
- * A door in a side wall (B11: every grotto door is in one, and a face's door
- * set there read as a small dark box). Seen from above as the side walls
- * are: the passage cut through the rock's top, its floor running out of the
- * room and into the dark beyond, the jamb above showing a sliver of its dark
- * face and the one below a lit lip, the timber frame's posts and the lintel
- * across the passage at the room's edge; barred, an iron grille along the
- * lintel, its bars' heads catching the light. Drawn with the room to the
- * east; `roomWest` turns it round.
- */
-function sideDoor(barred: boolean, x0: number, y0: number, roomWest: boolean): TGrid {
-  const g = tgrid(P, P);
-  const TOP = 6;
-  const BOTTOM = 19;
-  for (let y = 0; y < P; y++)
-    for (let x = 0; x < P; x++) {
-      // Drawn room-east; the place in the room is mirrored back when the room is to the west.
-      const X = x0 + (roomWest ? P - 1 - x : x);
-      const Y = y0 + y;
-      let c: Cell;
-      if (y < TOP - 3 || y > BOTTOM + 1) c = wallTopAt(X, Y);
-      else if (y < TOP) c = cell('caverock', y === TOP - 3 ? 3 : y === TOP - 1 ? 6 : 5);
-      else if (y > BOTTOM) c = cell('caverock', y === BOTTOM + 1 ? 2 : 3);
-      else {
-        // The passage floor, going into the dark toward the far side.
-        const dark = x < 6 ? 3 : x < 10 ? 2 : x < 14 ? 1 : 0;
-        c = darker(rockAt(X, Y), dark + (y === TOP ? 1 : 0));
-        if (x < 3) c = cell('shade', y < TOP + 3 ? 3 : 2);
-      }
-      g.d[y * P + x] = c;
-    }
-  // The frame: a post at each end, seen from above, and the lintel across the passage between them.
-  for (const py of [TOP - 2, BOTTOM - 1])
-    for (let y = 0; y < 3; y++)
-      for (let x = 0; x < 5; x++)
-        g.d[(py + y) * P + 15 + x] = cell(
-          'wood',
-          x === 0 || y === 0 ? 1 : x === 4 || y === 2 ? 4 : 2,
-        );
-  for (let y = TOP + 1; y < BOTTOM - 1; y++) {
-    g.d[y * P + 16] = cell('wood', 1);
-    g.d[y * P + 17] = cell('wood', y % 5 === 0 ? 3 : 2);
-    g.d[y * P + 18] = cell('wood', 4);
-    g.d[y * P + 19] = darker(g.d[y * P + 19]!, 2);
-  }
-  if (barred) {
-    // An iron grille along the lintel: a band and the bars' heads.
-    for (let y = TOP; y < BOTTOM; y++) {
-      g.d[y * P + 13] = cell('iron', 2);
-      g.d[y * P + 14] = cell('iron', 4);
-      g.d[y * P + 12] = darker(g.d[y * P + 12]!, 1);
-    }
-    for (let y = TOP + 1; y < BOTTOM - 1; y += 3) {
-      g.d[y * P + 13] = cell('iron', 0);
-      g.d[y * P + 12] = cell('iron', 3);
-      g.d[(y + 1) * P + 12] = cell('iron', 5);
-    }
-  }
-  if (!roomWest) return g;
-  const out = tgrid(P, P);
-  for (let y = 0; y < P; y++)
-    for (let x = 0; x < P; x++) out.d[y * P + x] = g.d[y * P + P - 1 - x]!;
-  return out;
-}
+// B13: a door is a piece three tiles tall (doors.ts); its tile is the piece's
+// slice over the door's own cell.
 
 /* ------------------------------------------------------------- composition */
 
@@ -447,6 +336,10 @@ const WALLS = new Set([
 ]);
 /** Rock: a wall kind, or nothing known (the map's edge). */
 const isRock = (k: string | null | undefined) => !k || WALLS.has(k) || !isTile2Kind(k);
+
+/** Which side of a door in a side wall the room is on: the side with open ground; east unless told otherwise. */
+export const roomIsWest = (around: Around | undefined): boolean =>
+  !!around && !isRock(around.w) && isRock(around.e);
 
 /** A ground's texture at a place in the room. */
 const FLOOR: Readonly<Record<FloorKind | 'planks' | 'wall_top', (x: number, y: number) => Cell>> = {
@@ -768,16 +661,16 @@ export function tile2Grid(kind: Tile2Kind, wear: number, around?: Around, at?: T
   if (g) return g;
   const x0 = col * P;
   const y0 = row * P;
-  if (kind === 'door_barred' || kind === 'door_open') g = door(kind === 'door_barred', x0, y0);
-  else if (kind === 'door_side_barred' || kind === 'door_side_open')
+  if (
+    kind === 'door_barred' ||
+    kind === 'door_open' ||
+    kind === 'door_side_barred' ||
+    kind === 'door_side_open'
+  ) {
     // The room is on whichever side has open ground; east unless told otherwise.
-    g = sideDoor(
-      kind === 'door_side_barred',
-      x0,
-      y0,
-      !!around && !isRock(around.w) && isRock(around.e),
-    );
-  else {
+    const west = roomIsWest(around);
+    g = doorTileOf(placeDoor2(kind, west, col, row).piece, kind, west);
+  } else {
     g = tgrid(P, P);
     for (let y = 0; y < P; y++)
       for (let x = 0; x < P; x++)

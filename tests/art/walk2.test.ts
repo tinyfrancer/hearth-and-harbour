@@ -33,6 +33,7 @@ import { FEET2, sideFrame, sideWalkGrid } from '../../src/art/figure2/side';
 import { WALK_DOWN2, WALK_UP2 } from '../../src/art/figure2/walk';
 import { mirrorLit } from '../../src/art/figure2/relight';
 import { SIDE_GEAR, sideDress } from '../../src/art/figure2/sideDress';
+import { BEARD_SIDE } from '../../src/art/figure2/beard';
 import { FOLK_SIDE } from '../../src/art/figure2/sideFolk';
 import { flipLit, BACK_AXIS } from '../../src/art/figure2/views';
 import { matOf, mirror, type TGrid } from '../../src/art/town2/cells';
@@ -218,8 +219,11 @@ describe('the hero walking', () => {
     }
     // Every gear id in the wardrobe has a profile drawing (hair and held things are drawn by their own tables).
     for (const g of WARDROBE2.gear)
-      if (!['hair', 'weapon', 'shield'].includes(g.slot))
+      if (!['hair', 'weapon', 'shield', 'beard'].includes(g.slot))
         expect(SIDE_GEAR[g.id], g.id).toBeDefined();
+    // Beards (B13) are drawn in profile with the head, as hair is.
+    for (const g of WARDROBE2.gear.filter((x) => x.slot === 'beard'))
+      expect(BEARD_SIDE[g.id]?.length, g.id).toBeGreaterThan(0);
   });
 
   it('makes every frame of a cycle its own picture, and none the standing one', () => {

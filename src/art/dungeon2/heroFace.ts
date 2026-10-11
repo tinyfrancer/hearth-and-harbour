@@ -18,13 +18,24 @@ import type { Mat2 as Mat } from './cave';
 import { blob, cast, form, marks, pinsFor, stroke, tone, type Inside, type Pts } from './heads';
 import { rod } from './kit';
 import { browShift } from '../figure2/look';
+import {
+  NEW_CROWN,
+  drawBeard,
+  drawBehind,
+  drawBraids,
+  drawNewCrown,
+  drawNewUnder,
+  type NewStyle,
+} from './heroHair';
 import type { Mat as TownMat } from '../town2/ramps';
 
 /** The hero's portrait parts: skin, hair colour and style, head gear and body gear ids (the figures' gear ids). */
 export interface HeroBust {
   readonly skin: Mat;
   readonly hair: Mat;
-  readonly style: 'short' | 'long' | 'braid' | 'shaggy' | 'bald';
+  readonly style: 'short' | 'long' | 'braid' | 'shaggy' | 'bald' | NewStyle;
+  /** The beard, by its look id (B13); missing or `none` is clean-shaven. */
+  readonly beard?: string | null;
   readonly head: string | null;
   readonly body: string | null;
   readonly neck: string | null;
@@ -208,7 +219,7 @@ function tunic(g: TGrid, mat: Mat): void {
 /* ----------------------------------------------------------- the hair */
 
 /** The crown of each hairstyle: over the skull, its fringe broken across the brow. */
-const CROWN: Readonly<Record<HeroBust['style'], Pts | null>> = {
+const CROWN: Readonly<Record<string, Pts | null>> = {
   short: [
     [16, 28],
     [15, 18],
@@ -296,7 +307,7 @@ const CROWN: Readonly<Record<HeroBust['style'], Pts | null>> = {
 };
 
 /** Locks drawn over each crown: dark partings, lit strands. */
-const CROWN_LOCKS: Readonly<Record<HeroBust['style'], readonly [Pts, number][]>> = {
+const CROWN_LOCKS: Readonly<Record<string, readonly [Pts, number][]>> = {
   short: [
     [
       [
@@ -848,6 +859,10 @@ export function drawHero(g: TGrid, o: HeroBust): void {
     browShift: browShift(o.skin as TownMat, o.hair as TownMat),
   });
   const helmed = !!o.head && !BRIMMED.has(o.head);
+  const hooded = o.head === 'linen_hood';
+  const fresh = o.style in NEW_CROWN ? (o.style as NewStyle) : null;
+  // The ponytail swings out behind the head and shoulders (tucked under a hood).
+  if (!hooded) drawBehind(g, o.style, o.hair);
   // Long hair falls behind the shoulders' line; the braid in front of it.
   if (o.style === 'long' && o.head !== 'linen_hood') hang(g, { ...o }, helmed);
   (BODY[o.body ?? ''] ?? BODY.shirt!)(g, o.shirt === 'linen_tunic' ? 'linen' : 'teal');
@@ -912,54 +927,69 @@ export function drawHero(g: TGrid, o: HeroBust): void {
   // An easy smile, a little up at the near corner.
   marks(g, 30, 40, ['.........4', '4.......4.', '.4444444..', '..2222....'], P);
   if (o.style === 'bald' && !o.head) marks(g, 25, 13, ['..00', '.000', '00.'], P);
+  // The beard (B13): under a hood its cheeks are covered by the hood's sides
+  // and what falls below the jaw is drawn again over the cape, after it.
+  drawBeard(g, o.beard, o.hair, o.skin);
   // The hair, under or around whatever is on the head.
+  if (fresh && !o.head) drawNewCrown(g, fresh, o.hair, o.skin);
+  else if (fresh && helmed && !hooded) drawNewUnder(g, fresh, o.hair);
+  else if (fresh && o.head && BRIMMED.has(o.head) && fresh !== 'mohawk') temples(g, o.hair, o.skin);
+  if (o.style === 'twin_braids' && !hooded) drawBraids(g, o.hair);
   const crownPts = CROWN[o.style];
   if (crownPts && !o.head) {
     const crown = blob(crownPts);
     hairForm(g, crown, o.hair);
-    for (const [pts, step] of CROWN_LOCKS[o.style]) stroke(g, pts, o.hair, step);
+    for (const [pts, step] of CROWN_LOCKS[o.style] ?? []) stroke(g, pts, o.hair, step);
     cast(g, crown, { n: 1, dx: 1, dy: 1, on: [o.skin] });
-  } else if (crownPts && o.head && BRIMMED.has(o.head)) {
-    // Under a brim: the hair over the ears and a little at the brow.
-    const temples = blob([
-      [15, 28],
-      [15, 16],
-      [36, 12],
-      [58, 16],
-      [58, 28],
-      [54, 22],
-      [46, 19],
-      [36, 21],
-      [26, 19],
-      [19, 23],
-    ]);
-    hairForm(g, temples, o.hair);
-    cast(g, temples, { n: 1, dx: 1, dy: 1, on: [o.skin] });
-  }
+  } else if (crownPts && o.head && BRIMMED.has(o.head)) temples(g, o.hair, o.skin);
   if (o.head) {
     HATS[o.head]?.(g, o);
-    if (o.style === 'long' && o.head === 'linen_hood') {
-      // Long hair falls out of the hood onto the chest.
-      for (const pts of [
-        [
-          [20, 40],
-          [24, 44],
-          [24, 56],
-          [21, 66],
-          [16, 64],
-          [18, 52],
-        ],
-        [
-          [52, 40],
-          [49, 44],
-          [49, 56],
-          [52, 66],
-          [57, 64],
-          [55, 52],
-        ],
-      ] as const)
-        hairForm(g, blob(pts), o.hair, 2.4);
+    if (hooded) {
+      drawBeard(g, o.beard, o.hair, o.skin, (y) => y >= 54);
+      if (o.style === 'twin_braids') drawBraids(g, o.hair, 54);
     }
+    if (o.style === 'long' && hooded) longOutOfHood(g, o);
   }
   void rod;
+}
+
+/** Under a brim: the hair over the ears and a little at the brow. */
+function temples(g: TGrid, hair: Mat, skin: Mat): void {
+  const shape = blob([
+    [15, 28],
+    [15, 16],
+    [36, 12],
+    [58, 16],
+    [58, 28],
+    [54, 22],
+    [46, 19],
+    [36, 21],
+    [26, 19],
+    [19, 23],
+  ]);
+  hairForm(g, shape, hair);
+  cast(g, shape, { n: 1, dx: 1, dy: 1, on: [skin] });
+}
+
+/** Long hair falls out of the hood onto the chest. */
+function longOutOfHood(g: TGrid, o: HeroBust): void {
+  for (const pts of [
+    [
+      [20, 40],
+      [24, 44],
+      [24, 56],
+      [21, 66],
+      [16, 64],
+      [18, 52],
+    ],
+    [
+      [52, 40],
+      [49, 44],
+      [49, 56],
+      [52, 66],
+      [57, 64],
+      [55, 52],
+    ],
+  ] as const)
+    hairForm(g, blob(pts), o.hair, 2.4);
 }

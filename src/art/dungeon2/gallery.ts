@@ -20,6 +20,24 @@ import { CAVE_DAY, CAVE_DUSK } from './cave';
 import { prop2, PROP2_IDS } from './props';
 import { roomPicture2 } from './room';
 import { poolsRoom2, storeRoom2 } from './sample';
+
+/** A little room with a door of each kind (B13), in the room key (room.ts). */
+const DOORS_ROOM: readonly string[] = [
+  '##############',
+  '##############',
+  '#####O###D####',
+  'S............Z',
+  '#............#',
+  '#............#',
+  '##############',
+];
+const doorHero = () => ({
+  picture: characterPicture2({}, ['iron_helmet', 'iron_breastplate', 'iron_greaves', 'iron_sword']),
+  anchor: { x: 28, y: 70 },
+  x: 76,
+  y: 106,
+  shadow: 11,
+});
 import { tile2Grid, TILE2, TILE2_KINDS, TILE2_WEARS } from './tiles';
 
 function el(tag: string, className: string, text?: string): HTMLElement {
@@ -166,6 +184,14 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
     shot('The tide pools at the first rise, the whole grotto cast in them', () => poolsRoom2());
     shot('The pools with the tide about to rise: the sand it will cover gone wet', () =>
       poolsRoom2({ level: 1, warn: true }),
+    );
+    sub(
+      'Doors as the way onward (B13): three tiles tall, a figure high; open lit from beyond, barred behind iron',
+    );
+    shot(
+      'In the wall you face, open and barred; in each side wall, open (west) and barred (east); the hero for scale',
+      () => roomPicture2(DOORS_ROOM, [doorHero()]),
+      2,
     );
     sub('Tiles: every wear of every kind');
     shot(TILE2_KINDS.join(' · ').replace(/_/g, ' '), tilesPlate, 2);

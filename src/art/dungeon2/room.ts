@@ -14,8 +14,10 @@ import {
   TILE2_WEARS,
   GROUND2_SHADOW,
   type Around,
+  roomIsWest,
   type Tile2Kind,
 } from './tiles';
+import { isDoorKind2, placeDoor2 } from './doors';
 
 /** What each character in a room's rows is. `#` is rock: resolved to a face or a top by what is below it. */
 const KEY: Readonly<Record<string, Tile2Kind | 'rock'>> = {
@@ -83,7 +85,12 @@ export function wearAt(kind: Tile2Kind, col: number, row: number): number {
 }
 
 /** The room's ground: every tile joined to its neighbours. */
-export function roomGround2(rows: readonly string[]): { grid: TGrid; kinds: Tile2Kind[][] } {
+export function roomGround2(rows: readonly string[]): {
+  grid: TGrid;
+  kinds: Tile2Kind[][];
+  lights: Light2[];
+  glows: Glow[];
+} {
   const kinds = roomKinds2(rows);
   const g = tgrid(kinds[0]!.length * TILE2, kinds.length * TILE2);
   kinds.forEach((r, row) =>
@@ -96,7 +103,20 @@ export function roomGround2(rows: readonly string[]): { grid: TGrid; kinds: Tile
       ),
     ),
   );
-  return { grid: g, kinds };
+  // B13: each door as its piece, three tiles tall, over its cell and its neighbours
+  // (what lane C does with `dungeonDoor2`), with its lanterns and the light from beyond.
+  const lights: Light2[] = [];
+  const glows: Glow[] = [];
+  kinds.forEach((r, row) =>
+    r.forEach((kind, col) => {
+      if (!isDoorKind2(kind)) return;
+      const { piece, x, y } = placeDoor2(kind, roomIsWest(aroundOf(kinds, col, row)), col, row);
+      stamp(g, piece.grid, x, y);
+      for (const glow of piece.glows) glows.push({ ...glow, x: glow.x + x, y: glow.y + y });
+      if (piece.light) lights.push(lightAt(piece.light, x, y));
+    }),
+  );
+  return { grid: g, kinds, lights, glows };
 }
 
 /** Something standing in a room: a picture, where its anchor is in it, and where it stands. */
@@ -125,9 +145,12 @@ export function roomPicture2(
 ): Picture2 {
   const ground = roomGround2(rows);
   const kinds = ground.kinds;
-  const lights = stood.flatMap((s) =>
-    s.light ? [lightAt(s.light, s.x - s.anchor.x, s.y - s.anchor.y)] : [],
-  );
+  const lights = [
+    ...ground.lights,
+    ...stood.flatMap((s) =>
+      s.light ? [lightAt(s.light, s.x - s.anchor.x, s.y - s.anchor.y)] : [],
+    ),
+  ];
   const g = o.lit === false ? ground.grid : lightGround2(ground.grid, lights);
   for (const s of stood) {
     const rx = s.shadow ?? 0;
@@ -145,7 +168,7 @@ export function roomPicture2(
         if (c) g.d[py * g.w + px] = darker(c, d < 0.45 ? n : Math.max(1, n - 1));
       }
   }
-  const glows: Glow[] = [];
+  const glows: Glow[] = [...ground.glows];
   for (const s of [...stood].sort((a, b) => (a.sort ?? a.y) - (b.sort ?? b.y))) {
     const x0 = s.x - s.anchor.x;
     const y0 = s.y - s.anchor.y;

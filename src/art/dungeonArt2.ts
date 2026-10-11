@@ -30,9 +30,18 @@ import {
 } from './dungeon2/cast2';
 import { FOE2_SIZES, type Foe2Size } from './dungeon2/sizes';
 import { prop2, PROP2_IDS } from './dungeon2/props';
+import {
+  DOOR2_FOOTPRINTS,
+  footprint2,
+  isDoorKind2,
+  placeDoor2,
+  type DoorFootprint2,
+  type DoorKind2,
+} from './dungeon2/doors';
 import type { Light2 } from './dungeon2/light';
 import {
   isTile2Kind,
+  roomIsWest,
   tile2Grid,
   TILE2,
   TILE2_KINDS,
@@ -101,6 +110,60 @@ export function dungeonTile2(
 ): Picture2 | null {
   if (!isTile2Kind(kind)) return null;
   return { grid: tile2Grid(kind, wearOf(variant, TILE2_WEARS[kind]), around, at), glows: [] };
+}
+
+/**
+ * A door as the way onward (B13): a piece three tiles tall over the door's
+ * cell and its neighbours, so it stands a figure high. Draw it after the
+ * room's tiles (it covers the cells in `covers`) and before anything
+ * standing: at the door cell's top-left plus (`dx`, `dy`). An open door
+ * carries its lanterns' glows and the light from beyond (`light`, in the
+ * piece's own coordinates: move it with `lightAt` and light the room's floor
+ * with it, as a lantern's). The single tile by the same id is the piece's
+ * slice over the door's own cell.
+ */
+export interface DoorPiece2Picture {
+  readonly picture: Picture2;
+  readonly dx: number;
+  readonly dy: number;
+  /** The cells it covers, as (col, row) from the door's cell. */
+  readonly covers: readonly (readonly [number, number])[];
+  readonly light?: Light2;
+}
+
+export type { DoorKind2, DoorFootprint2 };
+export { DOOR2_FOOTPRINTS, footprint2 as doorFootprint2 };
+
+const doorPieces = new Map<string, DoorPiece2Picture>();
+
+/**
+ * The door piece for a door tile's id (`door_open`, `door_barred`,
+ * `door_side_open`, `door_side_barred`), or null for any other kind.
+ * `around` turns a side door to the room (as `dungeonTile2`); `at`, the door
+ * cell's column and row, runs the rock on from its neighbours'. Kept once made.
+ */
+export function dungeonDoor2(kind: string, around?: Around, at?: TileAt): DoorPiece2Picture | null {
+  if (!isDoorKind2(kind)) return null;
+  const west = roomIsWest(around);
+  const col = at ? Math.floor(at.col) : 1000;
+  const row = at ? Math.floor(at.row) : 1000;
+  const key = `${kind} ${west} ${col} ${row}`;
+  let made = doorPieces.get(key);
+  if (made) return made;
+  const f = footprint2(kind, west);
+  const { piece } = placeDoor2(kind, west, col, row);
+  const covers: [number, number][] = [];
+  for (let r = 0; r < f.rows; r++)
+    for (let c = 0; c < f.cols; c++) covers.push([c - f.door[0], r - f.door[1]]);
+  made = {
+    picture: { grid: piece.grid, glows: piece.glows },
+    dx: f.door[0] ? -f.door[0] * TILE2 : 0,
+    dy: f.door[1] ? -f.door[1] * TILE2 : 0,
+    covers,
+    ...(piece.light ? { light: piece.light } : {}),
+  };
+  doorPieces.set(key, made);
+  return made;
 }
 
 /** Something standing in a dungeon room. */

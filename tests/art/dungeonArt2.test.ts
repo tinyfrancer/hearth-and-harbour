@@ -112,6 +112,21 @@ const differ = (a: TGrid, b: TGrid) => {
   return n;
 };
 
+/** Every hairstyle the portrait draws (B13 appended six; the safe box and the face's tests hold them all). */
+const STYLES_B13 = [
+  'short',
+  'long',
+  'braid',
+  'shaggy',
+  'bald',
+  'ponytail',
+  'topknot',
+  'curly',
+  'mohawk',
+  'bob',
+  'twin_braids',
+] as const;
+
 describe('the cave palette', () => {
   it('is the town’s dusk with the cave’s ramps added, numbered clear of the town’s', () => {
     expect(CAVE_FIRST).toBeGreaterThan(MATS.length + 50);
@@ -167,15 +182,15 @@ describe('dungeon tiles at the C scale', () => {
       { w: 'sand', n: 'wall_top', s: 'wall_top' },
       at,
     )!.grid;
-    // The frame stands at the room's edge and the dark beyond is on the far side: turned round for a room to the west.
-    const woodAt = (g: TGrid, x: number) =>
-      [...Array(24).keys()].filter((y) => matOf2(g.d[y * 24 + x]!) === 'wood').length;
-    expect(woodAt(east, 17)).toBeGreaterThan(8);
-    expect(woodAt(west, 6)).toBeGreaterThan(8);
-    const shadeAt = (g: TGrid, x: number) =>
-      [...Array(24).keys()].filter((y) => matOf2(g.d[y * 24 + x]!) === 'shade').length;
-    expect(shadeAt(east, 1)).toBeGreaterThan(8);
-    expect(shadeAt(west, 22)).toBeGreaterThan(8);
+    // B13 (changed on purpose: the door is a piece three tiles tall, doors2.test.ts, and
+    // this tile its middle): open, the far side of the passage is lit from the room
+    // beyond; barred, it is dark behind the grille. Turned round for a room to the west.
+    const matAt = (g: TGrid, x: number, mat: string) =>
+      [...Array(24).keys()].filter((y) => matOf2(g.d[y * 24 + x]!) === mat).length;
+    expect(matAt(east, 1, 'lamp')).toBeGreaterThan(8);
+    expect(matAt(west, 22, 'lamp')).toBeGreaterThan(8);
+    const shut = dungeonTile2('door_side_barred', 0, { e: 'sand' }, at)!.grid;
+    expect(matAt(shut, 1, 'shade')).toBeGreaterThan(8);
     // Barred, an iron grille along the frame; open, none.
     const iron = (g: TGrid) => [...g.d].filter((c) => matOf2(c) === 'iron').length;
     expect(iron(dungeonTile2('door_side_barred', 0, { e: 'sand' }, at)!.grid)).toBeGreaterThan(20);
@@ -698,19 +713,23 @@ describe('portraits at the C scale', () => {
     }
   });
 
-  it('holds the hero’s face inside the hero’s safe box in every hairstyle and head gear', () => {
-    const S = HERO_PORTRAIT2_SAFE;
-    for (const style of ['short', 'long', 'braid', 'shaggy', 'bald'] as const)
-      for (const head of [null, ...HEADGEAR2.map((g) => g.id)]) {
-        const b = faceBox(
-          heroBust2Grid({ skin: 'skin', hair: 'hair', style, head, body: null, neck: null }),
-        );
-        expect(
-          b.x >= S.x && b.y >= S.y && b.x + b.w <= S.x + S.w && b.y + b.h <= S.y + S.h,
-          `${style} ${head}`,
-        ).toBe(true);
-      }
-  });
+  it(
+    'holds the hero’s face inside the hero’s safe box in every hairstyle and head gear',
+    { timeout: 120_000 },
+    () => {
+      const S = HERO_PORTRAIT2_SAFE;
+      for (const style of STYLES_B13)
+        for (const head of [null, ...HEADGEAR2.map((g) => g.id)]) {
+          const b = faceBox(
+            heroBust2Grid({ skin: 'skin', hair: 'hair', style, head, body: null, neck: null }),
+          );
+          expect(
+            b.x >= S.x && b.y >= S.y && b.x + b.w <= S.x + S.w && b.y + b.h <= S.y + S.h,
+            `${style} ${head}`,
+          ).toBe(true);
+        }
+    },
+  );
 
   it('carries three sizes, at whole device pixels, the smallest fitting a 48-pixel panel whole', () => {
     expect(portraitScales2(3)).toEqual({ large: 6, small: 4, mini: 2 });
@@ -824,14 +843,16 @@ describe('faces that do not unsettle', () => {
 
   it(
     'gives the hero an open, alive face in every look and under every head gear',
-    { timeout: 120_000 },
+    { timeout: 240_000 },
     () => {
       // Every skin under every head gear in every style, and every hair colour bare-headed.
       for (const skin of ['skin', 'skinpale', 'skingolden', 'skinbrown', 'skindeep'] as const)
         for (const hair of HAIRS)
-          for (const style of ['short', 'long', 'braid', 'shaggy', 'bald'] as const)
+          for (const style of STYLES_B13)
             for (const head of [null, ...HEADGEAR2.map((g) => g.id)]) {
               if (hair !== 'hair' && (head !== null || skin !== 'skin')) continue;
+              // The B13 styles on one skin (the face is the same on every skin), to keep the test's time.
+              if (STYLES_B13.indexOf(style) >= 5 && skin !== 'skin') continue;
               const g = heroBust2Grid({ skin, hair, style, head, body: null, neck: null });
               const what = `${skin} ${hair} ${style} ${head}`;
               expect(faceWidth(g), what).toBeGreaterThanOrEqual(30);

@@ -388,7 +388,14 @@ const PIRATE = (): SideDress => {
         0,
         Array.from({ length: 18 }, (_, i): [number, [number, string]] => [
           FIST2.at[1] + 6 + i,
-          [FIST2.at[0] + 1 + Math.floor(i / 8), i === 17 ? '1' : '013'],
+          // B13: curved, its belly forward (the edge leading the walk), its point curling back.
+          [
+            FIST2.at[0] +
+              1 +
+              Math.floor(i / 8) +
+              Math.round(1.6 * Math.sin((i / 17) * Math.PI * 0.85)),
+            i === 17 ? '1' : '013',
+          ],
         ]),
         { mat: 'iron' },
       ),

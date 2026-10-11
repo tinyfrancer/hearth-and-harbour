@@ -36,6 +36,16 @@ import {
 } from './figure2/strike';
 import { mirrored } from './figure2/views';
 import { sideDress } from './figure2/sideDress';
+import { turnsRigid } from './figure2/edges';
+import {
+  ACTIVITY_IDS,
+  COMBAT_ACTIVITIES,
+  activityFrameCount,
+  activityFrameMs,
+  activityPose,
+  activityPropOf,
+  type ActivityId,
+} from './figure2/activity';
 import { FOLK_SIDE } from './figure2/sideFolk';
 import { folkBackParts } from './figure2/folkBack';
 import {
@@ -162,7 +172,11 @@ export function characterGear2(
   for (const id of wornItemIds) wear(ITEM_LAYERS2[id]);
   for (const id of extra) wear(id);
   const style = HAIRSTYLES2[look.hair ?? ''] ?? HAIRSTYLES2[DEFAULT_LOOK.hair]!;
-  wear(slots.has('head') ? style.under : style.gear);
+  // Under head gear what shows below its rim; under a hood, what falls out of it (B13).
+  const hooded = gear.some((id) => id === 'linen_hood');
+  wear(
+    !slots.has('head') ? style.gear : hooded && style.hood !== undefined ? style.hood : style.under,
+  );
   // A beard is worn under any head gear (it is drawn over a helm's rim and a hood's cape).
   wear(beardGear(look.beard));
   for (const id of EVERYDAY) wear(id);
@@ -335,7 +349,7 @@ function heroParts(
     boned = frontWalkParts(boned, shield);
     if (!shield) rig = FRONT_WALK_RIG;
   } else if (facing === 'up') {
-    boned = backParts(slottedParts(body, gear), HAIRSTYLES2[safe.hair]?.gear ?? null);
+    boned = backParts(slottedParts(body, gear), gear.find((id) => slotOf(id) === 'hair') ?? null);
     rig = shield ? BACK_SHIELD_RIG : BACK_RIG;
   }
   return { boned, rig, swap: lookSwap(safe) };
@@ -643,6 +657,7 @@ function frontStrikeTagged(
       held: facing === 'up' ? held.map((p) => mirrored(p, FIST_AXIS2)) : held,
       kind: strikeKind(weaponGear),
       shield: gear.some((id) => slotOf(id) === 'shield'),
+      rigid: turnsRigid(weaponGear),
     },
     facing,
     f,
@@ -686,4 +701,134 @@ export function characterStrike2(
     characterStrikePicture2(look, wornItemIds, facing, f, extra),
     paletteFor(time),
   );
+}
+
+// ------------------------------------------------------------- at work (B13)
+
+export type { ActivityId } from './figure2/activity';
+
+/**
+ * The skills with a loop of the hero at work, in the order the player meets
+ * them: the gathering and making skills posed here, combat's by the blow
+ * (`melee`, `ranged`, `defence`) and the breath (`vitality`).
+ */
+export const ACTIVITY2_IDS: readonly string[] = ACTIVITY_IDS;
+
+/** Frames in an activity's loop (4 or 5; the blow's 4; the breath's 2); 0 for an unknown id. */
+export function activityFrames2(activity: string): number {
+  const combat = COMBAT_ACTIVITIES[activity as ActivityId];
+  if (combat === 'strike') return STRIKE2_FRAMES;
+  if (combat === 'idle') return IDLE2_FRAMES;
+  return activityFrameCount(activity);
+}
+
+/** How long to show each frame of an activity, in milliseconds (a suggestion; the loop has no rest). */
+export function activityFrameMs2(activity: string): number {
+  const combat = COMBAT_ACTIVITIES[activity as ActivityId];
+  if (combat === 'strike') return 120;
+  if (combat === 'idle') return IDLE2_FRAME_MS;
+  return activityFrameMs(activity);
+}
+
+/** The worn items with the weapon and the shield put down (the work's own tool is in the hand). */
+function unarmed(worn: readonly string[]): string[] {
+  return worn.filter((id) => {
+    const slot = slotOf(ITEM_LAYERS2[id] ?? '');
+    return slot !== 'weapon' && slot !== 'shield';
+  });
+}
+
+/** For `ranged`: the bow worn, or a pine shortbow in the hand in place of the weapon. */
+function withBow(worn: readonly string[]): string[] {
+  if (worn.some((id) => /bow/.test(ITEM_LAYERS2[id] ?? ''))) return [...worn];
+  return [...worn.filter((id) => slotOf(ITEM_LAYERS2[id] ?? '') !== 'weapon'), 'pine_shortbow'];
+}
+
+/**
+ * The hero at work: frame `frame` (any whole number; it wraps at
+ * `activityFrames2(activity)`) of an activity's loop, side-on facing right,
+ * on the figure's 56 x 72 canvas and anchor (28, 70), in any look and outfit
+ * (the weapon and shield put down for the work's tool). Combat's activities
+ * are the blow (`characterStrikePicture2`, facing right) and the breath. An
+ * unknown activity is the hero standing. Kept once drawn, until `forgetWalks2()`.
+ */
+export function characterActivityPicture2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  activity: string,
+  frame: number,
+  extra: readonly string[] = [],
+): Picture2 {
+  const n = activityFrames2(activity);
+  if (!n) return characterPicture2(look, wornItemIds, extra);
+  const f = (((Math.floor(frame) % n) + n) % n) | 0;
+  const combat = COMBAT_ACTIVITIES[activity as ActivityId];
+  if (combat === 'idle') return characterIdlePicture2(look, wornItemIds, f, extra);
+  if (combat === 'strike')
+    return characterStrikePicture2(
+      look,
+      activity === 'ranged' ? withBow(wornItemIds) : wornItemIds,
+      'right',
+      f,
+      extra,
+    );
+  const key = `work ${activity} ${f} ${keyOf(look, wornItemIds, extra)}`;
+  const kept = posedPics.get(key);
+  if (kept) return kept;
+  const safe: Look = { ...DEFAULT_LOOK, ...look };
+  let pic: Picture2;
+  try {
+    const gear = characterGear2(
+      safe,
+      unarmed(wornItemIds),
+      extra.filter((id) => slotOf(id) !== 'weapon' && slotOf(id) !== 'shield'),
+    );
+    const dress = sideDress(gear)!;
+    const pose = activityPose(dress, activity, f)!;
+    const { grid } = sideWalkGrid(dress, f, WALK2_STRIDE, false, pose);
+    pic = { grid: recolour(grid, lookSwap(safe)), glows: [] };
+  } catch {
+    pic = characterPicture2(look, wornItemIds, extra);
+  }
+  posedPics.set(key, pic);
+  return pic;
+}
+
+/** An activity frame on an offscreen canvas at one pixel per art pixel, kept like `characterWalk2`. */
+export function characterActivity2(
+  look: Partial<Look>,
+  wornItemIds: readonly string[],
+  time: TimeOfDay,
+  activity: string,
+  frame: number,
+  extra: readonly string[] = [],
+): HTMLCanvasElement {
+  const n = Math.max(1, activityFrames2(activity));
+  const f = (((Math.floor(frame) % n) + n) % n) | 0;
+  return spriteCanvas(
+    `hero work ${activity} ${f} ${keyOf(look, wornItemIds, extra)}`,
+    characterActivityPicture2(look, wornItemIds, activity, f, extra),
+    paletteFor(time),
+  );
+}
+
+/** What an activity is done on (a log on a block, an ore rock, an anvil...), placed beside the hero. */
+export interface ActivityProp2 {
+  /** Outlined, in the town's cells: rasterize with the town's palettes, as the figure. */
+  readonly picture: Picture2;
+  /** The middle of its foot on its base row, in its own pixels. */
+  readonly foot: { readonly x: number; readonly y: number };
+  /**
+   * Where its foot stands from the hero's anchor (the middle of the soles):
+   * draw it at (heroX + at.x - foot.x, heroY + at.y - foot.y).
+   */
+  readonly at: { readonly x: number; readonly y: number };
+  /** Draw it over the hero (a pot, a strongbox the hand reaches into) rather than behind. */
+  readonly front: boolean;
+}
+
+/** The prop for an activity, or null (combat's have none). Kept once made. */
+export function activityProp2(activity: string): ActivityProp2 | null {
+  const p = activityPropOf(activity);
+  return p && { picture: { grid: p.grid, glows: p.glows }, foot: p.foot, at: p.at, front: p.front };
 }

@@ -157,6 +157,22 @@ describe('the door', () => {
       'braid',
       'shaggy',
       'bald',
+      // B13, appended so a saved id never changes its meaning.
+      'ponytail',
+      'topknot',
+      'curly',
+      'mohawk',
+      'bob',
+      'twin_braids',
+    ]);
+    expect(BEARD_CHOICES.map((c) => c.id)).toEqual([
+      'none',
+      'stubble',
+      'moustache',
+      'short_beard',
+      'full_beard',
+      'braided_beard',
+      'mutton_chops',
     ]);
   });
 });
