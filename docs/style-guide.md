@@ -880,6 +880,15 @@ without looking like a menu.
   One over each thing worth tapping near the hero, never one over everything at once.
 - **The nearest thing gets a ring**: a thin dashed ellipse of pale light on the ground (or the water)
   round its foot, the dashes creeping round; light, not a thing, so no outline.
+- **The boat is seen from across the square (B16)**: a large marker, about twice the small (27 x 28
+  before its keyline), a cream plaque in a two-step gold rim (lit above, shaded below) on a gold
+  pointer, one bold pictogram filling it: for the boat a little sailing boat on a line of water (dark
+  hull and sails, a red pennant), not the small anchor, so it says "set out from here" rather than
+  "harbour". The rim's outer step is gold's kept light, so it holds at dusk. Every kind has a large
+  form; only the boat's is meant to be seen from afar.
+- **Off the screen, a gold chevron (B16)**: the edge pointer is the dungeon's way-onward arrow in the
+  town's pixels, a notched gold arrowhead lit as a solid with a dark keyline, nudging two pixels
+  toward what it points at. No pictogram on it: it points, the marker says what is there.
 
 ## Colour
 

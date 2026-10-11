@@ -18,7 +18,13 @@ import {
 import { stamp, tgrid, type Picture2 } from '../town2/cells';
 import { plate } from '../town2/gallery2';
 import { ROWBOAT_LANTERN_AT, town2Piece } from '../town2/pieces';
-import { townHighlight2, townMarker2, TOWN_MARKER2_KINDS } from '../town2/markers';
+import {
+  townHighlight2,
+  townMarker2,
+  townPointer2,
+  TOWN_MARKER2_KINDS,
+  TOWN_POINTER2_DIRECTIONS,
+} from '../town2/markers';
 import { foe2Frame } from './cast2';
 import { prop2 } from './props';
 import { TIDEPOOL2_PROP_IDS } from './tideProps';
@@ -105,11 +111,16 @@ export function ferryPlate(): Picture2 {
   );
 }
 
-/** The town's markers, every kind, at one frame of their loop, and the ring round the nearest thing. */
+/**
+ * The town's markers, every kind small and large (B16), at one frame of their
+ * loop, the edge pointers, and the ring round the nearest thing.
+ */
 export function markersPlate(frame: number): Picture2 {
   return plate(
     [
       ...TOWN_MARKER2_KINDS.map((k) => townMarker2(k, frame).picture),
+      ...TOWN_MARKER2_KINDS.map((k) => townMarker2(k, frame, 'large').picture),
+      ...TOWN_POINTER2_DIRECTIONS.map((d) => townPointer2(d, frame).picture),
       townHighlight2(48, frame).picture,
     ],
     6,
