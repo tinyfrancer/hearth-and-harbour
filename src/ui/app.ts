@@ -6,6 +6,7 @@ import { sell } from '../core/bank';
 import {
   bountyReady,
   bountyReward,
+  combatLevel,
   buyFromShop,
   giveUpBounty,
   handInBounty,
@@ -911,6 +912,9 @@ export function mountApp(
   const refresh = (before: GameState, time: number): void => {
     if (!state) return;
     syncHeader(state);
+    // A dungeon opened by combat level alone opens on a level gained by time:
+    // the Town tab says so at once, not at the next full render.
+    if (combatLevel(state) !== combatLevel(before)) syncTownDot();
     if (view?.stale?.(before, state)) rebuildView();
     view?.update?.(state, time);
   };

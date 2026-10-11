@@ -490,6 +490,12 @@ describe('the content tables', () => {
     for (const id of Object.keys(CONTENT.monsters!)) expect(PORTRAIT2_IDS, id).toContain(id);
   });
 
+  it('has a face from the art for everyone in every dungeon’s cast', () => {
+    const cast = Object.values(CONTENT.dungeons!).flatMap((dungeon) => dungeon.cast ?? []);
+    expect(cast.map((foe) => foe.id)).toContain('old_snapper');
+    for (const foe of cast) expect(PORTRAIT2_IDS, foe.id).toContain(foe.id);
+  });
+
   it('describes the captain’s coat in the colour art draws it', () => {
     expect(CONTENT.items.captains_coat!.description).toMatch(/^Long, purple/);
   });

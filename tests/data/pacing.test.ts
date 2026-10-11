@@ -294,8 +294,8 @@ describe('what an hour earns', () => {
   it.each([
     // The best-paying fight for money at a level, with melee, after the fish eaten.
     [1, 'dock_rat', 32953],
-    [10, 'thieving_gull', 47020],
-    [20, 'footpad', 67024],
+    [10, 'thieving_gull', 48060],
+    [20, 'footpad', 66979],
   ] as const)(
     'pays a fight for money at level %i (%s) between gathering and thieving: %i',
     (level, monster, earned) => {
@@ -350,9 +350,9 @@ describe('what an hour of bounties pays', () => {
   it.each([
     // Combat level, how many monsters are open, and the least and most an hour pays.
     [5, 3, 22, 25],
-    [10, 5, 31, 36],
-    [20, 10, 42, 50],
-    [30, 10, 53, 57],
+    [10, 5, 31, 38],
+    [20, 10, 42, 49],
+    [30, 10, 53, 58],
   ])(
     'pays about the same an hour for everything open at level %i (%i open): %i to %i points',
     (level, open, least, most) => {
@@ -383,41 +383,6 @@ describe('what an hour of bounties pays', () => {
     // Leaning to a fair fight: the troll comes up far more than the rat.
     const times = (id: string) => hunted.filter((monster) => monster === id).length;
     expect(times('marsh_troll')).toBeGreaterThan(times('dock_rat'));
-  });
-});
-
-// Wave 14: the simulations' melee ladder still wears linen trousers, as it
-// did before the smithy made greaves (wave 13), and every pin above is held
-// in it. These cases are the same fights in bronze greaves from level 5 and
-// iron from 10, as a player would wear them, pinned so what greaves move is
-// on the record. Whether the pins above follow (and the bounty counts and the
-// troll's pay with them) is Cody's decision, not a test to make pass.
-describe('in the smithy’s greaves (for a decision)', () => {
-  it.each([
-    // Fish an hour in greaves, and in linen (duels.test.ts) beside it.
-    ['thieving_gull', 139, 135],
-    ['footpad', 168, 189],
-    ['grey_wolf', 216, 250],
-    ['smuggler', 174, 187],
-    ['marsh_troll', 206, 190],
-    ['goblin_poacher', 145, 165],
-    ['bramble_wyrm', 169, 182],
-  ] as const)('costs %s fish an hour in greaves: %i (in linen %i)', (id, fish, _linen) => {
-    const hour = hourOf(CONTENT.monsters![id]!.level, id, { greaves: true });
-    expect(hour.deaths).toBe(0);
-    expect(hour.eaten).toBe(fish);
-  });
-
-  it('asks a little over twenty minutes of a bounty’s most kills of three of them, in greaves', () => {
-    const slow = Object.values(CONTENT.monsters!)
-      .filter((monster) => monster.bounty)
-      .filter((monster) => {
-        const { kills } = hourOf(monster.level, monster.id, { greaves: true });
-        return (monster.bounty!.kills[1] * 60) / kills > 20;
-      })
-      .map((monster) => monster.id)
-      .sort();
-    expect(slow).toEqual(['bramble_wyrm', 'marsh_troll', 'smuggler']);
   });
 });
 

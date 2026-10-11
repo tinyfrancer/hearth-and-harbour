@@ -3,9 +3,9 @@ import {
   FIGURE2_H,
   FIGURE2_W,
   IDLE2_FRAMES,
-  STRIKE2_HIT_FRAME,
   activityFrameMs2,
   activityFrames2,
+  activityHitFrame2,
   activityProp2,
   characterActivity2,
   characterActivityPicture2,
@@ -71,30 +71,6 @@ export function doingNow(state: GameState, content: Content): Doing {
 }
 
 /**
- * The frame of each loop where the work lands (the axe in the log, the pick
- * on the rock, the blow): a completion shows it. These are lane B's own
- * contact frames (tests/art/activity2.test.ts holds the tool on the prop at
- * each; fletching, not in that table, read off its beats). Lane B is asked to
- * export them beside the loops; until then they live here, and an unknown
- * loop lands on its first frame.
- */
-const LANDS: Readonly<Record<string, number>> = {
-  woodcutting: 2,
-  fishing: 0,
-  mining: 3,
-  foraging: 1,
-  cooking: 1,
-  smithing: 2,
-  crafting: 0,
-  fletching: 2,
-  alchemy: 3,
-  thieving: 1,
-  melee: STRIKE2_HIT_FRAME,
-  ranged: STRIKE2_HIT_FRAME,
-  defence: STRIKE2_HIT_FRAME,
-};
-
-/**
  * A completion this much shorter than one turn of the loop is too quick to
  * tie the loop to: it would flicker. Then the loop runs at the art's own pace.
  */
@@ -113,7 +89,9 @@ export function workFrame(doing: Doing, ms: number, still = false): number {
   if (!activity) return still ? 0 : breathAt(ms);
   const n = activityFrames2(activity);
   if (n <= 0) return 0;
-  const lands = (LANDS[activity] ?? 0) % n;
+  // Lane B's frame where the work lands (the axe in the log, the blow); a loop
+  // with none (the breath) lands on its first.
+  const lands = (activityHitFrame2(activity) ?? 0) % n;
   if (still) return lands;
   const frameMs = activityFrameMs2(activity);
   const turn = n * frameMs;

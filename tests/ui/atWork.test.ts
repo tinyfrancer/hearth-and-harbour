@@ -4,6 +4,7 @@ import {
   STRIKE2_HIT_FRAME,
   activityFrameMs2,
   activityFrames2,
+  activityHitFrame2,
 } from '../../src/art/character2';
 import { actionDuration } from '../../src/core/actions';
 import { freshFight } from '../../src/core/combat';
@@ -95,6 +96,17 @@ describe('what the hero is drawn doing', () => {
     expect(workFrame({ activity: 'melee', fraction: 0, durationMs: 2400 }, 0)).toBe(
       STRIKE2_HIT_FRAME,
     );
+  });
+
+  it('lands every loop on the frame lane B says its work lands (activityHitFrame2)', () => {
+    for (const activity of ACTIVITY2_IDS) {
+      const n = activityFrames2(activity);
+      if (n <= 0) continue;
+      const expected = (activityHitFrame2(activity) ?? 0) % n;
+      expect(workFrame({ activity, fraction: 0.3, durationMs: 9000 }, 0, true), activity).toBe(
+        expected,
+      );
+    }
   });
 
   it('runs by the clock when the action is too quick to tie to, and stands still with less motion', () => {

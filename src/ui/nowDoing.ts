@@ -1,3 +1,4 @@
+import { FIGURE2_H } from '../art/character2';
 import { actionDuration } from '../core/actions';
 import { monsterDef, playerCombat } from '../core/combat';
 import type { Content } from '../core/content';
@@ -10,16 +11,25 @@ import { formatNumber } from './format';
 
 /**
  * Device pixels to an art pixel for the hero in the strip: the fewest whole
- * ones that show him at least 0.6 CSS pixels an art pixel. Two at 3x (48 CSS
- * tall) and at 2.625x (55); two at 2x as well (72), where one left him 36
- * tall, too small to read (wave 14's weak spot); one at 1x. He fills his
- * canvas's height (his hair to his soles), so the strip grows with him there;
- * folding it is the player's way to have the room back.
+ * ones that show him at least 0.6 CSS pixels an art pixel, but never so many
+ * that he stands taller than `STRIP_TALLEST` CSS pixels. He fills his
+ * canvas's height (his hair to his soles, `FIGURE2_H`), so that sets the
+ * strip's. Two at 3x (48 CSS tall) and at 2.625x (55); one at 1x (72, a
+ * desktop, where nothing smaller is whole).
+ *
+ * At 2x the only whole sizes are 36 and 72 CSS: wave 15 chose 72, which made
+ * the strip 75 tall on a 2x phone against 55 at 3x (wave 16: "cap it
+ * sensibly"); the cap brings him back to 36 there, the strip to its 52
+ * minimum, the same as on a 3x phone. At 3.5x two (41).
  */
 export function stripScale(dpr: number): number {
-  return Math.max(1, Math.ceil(STRIP_LEAST * dpr - 1e-9));
+  const least = Math.max(1, Math.ceil(STRIP_LEAST * dpr - 1e-9));
+  const most = Math.max(1, Math.floor((STRIP_TALLEST * dpr) / FIGURE2_H + 1e-9));
+  return Math.min(least, most);
 }
 const STRIP_LEAST = 0.6;
+/** The tallest the hero stands in the strip, in CSS pixels. */
+export const STRIP_TALLEST = 56;
 
 /** The strip folded to a slim bar, on this device (a preference, never the save). */
 export const STRIP_FOLDED_PREF = 'strip-folded';

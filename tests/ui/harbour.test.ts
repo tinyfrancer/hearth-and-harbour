@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FIGURE2_H } from '../../src/art/character2';
+import { startFight } from '../../src/core/combat';
+import type { Content } from '../../src/core/content';
 import { settleRun } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
+import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
 import { memoryPrefs, type Prefs } from '../../src/persistence/Prefs';
 import { mountApp, type App } from '../../src/ui/app';
-import { stripScale } from '../../src/ui/nowDoing';
+import { STRIP_TALLEST, stripScale } from '../../src/ui/nowDoing';
 import type { Shell } from '../../src/ui/view';
 
 // Wave 15, Cody: "let's make it more apparent we need to click the boat."
@@ -143,6 +147,49 @@ describe('the Town tab’s dot', () => {
     expect(dot()).toBeNull();
   });
 
+  it('comes at once when a level gained by fighting opens a dungeon, with no screen rebuilt', () => {
+    // A landing opened by combat level alone (none on the real chart yet).
+    const content: Content = {
+      ...CONTENT,
+      dungeons: {
+        ...CONTENT.dungeons,
+        test_reef: {
+          id: 'test_reef',
+          name: 'Test reef',
+          description: 'A reef for a test.',
+          order: 9,
+          recommended: 2,
+          unlock: { kind: 'combat', level: 2 },
+          unlockText: 'Reach combat level 2.',
+          loot: [],
+        },
+      },
+    };
+    let state = newGame('Cody', clock);
+    state = settleRun(state, { cleared: 'tidepool_cave' }, CONTENT);
+    state = settleRun(state, { cleared: 'brinebeards_grotto' }, CONTENT);
+    // A breath short of combat level 2, fighting rats.
+    const almost = xpForLevel(2) - 1;
+    state = {
+      ...state,
+      skills: { melee: almost, defence: almost, vitality: almost },
+      equipment: { main_hand: { item: 'bronze_sword', qty: 1 } },
+    };
+    const started = startFight(state, 'dock_rat', content);
+    if (!started.ok) throw new Error(started.reason);
+    saves().save(started.state);
+    const app = mountApp(root, { saves: saves(), content, now: () => clock });
+    tab('bank');
+    expect(dot()).toBeNull();
+    const screen = q('#screen').firstElementChild;
+    for (let i = 0; i < 60 && !dot(); i += 1) {
+      clock += 1000;
+      app.tick();
+    }
+    expect(dot()).not.toBeNull();
+    expect(q('#screen').firstElementChild).toBe(screen);
+  });
+
   it('is not worn by a character with every open dungeon cleared', () => {
     let state = newGame('Cody', clock);
     state = settleRun(state, { cleared: 'tidepool_cave' }, CONTENT);
@@ -200,11 +247,19 @@ describe('the "now doing" strip', () => {
     expect(resting.h).toBe(fishing.h);
   });
 
-  it('shows him at least 0.6 CSS pixels an art pixel, in whole device pixels', () => {
-    expect([1, 2, 2.625, 3, 3.5].map(stripScale)).toEqual([1, 2, 2, 2, 3]);
-    for (const dpr of [1, 2, 2.625, 3, 3.5]) {
-      expect(stripScale(dpr) / dpr).toBeGreaterThanOrEqual(0.57);
+  it('shows him at least 0.6 CSS pixels an art pixel where he fits, in whole device pixels', () => {
+    expect([1, 2, 2.625, 3, 3.5].map((dpr) => stripScale(dpr))).toEqual([1, 1, 2, 2, 2]);
+    for (const dpr of [2.625, 3]) {
+      expect(stripScale(dpr) / dpr).toBeGreaterThanOrEqual(0.6);
       expect((stripScale(dpr) - 1) / dpr).toBeLessThan(0.6);
     }
+  });
+
+  it('never stands him taller than the cap on a phone, so the strip is no taller at 2x than at 3x', () => {
+    for (const dpr of [2, 2.625, 3, 3.5]) {
+      expect((stripScale(dpr) * FIGURE2_H) / dpr, `at ${dpr}x`).toBeLessThanOrEqual(STRIP_TALLEST);
+    }
+    // At 2x the next whole size up would be 72 CSS tall (the strip was 75).
+    expect((2 * FIGURE2_H) / 2).toBeGreaterThan(STRIP_TALLEST);
   });
 });
