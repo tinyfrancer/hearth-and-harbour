@@ -51,12 +51,23 @@ const tenfold = { coins: 770 };
 const V8_FIELDS = ['collection', 'achievements', 'dungeons', 'stats', 'perks'];
 /** What version 9 adds to a save from before it, but for a bare chin on the look. */
 const V9_FIELDS = ['bountyBoard', 'lastBounty', 'autoBounty', 'run'];
+/** What version 10 adds to a save from before it: nothing remembered. */
+const V10_FIELDS = ['seen'];
 /** The look an older save comes in with: as it was, with the art's bare chin. */
 const bearded = { look: { ...state.look, beard: 'none' } };
 /** A save as a version before 6 wrote it. */
 const before6 = (version: number): Record<string, unknown> => {
   const old: Record<string, unknown> = { ...state, version };
-  for (const field of ['fight', 'food', 'eatAt', 'rng', 'bestiary', ...V8_FIELDS, ...V9_FIELDS]) {
+  for (const field of [
+    'fight',
+    'food',
+    'eatAt',
+    'rng',
+    'bestiary',
+    ...V8_FIELDS,
+    ...V9_FIELDS,
+    ...V10_FIELDS,
+  ]) {
     delete old[field];
   }
   return old;
@@ -195,10 +206,30 @@ describe('save export and import', () => {
       version: 8,
       bounty: { monster: 'marsh_troll', count: 18, done: 4 },
     };
-    for (const field of V9_FIELDS) delete v8[field];
+    for (const field of [...V9_FIELDS, ...V10_FIELDS]) delete v8[field];
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v8 }))).toEqual({
       ok: true,
       state: { ...state, bounty: { monster: 'marsh_troll', count: 18, done: 4 }, ...bearded },
+    });
+  });
+
+  it('loads a version 9 save with nothing remembered and everything else as it was', () => {
+    const v9: Record<string, unknown> = { ...state, version: 9, autoBounty: true };
+    for (const field of V10_FIELDS) delete v9[field];
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v9 }))).toEqual({
+      ok: true,
+      state: { ...state, autoBounty: true, seen: [] },
+    });
+  });
+
+  it('round-trips what is remembered, in the order it was remembered', () => {
+    const remembering: GameState = {
+      ...state,
+      seen: ['town.pan', 'cave.lesson.attack', 'cave.lesson.wide_swing', 'grotto-2'],
+    };
+    expect(readSave(writeSaveExport('code', remembering).text)).toEqual({
+      ok: true,
+      state: remembering,
     });
   });
 
@@ -413,6 +444,18 @@ describe('save export and import', () => {
           data: { junk: 'x'.repeat(300 * 1024) },
         },
       },
+      // What is remembered: short plain keys, each once, and not without end.
+      { ...state, seen: undefined },
+      { ...state, seen: 'town.pan' },
+      { ...state, seen: { 'town.pan': true } },
+      { ...state, seen: ['town.pan', 'town.pan'] },
+      { ...state, seen: [7] },
+      { ...state, seen: ['town pan'] },
+      { ...state, seen: ['<b>'] },
+      { ...state, seen: [''] },
+      { ...state, seen: ['.town'] },
+      { ...state, seen: ['k'.repeat(49)] },
+      { ...state, seen: Array.from({ length: 257 }, (_, i) => `key${i}`) },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,

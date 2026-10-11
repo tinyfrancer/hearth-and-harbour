@@ -95,6 +95,22 @@ export interface Shell {
    * each time the chart opens; it is cheap. Optional, like `openBounties`.
    */
   chartOpened?(): void;
+  /**
+   * Whether this character has had `key` remembered (`remember`), on this
+   * phone or any other the save has been on: for things shown once, such as
+   * the town's first-visit pan (`'town.pan'`) or a dungeon's lessons
+   * (`'cave.lesson.attack'`). Keys are the caller's: letters and digits in
+   * parts joined by `.`, `_` or `-`, at most 48 characters. A key of any other
+   * shape is never remembered. Optional, like `openBounties`.
+   */
+  remembered?(key: string): boolean;
+  /**
+   * Remember `key` for good, in the save, saved at once so a reload straight
+   * after keeps it. Cheap to call again for a key already kept. A key of the
+   * wrong shape is ignored, as is a new one once the save holds 256. Optional,
+   * like `openBounties`.
+   */
+  remember?(key: string): void;
 }
 
 /** What the menus may ask the town to open (`Shell.takeRequest`). */

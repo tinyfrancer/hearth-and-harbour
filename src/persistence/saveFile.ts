@@ -1,4 +1,5 @@
 import { BOARD_SIZE } from '../core/bounty';
+import { SEEN_MAX, isSeenKey } from '../core/remembered';
 import { SLOTS } from '../core/content';
 import { GAME_STATE_VERSION, nameProblem, type GameState } from '../core/state';
 import { migrateGameState } from './migrations';
@@ -291,6 +292,10 @@ function saveProblem(state: Record<string, unknown>): string | null {
   }
   if (state.run !== null && !isSavedRun(state.run)) {
     return 'the dungeon run under way is not one';
+  }
+  const { seen } = state;
+  if (!isIdList(seen) || seen.length > SEEN_MAX || !seen.every(isSeenKey)) {
+    return 'what is remembered should be a list of short keys, each once';
   }
   return null;
 }

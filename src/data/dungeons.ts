@@ -12,9 +12,13 @@ export const DUNGEONS = {
   // tables (one bestiary entry each, kills and bounties counted there as
   // anywhere), but weaker here, as befits a first fight. A landed blow from a
   // level-1 character with bare hands does 1, so hit points are blows needed.
+  // Wave 16, lane C's measure of the scene: these give its scripted novice a
+  // run of two and a half minutes and a real need to eat (lowest 7 to 15 of 20
+  // hit points), where wave 15's cleared in under two, barely hurt.
   // tests/data/tidepool.test.ts holds that standing still in the first room
   // cannot knock that character out, that the whole cave is cleared with
-  // health to spare dodging most heavy blows, and that it is no farm.
+  // health to spare dodging most heavy blows and eating the fish found on the
+  // way, that it hurts enough to need them, and that it is no farm.
   tidepool_cave: {
     id: 'tidepool_cave',
     name: 'Tidepool Cave',
@@ -37,8 +41,8 @@ export const DUNGEONS = {
         name: 'Dock rat',
         description: 'Bold as brass and twice as greasy.',
         level: 1,
-        hp: 4,
-        attack: 1,
+        hp: 6,
+        attack: 4,
         defence: 1,
         maxHit: 1,
         speedMs: 3000,
@@ -51,8 +55,8 @@ export const DUNGEONS = {
         name: 'Sand crab',
         description: 'Sideways, stubborn, and always somewhere underfoot.',
         level: 1,
-        hp: 4,
-        attack: 1,
+        hp: 6,
+        attack: 5,
         defence: 2,
         maxHit: 1,
         speedMs: 3600,
@@ -66,10 +70,10 @@ export const DUNGEONS = {
         description:
           'Older than the quay, slower than the tide, and in no mood to move for either.',
         level: 2,
-        hp: 12,
-        attack: 2,
+        hp: 18,
+        attack: 5,
         defence: 2,
-        maxHit: 1,
+        maxHit: 2,
         speedMs: 3600,
         coins: [4, 8],
         always: [{ item: 'seashells', min: 1, max: 2 }],

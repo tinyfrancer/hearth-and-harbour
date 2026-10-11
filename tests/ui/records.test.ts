@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { newGame, type GameState } from '../../src/core/state';
+import { GAME_STATE_VERSION, newGame, type GameState } from '../../src/core/state';
 import { CONTENT } from '../../src/data';
 import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
 import { mountApp, type App } from '../../src/ui/app';
@@ -209,7 +209,7 @@ describe('achievements', () => {
     localStorage.setItem('hearth-and-harbour:save', JSON.stringify(old));
     mountApp(root, { saves: saves(), content: CONTENT, now: () => clock });
     expect(saved()).toMatchObject({
-      version: 9,
+      version: GAME_STATE_VERSION,
       coins: 120,
       collection: ['pine_logs'],
       achievements: ['first_log'],

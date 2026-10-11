@@ -428,9 +428,14 @@ describe('in the smithy’s greaves (for a decision)', () => {
 // heavy blow dodged), plus a dozen seconds to walk its three rooms and
 // fifteen for the round trip (rowing out, the results, the boat and the chart
 // again), with every drop at its average and the pearl at its odds: it pays
-// under half an hour of the first skills, and less XP than dock rats idle.
-// (With no round trip at all its XP would be about 1.5 times the rats'; it
-// cannot be run with none, and the idle rats need no hands.)
+// under half an hour of the first skills.
+//
+// Its XP is about what dock rats pay idle at level 1, and never much more.
+// Until wave 16 this case said "less than the rats", on a model of two rats
+// and two crabs; the scene has five rats and two crabs, and lane C's numbers
+// (wave 16: more hit points, a longer run) give the honest count 1.08 times
+// the rats' at the speed of a player who never misses a tap. It needs hands
+// and the rats do not, and from level 2 or 3 the idle fights pay far more.
 describe('the Tidepool Cave run again and again (wave 15)', () => {
   const WALK_MS = 12_000;
   const ROUND_TRIP_MS = 15_000;
@@ -452,17 +457,19 @@ describe('the Tidepool Cave run again and again (wave 15)', () => {
     return { worth, xp: damage * 5 };
   };
 
-  it('pays less an hour than the first skills, and less XP than dock rats idle', () => {
+  it('pays less an hour than the first skills, and about the XP of dock rats idle', () => {
     const fastest = manyCaveRuns(characterAt(1), { dodge: 1 }).quickest + WALK_MS + ROUND_TRIP_MS;
     const runs = HOUR / fastest;
     const { worth, xp } = perRun();
     const coins = Math.round(worth * runs);
     const xpHour = Math.round(xp * runs);
-    // Pinned so a change to the cave's numbers is seen: about 75 coins and 140 XP a run.
-    expect([Math.round(worth), xp, Math.round(fastest / 1000)]).toEqual([75, 140, 39]);
+    // Pinned so a change to the cave's numbers is seen: about 98 coins and 300 XP a run, 71 s.
+    expect([Math.round(worth), xp, Math.round(fastest / 1000)]).toEqual([98, 300, 71]);
     expect(coins).toBeLessThan(skillHour('woodcutting', 1).gross / 2);
     expect(coins).toBeLessThan(bestFightHour(1).earned / 2);
-    expect(xpHour).toBeLessThan(hourOf(1, 'dock_rat').xpPerHour);
+    const rats = hourOf(1, 'dock_rat').xpPerHour;
+    expect(Math.round((xpHour / rats) * 100) / 100).toBe(1.08);
+    expect(xpHour).toBeLessThan(rats * 1.15);
   });
 });
 

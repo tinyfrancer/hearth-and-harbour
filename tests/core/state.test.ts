@@ -48,6 +48,7 @@ describe('newGame', () => {
       lastBounty: null,
       autoBounty: false,
       run: null,
+      seen: [],
     });
   });
 
