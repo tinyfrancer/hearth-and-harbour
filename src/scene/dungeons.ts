@@ -13,7 +13,6 @@ import type { Content } from '../core/content';
 import type { SayLine } from './battle';
 import { GROTTO_CAST, GROTTO_ID, type CastDef } from './cast';
 import { buildDungeon, type Dungeon, type DungeonPlan } from './dungeon';
-import { STAND_IN_CAST } from './fromLaneA';
 import { CAPTAIN_SAYS } from './grottoWords';
 import { CAVE_LESSONS, type Lesson } from './lessons';
 import { DUNGEON_PLANS } from './plans';
@@ -67,7 +66,6 @@ export const DUNGEON_SCENES: Readonly<Record<string, DungeonScene>> = {
   },
   [TIDEPOOL_ID]: {
     plan: DUNGEON_PLANS[TIDEPOOL_ID]!,
-    cast: STAND_IN_CAST[TIDEPOOL_ID],
     lessons: CAVE_LESSONS,
     words: {
       cleared: {
