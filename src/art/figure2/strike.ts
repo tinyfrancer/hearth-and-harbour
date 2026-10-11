@@ -25,6 +25,7 @@ import { cell, matOf, stepOf, type Cell } from '../town2/cells';
 import type { Mat } from '../town2/ramps';
 import { FIG_H, FIG_W, FIST2, OPEN_HAND2 } from './body';
 import { CARRY_PIVOT, foreshorten } from './carry';
+import { turnsRigid } from './edges';
 import { pixels, type Bone, type Part2, type Pin } from './engine';
 import { SIDE_SHOULDER, type SideArm, type SideArmAt, type SideDress, type SidePose } from './side';
 import { drawLimb, joint, Sheet, type Cover, type Pt } from './rig2';
@@ -53,6 +54,12 @@ export const strikeKind = (weaponGear: string | null | undefined): StrikeKind =>
 export interface Turn {
   readonly q: 0 | 1 | 2 | 3;
   readonly lean: number;
+  /**
+   * Turned only by true rotations (a curved blade: edges.ts). Otherwise point
+   * down and pointing back are mirror images, which keeps the lit edge on the
+   * top or the left of a straight blade.
+   */
+  readonly rigid?: boolean;
 }
 
 const [PX, PY] = CARRY_PIVOT;
@@ -73,11 +80,11 @@ function turnPoint(x: number, y: number, t: Turn): [number, number] {
       ny += Math.round(t.lean * nx);
       break;
     case 2:
-      [nx, ny] = [dx, -dy];
+      [nx, ny] = t.rigid ? [-dx, -dy] : [dx, -dy];
       nx += Math.round(t.lean * ny);
       break;
     default:
-      [nx, ny] = [dy, dx];
+      [nx, ny] = t.rigid ? [dy, -dx] : [dy, dx];
       ny += Math.round(t.lean * -nx);
   }
   return [PX + nx, PY + ny];
@@ -118,11 +125,11 @@ export function turnHeld(parts: readonly Part2[], t: Turn, dx: number, dy: numbe
   // Shorter first (down to half its length), then less leant, then shorter again.
   for (const lean of [1, 0.75, 0.5, 0.25, 0])
     for (let keep = 1; keep >= (lean === 0 ? 0.2 : 0.5); keep -= 0.05) {
-      const turned = turnedAt(parts, { q: t.q, lean: t.lean * lean }, keep);
+      const turned = turnedAt(parts, { ...t, lean: t.lean * lean }, keep);
       if (inside(turned)) return turned;
     }
   // Out of room even so: the far end is left off, as if it pointed away out of sight.
-  return turnedAt(parts, { q: t.q, lean: 0 }, 0.2).map((p) => {
+  return turnedAt(parts, { ...t, lean: 0 }, 0.2).map((p) => {
     const px: [number, number, string][] = [];
     for (const [y, row] of rowsOf(p))
       for (const [x, ch] of row) if (fits(x, y)) px.push([x, y, ch]);
@@ -266,7 +273,12 @@ export function sideStrikePose(dress: SideDress, f: number): SidePose {
     weapon = {
       wrist: b.weapon,
       hand: 'fist',
-      holds: turnHeld(upright, b.turn!, weaponMove[0], weaponMove[1]),
+      holds: turnHeld(
+        upright,
+        { ...b.turn!, rigid: turnsRigid(dress.heldId) },
+        weaponMove[0],
+        weaponMove[1],
+      ),
       bend: b.bend,
     };
     off = shield ? { wrist: b.off, hand: 'none' } : { wrist: b.off, hand: b.offHand ?? 'open' };
@@ -350,6 +362,8 @@ export interface FrontKit {
   readonly held: readonly Part2[];
   readonly kind: StrikeKind;
   readonly shield: boolean;
+  /** The weapon turns only by true rotations (a curved blade: edges.ts). */
+  readonly rigid?: boolean;
 }
 
 /** The arm's bones toward the camera and away. */
@@ -526,7 +540,7 @@ export function frontStrike(
     open,
   );
   if (kit.kind === 'swing') {
-    for (const p of turnHeld(kit.held, beat.turn!, dx, dy))
+    for (const p of turnHeld(kit.held, { ...beat.turn!, rigid: kit.rigid }, dx, dy))
       for (const [x, y, c] of pixels(p))
         sheet.add(
           x + dx,

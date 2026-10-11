@@ -506,13 +506,24 @@ export function sideDress(gearIds: readonly string[]): SideDress | null {
   for (const id of [...gearIds].sort((a, b) => under(a) - under(b))) {
     const hair = HAIR_VIEWS[id];
     if (hair) {
-      d.head.push(...hair.map((p) => ({ ...p, depth: SIDE.HEAD + 5 })));
+      // Hair laid over head gear (a braid over a hood's cape) keeps its depth, over the gear.
+      d.head.push(
+        ...hair.map((p) => ({
+          ...p,
+          depth: p.depth === DEPTH.HAIR_OVER ? DEPTH.HAIR_OVER : SIDE.HEAD + 5,
+        })),
+      );
       continue;
     }
     const beard = BEARD_SIDE[id];
     if (beard) {
-      // Over head gear: on the chin below a helm's rim, over a hood's cape.
-      d.head.push(...beard.map((p) => ({ ...p, depth: DEPTH.HELMET + 3 })));
+      // Below the jaw over head gear (a hood's cape), above it under it like hair.
+      d.head.push(
+        ...beard.map((p) => ({
+          ...p,
+          depth: p.depth >= DEPTH.HELMET ? p.depth : SIDE.HEAD + 5,
+        })),
+      );
       continue;
     }
     const dresser = SIDE_GEAR[id];

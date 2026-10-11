@@ -400,6 +400,75 @@ frames' provenance (`posedTagged` in `walk.ts`, the side view's tags) holds it i
   jerkin's skirt and sleeves are laid over it (until B12 the tunic came last and its skirt and
   sleeves replaced theirs in profile: the captain's coat was a short jacket, mail had teal sleeves).
 
+#### Hair in profile and from behind (B13)
+
+Cody: "Hair styles not showing when not facing forward." B10b drew every style in profile and from
+behind, but at true size short, braid and shaggy were the same cap of hair from the side, and
+under head gear the profile showed only the long styles' hang (short hair was bald under a cap). The
+rules now (`figure2/hair.ts`, `hairStyles.ts`, `sideHeads.ts`):
+
+- **Each style is a silhouette first**, in all four facings: what sticks out of the head's outline
+  (a tail, a bun, a fin, a cloud, a curtain to the jaw, plaits over the shoulders, tufts) is what
+  reads at three device pixels. A test holds every style's profile and back apart from every other's
+  (`tests/art/hair2.test.ts`).
+- **Under head gear the style shows below the rim** in every facing, by one rule: the whole style
+  cut at the rim's row (row 11 from the front, row 10 in profile and from behind), with the head
+  gear drawn over it. So short hair keeps its sideburns and nape, curls and a bob bulge out under a
+  helm's edge, a ponytail's tail and a mohawk's strip still show behind. A topknot and a mohawk's
+  crest are on the crown and go under it.
+- **Under a hood**, what falls out of it is laid over its cape (`HAIR_OVER`): long hair's locks out
+  of the opening onto the chest (front and profile), a braid's plait over the hood's back, twin
+  braids down the front. Curls are tucked away whole (they bulged out of the hood's sides). From
+  behind long hair is inside the hood.
+- **Hair laid over head gear keeps its depth in profile**, over the hood (the side view used to
+  flatten every hair part to one depth under the head gear).
+- **The B13 styles** (appended to the choices, so saved ids keep their meaning): `ponytail` (pulled
+  back from a high hairline, the tail swinging out past the far side of the head from the front,
+  back and down behind the neck in profile, down the back from behind), `topknot` (pulled tight to
+  a bound bun on the crown), `curly` (a round cloud of curls, each placed by hand as a centre and a
+  size and shaded as a small dome: `curls()`), `mohawk` (a swept-back fin of spikes from brow to
+  nape, the sides shaved: a stubble tone on the scalp from the front and behind), `bob` (a straight
+  fringe above the brows and a blunt curtain to the jaw, covering the ears), `twin_braids` (a centre
+  parting and a plait over each shoulder, down the chest over whatever is worn). The portrait draws
+  each with its own crown and what hangs (`dungeon2/heroHair.ts`).
+
+#### Beards (B13)
+
+Cody: "Need more hairstyles/beard options." A look part of its own (`beard`, missing is `none`), in
+the hair's colour (`figure2/beard.ts`; portrait in `dungeon2/heroHair.ts`):
+
+- `stubble` (one tone over the jaw and chin, its top edge broken; in the portrait the skin a step
+  darker over the jaw and a band of the hair's tone along its edge), `moustache` (over the upper
+  lip, drooping at the corners), `short_beard` (trimmed close to the jaw, a moustache, a pixel or two
+  below the chin), `full_beard` (ear to ear, bushy, rounded well below the chin), `braided_beard`
+  (a short beard with a plait from the chin, a gold bead at its end), `mutton_chops` (sideburns
+  flaring across the cheeks to the moustache, the chin bare).
+- **Solid shaded masses with a silhouette**, never a stipple; a few strokes for partings and a lit
+  lock in the portrait. **The mouth always shows** (a moustache sits on the upper lip, a beard parts
+  under the lower one; the portrait lays the mouth back over the beard) and **nothing covers an
+  eye** (tested).
+- **What covers what**: above the jaw a beard is under head gear like hair, so a hood's sides cover
+  the cheeks and only the beard in its opening shows; below the jaw (row 20 down) it lies over head
+  gear, over a hood's cape. From behind only a full or braided beard shows, as tufts beside the neck.
+
+#### The weapon-edge rule (B13)
+
+Cody: "Curved sword looks funky on side character view, curves down?" Held things are drawn once,
+upright, and turned about the fist; point down and pointing back were mirror images, which suits a
+straight blade (its lit edge stays on the top or the left) but flips a curved one, so the cutlass
+was carried with its belly on top and its point drooping. Each asymmetric weapon now declares its
+working side (`figure2/edges.ts`, `EDGE2`) and how it turns:
+
+- **A cutlass turns rigidly** (true rotations only, in the carry and every blow, every facing): its
+  edge is its belly, the convex side, and its point sweeps back toward the spine. Carried point down
+  and forward, the belly is underneath and the point curls up; in a blow the belly leads the way the
+  blade travels (on the clockwise side of the blade from the fist, facing right; tested in every
+  profile frame). The townsfolk captain's cutlass is curved the same way (it had been straight).
+- **An axe keeps its bit forward** (toward the walk and the one struck) in the carry and the blow:
+  turning it point down is a turn about the haft, which mirrors it.
+- Bows draw on the near side; the anchor, the cudgel and the straight blades are symmetric. The foes'
+  cutlasses (the smuggler's, Brinebeard's) are their own drawings and were left as they are.
+
 #### Greaves (B13)
 
 Cody: "Leg armor from smithing?" Two rungs of leg armour (`figure2/greaves.ts`), worn in the art's
@@ -417,6 +486,29 @@ Cody: "Leg armor from smithing?" Two rungs of leg armour (`figure2/greaves.ts`),
   their own short stretches, the cop riding on the knee in its own metal (`kneeMat`).
 - The icons are the pair stood side by side, the far one lower: a domed cop over a plate that
   narrows to the ankle and flares at the foot.
+
+#### Activity poses (B13)
+
+Cody: "idle animation: maybe something in the afk menu showing our character mining/fletching/
+fighting/etc." A short loop per skill (`figure2/activity.ts`, door `characterActivity2`), drawn on
+the blow's machinery (the walk's skeleton posed per frame):
+
+- **Side-on, facing right**, four or five frames, the hero's own look and outfit (helm, coat,
+  greaves, beard) but **the work's own tool** in hand, a generic one (a hatchet, a pick, a smith's
+  hammer, a rod and line, a ladle, a needle, a knife and a shaft, a flask, a basket on the arm, a
+  purse): the weapon and shield are put down. Tools are drawn upright in the fist by the hand rule
+  and turned about it as weapons are; the long thin ones are laid along a line each frame.
+- **The work lands on its prop**: the hatchet's bit on the log's top, the pick's point on the rock,
+  the hammer on the anvil's face, the ladle in the pot, the hand into the bush and to the purse on
+  the counter. Props are small pictures of their own (a log on a chopping block, an ore boulder, the
+  water's edge with a float, a bramble, a pot on a fire, an anvil on its block, a bench with cloth,
+  a stump with shafts, a table of flasks, a stall's counter), each with its foot and its place
+  beside the hero as data, drawn behind the hero or (the pot, the counter) in front.
+- **A loop is a motion with a beat**: wind-up, the blow or the stroke, the contact held a frame,
+  the recovery. The body drops a row or two and leans into the work at the contact; foraging and
+  thieving crouch.
+- Combat's loops are the blow (`melee`, `defence` as worn; `ranged` with the bow worn or a pine
+  shortbow) and the breath (`vitality`).
 
 #### The blow (B12)
 
@@ -478,7 +570,25 @@ sets the look of the ones after it.
   the floor running out of the room into the dark beyond, the jamb above showing a sliver of dark
   face and the one below a lit lip, the frame's posts and lintel at the room's edge; barred, an iron
   grille along the lintel. It turns to face the room by its neighbours. A face's door
-  (`door_open`, `door_barred`) is for a door in the wall the viewer faces.
+  (`door_open`, `door_barred`) is for a door in the wall the viewer faces. _Redrawn in B13, below._
+- **Doors as the way onward** (B13, `dungeon2/doors.ts`, door `dungeonDoor2`; Cody: "Dungeon doors
+  to new areas too small"). A door is a piece three tiles tall, so it stands a figure high, and
+  reads at a glance on a phone held sideways:
+  - It must be **lit or shut, never ambiguous**: an open way is lit from beyond (the far end of the
+    passage or the doorway at the end of the portal's passage in the lamp's warm steps, a glow, and
+    a light laid on the room's floor at its mouth like a lantern's) with a lit lantern beside it; a
+    barred way is dark behind heavy iron (bars whose heads catch the light, bands across) with its
+    lantern unlit.
+  - **In a side wall** it is 2 x 3 tiles (the door's cell and the cells above and below it, and the
+    passage running on through the cell beyond): an opening a metre and more across (40 pixels,
+    splayed toward the room) between stone jambs seen from above, squared timber posts at its ends.
+    Everything that names it (the light, the grille, the posts) is inside the door's own column, so
+    it reads with the cell beyond off the map.
+  - **In the wall you face** it is 3 x 3 tiles: a stone portal standing against the face and taller
+    than the wall, its lintel stone's top lit, an arched opening 28 wide and 58 tall, a lantern
+    either side.
+  - Each single tile by the same id is the piece's slice over the door's own cell, so a room laid
+    out with tiles alone still shows a lit or barred doorway.
 - **Water against a wall**: where water runs into a bottom wall the shore beside it widens toward
   the rock so it curves round into the wall's foot, and a broken wash of foam lies along the foot
   (B11; it met the rock in a square 24-pixel step).
@@ -579,8 +689,8 @@ said something, beards with a silhouette, a little caricature. B11 drew every fa
   handles and weed for hair, the parrot's big ringed eye under a lowered brow.
 - **The hero's** (`heroFace.ts`) is the H2 head at three times its size: round, a little wider than
   tall, open eyes with the iris centred and a catch-light, soft brows in the hair's colour at the
-  step that stands clear of the skin, a broken fringe, a small easy smile. Five hairstyles each
-  with their own silhouette and volume, the hang (long hair's curtains, the braid) worn under helms
+  step that stands clear of the skin, a broken fringe, a small easy smile. Eleven hairstyles (six
+  since B13, `heroHair.ts`) and six beards, each with their own silhouette and volume, the hang (long hair's curtains, the braid) worn under helms
   and hoods, the hair at the temples under a brim; the head gear and the shirt and body garment
   worn. A likeable adventurer in every look.
 

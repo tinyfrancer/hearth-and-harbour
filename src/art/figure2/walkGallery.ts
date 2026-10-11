@@ -140,3 +140,67 @@ export function strikePreview(
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
   return canvas;
 }
+
+/**
+ * A canvas showing the hero at work (B13): an activity's loop at `scale`
+ * device pixels per art pixel, the prop it is done on beside the hero
+ * (behind or in front, as `activityProp2` says).
+ */
+export function activityPreview(
+  frame: (time: TimeOfDay, f: number) => HTMLCanvasElement | null,
+  prop: (
+    time: TimeOfDay,
+  ) => { canvas: HTMLCanvasElement; x: number; y: number; front: boolean } | null,
+  frames: number,
+  frameMs: number,
+  scale: number,
+  dpr: number,
+  time: () => TimeOfDay,
+  label: string,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'pixel-art';
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', label);
+  // The hero at the left, the prop to the right of the anchor.
+  const artW = 96;
+  canvas.width = deviceSize(artW, scale, dpr);
+  canvas.height = deviceSize(FIGURE2_H, scale, dpr);
+  canvas.style.width = `${canvas.width / dpr}px`;
+  canvas.style.height = `${canvas.height / dpr}px`;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const start = performance.now();
+  let last = '';
+  const paint = (now: number) => {
+    const f = Math.floor((now - start) / frameMs) % Math.max(1, frames);
+    const key = `${time()} ${f}`;
+    if (key === last) return;
+    last = key;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const p = prop(time());
+    const drawProp = () => {
+      if (p)
+        ctx.drawImage(
+          p.canvas,
+          p.x * scale,
+          p.y * scale,
+          p.canvas.width * scale,
+          p.canvas.height * scale,
+        );
+    };
+    if (p && !p.front) drawProp();
+    const s = frame(time(), f);
+    if (s) ctx.drawImage(s, 0, 0, FIGURE2_W * scale, FIGURE2_H * scale);
+    if (p && p.front) drawProp();
+  };
+  paint(start);
+  const tick = (now: number) => {
+    if (!canvas.isConnected && now - start > 1000) return;
+    paint(now);
+    requestAnimationFrame(tick);
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
+  return canvas;
+}

@@ -358,17 +358,18 @@ const BACK_RULES: Readonly<Record<string, BackRule>> = {
  */
 export function backParts(
   slotted: readonly { part: Part2; bone: Bone; slot: string | null; gear: string | null }[],
-  hairStyle: string | null = null,
+  hairGear: string | null = null,
 ): Boned[] {
   const out: Boned[] = [{ part: { ...HEAD_BACK, depth: 0 }, bone: 'head', tag: 'head' }];
   const done = new Set<string>();
-  // Under a hat or helm the hair still shows behind, below its rim: the whole
-  // style's back, cut off where the head gear starts (a cap covers the crown
-  // only, so without this the bare skull reads as a face with no features).
-  if (hairStyle && slotted.some((s) => s.slot === 'head')) {
+  // Under a hat or helm the hair still shows behind, below its rim: the hair
+  // worn there is the style's own back cut at the rim (HAIR_BACKS, B13), so a
+  // cap covers the crown only and the bare skull never reads as a faceless face.
+  // Named by gear id, not found among the parts: a style may show nothing of
+  // itself from the front under a helm (a mohawk) and still show at the nape.
+  if (hairGear) {
     done.add('hair');
-    for (const p of HAIR_BACKS[hairStyle] ?? [])
-      out.push({ part: below(p, HEAD_BACK.at[1] + 4), bone: 'head', tag: 'hair' });
+    for (const p of HAIR_BACKS[hairGear] ?? []) out.push({ part: p, bone: 'head', tag: 'hair' });
   }
   const shield = slotted.find((s) => s.slot === 'shield');
   const nearArm = slotted.filter((s) => s.bone === 'near');

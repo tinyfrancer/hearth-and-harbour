@@ -6,12 +6,18 @@
  * townsperson walking each way and breathing. Drawn only when asked, a picture at a
  * time; one button turns it all to dusk and back on the same canvases.
  */
-import { DEFAULT_LOOK, LOOK_CHOICES, type Look } from '../character';
+import { BEARD_CHOICES, DEFAULT_LOOK, LOOK_CHOICES, type Look } from '../character';
 import {
   FIGURE2_ANCHOR_X,
   FIGURE2_SOLE_Y,
+  ACTIVITY2_IDS,
   ITEM_LAYERS2,
   KNIGHT_GEAR2,
+  activityFrameMs2,
+  activityFrames2,
+  activityProp2,
+  characterActivity2,
+  characterWalkPicture2,
   TOWNSFOLK2_FRAME_MS,
   TOWNSFOLK2_IDS,
   c2Scale,
@@ -29,7 +35,7 @@ import { deviceSize } from '../canvas';
 import { dim, stamp, tgrid, type Picture2 } from '../town2/cells';
 import { cut, plate } from '../town2/gallery2';
 import { pixelCanvas2, repaint2, spriteCanvas } from '../town2/raster';
-import { strikePreview, walkPreview, type Walker2 } from './walkGallery';
+import { activityPreview, strikePreview, walkPreview, type Walker2 } from './walkGallery';
 import { DAY2, DUSK2, type TimeOfDay } from '../town2/ramps';
 import { town2Layout, town2Picture } from '../town2/town';
 
@@ -279,10 +285,105 @@ export function figure2Gallery(): { section: HTMLElement; draw: () => void } {
     body.append(box);
   };
 
+  const working = (label: string, activity: string) => {
+    const cell = el('figure', 'gallery-shot');
+    const worn = ['linen_tunic', 'linen_trousers'];
+    cell.append(
+      activityPreview(
+        (when, f) => characterActivity2(DEFAULT_LOOK, worn, when, activity, f),
+        (when) => {
+          const p = activityProp2(activity);
+          if (!p) return null;
+          return {
+            canvas: spriteCanvas(
+              `gallery prop ${activity}`,
+              p.picture,
+              when === 'day' ? DAY2 : DUSK2,
+            ),
+            x: FIGURE2_ANCHOR_X + p.at.x - p.foot.x,
+            y: FIGURE2_SOLE_Y + p.at.y - p.foot.y,
+            front: p.front,
+          };
+        },
+        activityFrames2(activity),
+        activityFrameMs2(activity),
+        game(),
+        dpr(),
+        () => time,
+        label,
+      ),
+    );
+    cell.append(el('figcaption', 'muted', label));
+    const box = el('div', 'gallery-scroll');
+    box.append(cell);
+    body.append(box);
+  };
+
   let built = false;
   const build = () => {
     if (built) return;
     built = true;
+    sub(
+      'Hair in every facing (B13): standing, toward you, right, left, away; then under a helm and a hood',
+    );
+    for (const hair of LOOK_CHOICES.hair)
+      shot(hair.name, () => {
+        const look = { hair: hair.id, hairColour: 'chestnut' };
+        const ways = (worn: string[]) => [
+          characterPicture2(look, worn),
+          ...(['down', 'right', 'left', 'up'] as const).map((f) =>
+            characterWalkPicture2(look, worn, f, 0),
+          ),
+        ];
+        return plate([...ways([]), ...ways(['iron_helmet']), ...ways(['linen_hood'])], 2);
+      });
+    sub(
+      'Beards (B13), in the hair’s colour: standing, right, left, away; under a helm; under a hood',
+    );
+    for (const beard of BEARD_CHOICES.filter((b) => b.id !== 'none'))
+      shot(beard.name, () => {
+        const pics = (look: Partial<Look>, worn: string[]) => [
+          characterPicture2(look, worn),
+          ...(['right', 'left', 'up'] as const).map((f) => characterWalkPicture2(look, worn, f, 0)),
+        ];
+        return plate(
+          [
+            ...pics({ beard: beard.id }, []),
+            ...pics({ beard: beard.id, hairColour: 'blonde' }, ['iron_helmet']),
+            ...pics({ beard: beard.id, hairColour: 'black', skin: 'brown' }, ['linen_hood']),
+          ],
+          2,
+        );
+      });
+    sub('Greaves (B13): bronze and iron, toward you, right, left, away');
+    for (const id of ['bronze_greaves', 'iron_greaves'])
+      shot(itemName(id), () =>
+        plate(
+          [
+            characterPicture2(DEFAULT_LOOK, [id]),
+            ...(['down', 'right', 'left', 'up'] as const).map((f) =>
+              characterWalkPicture2(DEFAULT_LOOK, [id], f, 1),
+            ),
+          ],
+          2,
+        ),
+      );
+    sub('The cutlasses in profile (B13): the belly underneath in the carry, leading in the blow');
+    for (const id of ['smugglers_cutlass', 'pirate_cutlass']) {
+      striking(itemName(id), ['linen_tunic', 'linen_trousers', id]);
+      walking(`${itemName(id)}, walking`, {
+        walk: (when, facing, f) =>
+          characterWalk2(DEFAULT_LOOK, ['linen_tunic', 'linen_trousers', id], when, facing, f),
+        idle: (when, f) =>
+          spriteCanvas(
+            `gallery idle cutlass ${id} ${f}`,
+            characterIdlePicture2(DEFAULT_LOOK, ['linen_tunic', 'linen_trousers', id], f),
+            when === 'day' ? DAY2 : DUSK2,
+          ),
+      });
+    }
+    sub('At work (B13): a loop for each skill, for the idle menu');
+    for (const id of ACTIVITY2_IDS) working(id.replace(/_/g, ' '), id);
     sub('Walking (B10b): toward you, to the right, to the left, away, and standing, breathing');
     for (const rung of LADDER2)
       walking(rung.name, {

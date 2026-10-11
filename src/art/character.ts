@@ -20,7 +20,15 @@ export interface LookChoice {
 }
 
 /** The beards (B13), coloured by the hair colour. The first, `none`, is the default and what a missing beard means. */
-export const BEARD_CHOICES: readonly LookChoice[] = [{ id: 'none', name: 'None' }];
+export const BEARD_CHOICES: readonly LookChoice[] = [
+  { id: 'none', name: 'None' },
+  { id: 'stubble', name: 'Stubble' },
+  { id: 'moustache', name: 'Moustache' },
+  { id: 'short_beard', name: 'Short beard' },
+  { id: 'full_beard', name: 'Full beard' },
+  { id: 'braided_beard', name: 'Braided beard' },
+  { id: 'mutton_chops', name: 'Mutton chops' },
+];
 
 const CHOICES = {
   skin: [
@@ -37,6 +45,13 @@ const CHOICES = {
     { id: 'braid', name: 'Braid' },
     { id: 'shaggy', name: 'Shaggy' },
     { id: 'bald', name: 'Bald' },
+    // B13
+    { id: 'ponytail', name: 'Ponytail' },
+    { id: 'topknot', name: 'Topknot' },
+    { id: 'curly', name: 'Curly' },
+    { id: 'mohawk', name: 'Mohawk' },
+    { id: 'bob', name: 'Bob' },
+    { id: 'twin_braids', name: 'Twin braids' },
   ],
   hairColour: [
     { id: 'brown', name: 'Brown' },
@@ -51,13 +66,9 @@ const CHOICES = {
 
 /**
  * Every look the player may choose, per part. The first of each is the
- * default. `beard` is in the table (the same array as `BEARD_CHOICES`) but
- * not yet in this declared type: today's menus map over the type's keys and
- * would ask for a beard the game's look cannot hold yet. Read beards as
- * `BEARD_CHOICES` (or `LOOK_CHOICES.beard` once lane A's look holds one).
+ * default; `beard` is the same array as `BEARD_CHOICES` (B13).
  */
-export const LOOK_CHOICES: Readonly<Record<Exclude<keyof Look, 'beard'>, readonly LookChoice[]>> =
-  CHOICES;
+export const LOOK_CHOICES: Readonly<Record<keyof Look, readonly LookChoice[]>> = CHOICES;
 
 export const DEFAULT_LOOK: Look = {
   skin: LOOK_CHOICES.skin[0]!.id,

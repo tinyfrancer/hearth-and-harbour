@@ -24,6 +24,7 @@ import { DEFAULT_LOOK } from './character';
 import { ITEM_LAYERS2 } from './character2';
 import { WARDROBE2 } from './figure2/dress';
 import { HAIR_COLOUR2, SKIN2 } from './figure2/look';
+import { beardGear } from './figure2/beard';
 import type { Picture2 } from './town2/cells';
 import { pixelCanvas2 } from './town2/raster';
 import { CAVE_DAY } from './dungeon2/cave';
@@ -91,11 +92,28 @@ export function heroBust2(look: Partial<Look>, wornItemIds: readonly string[]): 
   const gear = wornItemIds.map((id) => ITEM_LAYERS2[id]).filter((g): g is string => !!g);
   const inSlot = (slot: string) => gear.find((g) => slotOf(g) === slot) ?? null;
   const style =
-    (['short', 'long', 'braid', 'shaggy', 'bald'] as const).find((s) => s === safe.hair) ?? 'short';
+    (
+      [
+        'short',
+        'long',
+        'braid',
+        'shaggy',
+        'bald',
+        'ponytail',
+        'topknot',
+        'curly',
+        'mohawk',
+        'bob',
+        'twin_braids',
+      ] as const
+    ).find((s) => s === safe.hair) ?? 'short';
+  // A beard the art does not know is none (B13).
+  const beard = beardGear(safe.beard) ? safe.beard! : null;
   return {
     skin: SKIN2[safe.skin] ?? 'skin',
     hair: HAIR_COLOUR2[safe.hairColour] ?? 'hair',
     style,
+    ...(beard ? { beard } : {}),
     head: inSlot('head'),
     body: inSlot('body'),
     neck: inSlot('neck'),

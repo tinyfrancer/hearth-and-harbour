@@ -13,6 +13,7 @@
 import { DEPTH } from '../depth';
 import { HEAD_AT } from './body';
 import type { Gear2, Part2 } from './engine';
+import { LONG_HOOD, NEW_HAIR, RIM_FRONT, clipFrom } from './hairStyles';
 
 const { HAIR, HAIR_BACK, HAIR_OVER } = DEPTH;
 const [HX, HY] = HEAD_AT;
@@ -137,22 +138,47 @@ const SHAGGY_BACK = at(
   10,
 );
 
+/** A style worn under head gear: what lies below the rim (and anything laid over the gear). */
+const underOf = (parts: readonly Part2[]): Part2[] =>
+  parts.map((p) => clipFrom(p, RIM_FRONT)).filter((p) => p.rows.some((r) => /[^.]/.test(r)));
+
 export const HAIR2: readonly Gear2[] = [
   { id: 'short_hair', slot: 'hair', parts: [SHORT] },
+  // B13: under head gear the sideburns show at the front (and the nape behind and in profile).
+  { id: 'short_hair_under', slot: 'hair', parts: underOf([SHORT]) },
   { id: 'long_hair', slot: 'hair', parts: [LONG_CROWN, LONG_LOCKS, LONG_BACK] },
   { id: 'long_hair_under', slot: 'hair', parts: [LONG_LOCKS, LONG_BACK] },
+  // B13: out of a hood's opening and over its cape.
+  { id: 'long_hair_hood', slot: 'hair', parts: [LONG_LOCKS, LONG_BACK, ...LONG_HOOD.front!] },
   { id: 'braid_hair', slot: 'hair', parts: [BRAID_CROWN, BRAID] },
   { id: 'braid_hair_under', slot: 'hair', parts: [BRAID] },
+  { id: 'braid_hair_hood', slot: 'hair', parts: [BRAID] },
   { id: 'shaggy_hair', slot: 'hair', parts: [SHAGGY_CROWN, SHAGGY_LOCKS, SHAGGY_BACK] },
   { id: 'shaggy_hair_under', slot: 'hair', parts: [SHAGGY_LOCKS, SHAGGY_BACK] },
+  ...Object.entries(NEW_HAIR).flatMap(([id, d]): Gear2[] => [
+    { id: `${id}_hair`, slot: 'hair', parts: d.front },
+    { id: `${id}_hair_under`, slot: 'hair', parts: underOf(d.front) },
+  ]),
 ];
 
-/** Every hairstyle by its look id: the whole style, and what still shows under head gear. */
-export const HAIRSTYLES2: Readonly<Record<string, { gear: string | null; under: string | null }>> =
-  {
-    short: { gear: 'short_hair', under: null },
-    long: { gear: 'long_hair', under: 'long_hair_under' },
-    braid: { gear: 'braid_hair', under: 'braid_hair_under' },
-    shaggy: { gear: 'shaggy_hair', under: 'shaggy_hair_under' },
-    bald: { gear: null, under: null },
-  };
+/**
+ * Every hairstyle by its look id: the whole style, what still shows under head
+ * gear (a helm, a cap, a hat: what lies below the rim), and under a hood if
+ * that differs (what falls out of it).
+ */
+export const HAIRSTYLES2: Readonly<
+  Record<string, { gear: string | null; under: string | null; hood?: string | null }>
+> = {
+  short: { gear: 'short_hair', under: 'short_hair_under' },
+  long: { gear: 'long_hair', under: 'long_hair_under', hood: 'long_hair_hood' },
+  braid: { gear: 'braid_hair', under: 'braid_hair_under', hood: 'braid_hair_hood' },
+  shaggy: { gear: 'shaggy_hair', under: 'shaggy_hair_under' },
+  bald: { gear: null, under: null },
+  ...Object.fromEntries(
+    Object.entries(NEW_HAIR).map(([id, d]) => [
+      id,
+      // A cloud of curls is tucked away whole under a hood (it bulged out of its sides).
+      { gear: `${id}_hair`, under: `${id}_hair_under`, ...(d.tucked ? { hood: null } : {}) },
+    ]),
+  ),
+};

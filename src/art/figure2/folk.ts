@@ -841,7 +841,8 @@ const PIRATE: Folk = {
         7,
         Array.from({ length: 20 }, (_, i): [number, [number, string]] => {
           const y = 45 + i;
-          const x = 37 + Math.floor(i / 8);
+          // B13: a cutlass, not a straight blade: its belly bows out, its point curls back toward the spine.
+          const x = 37 + Math.floor(i / 8) + Math.round(1.6 * Math.sin((i / 19) * Math.PI * 0.85));
           return [y, [x, i === 19 ? '1' : '013']];
         }),
         { mat: 'iron' },

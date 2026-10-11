@@ -1,7 +1,52 @@
 # Lane B: art
 
-**Next session:** B13's second PR (Cody's feedback: hair in every facing, new hairstyles and
-beards, the cutlass's curve, the grotto's doors, activity poses), then Cody's review.
+**Next session:** Cody's review of B13 (hair in every facing, the new hairstyles and beards, the
+cutlass's curve, the grotto's doors, greaves, the activity poses), and whatever it asks for.
+
+## Hair, beards, the cutlass, doors, the hero at work, for lanes A and C (B13, second PR)
+
+No existing door renamed or re-signed; no constant changed. Added:
+
+```ts
+// character.ts / character2.ts
+LOOK_CHOICES.hair            // six appended: ponytail, topknot, curly, mohawk, bob, twin_braids
+BEARD_CHOICES / BEARD_CHOICES2 // none, stubble, moustache, short_beard, full_beard, braided_beard, mutton_chops
+LOOK_CHOICES / LOOK_CHOICES2 // now typed Record<keyof Look, ...>: `.beard` is typed (lane A's look.ts compiles)
+
+// character2.ts: the hero at work
+ACTIVITY2_IDS: readonly string[]  // woodcutting, fishing, mining, foraging, cooking, smithing, crafting,
+                                  // fletching, alchemy, thieving, melee, ranged, defence, vitality
+activityFrames2(activity): number           // 4 or 5 (the blow's 4, the breath's 2); 0 if unknown
+activityFrameMs2(activity): number          // suggested ms a frame (130 to 220; the breath 900)
+characterActivityPicture2(look, worn, activity, frame, extra = []): Picture2
+characterActivity2(look, worn, time, activity, frame, extra = []): HTMLCanvasElement
+activityProp2(activity): { picture, foot, at, front } | null
+  // draw the prop at (heroX + at.x - foot.x, heroY + at.y - foot.y), heroX/Y the hero's anchor;
+  // behind the hero, or over it when `front`; town cells (rasterize with DAY2/DUSK2)
+
+// dungeonArt2.ts: doors as pieces
+dungeonDoor2(kind, around?, at?): { picture, dx, dy, covers, light? } | null
+  // kind: door_open | door_barred | door_side_open | door_side_barred (the tile ids)
+DOOR2_FOOTPRINTS, doorFootprint2(kind, roomWest)
+```
+
+- **Activities**: the same 56 x 72 canvas and anchor (28, 70) as every figure, facing right (mirror
+  for left if the menu wants it); `frame` wraps; kept like the walk's frames (`forgetWalks2()`,
+  `forgetSprites()`). The weapon and shield are put down for the tool; combat's are the blow
+  (`characterStrikePicture2`, facing right) and the breath. Memory: the ten posed loops are 41
+  frames, 8 KB of cells each (328 KB a look and outfit, kept until `forgetWalks2()`), and 16 KB a
+  canvas per time of day (656 KB); props are ten small pictures (about 10 KB in all). Only frames
+  asked for are made.
+- **Doors**: draw the piece after the room's tiles (it covers the cells in `covers`, offsets from
+  the door's cell) and before anything standing, at the door cell's top-left plus (`dx`, `dy`). An
+  open door carries glows (its lanterns, the light beyond) in `picture.glows` and `light`, a
+  `Light2` in the piece's coordinates: move it with `lightAt(light, x, y)` and light the floor with
+  it as a lantern's. A side door is 2 x 3 tiles (its door cell is column 1, or column 0 when the
+  room is to the west: pass `around` so it turns), a face's door 3 x 3 (its door cell the bottom
+  middle). The tile ids still answer, as the piece's slice over the door's own cell. Memory: a
+  piece is 7 KB (side) or 10 KB (face) of cells, kept per door cell.
+- **Hair and beards**: drawn in every facing and pose through the existing doors; the cache keys
+  include the beard. **The cutlasses** curve the right way in profile behind the same doors.
 
 ## Greaves and the beard's key, for lanes A and C (B13, first PR)
 
@@ -13,11 +58,9 @@ beards, the cutlass's curve, the grotto's doors, activity poses), then Cody's re
 - **The beard's key**: the art's `Look` has `beard?: string`; missing (or an id the art does not
   know) is drawn as `none`. The choices are `BEARD_CHOICES` (`character.ts`) and
   `BEARD_CHOICES2` (`character2.ts`), the same array that is in the table as
-  `LOOK_CHOICES.beard` / `LOOK_CHOICES2.beard` at run time, `none` first. **Not yet in
-  `LOOK_CHOICES`'s declared type**: today's `src/ui/look.ts` maps `DrawnLook` over that type's
-  keys and indexes the core `Look` with them, so a `beard` key there breaks main until lane A's
-  look holds a beard. When lane A's `look.ts` and core `Look` carry `beard`, the type widens to
-  `Record<keyof Look, …>` (one line in `character.ts`). `DEFAULT_LOOK` now has `beard: 'none'`.
+  `LOOK_CHOICES.beard` / `LOOK_CHOICES2.beard` at run time, `none` first. The first PR kept
+  `beard` out of `LOOK_CHOICES`'s declared type (the menus of the day mapped over its keys); lane
+  A's wave 13 reads the parts as data, so the second PR typed it `Record<keyof Look, …>`. `DEFAULT_LOOK` now has `beard: 'none'`.
   Every picture door's cache key includes the beard.
 - **For lane C**: `dressKey` in `src/scene/hero.ts` should include `look.beard` (once the look has
   one) so a change of beard redraws the hero in the scene.
@@ -457,6 +500,51 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 `ITEM_ICON_IDS`, `SKILL_ICON_IDS` and `ICON_FAMILIES`.
 
 ## Done
+
+- **B13: Cody's feedback, the art items.** Review sheets in `/home/claude/lane-shots/w13-b/`:
+  `hair-4way.png` (every style in four facings and under the helm, before/after for the five old
+  ones), `hair-under-gear.png`, `beards.png` (`beards-figure.png`, `beards-portrait.png`),
+  `looks-sampler.png` and `looks-sampler-4way.png` (twelve heroes, true size), `cutlass-before-after.png`,
+  `weapons-edge-audit.png`, `doors-before-after.png` (the store and a door sample room, landscape,
+  the hero for scale), `greaves.png`, `activities.png` and `activity-<skill>.gif` for each skill.
+  - **Hair in every facing**: what was wrong: the profile and back views existed, but short, braid
+    and shaggy were one cap of hair from the side at true size, under head gear the profile showed
+    only the long styles' hang (short hair was bald under a cap; the back view had its own cut),
+    long hair vanished under the hood in every facing, and the side view flattened hair laid over
+    head gear under it. What changed: one rule for hair under gear (the whole style cut at the
+    rim, every facing), hood variants (`long_hair_hood`, `braid_hair_hood`, curls tucked), the
+    braid's plait bolder and longer in profile, shaggy's tufts and ragged nape, the back view
+    keyed by the hair worn (a style with nothing at the front under a helm still shows at the nape).
+  - **Six new hairstyles** and **six beards** (ids above), in the figure's four facings, every pose,
+    under helms and hoods, and the portrait. Three critique rounds each: the mohawk's profile (a
+    crown of upright spikes read as shaggy; now a swept-back fin, the stubble band that read as a
+    headband gone), twin braids in profile (the near braid lay on the cheek like a hand), the backs
+    of the curls and the bob (a dark mass; now lit), the stubble (too heavy on the figure, then a
+    chinstrap in the portrait, now a darker jaw with a band of the hair's tone), beards over a
+    hood's sides (now under the hood above the jaw, over the cape below it), a full beard on an
+    eye's white (moved; tested).
+  - **The cutlass**: the carry and the blow mirrored it, so carried point down its belly was on top
+    and its point drooped; now it turns rigidly (`figure2/edges.ts`), carried with the belly under
+    and the point curling up, the belly leading in every blow in every facing. The townsfolk
+    captain's blade, which was straight, is curved. Axes keep their bits forward (audited); bows,
+    the anchor and straight things unchanged.
+  - **Doors**: three-tile pieces (`dungeon2/doors.ts`), lit from beyond or barred behind iron,
+    lanterns beside; the sample rooms (`room.ts`) draw them as lane C will.
+  - **Greaves** (first PR, #54): icons and layers; on the gallery's ladder.
+  - **Activity poses**: all fourteen skills (ten posed, combat's four by the blow and the breath).
+  - **Gallery**: hair (every style, four facings, under a helm and a hood), beards (four facings,
+    three hair colours, under a helm and a hood), greaves four ways, both cutlasses walking and
+    striking, each activity animated with its prop (figure section); the doors in a sample room
+    (dungeon section).
+  - **Tests**: `hair2.test.ts` (hair in every facing and pose, styles apart in profile and from
+    behind, hair below every rim, out of a hood, the portrait; beards in every facing but behind,
+    under a helm and a hood, never on an eye, in the portrait in the hair's colour), `edges2.test.ts`
+    (each weapon's declared edge in every profile frame), `doors2.test.ts`, `activity2.test.ts`,
+    `looks2.test.ts`, `greaves2.test.ts`. **Expectations changed on purpose**: the look choices
+    (six hairstyles appended, the beards); the B11 side-door tile test (`dungeonArt2.test.ts`) now
+    looks for the light beyond and the dark behind the grille instead of the B11 beam; the walk's
+    profile test excepts the beard slot (beards have their own profile drawings, tested); the
+    portrait tests run the new styles too (on one skin for the long face test, which now has 240 s).
 
 - **B12, second PR: the faces, the icons, the wide foes, the first scale retired.** Review sheets in
   `/home/claude/lane-shots/w12-b/`: `new-faces-icons.png`, `wide-foes.png`, and `strike-frames.png`
@@ -1089,6 +1177,16 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Deferred
 
+- **Not done in B13**, and why:
+  - **Activity poses facing left or toward the camera**: side-on right only, as asked; a menu can
+    mirror the frame and the prop (the hands swap, which a menu will not notice).
+  - **Hair and beards from behind under a hood**: inside the hood (as it would be); long hair
+    shows from the front and in profile only.
+  - **A topknot and a mohawk under a closed helm** show only what is below the rim (the nape), as
+    they would; under a brim the topknot is hidden too.
+  - **The foes' cutlasses** (the smuggler's, Brinebeard's): their own drawings, not turned by the
+    hero's rules; they read as cutlasses and were left.
+
 - **Not done in B12**, and why:
   - **A face for the 48-pixel frame at 1x** (lane C's ask): a face drawn for 72 art pixels shown
     honestly in 48 device pixels would be a second drawing of every face at two thirds the size;
@@ -1319,6 +1417,19 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Needs from another lane
 
+- **Lane C, for B13** (nothing breaks if you do nothing):
+  - **Doors**: draw `dungeonDoor2(kind, aroundOf(kinds, col, row), { col, row })` for every door
+    cell after the tiles and before anything standing, at `(col * 24 + dx, row * 24 + dy)`, and
+    add its `light` (moved by `lightAt(light, col * 24 + dx, row * 24 + dy)`) to the room's lights
+    and its `picture.glows` to the glows, as the sample rooms do (`dungeon2/room.ts`). Walkability
+    is unchanged: the door is still its one cell; the piece's other cells are rock (a side door's
+    cell beyond the room may be off your map; draw it anyway or clip it).
+  - **The hero's key**: `dressKey` (`src/scene/hero.ts`) should include `look.beard`, so a change of
+    beard redraws the hero in a scene.
+- **Lane A, for B13**: `LOOK_CHOICES2.beard` is now typed; your `look.ts` already reads it. For the
+  idle menu's animation next wave: `characterActivity2` / `characterActivityPicture2`,
+  `activityFrames2`, `activityFrameMs2`, `activityProp2` (above); the activity ids are the skill ids.
+
 - **Lane C, for B12's second PR** (nothing breaks if you do nothing): the captain's `front` is
   38 and his `box` 54 wide (were 51 and 56); your `apart.ts` takes them as they are. The crab is
   as it was. The first scale's doors are gone; nothing of yours imported them on `main`.
@@ -1462,6 +1573,18 @@ worn, 'dusk')` is identical under it.
   - `tests/ui` that look for the character canvas by its size will need the new size.
 
 ## Notes for this lane's next session
+
+- **Weak list (B13), honestly**: the activity props sit close to the hero's front foot and the
+  tools land a little short of some of them (the smith's hammer, the needle above the bench); the
+  off hand is mostly behind the body, so the basket and the shaft show little; the fishing rod is a
+  plain line. The side door's opening is wider on screen than its walkable cell. The bronze greaves'
+  icon reads a little like a pair of vases. Stubble on the figure is a few dark pixels on black
+  hair. The twin braids from behind are short stubs over the shoulders. Curly hair under a helm
+  bulges wide. The mohawk's front view relies on the shaved temples' stubble tone.
+- **Hair**: a new style is a `HairDrawing` in `figure2/hairStyles.ts` (front, side, back, and
+  optionally what falls out of a hood, or `tucked`); its under-gear versions are made by the rim
+  rule. Add the portrait's crown in `dungeon2/heroHair.ts` and the id to `LOOK_CHOICES.hair`.
+- **A new asymmetric held thing** declares its edge in `figure2/edges.ts`; `edges2.test.ts` holds it.
 
 - **Faces** are drawn in `src/art/dungeon2/folkFaces.ts` with the tools in `heads.ts`: a head is
   `blob([...points])` shaded by `form`, features are `marks(rows, pinsFor(...))`. Iterate on PNG

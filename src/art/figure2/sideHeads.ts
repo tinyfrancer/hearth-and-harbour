@@ -15,6 +15,7 @@ import { DEPTH } from '../depth';
 import type { Mat } from '../town2/ramps';
 import { HEAD_AT } from './body';
 import type { Part2, Pins } from './engine';
+import { LONG_HOOD, NEW_HAIR, RIM_SIDE, clipFrom } from './hairStyles';
 
 export const PROFILE_AT = [HEAD_AT[0] - 1, HEAD_AT[1]] as const;
 const [PX, PY] = PROFILE_AT;
@@ -235,25 +236,33 @@ const LONG: HairViews = {
   ],
 };
 
+// B13: the plait bolder (four wide, its lobes lit on alternate sides) and
+// longer, gathered at the nape, so the braid reads in profile at true size.
 const BRAID_SIDE_PLAIT = hair(
   PX + 1,
-  PY + 9,
+  PY + 7,
   [
-    '.233',
-    '1232',
-    '.23.',
-    '123.',
-    '232.',
-    '.23.',
-    '123.',
-    '232.',
-    '.23.',
-    '123.',
-    '232.',
-    '.23.',
-    '.5..',
-    '234.',
-    '1.3.',
+    '.12.',
+    '1223',
+    '1233',
+    '.234',
+    '.123',
+    '1223',
+    '1233',
+    '.234',
+    '.123',
+    '1223',
+    '1233',
+    '.234',
+    '.123',
+    '1223',
+    '1233',
+    '.234',
+    '.123',
+    '1223',
+    '.55.',
+    '1234',
+    '1..3',
   ],
   DEPTH.HAIR,
 );
@@ -329,14 +338,24 @@ const BRAID: HairViews = {
   ],
 };
 
-const SHAGGY_SIDE_HANG = hair(PX - 1, PY + 5, [
-  '1223..2.........',
-  '12233.23........',
-  '122333.3........',
-  '1223334.........',
-  '1223.34.........',
-  '.23..4..........',
+// B13: shaggy in profile had read as short hair; now tufts stand up off the
+// crown and out behind, and a long ragged nape falls over the ear and collar.
+const SHAGGY_SIDE_HANG = hair(PX - 2, PY + 2, [
+  '.1...............',
+  '01...............',
+  '.1...............',
+  '012..............',
+  '.1223..2.........',
+  '.12233.23........',
+  '.122333.3........',
+  '.1223334.........',
+  '.1223334.........',
+  '0.22334..........',
+  '.1.2334..........',
+  '...234...........',
+  '...3.4...........',
 ]);
+const SHAGGY_TUFTS = hair(PX + 3, PY - 4, ['.0.....1.', '012..0122']);
 const SHAGGY: HairViews = {
   side: [
     hair(PX, PY - 2, [
@@ -350,6 +369,7 @@ const SHAGGY: HairViews = {
       '0112233.3.3..3..',
     ]),
     SHAGGY_SIDE_HANG,
+    SHAGGY_TUFTS,
   ],
   sideUnder: [SHAGGY_SIDE_HANG],
   back: [
@@ -381,24 +401,57 @@ const SHAGGY: HairViews = {
   ],
 };
 
-/** Every hairstyle by the front gear id it stands for, crown and hang. */
+/** What shows of a style under head gear's rim (and what lies over the gear, whole). */
+const under = (parts: readonly Part2[]): Part2[] =>
+  parts.map((p) => clipFrom(p, RIM_SIDE)).filter((p) => p.rows.some((r) => /[^.]/.test(r)));
+/** Laid over head gear: a plait over a hood's back. */
+const over = (parts: readonly Part2[]): Part2[] =>
+  parts.map((p) => ({ ...p, depth: DEPTH.HAIR_OVER }));
+
+const OLD: Readonly<Record<string, HairViews>> = {
+  short: SHORT,
+  long: LONG,
+  braid: BRAID,
+  shaggy: SHAGGY,
+};
+
+/**
+ * Every hairstyle by the front gear id it stands for, crown and hang. Under
+ * head gear (B13) a style shows everything of itself below the rim, as from
+ * behind (B10b showed only the long styles' hang in profile, so short hair
+ * was bald under a cap); under a hood, what falls out of it, over it.
+ */
 export const HAIR_VIEWS: Readonly<Record<string, readonly Part2[] | undefined>> = {
-  short_hair: SHORT.side,
-  long_hair: LONG.side,
-  long_hair_under: LONG.sideUnder,
-  braid_hair: BRAID.side,
-  braid_hair_under: BRAID.sideUnder,
-  shaggy_hair: SHAGGY.side,
-  shaggy_hair_under: SHAGGY.sideUnder,
+  ...Object.fromEntries(
+    Object.entries(OLD).flatMap(([id, v]) => [
+      [`${id}_hair`, v.side],
+      [`${id}_hair_under`, under(v.side)],
+    ]),
+  ),
+  long_hair_hood: [...under(LONG.side), ...LONG_HOOD.side!],
+  braid_hair_hood: [...under(BRAID.side), ...over([BRAID_SIDE_PLAIT])],
+  ...Object.fromEntries(
+    Object.entries(NEW_HAIR).flatMap(([id, d]) => [
+      [`${id}_hair`, d.side],
+      [`${id}_hair_under`, under(d.side)],
+    ]),
+  ),
 };
 export const HAIR_BACKS: Readonly<Record<string, readonly Part2[] | undefined>> = {
-  short_hair: SHORT.back,
-  long_hair: LONG.back,
-  long_hair_under: LONG.backUnder,
-  braid_hair: BRAID.back,
-  braid_hair_under: BRAID.backUnder,
-  shaggy_hair: SHAGGY.back,
-  shaggy_hair_under: SHAGGY.backUnder,
+  ...Object.fromEntries(
+    Object.entries(OLD).flatMap(([id, v]) => [
+      [`${id}_hair`, v.back],
+      [`${id}_hair_under`, under(v.back)],
+    ]),
+  ),
+  long_hair_hood: under(LONG.back),
+  braid_hair_hood: [...under(BRAID.back.slice(0, 1)), ...over(BRAID.backUnder)],
+  ...Object.fromEntries(
+    Object.entries(NEW_HAIR).flatMap(([id, d]) => [
+      [`${id}_hair`, d.back],
+      [`${id}_hair_under`, under(d.back)],
+    ]),
+  ),
 };
 
 // ------------------------------------------------------------- head gear
