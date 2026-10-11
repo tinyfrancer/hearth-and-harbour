@@ -26,12 +26,16 @@ import { FOLK2, FOLK_HALF_STEP, folkBoned, folkGrid, folkRig, folkSwap } from '.
 import { HAIRSTYLES2 } from './figure2/hair';
 import { beardGear } from './figure2/beard';
 import { lookSwap } from './figure2/look';
-import { sideWalkGrid } from './figure2/side';
+import { SIDE_SHOULDER, sideWalkGrid } from './figure2/side';
 import {
   STRIKE_FRAMES,
   STRIKE_HIT,
+  STRIKE_SHOULDER,
   frontStrike,
+  heldTip,
+  impactStar,
   sideStrikePose,
+  strikeSmear,
   strikeKind,
 } from './figure2/strike';
 import { mirrored } from './figure2/views';
@@ -609,10 +613,73 @@ export function characterStrikePicture2(
     grid = null;
   }
   const pic: Picture2 = grid
-    ? { grid: recolour(grid, lookSwap(safe)), glows: [] }
+    ? { grid: smeared(recolour(grid, lookSwap(safe)), safe, wornItemIds, extra, facing, f), glows: [] }
     : characterWalkPicture2(look, wornItemIds, facing, 0, extra);
   posedPics.set(key, pic);
   return pic;
+}
+
+/**
+ * B17: a swung weapon's arc on the swing and the landing (`strikeSmear`),
+ * from its tip a frame before to its tip now, about the shoulder, the way
+ * the blow turns in each facing. Nothing for a bow, a punch, or a frame
+ * whose weapon cannot be found.
+ */
+function smeared(
+  grid: TGrid,
+  look: Look,
+  worn: readonly string[],
+  extra: readonly string[],
+  facing: Facing2,
+  f: number,
+): TGrid {
+  if (f !== 1 && f !== STRIKE2_HIT_FRAME) return grid;
+  const gear = characterGear2(look, worn, extra);
+  const kind = strikeKind(gear.find((id) => slotOf(id) === 'weapon') ?? null);
+  const across = facing === 'right' || facing === 'left';
+  if (kind === 'unarmed' && f === STRIKE2_HIT_FRAME) {
+    // The punch's flash about the fist that is thrown: the hand furthest toward the blow.
+    const t = characterStrikeTagged2(look, worn, facing, f, extra);
+    if (!t) return grid;
+    const hands: number[] = [];
+    t.tags.forEach((tag, i) => {
+      if (tag === 'hand' || tag === 'fist') hands.push(i);
+    });
+    if (!hands.length) return grid;
+    const score = (i: number) => {
+      const x = i % FIGURE2_W;
+      const y = Math.floor(i / FIGURE2_W);
+      return facing === 'right' ? x : facing === 'left' ? -x : facing === 'up' ? -y : -x;
+    };
+    const best = Math.max(...hands.map(score));
+    const lead = hands.filter((i) => score(i) >= best - 6);
+    // The burst never covers the fist, nor the arm that throws it.
+    const keep = new Set(hands);
+    t.tags.forEach((tag, i) => {
+      if (tag === 'arm') keep.add(i);
+    });
+    const cx = lead.reduce((a, i) => a + (i % FIGURE2_W), 0) / lead.length;
+    const cy = lead.reduce((a, i) => a + Math.floor(i / FIGURE2_W), 0) / lead.length;
+    const at: [number, number] = across
+      ? [Math.round(cx + (facing === 'right' ? 3 : -3)), Math.round(cy)]
+      : [Math.round(cx), Math.round(cy)];
+    return impactStar(grid, at, keep, across ? 4 : 6);
+  }
+  if (kind !== 'swing') return grid;
+  const pivot: readonly [number, number] = across
+    ? facing === 'right'
+      ? [SIDE_SHOULDER[0], SIDE_SHOULDER[1]]
+      : [FIGURE2_W - 1 - SIDE_SHOULDER[0], SIDE_SHOULDER[1]]
+    : STRIKE_SHOULDER[facing];
+  const tipAt = (k: number) => {
+    const t = characterStrikeTagged2(look, worn, facing, k, extra);
+    return t ? heldTip(t.tags, FIGURE2_W, pivot) : null;
+  };
+  const a = tipAt(f - 1);
+  const b = tipAt(f);
+  if (!a || !b) return grid;
+  const dir = facing === 'right' || facing === 'down' ? 1 : -1;
+  return strikeSmear(grid, a, b, pivot, dir, f === STRIKE2_HIT_FRAME ? 4 : 3);
 }
 
 /** The column a held thing turns about to be seen from behind: the fist's own middle. */
@@ -642,6 +709,7 @@ function frontStrikeTagged(
   const dress = sideDress(gear);
   if (!dress) return null;
   const weaponGear = gear.find((id) => slotOf(id) === 'weapon') ?? null;
+  const shieldGear = gear.find((id) => slotOf(id) === 'shield') ?? null;
   const held = weaponGear ? (WARDROBE2.gear.find((g) => g.id === weaponGear)?.parts ?? []) : [];
   const m = heroParts(look, worn, extra, facing);
   const { boned, key } = frontStrike(
@@ -657,8 +725,11 @@ function frontStrikeTagged(
       weaponArm: dress.weaponArm,
       held: facing === 'up' ? held.map((p) => mirrored(p, FIST_AXIS2)) : held,
       kind: strikeKind(weaponGear),
-      shield: gear.some((id) => slotOf(id) === 'shield'),
+      shield: !!shieldGear,
       rigid: turnsRigid(weaponGear),
+      shieldFace: shieldGear
+        ? (WARDROBE2.gear.find((g) => g.id === shieldGear)?.parts ?? [])
+        : undefined,
     },
     facing,
     f,

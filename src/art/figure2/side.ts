@@ -619,7 +619,7 @@ export function extent(p: Part2) {
  * columns (its rim, its field, its device where it crosses the middle), so it
  * shows as a shield's edge beyond the chest rather than vanishing.
  */
-function edgeOn(parts: readonly Part2[]): Part2[] {
+export function edgeOn(parts: readonly Part2[]): Part2[] {
   const main = parts[0];
   if (!main) return [];
   const w = Math.max(...main.rows.map((r) => r.length));
