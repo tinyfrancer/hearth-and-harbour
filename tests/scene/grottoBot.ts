@@ -11,6 +11,7 @@ import { newGame, type GameState } from '../../src/core/state';
 import { xpForLevel as lvl } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import {
+  abilityProblem,
   alive,
   eat,
   fighterOf,
@@ -21,6 +22,7 @@ import {
   stopChasing,
   targetFoe,
   tideOf,
+  useAbility,
   walkPath,
   type Battle,
   type Foe,
@@ -108,6 +110,14 @@ const distance = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y
  */
 let reaction = 0;
 
+/**
+ * Whether he braces every heavy blow he can (wave 17's question: does a
+ * player who always braces trivialise the captain?): with a blade and Brace
+ * ready, a mark on him alone is braced and fought through, not stepped out
+ * of. Off for every case that was here before, which play exactly as they did.
+ */
+let bracing = false;
+
 /** Every mark on the ground in the room that he has noticed. */
 function marksIn(b: Battle, room: string): Telegraph[] {
   return [
@@ -187,6 +197,25 @@ export function decide(run: Run): Run {
 
   // Out of anything marked, or ground about to go under.
   const inDanger = marks.some((m) => inMark(m, hero)) || wet(soon, hero);
+  if (inDanger && bracing && b.fighter.style === 'melee' && !wet(soon, hero)) {
+    // One mark on him, and braced or Brace ready: brace it and keep swinging where he stands.
+    // A foe's heavy blow, that is: the cannon's lines are walked out of, as anyone would.
+    const on = marks.filter((m) => inMark(m, hero));
+    const braced = b.braceUntil > b.clock;
+    const heavy = on.length === 1 && on[0]!.shape !== 'line';
+    if (heavy && (braced || abilityProblem(b, place, run.play, 1) === null)) {
+      if (!braced) {
+        const used = useAbility(b, place, run.play, 1);
+        b = used.battle;
+        run = { ...run, battle: b, play: used.play };
+      }
+      if (b.hp * 2 < b.fighter.maxHp && !foodProblem(b)) run = { ...run, battle: eat(b, hero) };
+      // Standing his ground: no walk, striking what is in reach.
+      return run.play.walker.path.length
+        ? { ...run, play: { ...run.play, walker: { at: hero, path: [] } } }
+        : run;
+    }
+  }
   if (inDanger) {
     const spot = safeSpot(run, map, marks);
     if (spot) {
@@ -307,9 +336,15 @@ export interface Outcome {
 export function playThrough(
   state: GameState,
   seed: number,
-  options: { readonly known?: Iterable<string>; readonly reactMs?: number } = {},
+  options: {
+    readonly known?: Iterable<string>;
+    readonly reactMs?: number;
+    /** Brace every heavy blow he can, rather than step out (wave 17). */
+    readonly brace?: boolean;
+  } = {},
 ): Outcome {
   reaction = options.reactMs ?? 0;
+  bracing = options.brace ?? false;
   let run = begin(state, seed, options.known);
   const rooms: Record<string, number> = {};
   const ate: Record<string, number> = {};

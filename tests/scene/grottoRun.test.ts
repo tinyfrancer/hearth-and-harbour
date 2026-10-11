@@ -44,6 +44,33 @@ describe('Brinebeard’s Grotto, played through', () => {
     expect(runs.every((r) => r.kills >= 3)).toBe(true);
   }, 120_000);
 
+  it('is not made easy by bracing every heavy blow: quicker when it clears, but it clears less', () => {
+    // Wave 17: Brace is answered (`BRACE_REEL_MS`): the foe reels and his swing comes at once.
+    // A player who braces every heavy blow he can, and walks out of the cannon's lines, takes
+    // half of each blow instead of none of it, and the captain's blows are big: measured on
+    // these seeds, 4 clears of 12 (the careful player: 10), the median clear 7.2 minutes (8.3),
+    // heavy blows costing 117 hit points a run on average (7). At half strength, none.
+    const careful = preparedRuns();
+    const braced = SEEDS.map((seed) =>
+      playThrough(prepared(), seed, { reactMs: REACT_MS, brace: true }),
+    );
+    const clears = braced.filter((r) => r.cleared);
+    expect(clears.length).toBeGreaterThanOrEqual(1);
+    expect(clears.length).toBeLessThanOrEqual(Math.ceil(SEEDS.length * 0.6));
+    expect(clears.length).toBeLessThan(careful.filter((r) => r.cleared).length);
+    for (const r of clears) expect(minutes(r.ms)).toBeGreaterThanOrEqual(6);
+    expect(minutes(median(clears.map((r) => r.ms)))).toBeLessThanOrEqual(
+      minutes(median(careful.filter((r) => r.cleared).map((r) => r.ms))),
+    );
+    const heavy = (runs: readonly Outcome[]): number =>
+      runs.reduce((n, r) => n + (r.hurt.heavy ?? 0), 0) / runs.length;
+    expect(heavy(braced)).toBeGreaterThan(5 * heavy(careful));
+    const weak = SEEDS.map((seed) =>
+      playThrough(halfStrength(), seed, { reactMs: REACT_MS, brace: true }),
+    );
+    expect(weak.filter((r) => r.cleared)).toHaveLength(0);
+  }, 120_000);
+
   it('brings a clear home: kills by monster, the dungeon cleared, and its loot paid into the bank', () => {
     const clear = preparedRuns().find((r) => r.cleared)!;
     const battle = clear.run.battle!;

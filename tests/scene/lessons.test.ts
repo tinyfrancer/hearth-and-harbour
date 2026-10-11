@@ -169,3 +169,28 @@ describe('the cave’s lessons', () => {
     for (const l of LESSONS.filter((x) => x.blocks)) expect(l.plain, l.id).toBeDefined();
   });
 });
+
+describe('the cave’s lessons, as words', () => {
+  it('each fits the lesson card: three lines on an SE held sideways, at their plainest', () => {
+    // The card is 80 tall (`HUD_SIZES.lesson`): three lines of words beside Skip. On a 667-wide
+    // phone that is about 34 letters a line; every lesson, said plainly and let go, keeps to it.
+    const base = beginCave(novice(), 1);
+    for (const room of ['landing', 'pools', 'snapper']) {
+      // Everyone in the room aware, so a lesson that names a foe names one.
+      const b = base.battle!;
+      const run: Run = {
+        ...base,
+        room,
+        battle: { ...b, foes: b.foes.map((f) => (f.room === room ? { ...f, aware: true } : f)) },
+      };
+      for (const lesson of LESSONS) {
+        const said = [lesson.text(CAVE, run)];
+        if (lesson.plain) {
+          const late = { shown: lesson.id, done: [], off: false, for: LESSON_GO_ON_MS };
+          said.push(lessonText(late, lesson, CAVE, run));
+        }
+        for (const words of said) expect(words.length, words).toBeLessThanOrEqual(100);
+      }
+    }
+  });
+});
