@@ -117,6 +117,11 @@ export interface DungeonViewOptions {
   readonly leave: () => void;
   /** The run has just ended by itself: the last room cleared, or the hero down. */
   readonly finished: () => void;
+  /**
+   * A run taken up again after a reload: it waits, paused, behind a Resume
+   * button, so nothing hits the hero while the player finds where they were.
+   */
+  readonly resume?: boolean;
 }
 
 /** Whole seconds left on a cooldown, as the button shows it. */
@@ -442,14 +447,14 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   const press = (slot: 0 | 1): void => {
     const run = options.run();
-    if (!run.battle || run.finished || run.doorway) return;
+    if (waiting || !run.battle || run.finished || run.doorway) return;
     const used = useAbility(run.battle, placeOf(dungeon, run), run.play, slot);
     if (used.battle === run.battle) return;
     options.keep({ ...run, battle: used.battle, play: used.play });
   };
   const eatOne = (): void => {
     const run = options.run();
-    if (!run.battle || run.finished || run.doorway) return;
+    if (waiting || !run.battle || run.finished || run.doorway) return;
     const fed = eat(run.battle, run.play.walker.at);
     if (fed !== run.battle) options.keep({ ...run, battle: fed });
   };
@@ -473,7 +478,36 @@ export function dungeonView(options: DungeonViewOptions): View {
   ]);
   if (!battleOf()) hud.hidden = true;
 
-  const root = h('div', { class: 'dungeon' }, [room, hud, fade, prompt, way]);
+  /* ----- Taken up after a reload: paused until the player is ready ----- */
+
+  let waiting = !!options.resume && !options.run().finished;
+  const resumeButton = h('button', {
+    class: 'btn primary dungeon-resume-go',
+    text: 'Resume',
+    attrs: { type: 'button' },
+    on: {
+      click: () => {
+        waiting = false;
+        resume.remove();
+      },
+    },
+  });
+  const resume = h('section', { class: 'dungeon-resume', attrs: { 'aria-label': 'Run paused' } }, [
+    h('div', { class: 'dungeon-card' }, [
+      h('h2', { text: 'Back where you were' }),
+      h('p', { class: 'muted', text: 'The run is paused. Nothing moves until you are ready.' }),
+      resumeButton,
+    ]),
+  ]);
+
+  const root = h('div', { class: 'dungeon' }, [
+    room,
+    hud,
+    fade,
+    waiting ? resume : null,
+    prompt,
+    way,
+  ]);
 
   /** The view's size in CSS pixels: whether the phone is on its side. */
   let size = { width: 0, height: 0 };
@@ -512,7 +546,8 @@ export function dungeonView(options: DungeonViewOptions): View {
     const s = tideStateOf(dungeon, run);
     return lastStill !== null || look.nearestIn(s.level, s.warn) !== null;
   };
-  const playing = (): boolean => sideways(size) && !options.run().finished && roomIn(options.run());
+  const playing = (): boolean =>
+    !waiting && sideways(size) && !options.run().finished && roomIn(options.run());
 
   /**
    * The room as the tide has it now, darkening where it is about to come in;
@@ -641,8 +676,8 @@ export function dungeonView(options: DungeonViewOptions): View {
         const run = options.run();
         if (!run.battle || run.finished || run.doorway) return null;
         const from = play === given ? run.play : play;
-        // Being carried by the sea, a tap does nothing until he is on his feet.
-        if (run.battle.wash) return from;
+        // Being carried by the sea, or paused to be resumed, a tap does nothing.
+        if (run.battle.wash || waiting) return from;
         const foe = foeAt(run.battle, run.room, point, min, tapLift(dungeon.rooms[run.room]!));
         if (!foe || held(run.battle, placeOf(dungeon, run), foe)) {
           // A barred door says so; the walk (to the door, wherever on it the tap was) is the stage's.

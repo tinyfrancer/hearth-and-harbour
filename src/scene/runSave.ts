@@ -86,6 +86,19 @@ export function snapshotRun(run: Run): Plain {
   return encode(run) ?? null;
 }
 
+/**
+ * Beside the run in a kept snapshot: when it was kept, on the app's clock (the
+ * `now` the shell passes a frame). Not part of the run; `restoreRun` leaves it.
+ */
+const KEPT_AT = '$keptAt';
+
+/** When a kept snapshot was taken (`savedRunOf`'s `keptAt`), or null if it does not say. */
+export function keptAtOf(data: unknown): number | null {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
+  const at = (data as Record<string, unknown>)[KEPT_AT];
+  return typeof at === 'number' && Number.isFinite(at) ? at : null;
+}
+
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const isPoint = (v: unknown): boolean =>
@@ -100,6 +113,10 @@ export function restoreRun(data: unknown, scene = RUN_SCENE_VERSION): Run | null
   if (scene !== RUN_SCENE_VERSION) return null;
   let run: unknown;
   try {
+    if (keptAtOf(data) !== null) {
+      const { [KEPT_AT]: _kept, ...rest } = data as Record<string, Plain>;
+      data = rest;
+    }
     run = decode(data as Plain);
   } catch {
     return null;
@@ -127,10 +144,22 @@ export function restoreRun(data: unknown, scene = RUN_SCENE_VERSION): Run | null
   return run as unknown as Run;
 }
 
-/** A run under way as a save would keep it (`SavedRun`): its dungeon, this version, its spoils so far, itself. */
-export function savedRunOf(run: Run): SavedRun {
+/**
+ * A run under way as a save would keep it (`SavedRun`): its dungeon, this
+ * version, its spoils so far, itself, and, given one, when it was kept on the
+ * app's clock (`keptAtOf`).
+ */
+export function savedRunOf(run: Run, keptAt?: number): SavedRun {
   const spoils: RunSpoils = run.battle
     ? spoilsOf(run.battle)
     : { xp: {}, loot: {}, coins: 0, foodEaten: 0, arrowsUsed: 0 };
-  return { dungeon: run.dungeon, scene: RUN_SCENE_VERSION, spoils, data: snapshotRun(run) };
+  const snapshot = snapshotRun(run);
+  const data =
+    keptAt !== undefined && Number.isFinite(keptAt) && snapshot && typeof snapshot === 'object'
+      ? { ...(snapshot as Record<string, Plain>), [KEPT_AT]: keptAt }
+      : snapshot;
+  return { dungeon: run.dungeon, scene: RUN_SCENE_VERSION, spoils, data };
 }
+
+/** The most a kept run may take up as JSON: the save sets aside a game whose run is bigger (`RUN_MAX_CHARS`). */
+export const KEPT_RUN_MAX_CHARS = 256 * 1024;

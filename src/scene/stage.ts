@@ -842,8 +842,8 @@ export function stage(options: StageOptions): View {
       }
       if (held?.steering && !still && device.width > 0) {
         const at = toWorld(held.at);
-      const min = cssToArt(MIN_TAP_CSS, cssSize(), device, scaleOf(device));
-      const steered = steer(scene, play, options.aim?.(at, min) ?? at, held.aimed);
+        const min = cssToArt(MIN_TAP_CSS, cssSize(), device, scaleOf(device));
+        const steered = steer(scene, play, options.aim?.(at, min) ?? at, held.aimed);
         held = { ...held, aimed: steered.aimed };
         change(steered.play);
       }

@@ -397,6 +397,26 @@
   background: var(--scrim);
 }
 
+/*
+ * A run taken up after a reload waits behind this: over the room and its buttons, so nothing
+ * under it can be tapped; the turn-your-phone prompt and Leave come after it, over it.
+ */
+.dungeon-resume {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  background: var(--scrim);
+}
+
+.dungeon-resume-go {
+  min-height: 48px;
+  font-size: 20px;
+}
+
 .dungeon-card {
   display: flex;
   flex-direction: column;

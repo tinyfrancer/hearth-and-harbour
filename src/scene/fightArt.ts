@@ -60,13 +60,7 @@ import { DUNGEON, far } from './dungeonMetrics';
 import { breathFrame, type Pose2 } from './figures2';
 import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
-import {
-  CaveShadow,
-  glowsIn,
-  paintCells,
-  perchLift,
-  type RoomLook,
-} from './grottoArt';
+import { CaveShadow, glowsIn, paintCells, perchLift, type RoomLook } from './grottoArt';
 import { CAPTAIN_SAYS } from './grottoWords';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';

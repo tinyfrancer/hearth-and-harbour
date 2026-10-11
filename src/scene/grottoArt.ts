@@ -540,8 +540,7 @@ function litCells(
   const doors = doorPieces(room);
   for (const d of doors) stamp(g, (open ? d.open : d.barred).picture.grid, d.box.x, d.box.y);
   overlays(room, g, level, warn);
-  for (const p of propsOf(room))
-    castShadow(g, p.feet, p.shadow, shadowSteps(tiles.kinds, p.feet));
+  for (const p of propsOf(room)) castShadow(g, p.feet, p.shadow, shadowSteps(tiles.kinds, p.feet));
   if (only) {
     // Only these boxes are wanted: the rest left empty, which the light passes over at no cost.
     const keep = new Uint8Array(g.w * g.h);
@@ -851,11 +850,14 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
   // A door's pictures are lit as the ground under them is: the lanterns at their weakest, and the doors' own glows.
   const steady = steadyGlows(room);
   const openSteady = [...steady, ...doorPieces(room).flatMap((d) => d.glows)];
-  const shownDoors = (d: {
-    cells: TGrid;
-    doors: readonly DoorPaint[] | null;
-    shown?: readonly DoorShown[];
-  }, s: TideState): readonly DoorShown[] => {
+  const shownDoors = (
+    d: {
+      cells: TGrid;
+      doors: readonly DoorPaint[] | null;
+      shown?: readonly DoorShown[];
+    },
+    s: TideState,
+  ): readonly DoorShown[] => {
     d.shown ??= doorPaintsOf(s, d).map((p) => ({
       letter: p.letter,
       box: p.box,

@@ -135,9 +135,10 @@ describe('the doors as pieces', () => {
                 wrong.push(`${p.letter} off the map ${x},${y}`);
             }
           }
-        expect(outside, `${room.id} ${p.letter}: the passage runs on past the edge`).toBeGreaterThan(
-          200,
-        );
+        expect(
+          outside,
+          `${room.id} ${p.letter}: the passage runs on past the edge`,
+        ).toBeGreaterThan(200);
       }
       // Nothing the open doors change is left outside the boxes.
       for (let i = 0; i < cells.d.length; i++)
@@ -181,9 +182,9 @@ describe('the door as a tap target', () => {
             expect(doorUnder(room, { x, y })?.letter, `${room.id} ${x},${y}`).toBe(p.letter);
         // Two tiles into the room is the floor, not the door.
         const inward = p.cell.col === 0 ? 1 : -1;
-        expect(doorUnder(room, centreOf({ col: p.cell.col + 2 * inward, row: p.cell.row }, T))).toBe(
-          null,
-        );
+        expect(
+          doorUnder(room, centreOf({ col: p.cell.col + 2 * inward, row: p.cell.row }, T)),
+        ).toBe(null);
         // A thumb's width at the edge of a tall piece still finds it.
         expect(doorUnder(room, { x: p.box.x - 6, y: p.box.y + 30 }, 2 * T + 12)?.letter).toBe(
           p.letter,
