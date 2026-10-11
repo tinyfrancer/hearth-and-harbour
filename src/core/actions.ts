@@ -1,6 +1,7 @@
-import { leaveFight, rest } from './combat';
+import { leaveTask, rest } from './combat';
 import type { ActionDef, Content, PotionDef } from './content';
 import { advanceFight } from './fight';
+import { advanceIdleRun } from './idleRun';
 import { extrasIn, potionFor } from './potions';
 import { bankCount, masteryLevel, masteryXp, skillLevel, type GameState } from './state';
 import { advanceTheft } from './thieving';
@@ -71,7 +72,7 @@ export function startAction(state: GameState, actionId: string, content: Content
     const item = content.items[short.item]?.name ?? short.item;
     return { ok: false, reason: `Needs ${short.qty} ${item}.` };
   }
-  return { ok: true, state: { ...leaveFight(state), action: { id: actionId, progressMs: 0 } } };
+  return { ok: true, state: { ...leaveTask(state), action: { id: actionId, progressMs: 0 } } };
 }
 
 export function stopAction(state: GameState): GameState {
@@ -150,9 +151,10 @@ function complete(
  * most 99 of them. Time left over at a boundary carries into the next stretch
  * as milliseconds, so it does not matter where a cut fell.
  *
- * Two things the character can be doing go by chance, a fight and a theft:
- * `advanceFight` (src/core/fight.ts) and `advanceTheft` (src/core/thieving.ts)
- * walk them event by event with seeded dice instead, under the same rule.
+ * Three things the character can be doing go by chance, a fight, a dungeon
+ * run idle and a theft: `advanceFight` (src/core/fight.ts), `advanceIdleRun`
+ * (src/core/idleRun.ts) and `advanceTheft` (src/core/thieving.ts) walk them
+ * event by event with seeded dice instead, under the same rule.
  *
  * Out of a fight, a hurt character heals as the time passes, whatever else
  * they are doing (`rest`, src/core/combat.ts); a fight that ends heals for
@@ -161,6 +163,9 @@ function complete(
 export function advance(state: GameState, ms: number, content: Content): GameState {
   if (state.fight) {
     return advanceFight(state, ms, content);
+  }
+  if (state.idleRun) {
+    return advanceIdleRun(state, ms, content);
   }
   if (!(ms > 0)) {
     return state;

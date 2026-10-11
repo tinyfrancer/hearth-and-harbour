@@ -64,9 +64,10 @@ export function maxHp(state: GameState): number {
   return maxHpFor(skillLevel(state, VITALITY));
 }
 
-/** The character's hit points now: the fight's, or what they carry out of one. */
+/** The character's hit points now: the fight's or the idle run's, or what they carry out of one. */
 export function hitPoints(state: GameState): number {
   if (state.fight) return state.fight.hp;
+  if (state.idleRun) return state.idleRun.hp;
   return state.health ? state.health.hp : maxHp(state);
 }
 
@@ -93,6 +94,16 @@ export function rest(state: GameState, ms: number): GameState {
 export function leaveFight(state: GameState): GameState {
   if (!state.fight) return state;
   return { ...state, fight: null, health: hurt(state.fight.hp, maxHp(state)) };
+}
+
+/**
+ * Out of whatever fighting is under way (a fight, or a dungeon run idle,
+ * src/core/idleRun.ts), carrying its hit points out with the character.
+ */
+export function leaveTask(state: GameState): GameState {
+  const left = leaveFight(state);
+  if (!left.idleRun) return left;
+  return { ...left, idleRun: null, health: hurt(left.idleRun.hp, maxHp(left)) };
 }
 
 /** Knocked out: the fight is over and the character comes round with a tenth of their hit points. */
@@ -199,6 +210,7 @@ export function startFight(state: GameState, monsterId: string, content: Content
     state: {
       ...state,
       action: null,
+      idleRun: null,
       health: null,
       food: state.food && food > 0 ? { item: state.food.item, qty: food } : null,
       fight: { ...freshFight(monster, hp), eaten },
@@ -212,7 +224,7 @@ export function stopFight(state: GameState): GameState {
 
 /** Whether there is anything going on for time to pass for. */
 export function busy(state: GameState): boolean {
-  return state.action !== null || state.fight !== null;
+  return state.action !== null || state.fight !== null || state.idleRun !== null;
 }
 
 /**
