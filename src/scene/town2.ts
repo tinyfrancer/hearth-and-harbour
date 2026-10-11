@@ -523,12 +523,12 @@ export function pieceBox(piece: StandInPiece): Box {
 
 function pieceThing({ piece, use }: (typeof STAND_IN_PIECES)[number]): Thing {
   // Only drawn: here under its id so the page knows to draw it, and nothing else.
-  if (!use) return { id: piece.id, footprint: [], base: piece.foot.y };
+  if (!use) return { id: piece.id, footprint: [], base: piece.base };
   const box = pieceBox(piece);
   return {
     id: piece.id,
     footprint: [cellAt(piece.foot, T)],
-    base: piece.foot.y,
+    base: piece.base,
     tap: { x: box.x - 4, y: box.y - 4, w: box.w + 8, h: box.h + 8 },
     use,
   };

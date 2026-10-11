@@ -319,6 +319,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       },
       seen: (camera, cssPerArt) => {
         lookedAt = { camera, cssPerArt };
+        lastCamera = lookedAt;
       },
       light: {
         current: now,
@@ -417,7 +418,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   const showLabel = (): void => {
     const shown = shownPlay();
     const open = shown.open !== null || chart !== null;
-    const thing = run ? null : ringed(town2Scene(), shown, open || panFrom !== null);
+    const thing = run ? null : ringed(town2Scene(), shown, open || panFrom !== null, PEOPLE);
     ringedNow = thing?.id ?? null;
     const words = thing ? labelFor(thing, PEOPLE) : null;
     if (!thing?.tap || !words || !lookedAt) {
@@ -425,8 +426,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       return;
     }
     const { camera, cssPerArt } = lookedAt;
+    // Over the thing, or over the hero's head if that is higher: the words never cover him.
+    const top = Math.min(thing.tap.y, shown.walker.at.y - 70);
     const x = Math.round((thing.tap.x + thing.tap.w / 2 - camera.x) * cssPerArt);
-    const y = Math.round((thing.tap.y - camera.y) * cssPerArt) - 18;
+    const y = Math.round((top - camera.y) * cssPerArt) - 6;
     if (label.textContent !== words) label.textContent = words;
     const place = `translate(${x}px, ${Math.max(70, y)}px) translate(-50%, -100%)`;
     if (label.style.transform !== place) label.style.transform = place;
@@ -713,6 +716,12 @@ export function resetTown(): void {
 export function forgetRooms(): void {
   for (const dungeon of builtDungeons())
     for (const room of Object.values(dungeon.rooms)) roomLook(room).forget();
+}
+
+/** Where the town's camera was for the last frame drawn, and CSS pixels an art pixel. For scripts. */
+let lastCamera: { camera: Point; cssPerArt: number } | null = null;
+export function townCamera(): { camera: Point; cssPerArt: number } | null {
+  return lastCamera;
 }
 
 /** Where the hero is, whether he is on his way somewhere, and what is open. For tests. */

@@ -1251,6 +1251,10 @@
   padding: 0 6px;
 }
 
+.chart-detail > * {
+  margin: 0;
+}
+
 .chart-detail h3 {
   font-size: 20px;
   color: var(--gold-bright);

@@ -14,7 +14,15 @@ import type { Play } from './play';
 import type { StageExtra } from './stage';
 import type { Box, Scene } from './things';
 import { pieceBox, STAND_IN_PIECES } from './town2';
-import { markFrame, marksNow, ringOf, type MarkOptions } from './townMarks';
+import {
+  BEACON,
+  BEACON_MS,
+  MARK_BOX,
+  markFrame,
+  marksNow,
+  ringOf,
+  type MarkOptions,
+} from './townMarks';
 
 export interface TownExtraInput {
   readonly scene: Scene;
@@ -50,20 +58,20 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
     const image = piece.picture(input.time);
     if (!image) continue;
     const box = pieceBox(piece);
-    actors.push({ image, x: box.x, y: box.y, base: piece.foot.y });
+    actors.push({ image, x: box.x, y: box.y, base: piece.base });
     boxes.push(box);
   }
   const marks = marksNow(input.scene, input.play, input.marks);
   const frame = markFrame(input.now);
   const drawn = marks.map((m) => {
     const image = townMarker(m.kind, input.time);
-    const lift = markerBob(frame + (m.id.length % 2));
-    const w = image?.width ?? 11;
-    const h = image?.height ?? 7;
+    const lift = 2 * markerBob(frame + (m.id.length % 2));
+    const w = image?.width ?? MARK_BOX.w;
+    const h = image?.height ?? MARK_BOX.h;
     const x = Math.round(m.at.x - w / 2);
     const y = Math.round(m.at.y - h - lift);
     // Where it can be this frame or the last: a little over its bob.
-    boxes.push({ x: x - 1, y: m.at.y - h - 4, w: w + 2, h: h + 6 });
+    boxes.push({ x: x - 1, y: m.at.y - h - 6, w: w + 2, h: h + 8 });
     return { image, x, y };
   });
   const thing = input.ring ? input.scene.things.find((t) => t.id === input.ring) : undefined;
@@ -76,17 +84,41 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
       h: Math.ceil(2 * ring.ry + 6),
     });
   const pulse = Math.floor(input.now / 400) % 2;
+  // While somewhere new is open: the beacon spreading on the water round the boat.
+  const beacon = input.marks.somewhereNew && !input.marks.panelOpen;
+  if (beacon)
+    boxes.push({
+      x: BEACON.x - BEACON.rx - 22,
+      y: BEACON.y - BEACON.ry - 8,
+      w: 2 * BEACON.rx + 44,
+      h: 2 * BEACON.ry + 16,
+    });
+  const spread = (((input.now % BEACON_MS) + BEACON_MS) % BEACON_MS) / BEACON_MS;
   return {
     actors,
     boxes,
-    ground: ring
-      ? (ctx) => {
-          ctx.fillStyle = ink;
-          ellipse(ctx, ring.x, ring.y + 1, ring.rx + 1, ring.ry + 1);
-          ctx.fillStyle = gold;
-          ellipse(ctx, ring.x, ring.y, ring.rx + pulse, ring.ry + pulse * 0.5);
-        }
-      : undefined,
+    ground:
+      ring || beacon
+        ? (ctx) => {
+            if (beacon) {
+              // Two rings, a step behind each other, fading as they spread.
+              for (const phase of [0, 0.5]) {
+                const t = (spread + phase) % 1;
+                ctx.globalAlpha = 1 - t;
+                ctx.fillStyle = gold;
+                ellipse(ctx, BEACON.x, BEACON.y, BEACON.rx + t * 20, BEACON.ry + t * 6);
+                ellipse(ctx, BEACON.x, BEACON.y + 1, BEACON.rx + t * 20 + 1, BEACON.ry + t * 6);
+              }
+              ctx.globalAlpha = 1;
+            }
+            if (ring) {
+              ctx.fillStyle = ink;
+              ellipse(ctx, ring.x, ring.y + 1, ring.rx + 1, ring.ry + 1);
+              ctx.fillStyle = gold;
+              ellipse(ctx, ring.x, ring.y, ring.rx + pulse, ring.ry + pulse * 0.5);
+            }
+          }
+        : undefined,
     over: drawn.length
       ? (ctx) => {
           for (const d of drawn) if (d.image) ctx.drawImage(d.image, d.x, d.y);

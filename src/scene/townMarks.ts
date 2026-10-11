@@ -13,6 +13,17 @@ import { usable, type Box, type Scene, type Thing } from './things';
 import type { Point } from './tileMap';
 import { TOWN2_TILE } from '../art/town2/town';
 
+/** Where the boat's marker floats: over the middle of the boat as drawn (art pixels). */
+export const BOAT_MARK: Point = { x: 520, y: 1486 };
+
+/**
+ * The beacon on the water round the boat while somewhere new is open: a gold
+ * ring spreading out from it every `BEACON_MS`, so a new player's eye goes
+ * there from anywhere on the quay. Centre and radii in art pixels.
+ */
+export const BEACON = { x: 520, y: 1512, rx: 74, ry: 18 } as const;
+export const BEACON_MS = 1800;
+
 const T = TOWN2_TILE;
 
 /** How near, in art pixels, something must be to the hero's feet for its marker to show: four tiles. */
@@ -83,7 +94,7 @@ const overlap = (a: Box, b: Box): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /** The size of a marker as drawn, for keeping it off the hero. */
-export const MARK_BOX = { w: 11, h: 7 };
+export const MARK_BOX = { w: 22, h: 14 };
 
 /**
  * The markers to show now: each marked thing near the hero, and the boat (as
@@ -103,7 +114,8 @@ export function marksNow(scene: Scene, play: Play, o: MarkOptions): Mark[] {
     const boat = thing.id === 'rowboat';
     const near = (strolling ? nearestOf(strolling, feet) : distanceTo(thing, feet)) <= MARK_NEAR;
     if (!near && !(boat && o.somewhereNew)) continue;
-    const at = { x: Math.round(box.x + box.w / 2), y: Math.round(box.y) - 3 };
+    // The boat's over the boat itself, not the top of its generous tap box (the quay's edge).
+    const at = boat ? BOAT_MARK : { x: Math.round(box.x + box.w / 2), y: Math.round(box.y) - 3 };
     const mark: Box = {
       x: at.x - MARK_BOX.w / 2,
       y: at.y - MARK_BOX.h - 3,
@@ -126,12 +138,18 @@ export function markFrame(now: number): number {
  * `RING_NEAR` of his feet, or null. It is ringed and named. Never while he
  * walks (the ring would chase him), nor while a panel is open.
  */
-export function ringed(scene: Scene, play: Play, panelOpen: boolean): Thing | null {
+export function ringed(
+  scene: Scene,
+  play: Play,
+  panelOpen: boolean,
+  people: ReadonlySet<string> = new Set(),
+): Thing | null {
   if (panelOpen || play.walker.path.length > 0 || play.heading) return null;
   let best: Thing | null = null;
   let bestD = Infinity;
   for (const thing of scene.things) {
-    if (!usable(thing) || !thing.tap) continue;
+    // Only what is worth walking up to: a barrel or a bench is not ringed, nor named.
+    if (!thing.tap || !markerKind(thing, people)) continue;
     const d = distanceTo(thing, play.walker.at);
     if (d <= RING_NEAR && d < bestD) {
       best = thing;

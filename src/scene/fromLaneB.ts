@@ -52,17 +52,27 @@ function disc(g: TGrid, cx: number, cy: number, r: number, m: Mat, t: number): v
       if (x * x + y * y <= r * r + r) put(g, cx + x, cy + y, cell(m, t));
 }
 
-/** Rows of characters to cells: each character a material and step by `key`, `.` empty. */
-function rows(lines: readonly string[], key: Readonly<Record<string, [Mat, number]>>): TGrid {
-  const g = tgrid(lines[0]!.length, lines.length);
+/**
+ * Rows of characters to cells: each character a material and step by `key`,
+ * `.` empty, each `k` art pixels square (a stand-in drawn big enough to read).
+ */
+function rows(
+  lines: readonly string[],
+  key: Readonly<Record<string, [Mat, number]>>,
+  k = 1,
+): TGrid {
+  const g = tgrid(lines[0]!.length * k, lines.length * k);
   lines.forEach((line, y) =>
     [...line].forEach((ch, x) => {
-      const k = key[ch];
-      if (k) put(g, x, y, cell(k[0], k[1]));
+      const c = key[ch];
+      if (c) fill(g, x * k, y * k, k, k, c[0], c[1]);
     }),
   );
   return g;
 }
+
+/** How many art pixels square each cell of a stand-in marker or piece is. */
+const STAND_IN_K = 2;
 
 /* ----- The harbour chart ----- */
 
@@ -96,14 +106,14 @@ const STAND_IN_HOME: Point = { x: 22, y: 104 };
 function chartPicture(): Picture2 {
   const g = tgrid(CHART_W, CHART_H);
   // Paper sea, and the coast along the left and the top.
-  fill(g, 0, 0, CHART_W, CHART_H, 'linen', 1);
+  fill(g, 0, 0, CHART_W, CHART_H, 'sea', 0);
   for (let y = 0; y < CHART_H; y++)
     for (let x = 0; x < CHART_W; x++) {
       const coast = 30 + Math.round(10 * Math.sin(y / 9) + 6 * Math.sin(y / 3.7));
       const north = 12 + Math.round(6 * Math.sin(x / 11) + 3 * Math.sin(x / 4.3));
       if (x < coast || y < north)
         put(g, x, y, cell('sand', x < coast - 4 || y < north - 4 ? 2 : 1));
-      else if ((x + y * 3) % 23 === 0) put(g, x, y, cell('linen', 3));
+      else if ((x + y * 3) % 23 === 0) put(g, x, y, cell('sea', 1));
     }
   // A headland the grotto sits round, and islands out at sea.
   disc(g, 92, 30, 12, 'sand', 2);
@@ -236,7 +246,8 @@ const markers = new Map<string, HTMLCanvasElement | null>();
 export function townMarker(kind: MarkerKind, time: TimeOfDay): HTMLCanvasElement | null {
   const key = `${kind} ${time}`;
   if (!markers.has(key)) {
-    const g = rows(MARKER_ROWS[kind], MARKER_KEY);
+    // Somewhere new is the one to see from across the quay: half as big again.
+    const g = rows(MARKER_ROWS[kind], MARKER_KEY, kind === 'new' ? STAND_IN_K + 1 : STAND_IN_K);
     markers.set(key, painted({ grid: g, glows: [] }, time));
   }
   return markers.get(key)!;
@@ -260,6 +271,8 @@ export interface StandInPiece {
   picture(time: TimeOfDay): HTMLCanvasElement | null;
   readonly w: number;
   readonly h: number;
+  /** The line it is sorted by among those standing. */
+  readonly base: number;
 }
 
 const SIGN_ROWS = [
@@ -291,7 +304,7 @@ function pieceCanvas(id: string, lines: readonly string[], time: TimeOfDay, lit:
       y: lit && time === 'dusk' ? ['lamp', 0] : ['glass', 2],
       o: lit && time === 'dusk' ? ['fire', 1] : ['glass', 3],
     };
-    pieces.set(key, painted({ grid: rows(lines, key2), glows: [] }, time));
+    pieces.set(key, painted({ grid: rows(lines, key2, STAND_IN_K), glows: [] }, time));
   }
   return pieces.get(key)!;
 }
@@ -300,17 +313,20 @@ function pieceCanvas(id: string, lines: readonly string[], time: TimeOfDay, lit:
 export const BOAT_SIGN: StandInPiece = {
   id: 'boat_sign',
   foot: { x: 14 * 24 + 12, y: 59 * 24 + 18 },
-  w: SIGN_ROWS[0]!.length,
-  h: SIGN_ROWS.length,
+  w: SIGN_ROWS[0]!.length * STAND_IN_K,
+  h: SIGN_ROWS.length * STAND_IN_K,
+  base: 59 * 24 + 18,
   picture: (time) => pieceCanvas('boat_sign', SIGN_ROWS, time, false),
 };
 
 /** The lantern on the boat's bow: a stand-in until lane B's boat lantern. */
 export const BOAT_LANTERN: StandInPiece = {
   id: 'boat_lantern',
-  foot: { x: 466, y: 1490 },
-  w: LANTERN_ROWS[0]!.length,
-  h: LANTERN_ROWS.length,
+  foot: { x: 470, y: 1500 },
+  w: LANTERN_ROWS[0]!.length * STAND_IN_K,
+  h: LANTERN_ROWS.length * STAND_IN_K,
+  // In front of the boat it hangs on.
+  base: 1530,
   picture: (time) => pieceCanvas('boat_lantern', LANTERN_ROWS, time, true),
 };
 

@@ -340,6 +340,12 @@ function resultLine(icon: Element | null, name: string, amount: string): HTMLEle
   ]);
 }
 
+/** Where the room's camera was for the last frame drawn, and CSS pixels an art pixel. For scripts. */
+let lastLook: { camera: Point; cssPerArt: number } | null = null;
+export function dungeonCamera(): { camera: Point; cssPerArt: number } | null {
+  return lastLook;
+}
+
 /** How long a lesson's ring takes to pulse out and fade, on the page's clock. */
 export const LESSON_PULSE_MS = 1100;
 
@@ -814,6 +820,7 @@ export function dungeonView(options: DungeonViewOptions): View {
       },
       seen: (camera, cssPerArt) => {
         lookedAt = { camera, cssPerArt };
+        lastLook = lookedAt;
       },
       label: words?.label ?? 'A sea cave. Tap the ground to walk there, or something to fight it.',
       fallback: 'The dungeon needs a browser that can draw on a canvas.',

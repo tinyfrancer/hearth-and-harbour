@@ -269,12 +269,9 @@ export const CAVE_LESSONS: readonly Lesson[] = [
       const end = run.play.walker.path.at(-1);
       return !!end && !inMark(mark, end);
     },
-    ring: (dungeon, run) => {
-      const mark = markOn(dungeon, run);
-      return mark && mark.shape === 'circle'
-        ? { kind: 'at', at: mark.at, r: mark.radius }
-        : { kind: 'button', which: 'second' };
-    },
+    // The button, not the mark: a tap on the mark's middle would be a tap on whoever made it,
+    // and walking up to them is staying in it. The mark shows itself, filling as it comes.
+    ring: () => ({ kind: 'button', which: 'second' }),
   },
   {
     id: 'eat',
