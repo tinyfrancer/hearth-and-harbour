@@ -9,7 +9,7 @@
  *   landing   tap the ground to walk; a crate with fish in it; one dock rat,
  *             far enough off that it is only met once the walk is learned;
  *             then the door, the way onward, marked.
- *   pools     four rats waiting together under the pool (the wide swing),
+ *   pools     three rats waiting together under the pool (the wide swing),
  *             then two sand crabs further on by the door, met only once the rats
  *             are dealt with (its slam: step out of the marked ground, or
  *             brace); by then a new player is hurt (the fish).
@@ -48,7 +48,7 @@ export const TIDEPOOL: DungeonPlan = {
     /*
      *   wall    lanterns
      *   > sand    [ the pool ]         sand       two crabs    > snapper
-     *   sand       four rats under it      rock
+     *   sand       three rats under it     rock
      *   sea                                         sea
      */
     pools: [

@@ -1,17 +1,14 @@
 /*
  * One-off things the scene remembers about a player: the first visit's pan
- * to the boat has been seen, a lesson has been learned, tips were put away.
- * Kept in the save through the shell's optional `remembered`/`remember`
- * (lane A, wave 16: short plain keys, stored once), and for the page as
- * well, so a shell without them (an older one, a test's) still remembers
- * until the page is reloaded.
- *
- * The shell's methods are read through a local type: they are optional on
- * lane A's `Shell`, and this scene does not edit `src/ui/view.ts`.
+ * to the boat has been seen, the chart has been opened, a lesson has been
+ * learned, tips were put away. Kept in the save through the shell's
+ * `remembered`/`remember` (lane A's save version 10: short plain keys, kept
+ * once), and for the page as well, so a shell without them (a test's) still
+ * remembers until the page is reloaded.
  */
 import type { Shell } from '../ui/view';
 
-/** The part of a shell that remembers: both optional. */
+/** The part of a shell that remembers: both optional, as on lane A's `Shell`. */
 export interface Remembering {
   remembered?(key: string): boolean;
   remember?(key: string): void;

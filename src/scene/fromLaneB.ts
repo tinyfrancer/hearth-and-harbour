@@ -1,17 +1,10 @@
 /*
- * STAND-IN SEAM (lane B, wave 15). Everything this scene needs from lane B's
- * early PR that is not on `main` yet, in one place, so swapping the real
- * thing in is an edit to this file alone. Until then each part is a plain
- * stand-in, drawn here as simply as will read, never meant to ship as art:
- *
- * - the town's markers over tappable things (`townMarker2`) and the ring
- *   under the one a tap would use;
- * - the ferryman's figure (the docker's until lane B draws him), the boat's
- *   sign and its bow lantern;
- *
- * Lane B's first PR (#63) is in: the harbour chart, its pieces and route are
- * theirs (below, painted for the page), and the Old Snapper is drawn
- * (`foeArtId` gives his own id now that the art lane has a size for him).
+ * What this scene takes from lane B, in one place: the harbour chart and its
+ * pieces (B15), the town's markers, ring and edge-of-screen pointer (B15b,
+ * B16), the ferryman, the boat's sign and its bow lantern, painted for the
+ * page. Lane B's B16 markers (a `'large'` size, `townPointer2`) are read
+ * through a local signature (`laneB` below), so this scene ran on `main`
+ * before they landed: a small marker and a pointer of its own until then.
  */
 import {
   chartBoat2,
