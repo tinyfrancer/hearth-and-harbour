@@ -1,8 +1,8 @@
 # Lane A: idle rules
 
-**Next: Cody's review of waves 11 and 12's menus** (the sheet, the header's face, the bestiary),
-then the Milestone A review (`docs/lanes.md`, "The order of work"). Ready to build when lane C's
-half lands: the run's save (designed under the notes, "A run that survives a reload").
+**Next: Cody's review of wave 13** (his Milestone A feedback, `docs/feedback-milestone-a.md` on
+its branch), then the next wave's brief: the hero shown doing the idle activity (needs lane B's
+activity poses). Lane C's half of the run's save (calling `keepRun`/`savedRun`) is theirs next.
 
 ## Done
 
@@ -597,7 +597,93 @@ half lands: the run's save (designed under the notes, "A run that survives a rel
     (the captain's doubloon in the log no longer names his); the tab bar test wants art's
     canvas (was "svg or canvas", the old glyph). `tests/data/pacing.test.ts` untouched.
 
+- Wave 13: Cody's Milestone A feedback, the rules-and-menus half (branch `lane-a/w13-feedback`).
+  **Save version 9**, one step for all of it.
+  - **Achievements by doing, not owning** (`src/core/achievements.ts`, `src/data/achievements.ts`):
+    the six skill firsts (log, fish, ore, find, cooked fish, bar) read the collection log, so a
+    sand crab's shells earned the first foraging one, a dock rat's herring the first fish, a
+    troll's ore the first ore and the store's cooked shrimp the first meal. New rule kind `made`:
+    any non-theft action that gives one of the items with mastery XP above 0 (only doing an
+    action earns mastery), so **no new counter in the save**. Audited the rest: `rare_prize`,
+    `doubloon` and `anchor` are about owning things no skill makes (kept as `found`; a content
+    test now forbids a `found` achievement naming anything an action makes); kills, thefts,
+    clears, levels, mastery, coins, worn sets and running counts read what they say. Earned ones
+    are kept for good, wrongly earned or not (nothing is taken back).
+  - **Store**: `PerkDef` has `effect` (what it does, plainly, in numbers) and `shows` (the
+    screens it shows on, `PerkPlace`, today only `potions`); `perksFor(state, content, place)`
+    in `src/core/store.ts`. The potion case says "Every potion you drink from now on helps 50%
+    more actions: one that helps 150 actions helps 225." Owned upgrades leave the stock for a
+    **Yours** section, marked Owned; on the potion panel (Skills tab and skill pages) and a
+    potion's bank card ("225 actions (150, and 50% more from your Cork-lined potion case)").
+    A future upgrade with a place in `shows` appears there from its row. The store also says
+    what an item is used in ("Used in Alchemy.").
+  - **Screens update in place** (`View.stale?(before, after)` in `src/ui/view.ts`): `tick` no
+    longer calls `render()` for a level, a potion wearing off, a stopped action, a finished
+    fight, an empty food slot, a bounty done or a new kind of thing in the bank. Each view says
+    whether time changed what it is built of; if so only the view is rebuilt, in place, scrolled
+    where it was (`rebuildView`), else it updates. No view other than the fight, the areas list
+    (fight started or ended, bounty target changed, food slot emptied) and the bounties page
+    rebuilds on a kill; skill pages only on their own level, the running action or their potion.
+    The away report is laid over the screen without rebuilding it. Lists made to follow the
+    state in place: the bank (`keyedList`, `src/ui/keyed.ts`), a slot's choices, levels on the
+    skills list, the bestiary's kills and drops, the achievements, the combat and bounty
+    entries, the fight's own numbers after a level, the bounty shop's buttons, the header face.
+    **The bank opens a card where it stands** and keeps the tapped thing still on screen.
+  - **Total level**: a panel heading the skills list (with the combat level) and two tiles on
+    the sheet; achievement `total_200` (Pillar of the Community) beside `total_100`.
+  - **Bounties** (`src/core/bounty.ts`, rewritten): why trolls repeated: the board posted only
+    monsters within six levels of the combat level, and with nothing there the strongest below,
+    so from combat level 27 the troll alone; swapping fell back to it. Now: every monster with a
+    bounty row at or below the combat level, bounty-only ones too, weighted `max(1, 12 - (top -
+level))`; a board of three different offers (`bountyBoard`), never the last target while
+    anything else is open (`lastBounty`); **fresh notices for 1 point**; **give up** (was swap,
+    3 points, breaks the streak) shows a fresh board. An offer's points are fixed when posted:
+    `count × expectedKillMs(level, monster)` at `pointsAnHour(level) = 15 + 1.5 × level`, where
+    `expectedKillMs` is the exact expected kill time of a hunter judged by combat level alone
+    (gear worth `6 + level / 3`, so taking a sword off cannot raise the pay). **Auto bounty**
+    (`autoBounty`): the kill that finishes a bounty in `advanceFight` hands it in and takes the
+    next board's first offer (`payBounty`, dice rolled inside the kill after its drops) and the
+    fight goes on against the new monster; `catchUp`'s report says how many and the points
+    (`claimed`); switching it on with one done claims it (`setAutoBounty`); a run that finishes
+    one hands it in too (`settleRun` → `autoHandIn`). Points an hour, before → after, the real
+    fight in that level's gear (`tests/data/pacing.test.ts`): level 5, 8–16 → 22–25; level 10,
+    11–34 → 31–36; level 20, 13–59 (rat to wyrm) → 42–50; level 30, 14–78 → 53–57 (and the old
+    board offered only the troll there, at 60).
+  - **Greaves**: `bronze_greaves` (Smithing 8, 3 bars, 5 s, 38 XP, armour 5, worth 355) and
+    `iron_greaves` (Smithing 18, 3 bars, 5 s, 60 XP, armour 8, Defence 10, worth 610), legs slot,
+    on lane B's art (B13a). Smithing's pacing and money pins are unchanged.
+  - **Looks**: `Look.beard` (migration: `'none'`); `src/ui/look.ts` builds the creator's and
+    Change look's rows from whatever parts and choices `LOOK_CHOICES2` holds at run time
+    (`lookParts`), the known ones first, others named from their key, unknown ids and parts
+    dropped. A save may name any part by a plain name. Today the beard row shows "None" alone
+    (lane B's beards come in their second PR) and becomes a stepper with no change here.
+  - **The run kept through a reload**: `GameState.run: SavedRun | null`; `Shell.keepRun?` and
+    `Shell.savedRun?` (`src/ui/view.ts`). On load, a run left under a minute ago is offered back
+    and no idle time is paid for the gap; one left longer is settled from its spoils as rowed
+    back (no clear) and then the time away is paid. `saveProblem` checks it (spoils numbers not
+    below zero, `data` a plain object under 256 KB). The scene's half is lane C's.
+  - **Housekeeping**: the cast drift test is gone (the scene reads `src/data/dungeons.ts`).
+  - **Save version 9**, migration 8 → 9: `bountyBoard: []`, `lastBounty: null`, `autoBounty:
+false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `points` and pays
+    its monster's old row. `saveProblem`: the board (up to three offers, different monsters,
+    whole positive counts and points, empty while a bounty is held), `lastBounty`,
+    `autoBounty`, `bounty.points`, `run`, look parts.
+  - **Expectations changed on purpose**: the old-save achievement test now carries mastery to
+    prove chopping (`records.test.ts`); "posts monsters from six levels below" and "the
+    strongest below" became "anything at or below"; `duels.test.ts` "nothing trivial" became
+    "the trivial under a third"; "takes a bounty" became read/take/reroll; "swapping" became
+    "giving up"; handing in shows a board instead of posting the next; bounties held in tests
+    carry `points`; the potion case's store row moves to Yours (was "Yours" on its button); the
+    look test in `saveFile.test.ts` rejects a part with a space (was any unknown part); every
+    migration test gains the version 9 fields; `newGame`'s shape; the away report's `claimed`.
+    `tests/data/pacing.test.ts`: cases added, none changed.
+  - **Checked** at 390 x 844 and 360 x 740 at 3x: `/home/claude/lane-shots/w13-a/`.
+
 ## Deferred
+
+- Wave 13: nothing from the brief. Not done: greaves in the simulations' gear ladder
+  (`tests/data/fighting.ts` still wears linen trousers, so fights are a little easier in play
+  than the pins assume); a mocked beard screenshot (the real row shows "None").
 
 - Wave 12: **the run's save**, not built: lane C's pure serialise/restore for a run has not
   landed on `main` (the brief said build only if it had). The design below stands.
@@ -615,6 +701,13 @@ half lands: the run's save (designed under the notes, "A run that survives a rel
   notes).
 
 ## Needs from another lane
+
+- **For lane C (wave 13), the run's save**: call `shell.keepRun?.(savedRunOf(run))` on entering a
+  room, every few seconds and on `pagehide`, and take `shell.savedRun?.()` back when `townView`
+  is built (restore it if `restoreRun` can, else `settleRun(saved.spoils)`); the shell clears it
+  on settling. Also `dressKey` should include `look.beard` (lane B's note).
+- **For lane B (wave 13)**: nothing blocking. `LOOK_CHOICES`'s declared type can widen to include
+  `beard` now: core's `Look` and `src/ui/look.ts` carry it.
 
 - **For lane C (wave 12), who dropped what.** Fill `RunSpoils.dropped` when a run is settled:
   by foe id, the item ids that foe dropped in the run (any order, repeats fine), e.g.
@@ -658,7 +751,9 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 
 ## Notes for this lane's next session
 
-- Save is version 8. The next shape change is 9.
+- Save is version 9. The next shape change is 10.
+- `View.stale(before, after)`: a view that rebuilds when time changes what it is built of. A new
+  view that shows something time changes structurally must say so, or update it in place.
 - The character sheet is a paper doll (wave 9). Since wave 12 the squares and the figure share
   one grain, `sheetScale()` (three from 356 wide, two below): a square is a 24-pixel icon at that
   scale plus its border (`dollSlotSize`, set on the doll as `--slot`), and the figure's room takes

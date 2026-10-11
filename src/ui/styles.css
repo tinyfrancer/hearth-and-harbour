@@ -1344,3 +1344,30 @@ button.card:active {
 .totals.levels {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+
+/*
+ * Auto bounty's switch: its name on the left, what it is set to on the right,
+ * in a box that fills in gold when on. Shape and words say it, not colour alone.
+ */
+.btn.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.switch-state {
+  min-width: 56px;
+  padding: 4px 8px;
+  border: var(--px) solid var(--line);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.btn.switch[aria-checked='true'] .switch-state {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--panel);
+  font-weight: 700;
+}
