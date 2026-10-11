@@ -1,22 +1,23 @@
 # Lane C: scenes
 
-**Next session: Cody's review of wave 15** (the harbour chart, the Tidepool Cave and its lessons,
-the boat made plain in town), and whatever it asks for. Wave 15 made the dungeon scene general (a
-dungeon by id), built the cave, the chart and the town's markers; the third dungeon is now a plan
-module and a row ("Adding a dungeon", below).
+**Next session: Cody's review of wave 16** (going back in after a heavy blow, things remembered in
+the save, the cave's pacing and lessons that let go, the boat from across the square, the cave's
+rooms filling the screen), and whatever it asks for. The third dungeon is a plan module and a row
+("Adding a dungeon", below).
 
 ## The cave's map
 
-Three rooms in `src/scene/tidepool.ts`, each 26 x 10 tiles (624 x 240 art pixels: the whole room
-in view on a phone 740 wide on its side, no camera travel), no tide, drawn in lane B's
+Three rooms in `src/scene/tidepool.ts`, each 26 x 10 tiles (624 x 240 art pixels: drawn at the
+largest whole scale the room fits, 4 on an 844 x 390 phone at 3x, the camera held still with the
+room centred), no tide, drawn in lane B's
 `'tidepool'` theme (its tiles, doors, day light and palette; every `L` is a shaft of sun, not a
 lantern). Lessons in `src/scene/lessons.ts` (`CAVE_LESSONS`), in this order.
 
-| Room      | Who (col, row)                                                                         | Found                                   | Lessons                                         |
-| --------- | -------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------- |
-| `landing` | dock rat (20, 4), far enough off to be met only after the walk                         | 4 cooked shrimp at (8, 3), by the crate | walk; attack; door                              |
-| `pools`   | four rats under the pool (12–15, 6–8); two sand crabs by the far door (22, 4), (21, 7) |                                         | wide swing; heavy blow (brace or step out); eat |
-| `snapper` | Old Snapper (16, 5); the end (14, 2)                                                   |                                         | eat (at the latest); the boss                   |
+| Room      | Who (col, row)                                                                          | Found                                   | Lessons                                         |
+| --------- | --------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------- |
+| `landing` | dock rat (20, 4), far enough off to be met only after the walk                          | 4 cooked shrimp at (8, 3), by the crate | walk; attack; door                              |
+| `pools`   | three rats under the pool (12–15, 6–7); two sand crabs by the far door (22, 4), (21, 7) |                                         | wide swing; heavy blow (brace or step out); eat |
+| `snapper` | Old Snapper (16, 5); the end (14, 2)                                                    |                                         | eat (at the latest); the boss                   |
 
 Props (B15 letters, `ground.ts`): `P` rock pool, `G` kelp, `S` starfish, `E` anemones, `W`
 driftwood, `H` a boat's ribs; each solid on its tile.
@@ -90,6 +91,106 @@ target (`doorUnder`), and a tap or a held finger anywhere on it walks to that ce
   each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 16: the weak spots of wave 15**, reported to Cody after wave 15. No grotto fight
+  position, reach, pace, event or number changed: `scaleTimeline.test.ts`, `grottoRun.test.ts`,
+  `grottoRules.test.ts` and every balance test pass with their expectations untouched, and all 24
+  scripted grotto runs hashed tick by tick (clock, room, hit points, dice, target, chase, where
+  everyone stands) are identical to `main`'s (a scratch comparison of the two trees). Review sheets
+  in `/home/claude/lane-shots/w16-c/`.
+  - **Going back in after a heavy blow** (`RETURN_MS`, `stepOut`, `goBack` in `battle.ts`; every
+    dungeon). The rule: a walk ordered while the hero stands in a heavy blow's mark, with a foe to
+    fight (his target, tapped or picked in reach), is getting out of the way (`Battle.back`); a
+    walk ordered anywhere else is an order of its own. Once nothing marked is left in the room, he
+    has stopped (his step out done) and 700 ms have gone by since the last mark landed or lapsed,
+    he goes after that foe again by himself, walking back into reach (`chase`). Any order of the
+    player's before then is what happens: a tap on a foe makes it the target; a tap on the ground
+    out of every mark cancels the going back. It is dropped if that foe falls, takes wing or
+    leaves the room, if the sea carries him off, or if something else has come into reach and he
+    is fighting it. Step back (a bow's) counts as stepping out. Whether a walk was out of a mark is
+    weighed where he stood when it was given, at the start of the run's next stretch
+    (`Battle.walked`), so the view, the bots and the tests all go through the same path. The 700 ms
+    is longer than any scripted player takes to re-tap: the grotto's bot steps out more than 50
+    times a run and always re-taps first (`goBack.test.ts` holds it), so his timelines do not move;
+    only a player who gives no order is helped. The cave's heavy-blow lesson says it once ("Once it
+    lands you go back in by yourself").
+  - **Brace, answered** (`BRACE_REEL_MS`): a heavy blow taken braced still costs half, but leaves
+    its maker reeling 2.4 s before its next ordinary blow, and the hero's next swing comes at once.
+    In the cave the bracing novice now clears about 9 s quicker than one who steps out (median 2:26
+    against 2:35), at a cost in health (lowest 7 to 12 of 20, against 7 to 15): a trade, not a
+    worse stepping out. No scripted grotto player uses an ability, so no grotto test moved; a person
+    bracing in the grotto gets the same answer (Cody may want to know: it is a rule for every
+    dungeon).
+  - **Remembered across reloads** (`remember.ts`): `remembered(key)` / `remember(key)` through
+    lane A's `Shell.remembered`/`remember` (save version 10, #68), read through a local type, and
+    kept for the page as well (all there is for a shell without them). Keys: `town.pan` (the first
+    visit's pan has played, or the chart has been opened), `town.chart` (the chart has been
+    opened: the edge pointer is done), `cave.lesson.<id>` for each lesson learned, `cave.tips.off`
+    for Skip tips. Checked through the real shell in the browser: the save's `seen` gains each key
+    as it happens; after a reload there is no pan, and the next run starts with the lessons learned
+    already done.
+  - **The cave's pacing, on lane A's wave 16 numbers** (#68: dock rat hp 6 attack 4, sand crab hp 6
+    attack 5, Old Snapper hp 18 attack 5 max hit 2): back to three rats under the pool (four in
+    all, and two crabs; wave 15 had padded it to five rats), no slower for it. The eat lesson comes
+    a quarter down once the heavy blow has been shown (was 40 % down), so it is learned in the rock
+    pools, hurt, on 10 of 12 seeds bracing and 9 of 12 not. The scripted novice, twelve seeds:
+    cleared 12/12 both ways; bracing 2:17 to 2:38 (median 2:26), never bracing 2:27 to 2:44 (median
+    2:35); lowest health 7 to 12 bracing, 7 to 15 not; the lessons in order on every seed; reading
+    adds 7 s. With the first clear's bronze sword and no lessons, the median is under 90 s still.
+  - **Lessons that let go** (`LESSON_PLAIN_MS`, `LESSON_GO_ON_MS`, `lessonText`, `lessonStage`):
+    a lesson not done after 8 s of the page's time (counted only while it can be seen) is said more
+    plainly (each lesson that holds the run has a `plain` line: "Tap right on the dock rat, inside
+    the gold ring, to fight it."); after 20 s one that held the run lets it go on while it still
+    shows ("The fight goes on meanwhile."). The time is kept in the run's lessons (`for`), so a
+    reload keeps it. `dungeonView`'s `update` takes the app's clock (`townView` passes it on).
+  - **The boat from across the square** (`boatMarkSize`, `boatPointer` in `townMarks.ts`;
+    `townMarker(…, size)` and `townPointer` in `fromLaneB.ts`): lane B's large travel marker (B16,
+    29 x 30) over the boat whenever the hero is more than four tiles off or the boat is within 40
+    px of the screen's edge, its sparkle out beside it; beside the boat, the quiet small one. While
+    somewhere new is open and the chart has never been opened, a chevron at the screen's edge on
+    the line toward the boat while it is off the screen (lane B's `townPointer2`; a plain one of
+    this scene's own until that landed), kept off the sun-and-moon button, gone once the chart has
+    opened. Before lane B's PR the marker stayed small with its sparkle where it was (`largeIn`).
+  - **Words**: the label says "Rowing boat — tap to row out" and "Ferry sign — tap to row out"
+    (was "tap to open the chart"), the ferryman "— tap to talk" (he has a word first); the chart's
+    what-to-bring for the cave is "Nothing but yourself: there are fish to find in the cave."; the
+    boss lesson says "brace or step out".
+  - **This frame's camera** (`StageLook`, the stage's `extra(now, palette, look)`): the town's ring
+    and label and the dungeon's way-onward edge arrow are worked out from the camera of the frame
+    they are drawn with, not the one before (`labelPlace`, `frameLabel`, `viewBox(look)`).
+  - **The chart's route** (`routeShort`, `ROUTE_SHORT`): the dots and the rowboat stop 12 map px
+    short of the landing, and the boat is drawn under the markers, so it no longer sits on the
+    landing's pole and ring when it arrives (`chart-route-end-before-after.png`).
+  - **The cave's rooms fill the screen** (`roomScale` in `scale.ts`; the stage's `holdWhenFits`):
+    each dungeon is drawn at the largest whole scale at which its biggest room fits the view (never
+    under the old rule), the same for all its rooms; a dungeon of one-screen rooms (no wider than
+    two dungeon screens, 720, `ONE_SCREEN`) holds the camera still with the room centred. The cave:
+    4 device pixels an art pixel on an 844 x 390 phone at 3x (was 3), 4 on a 932 x 430, 3 on a 740
+    x 360, 2 on an SE; the grotto as before everywhere. Every 4 x 4 device-pixel block of the floor
+    in a 3x screenshot is one colour (`cave-crispness-400pc.png`); the lesson ring sits on the
+    crate's fish, the marks on the ground under their makers.
+  - **Tests**: `goBack.test.ts` (steps out and touches nothing: striking again within RETURN_MS and
+    a walk; Step back counts; a later tap elsewhere is not dragged back; a walk with nothing marked
+    is never a step out; tapping a foe meanwhile is that order; the grotto's bot never needs it),
+    `battle.test.ts` (the brace answered), `lessons.test.ts` (remembered through a shell, and the
+    page fallback; plainer words, then play goes on), `harbour.test.ts` (the pan remembered through
+    the shell; a page-only shell pans again after a reload), `townMarks.test.ts` (sizes, the
+    pointer and its rules, the label placed by the camera given, the new words), `chart.test.ts`
+    (the route short), `scale2.test.ts` (each phone's room scale), `caveRun.test.ts` (below).
+  - **Test bounds moved, in `caveRun.test.ts` only**: the median clear's lower bound 1.5 → 2
+    minutes (tightened: the cave is two to three minutes now); the kills `dock_rat: 5` → `4`; two
+    cases added (bracing quicker than stepping out, stepping out keeping more health, nobody's
+    lowest under 5; the eat lesson in the rock pools on at least 8 of 12 seeds, both ways).
+    `caveBot.ts` records the room and health each lesson first showed in (`shownIn`).
+  - Checked in headless Chromium, a production build with screenshot hooks, 3x, touch: a new
+    character from the title through the cave following only the hints, on wave 16's numbers
+    (cleared in 2:23 of run and 2:33 on the page, every lesson in order, the eat lesson in the rock
+    pools at 15 of 20); one run stepping out of the snapper's slam and then touching nothing (back
+    in reach by himself about 1.4 s after it landed and fighting on, struck by each slam after
+    since nobody moved him: `step-out-then-touch-nothing.gif`); a reload mid-cave (paused behind Resume, the lessons done not shown again); the real
+    shell's memory across a reload; the boat and the pointer from across the square; the chart's
+    route; the grotto to the captain, played by the balance test's scripted player at a phone's
+    pace in the real app.
 
 - **Wave 15: the harbour chart, the Tidepool Cave, and the boat made plain** (Cody: the dungeon was
   more fun than expected; a chart at the boat for every dungeon; a level-1 learning dungeon; "make
@@ -1075,49 +1176,45 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 15)
+## Weak spots, honestly (wave 16)
 
-- **The cave is shorter than asked.** On lane A's numbers the scripted novice clears it in about
-  1:50 (the brief asked two to three minutes), and is barely hurt (lowest 15 to 20 of 20 hit
-  points): the cast's attack (1 or 2) against a level-1 character's defence lands one blow in ten.
-  So the eat lesson usually comes at the boss's door with a scratch, not when it matters. This
-  lane added rats and a crab (five rats, two crabs, over lane A's tuned two and two) to get to 1:50;
-  more would only be more of the same. Numbers that give two and a half minutes and a real need
-  to eat are under Needs (lane A).
-- **The tap-script player in the browser fell twice before it learned to tap the boss again** after
-  stepping out of a slam: the hero keeps his target but does not walk back to it by himself (as in
-  the grotto). A real new player who steps out and waits gets hit and never hits back. The boss
-  lesson says to tap it; nothing says to tap it again.
-- **Bracing is worse than stepping out** in the cave: the scripted player who braces ends lower
-  than one who never does (he stands in the slam and takes half). The lesson offers both.
-- **Lessons that block can only be ended by doing them or "Skip tips"**: a player who cannot see
-  what to do is held until they skip.
-- **The first visit's pan is remembered for the page only** (no place in the save): a new save
-  that reloads before rowing out sees it again. A save that has cleared anything never does.
-- **Markers are lane B's quiet 14 x 16**: the boat reads by its badge, sparkle and beacon; the
-  others are small by design. The label can sit over a marker of something just behind the thing
-  named (the smith's, by the anvil).
-- **The town's label is placed by the last frame's camera**, a frame behind after a big move, and
-  only once the town is painted (no label in jsdom tests: its words are tested pure).
-- **The chart's route** draws over the landing markers' poles for the first frames; the boat token
-  sits at home until the route starts. The map is day only (lane B's).
-- From wave 14, still so: a reload lands where the app opens it (lane A now opens Town for a kept
-  run); what a reload takes back is up to a frame old; the way onward's edge arrow is a frame late;
-  a tap on a barred door walks him to the cell inside it; strollers overlap the hero passing
-  behind; the 1x face is cut to its safe box.
+- **Going back in is a new rule for every dungeon**, and a person in the grotto now gets it too: a
+  player who steps out of the captain's volleys and waits is walked back to his target 0.7 s after
+  the last mark has landed. Proven not to move any scripted run, but how it feels with the
+  captain's overlapping marks is not checked by a person (it waits while any mark is left, so in a
+  volley storm it simply does not happen). Braced blows are answered in every dungeon too.
+- **Bracing is quicker but costs more health** in the cave (about 9 s, and about 3 hit points at
+  the lowest). That is a trade, not a clear win; if Cody wants bracing to be the better choice
+  outright, the lever is `BRACE_REEL_MS` or what the brace takes, both rules for every dungeon.
+- **The browser playthroughs of the cave** are by a tap-script player that does what the hints
+  say, not by a person: a person misses taps and reads more slowly, so a first clear will take
+  longer than its 2:23.
+- **The lesson that lets go**: after 20 s a held lesson lets the run go on with its words still up;
+  in the first room that means the rat walks up and the hero, in reach, starts fighting it by
+  himself, which ends the lesson. Not shown to a person yet.
+- **The cave's rooms at 4x** fill an 844 x 390 phone; the floor's last row (mostly sea, a few sand
+  tiles) and the room's top corners lie under the buttons and panels at the screen's edges, as the
+  camera no longer moves in the cave to keep the hero clear of them. The grotto keeps its old
+  scale and camera.
+- **The edge pointer** points along the line from the middle of the view to the boat and sits on
+  the edge it meets, in four directions only (lane B's chevrons); from up the road it is at the
+  bottom edge, a little left of the middle.
+- **The town's label** over the boat sits over the hero's head when he stands above the boat (as
+  before: the words never cover him), so from the quay it is centred over the boat's tap box, off
+  to the right of the hull.
+- From wave 14 and 15, still so: a tap on a barred door walks him to the cell inside it;
+  strollers overlap the hero passing behind; the 1x face is cut to its safe box; the town's ship,
+  boat and buoys do not bob; the chart is day only; what a reload takes back is up to a frame old.
 - Frame rates and timings are headless Chromium in software on a shared sandbox, not a phone. Not
   checked in WebKit or Safari, nor on the live site (unreachable from here).
 
 ## Deferred
 
-- From wave 15: the lessons and the first visit's pan remembered beyond the page (needs a place in
-  the save, lane A); a hero who steps out of a slam walking back to his target by himself (a rule
-  change for every dungeon, Cody's decision); the town's ship, boat and buoys still do not bob.
+- From wave 15, now done: the lessons and the pan remembered beyond the page (lane A's save
+  version 10); a hero who steps out walking back by himself.
+- The town's ship, boat and buoys still do not bob.
 - The overlap's balance-changing fix (stand the hero off by the foe's body instead of a fixed
-  36 px), Cody's decision. With lane B's narrowed captain and the 14 px cap, the hero no longer
-  stands inside either wide foe: he touches each by the 4 px every pair is allowed
-  (`wide-foes-before-after.png`). This lane's view: the decision is no longer needed for the
-  look; it would matter only if Cody wants visible air between them.
+  36 px), Cody's decision; this lane's view, as in wave 14, is that the look no longer needs it.
 - From S16a: **not checked in Safari.** No WebKit build exists under `/opt/pw-browsers` and the
   Playwright WebKit download is blocked by this sandbox's proxy. Unverified there: that WebKit
   enlarges the town's and the rooms' canvases nearest-neighbour (`image-rendering: pixelated`;
@@ -1130,26 +1227,21 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   and the home-screen app (else the run is kept up to 3 s old).
 - From wave 10: a few frames over 40 ms still occur in town at 4x (0 to 4 in two minutes), with no
   script in them; not something this lane's code can reach in headless Chromium.
-- From S15: dungeons are always dusk.
+- From S15: dungeons are always dusk (the cave is day by its own theme).
 - From S14b, by choice: no eating by itself in a run (the food button is the player's); a heavy
   attack's circle is drawn over rock as well as floor.
-- Ship, boat and buoys in town do not bob; the waterline foam on the ship and rock does not move.
 
 ## Needs from another lane
 
-- **Lane A:** (1) **The cave's numbers**, if two to three minutes and a reason to eat are wanted:
-  dock rat hp 6 / attack 4, sand crab hp 6 / attack 5, Old Snapper hp 18 / attack 5 / max hit 2
-  (defences and speeds as now) give the scripted novice 2:28 to 2:51, lowest health 7 to 15 of 20,
-  every seed cleared bracing or not (probe in this lane's history, `caveBot.ts` with `rows`). Under
-  90 s with the bronze sword would want checking again. (2) **A place in the save** for "has opened
-  the chart" (the first visit's pan) and for lessons done, if they should outlast the page; today
-  the pan is skipped for any save with a dungeon record and lessons for a save that has cleared the
-  cave. (3) As before, later: the notice board could open `openBounties`.
-- **Lane B:** nothing blocking. (1) The ferryman stands at (16, 59), not your suggested (17, 59): the
-  barrel at (19, 59) leaves too little room to talk to him from the landing without overlap
-  (`stroll.test.ts`). The sign is at (14, 59), not (18, 58), which is the way down to the boat. (2)
-  If the town's markers should be easier to see from across the square, the boat's in particular, a
-  larger `travel` would do it; this lane adds the beacon on the water meanwhile.
+- **Lane A:** (1) `tests/data/cave.ts` models the pool room with four rats; the scene now has
+  three there (four in all, with the landing's). Your model counts one rat more than the cave
+  holds, which only makes it more careful; bring it to three if you want it exact. (2) Nothing
+  else: `remembered`/`remember` are used as designed (keys `town.pan`, `town.chart`,
+  `cave.lesson.<id>`, `cave.tips.off`, all within your 48-character shape). (3) As before, later:
+  the notice board could open `openBounties`.
+- **Lane B:** nothing blocking. The large travel marker and `townPointer2` are in use exactly as
+  briefed (the large marker's anchor over the middle of the boat, `BOAT_MARK`). If the pointer
+  should read from further, a version with a small boat inside it would say where it leads.
 
 ## Adding a dungeon (the steps, now that the scene is general)
 
@@ -1170,6 +1262,23 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
    card, the chart and the boat take any dungeon the registry knows.
 
 ## Notes for this lane's next session
+
+- **Wave 16's pieces:** `remember.ts` (one-off flags through the shell, `KEYS`); `RETURN_MS`,
+  `BRACE_REEL_MS`, `Battle.back` and `Battle.walked`, `stepOut`, `goBack` (`battle.ts`);
+  `LESSON_PLAIN_MS`, `LESSON_GO_ON_MS`, `lessonText`, `lessonStage`, `Lesson.plain`,
+  `LessonsState.for` (`lessons.ts`); `boatMarkSize`, `boatPointer`, `labelPlace`, `EDGE_NEAR`,
+  `POINTER_INSET`, `LARGE_MARK_BOX` (`townMarks.ts`); `townMarker(…, size)`, `townPointer`,
+  `largeMarkersIn` (`fromLaneB.ts`); `roomScale` (`scale.ts`); the stage's `holdWhenFits` and
+  `StageLook` (`extra` gets this frame's camera); `ONE_SCREEN` (`dungeonView.ts`); `routeShort`
+  (`chartPanel.ts`); `shownIn` on the cave bot's outcome.
+- **Measuring (wave 16):** `.shots/` as before, its hooks adding `lessonNow`, `doors`, `endAt`,
+  `prepared` and `bot(on)` (the grotto's scripted player at the controls of the real app, for
+  playing to the captain at a phone's pace). Scripts in the session's own scratch folder: `cave.mjs`
+  (`MODE=hints|stepout|idle`), `boat.mjs`, `chart.mjs`, `remember.mjs`, `grotto.mjs`. A save is
+  edited for a script with `context.addInitScript` before the app loads (the app saves over
+  anything written while it is up). A video recorded in portrait stays portrait after the
+  viewport turns: for a sideways GIF, screenshots in a loop. To prove a rule leaves the bots
+  alone, hash every tick of the 24 grotto runs in both trees (a scratch test copied into each).
 
 - **Wave 15's pieces:** `dungeons.ts` (registry), `plans.ts`, `tidepool.ts`, `lessons.ts`,
   `chart.ts`, `chartPanel.ts`, `townMarks.ts`, `townExtras.ts`, `fromLaneA.ts` and `fromLaneB.ts`
