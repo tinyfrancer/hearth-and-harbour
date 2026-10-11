@@ -38,7 +38,7 @@ import {
 } from './battle';
 import { placeOf, type Dungeon, type Run } from './dungeon';
 import { DUNGEON } from './dungeonMetrics';
-import { foeKind } from './foes';
+import { bodyMid, foeKind } from './foes';
 import { forgetRemembered, KEYS, remember, remembered } from './remember';
 import { centreOf, type Point } from './tileMap';
 
@@ -215,7 +215,7 @@ function ringFoe(f: Foe): LessonRing {
   const box = foeKind(f.monster).box;
   return {
     kind: 'at',
-    at: { x: f.at.x, y: f.at.y - box.h / 2 },
+    at: { x: f.at.x + bodyMid(f.monster, f.facing), y: f.at.y - box.h / 2 },
     r: Math.max(box.w, box.h) / 2 + 10,
   };
 }

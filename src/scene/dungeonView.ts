@@ -72,7 +72,7 @@ import {
   type LessonRing,
 } from './lessons';
 import { wholeFace } from './face';
-import { abilityPicture, foeKind } from './foes';
+import { abilityPicture, bodyMid, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
   CaveShadow,
@@ -270,7 +270,7 @@ export function combatantBoxes(
     const lift = room ? liftOf(room, foe) : 0;
     boxes.push(
       toCss(
-        { x: foe.at.x, y: foe.at.y - lift },
+        { x: foe.at.x + bodyMid(foe.monster, foe.facing), y: foe.at.y - lift },
         Math.max(box.w, size?.box.w ?? 0) + 8,
         Math.max(box.h, size?.tall ?? 0),
       ),

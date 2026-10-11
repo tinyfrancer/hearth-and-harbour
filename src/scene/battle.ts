@@ -34,7 +34,7 @@ import { Dice } from '../core/rng';
 import type { RunSpoils } from '../core/run';
 import type { GameState } from '../core/state';
 import type { CastDef } from './cast';
-import { foeKind, type FoeKind } from './foes';
+import { bodyMid, foeKind, type FoeKind } from './foes';
 import { groundMap, standable, wading, type Ground, type RoomTile } from './ground';
 import { clearLine, route } from './path';
 import { advancePlay, facingToward, type Facing, type Play } from './play';
@@ -627,9 +627,10 @@ export function foeAt(
     const height = Math.max(h, min);
     const feet = foe.at.y - lift(foe);
     const top = feet - h + (h - height) / 2;
-    if (Math.abs(point.x - foe.at.x) > width / 2 || point.y < top || point.y > top + height)
-      continue;
-    const d = distance(point, { x: foe.at.x, y: feet - h / 2 });
+    // Round the middle of its body, which a long tail puts behind its feet (`bodyMid`).
+    const mx = foe.at.x + bodyMid(foe.monster, foe.facing);
+    if (Math.abs(point.x - mx) > width / 2 || point.y < top || point.y > top + height) continue;
+    const d = distance(point, { x: mx, y: feet - h / 2 });
     if (d < bestDistance) {
       best = foe;
       bestDistance = d;
