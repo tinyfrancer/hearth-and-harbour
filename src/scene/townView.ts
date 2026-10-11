@@ -14,11 +14,15 @@ import { loadingScene } from './loadingScene';
 import { sayingFor } from './panel';
 import { stage } from './stage';
 import type { Cell, Point } from './tileMap';
+import type { Thing } from './things';
 import { chartPanel, type ChartPanel } from './chartPanel';
 import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './fromLaneA';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
-import { labelFor, panFocus, ringed } from './townMarks';
+import { largeMarkersIn } from './fromLaneB';
+import { boatPointer, labelFor, labelPlace, panFocus, ringed } from './townMarks';
+import { SCENE_BUTTONS, type StageLook } from './stage';
+import { KEYS, remember, remembered, rememberWith } from './remember';
 import { Hero2, type Town2Art } from './town2Art';
 import { roomLook } from './grottoArt';
 import { KEPT_RUN_MAX_CHARS, keptAtOf, restoreRun, savedRunOf } from './runSave';
@@ -55,10 +59,9 @@ const rowedTo = new Set<string>();
 
 /**
  * Whether the first visit's pan (the camera out to the boat and back) has
- * played, or been skipped, this page. A save that has rowed out before is
- * never shown it (`firstVisit`); the save has no place to remember that the
- * chart was opened (lane A, under Needs), so a fresh page of a new save that
- * has not rowed out yet may see it again.
+ * been weighed this page. Once it has played, or the chart has been opened,
+ * that is remembered (`KEYS.pan`, in the save through the shell where it can,
+ * `remember.ts`), and a save that has rowed out before is never shown it.
  */
 let panned = false;
 
@@ -206,6 +209,8 @@ function loadingCard(): { el: HTMLElement; update(): void } {
  */
 export function townView(state: GameState, content: Content, shell?: Shell): View {
   prepareTown(now());
+  // One-off things remembered (the pan, lessons learned) go in the save through this shell.
+  rememberWith(shell);
   /** The state as of the last frame: what a run starts from. */
   let latest = state;
   hero?.wear(state);
@@ -288,12 +293,39 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         }
         return town.tap(point, min, tapped);
       },
-      extra: (stageNow, palette) => {
+      extra: (stageNow, palette, seenNow) => {
         const shown = shownPlay();
         const strollers = new Map(
           strollersAt().map((feet, i) => [STROLLERS2[i]!.id, personTap(feet)] as const),
         );
         const open = shown.open !== null || chart !== null;
+        // What a tap would use and its label, worked out by this frame's camera, as drawn.
+        frameLabel(shown, open, seenNow);
+        const view = {
+          x: seenNow.camera.x,
+          y: seenNow.camera.y,
+          w: seenNow.view.width,
+          h: seenNow.view.height,
+        };
+        const per = seenNow.cssPerArt > 0 ? seenNow.cssPerArt : 1;
+        const sun = SCENE_BUTTONS.light;
+        const pointer =
+          panFrom !== null
+            ? null
+            : boatPointer(
+                view,
+                {
+                  somewhereNew: somewhereNew(),
+                  chartSeen: remembered(KEYS.chart),
+                  panelOpen: open,
+                },
+                {
+                  x: view.x + sun.left / per - 8,
+                  y: view.y + sun.top / per - 8,
+                  w: sun.width / per + 16,
+                  h: sun.height / per + 16,
+                },
+              );
         return townExtra(
           {
             scene: town.scene,
@@ -311,8 +343,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
                 h: 68,
               },
               strollers,
+              view,
+              largeIn: largeMarkersIn(),
             },
             ring: ringedNow,
+            pointer,
           },
           palette,
         );
@@ -407,6 +442,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     host.append(panel.el);
     panel.update(latest, clockNow);
     chartOpened(shell);
+    // The boat has been found: the first visit's pan and the pointer have nothing left to show.
+    remember(KEYS.pan);
+    remember(KEYS.chart);
   };
 
   const closeChart = (): void => {
@@ -416,33 +454,38 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     wantClose = true;
   };
 
-  /** The label over the thing a tap would use, placed by the last frame's camera. */
-  const showLabel = (): void => {
-    const shown = shownPlay();
-    const open = shown.open !== null || chart !== null;
+  /** The label for this frame, worked out as it is drawn: its words and where they go. */
+  let labelNow: { words: string; thing: Thing; look: StageLook; feet: Point } | null = null;
+
+  /**
+   * The thing a tap would use, ringed and named, by the camera of the frame
+   * being drawn (the ring is drawn in it; the label laid over it after), so
+   * neither trails a frame behind after a big move.
+   */
+  const frameLabel = (shown: Play, open: boolean, look: StageLook): void => {
     const thing = run ? null : ringed(town2Scene(), shown, open || panFrom !== null, PEOPLE);
     ringedNow = thing?.id ?? null;
     const words = thing ? labelFor(thing, PEOPLE) : null;
-    if (!thing?.tap || !words || !lookedAt) {
+    labelNow = thing?.tap && words ? { words, thing, look, feet: shown.walker.at } : null;
+  };
+
+  /** The label over the thing a tap would use, placed by the camera of the frame just drawn. */
+  const showLabel = (): void => {
+    if (!labelNow || run) {
       label.hidden = true;
       return;
     }
-    const { camera, cssPerArt } = lookedAt;
-    // Over the thing, or over the hero's head if that is higher: the words never cover him.
-    const top = Math.min(thing.tap.y, shown.walker.at.y - 70);
-    const x = Math.round((thing.tap.x + thing.tap.w / 2 - camera.x) * cssPerArt);
-    const y = Math.round((top - camera.y) * cssPerArt) - 6;
+    const { words, thing, look, feet } = labelNow;
     if (label.textContent !== words || label.hidden) {
       label.textContent = words;
       label.hidden = false;
       // Measured once for its words, not every frame.
       labelHalf = label.offsetWidth / 2;
     }
-    // Kept on the scene: centred over the thing where it fits, else against the nearer edge.
-    const half = labelHalf;
     const width = current.el.clientWidth || Infinity;
-    const left = Math.max(half + 6, Math.min(width - half - 6, x));
-    const place = `translate(${left}px, ${Math.max(70, y)}px) translate(-50%, -100%)`;
+    const at = labelPlace(thing, feet, look, labelHalf, width);
+    if (!at) return;
+    const place = `translate(${at.left}px, ${at.top}px) translate(-50%, -100%)`;
     if (label.style.transform !== place) label.style.transform = place;
     label.hidden = false;
   };
@@ -457,8 +500,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (panned || panFrom !== null || clockNow === undefined || townLoading()) return;
     if (!art2Now()?.held()) return;
     panned = true;
-    if (Object.keys(latest.dungeons).length > 0 || latest.run || wantChart) return;
+    if (remembered(KEYS.pan) || Object.keys(latest.dungeons).length > 0 || latest.run || wantChart)
+      return;
     panFrom = clockNow;
+    remember(KEYS.pan);
   };
 
   const showDungeon = (dungeon: Dungeon, resume = false): void => {
@@ -671,7 +716,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         wear2(next);
         // The facts came in: the town can be walked, under the loading card until its picture comes.
         if (!run && loading && !current.update && townReady()) showTown();
-        current.update?.(next);
+        current.update?.(next, now);
         if (!run) {
           // The menus asked for the chart: to the quay by the boat with it open, once the town is up.
           if (takeRequest(shell) === 'chart') wantChart = true;

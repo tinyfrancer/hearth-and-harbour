@@ -352,6 +352,13 @@ export interface StageOptions {
    * in it. Nothing by default.
    */
   readonly insets?: Insets;
+  /**
+   * Hold the camera still, the whole map centred, whenever the whole map fits
+   * the view (edges and all): a room meant to be seen whole (the tide-pool
+   * cave's) does not drift a few pixels after the hero to keep him clear of
+   * the edges. The insets apply only to a map bigger than the view.
+   */
+  readonly holdWhenFits?: boolean;
   /** While true, time does not move the walker: a run paused, a door being gone through. */
   readonly frozen?: () => boolean;
   /**
@@ -373,8 +380,12 @@ export interface StageOptions {
    * smallest tap target, in art pixels.
    */
   readonly aim?: (point: Point, min: number) => Point;
-  /** More to draw this frame. */
-  readonly extra?: (now: number, palette: Palette) => StageExtra;
+  /**
+   * More to draw this frame, told where this frame's camera is (so anything
+   * placed by the screen's edges, or laid over the scene in the page, is
+   * placed by the frame it is drawn with, not the one before).
+   */
+  readonly extra?: (now: number, palette: Palette, look: StageLook) => StageExtra;
   /**
    * Told after each frame is drawn where the camera was and how many CSS
    * pixels an art pixel took: for laying something over the scene clear of
@@ -402,6 +413,13 @@ export interface StageOptions {
   readonly label: string;
   /** Shown instead of the scene by a browser that cannot draw one. */
   readonly fallback: string;
+}
+
+/** Where a frame's camera is: its top-left and the view's size, in art pixels, and CSS pixels an art pixel. */
+export interface StageLook {
+  readonly camera: Point;
+  readonly view: Size;
+  readonly cssPerArt: number;
 }
 
 const round = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) });
@@ -535,6 +553,8 @@ export function stage(options: StageOptions): View {
 
   const camera = (scale: number): Point => {
     const view = viewSize(device, scale);
+    if (options.holdWhenFits && world.width <= view.width && world.height <= view.height)
+      return cameraFor({ x: 0, y: 0 }, view, world);
     const room = inset(scale);
     const looked = options.lookAt?.() ?? null;
     const focus = looked ?? { x: play.walker.at.x, y: play.walker.at.y - rise };
@@ -681,7 +701,10 @@ export function stage(options: StageOptions): View {
     if (!ctx) return;
     const scale = scaleOf(device);
     const cam = camera(scale);
-    const extra = options.extra?.(now, palette) ?? null;
+    const cssPerArt = (scale * css.width) / device.width;
+    const extra =
+      options.extra?.(now, palette, { camera: cam, view: viewSize(device, scale), cssPerArt }) ??
+      null;
     // Where the walker is drawn: where they stand, or a little to the side if the scene says so.
     const feet = round({ x: play.walker.at.x + (extra?.walkerOffset ?? 0), y: play.walker.at.y });
     const left = play.facing === 'left';
@@ -779,7 +802,7 @@ export function stage(options: StageOptions): View {
     drawnLast = moving;
     extraLast = extra?.boxes ?? [];
     if (top) drawOverlay(top, extra, cam, scale);
-    options.seen?.(cam, (scale * css.width) / device.width);
+    options.seen?.(cam, cssPerArt);
   };
 
   /** Whether anything was drawn on the overlay last frame, so it is cleared once when there is nothing. */

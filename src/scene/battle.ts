@@ -80,9 +80,26 @@ export const SAY_MS = 2600;
 export const SWEEP_REACH = far(40);
 /** Brace: how long it waits for a heavy blow before it lapses. */
 export const BRACE_MS = 6000;
+/**
+ * Brace, answered: a heavy blow taken braced leaves its maker reeling this
+ * long before its next ordinary blow, and the hero's own next swing comes at
+ * once. So bracing is a trade (half the blow, for keeping up the fight) and
+ * stepping out another (none of it, for the time away), not a worse
+ * stepping out.
+ */
+export const BRACE_REEL_MS = 2400;
 /** Step back: how far, and how many times walking pace. */
 export const STEP_BACK = far(40);
 export const STEP_BACK_PACE = 4;
+/**
+ * Going back in: after the hero has got out of the way of a heavy blow (the
+ * ground tapped, or Step back, while he stood in its mark), this long after
+ * the last mark in the room has landed or lapsed he goes back to the foe he
+ * was fighting by himself. A player's own order before then (any tap on the
+ * ground or on a foe) is what happens instead; a person who means to go back
+ * in taps sooner than this, so only a player who gives no order is helped.
+ */
+export const RETURN_MS = 700;
 
 export type AbilityId = 'sweep' | 'brace' | 'double' | 'step_back';
 
@@ -314,6 +331,19 @@ export interface Battle {
   readonly braceUntil: number;
   /** Where a step back is taking him, at its quicker pace. */
   readonly dash: Point | null;
+  /**
+   * A walk was just ordered (the ground tapped) and not yet weighed: whether
+   * it was out of a mark is settled where he stood when it was given, at the
+   * start of the next stretch of the run (`stepOut`).
+   */
+  readonly walked?: boolean;
+  /**
+   * The foe he stepped out of a heavy blow from, to go back to once nothing
+   * marked is left in the room and `after` has come (`RETURN_MS`). Cleared by
+   * any order of the player's, by the foe falling or taking wing, and by the
+   * sea carrying him off.
+   */
+  readonly back?: { readonly key: string; readonly after: number };
   /** In the shallows at the last tick: he walks slower. */
   readonly wading: boolean;
   /** Being carried off ground the sea has covered, to here. */
@@ -794,8 +824,15 @@ function hurtHero(w: Work, dealt: number, hero: Point): void {
   if (w.hp === 0 && !w.over) w.over = { why: 'fell', at: w.clock };
 }
 
-/** A heavy blow landing: on the hero if he is in it, halved if he braced. */
-function land(w: Work, t: Telegraph, map: TileMap, hero: Point, def: MonsterDef | null): void {
+/** A heavy blow landing: on the hero if he is in it, halved if he braced (and answered: `BRACE_REEL_MS`). */
+function land(
+  w: Work,
+  t: Telegraph,
+  map: TileMap,
+  hero: Point,
+  def: MonsterDef | null,
+  by: Writable<Foe> | null = null,
+): void {
   const under = cellAt(t.at, T);
   const tile = inMap(map, under) ? map.tiles[under.row]![under.col] : undefined;
   const doused = !!t.douse && (tile === 'water' || tile === 'shallows');
@@ -806,6 +843,8 @@ function land(w: Work, t: Telegraph, map: TileMap, hero: Point, def: MonsterDef 
   if (inside && w.braceUntil > w.clock) {
     damage = Math.ceil(damage / 2);
     w.braceUntil = 0;
+    w.blowMs = 0;
+    if (by) by.blowMs = Math.max(by.blowMs, BRACE_REEL_MS);
   }
   if (def) {
     const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
@@ -825,6 +864,54 @@ function pickUp(w: Work, pile: Pile): void {
 /** The foes of this room that are standing, in the battle's order. */
 const standing = (w: Work, room: string): Writable<Foe>[] =>
   w.foes.filter((f) => f.room === room && alive(f));
+
+/** Every mark waiting to land in the room: its foes' heavy blows and a boss's volleys. */
+function marksIn(b: Battle, room: string): Telegraph[] {
+  const marks: Telegraph[] = [];
+  for (const f of b.foes) if (f.room === room && alive(f) && f.heavy) marks.push(f.heavy);
+  return [...marks, ...b.volleys];
+}
+
+/**
+ * A walk just ordered, weighed where he stands as it begins: out of a mark
+ * with a foe to fight, it is getting out of the way, and he will go back to
+ * that foe (`back`); anywhere else it is an order of its own, and he will not.
+ */
+function stepOut(w: Work, room: string, hero: Point): void {
+  delete w.walked;
+  delete w.back;
+  const foe = standing(w, room).find((f) => f.key === w.target);
+  const marks = marksIn(w, room);
+  if (!foe || !marks.some((m) => inMark(m, hero))) return;
+  w.back = { key: foe.key, after: Math.max(...marks.map((m) => m.lands)) + RETURN_MS };
+}
+
+/**
+ * Going back in (`RETURN_MS`): once he has stepped out of a mark and nothing
+ * marked is left, he goes after the foe he was fighting again, unless the
+ * player has since said otherwise. Waits while he is still walking, and
+ * while any mark in the room has yet to land.
+ */
+function goBack(w: Work, place: Place, here: readonly Foe[], map: TileMap, play: Play): void {
+  const back = w.back;
+  if (!back) return;
+  const room = place.room;
+  const foe = here.find((f) => f.key === back.key);
+  // Already fighting something else in reach (it came to him): that is the fight now.
+  const other = here.find((f) => f.key === w.target && f !== foe);
+  const busy = !!other && !held(w, place, other) && inReach(w, map, play.walker.at, other);
+  if (!foe || busy || w.wash || (foe.flight && foe.flight.mode !== 'down')) {
+    delete w.back;
+    return;
+  }
+  const marks = marksIn(w, room);
+  const after = Math.max(back.after, ...marks.map((m) => m.lands + RETURN_MS));
+  if (after !== back.after) w.back = { key: back.key, after };
+  if (marks.length > 0 || w.clock < after || play.walker.path.length > 0 || w.dash) return;
+  delete w.back;
+  w.target = foe.key;
+  w.chase = true;
+}
 
 /** The ground under some feet, now. */
 function tileUnder(map: TileMap<RoomTile>, at: Point): RoomTile | undefined {
@@ -991,7 +1078,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     const t = foe.heavy;
     foe.heavy = null;
     foe.heavyMs = foeKind(foe.monster).heavy!.everyMs;
-    land(w, t, map, hero, w.monsters[foe.monster]!);
+    land(w, t, map, hero, w.monsters[foe.monster]!, foe);
     if (w.over) return next;
   }
   if (w.volleys.length > 0) {
@@ -1041,6 +1128,9 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       w.piles.splice(i, 1);
     }
   }
+
+  // Back in after stepping out of a heavy blow, if the player has not said otherwise.
+  goBack(w, place, here, map, next);
 
   // The target: kept while it stands; if it is out of reach and not being
   // chased, whatever is nearest within reach becomes the target instead.
@@ -1448,6 +1538,8 @@ export function advanceBattle(
   const dice = new Dice(w.seed);
   let left = ms;
   let p = play;
+  // A walk ordered since the last stretch: where he stands now is where it was given.
+  if (w.walked) stepOut(w, place.room, p.walker.at);
   while (left > 0) {
     const next = (Math.floor(w.clock / TICK_MS + 1e-9) + 1) * TICK_MS;
     const toTick = next - w.clock;
@@ -1483,7 +1575,7 @@ export function targetFoe(
   const hero = play.walker.at;
   const there = inReach(battle, map, hero, foe);
   return {
-    battle: { ...battle, target: key, chase: true, dash: null },
+    battle: { ...battle, target: key, chase: true, dash: null, back: undefined, walked: undefined },
     play: {
       ...play,
       walker: {
@@ -1497,9 +1589,20 @@ export function targetFoe(
   };
 }
 
-/** The ground tapped: walk there, still marking the target but no longer going after it. */
+/**
+ * The ground tapped: walk there, still marking the target but no longer
+ * going after it. Out of a heavy blow's mark, he goes back to the target by
+ * himself once the blow has landed (`RETURN_MS`); anywhere else, he does not.
+ */
 export function stopChasing(battle: Battle): Battle {
-  return battle.chase || battle.dash ? { ...battle, chase: false, dash: null } : battle;
+  if (!battle.chase && !battle.dash && !battle.back && battle.target === null) return battle;
+  return {
+    ...battle,
+    chase: false,
+    dash: null,
+    back: undefined,
+    walked: battle.target !== null ? true : undefined,
+  };
 }
 
 /** Why an ability cannot be used just now, or null if it can. */
@@ -1578,6 +1681,7 @@ export function useAbility(
     const to = stepBackTo(battle, place, play)!;
     w.dash = to;
     w.chase = false;
+    stepOut(w, place.room, hero);
     next = { ...next, walker: { at: hero, path: [to] }, heading: null };
   }
   w.seed = dice.seed;

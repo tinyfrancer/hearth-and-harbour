@@ -1,17 +1,10 @@
 /*
- * STAND-IN SEAM (lane B, wave 15). Everything this scene needs from lane B's
- * early PR that is not on `main` yet, in one place, so swapping the real
- * thing in is an edit to this file alone. Until then each part is a plain
- * stand-in, drawn here as simply as will read, never meant to ship as art:
- *
- * - the town's markers over tappable things (`townMarker2`) and the ring
- *   under the one a tap would use;
- * - the ferryman's figure (the docker's until lane B draws him), the boat's
- *   sign and its bow lantern;
- *
- * Lane B's first PR (#63) is in: the harbour chart, its pieces and route are
- * theirs (below, painted for the page), and the Old Snapper is drawn
- * (`foeArtId` gives his own id now that the art lane has a size for him).
+ * What this scene takes from lane B, in one place: the harbour chart and its
+ * pieces (B15), the town's markers, ring and edge-of-screen pointer (B15b,
+ * B16), the ferryman, the boat's sign and its bow lantern, painted for the
+ * page. Lane B's B16 markers (a `'large'` size, `townPointer2`) are read
+ * through a local signature (`laneB` below), so this scene ran on `main`
+ * before they landed: a small marker and a pointer of its own until then.
  */
 import {
   chartBoat2,
@@ -25,9 +18,9 @@ import {
 } from '../art/chart';
 import type { Picture2 } from '../art/town2/cells';
 import { foeSize2 } from '../art/dungeonArt2';
+import * as markers2 from '../art/town2/markers';
 import {
   townHighlight2,
-  townMarker2,
   TOWN_MARKER2_FRAMES,
   TOWN_MARKER2_FRAME_MS,
   type TownMarker2,
@@ -167,10 +160,52 @@ function townMark(key: string, make: () => TownMarker2, time: TimeOfDay): TownMa
   return marks.get(k)!;
 }
 
+/** How big a marker is: lane B's quiet one, or the larger one for across the square (B16). */
+export type MarkerSize = 'small' | 'large';
+
+/**
+ * Lane B's markers as wave 16 has them: `townMarker2` with a third, optional
+ * size (B16's first PR), and `townPointer2`, a chevron for the screen's edge.
+ * Read through a local signature so this scene type-checks and runs whether
+ * or not that PR is on `main`: before it, the size is ignored (a small
+ * marker comes back) and there is no pointer (this scene draws its own).
+ */
+const laneB = markers2 as unknown as {
+  townMarker2(kind: TownMarker2Kind, frame?: number, size?: MarkerSize): TownMarker2;
+  townPointer2?(direction: PointerDirection, frame?: number): TownMarker2;
+};
+
+/** Whether lane B's larger marker is in (else a `'large'` marker is the small one). */
+export function largeMarkersIn(): boolean {
+  return typeof laneB.townPointer2 === 'function';
+}
+
 /** A marker for something tappable in town, by kind, at a frame of its bob and a time of day. */
-export function townMarker(kind: MarkerKind, frame: number, time: TimeOfDay): TownMark | null {
+export function townMarker(
+  kind: MarkerKind,
+  frame: number,
+  time: TimeOfDay,
+  size: MarkerSize = 'small',
+): TownMark | null {
   const f = ((frame % MARKER_FRAMES) + MARKER_FRAMES) % MARKER_FRAMES;
-  return townMark(`marker ${kind} ${f}`, () => townMarker2(kind, f), time);
+  return size === 'large'
+    ? townMark(`marker ${kind} ${f} large`, () => laneB.townMarker2(kind, f, 'large'), time)
+    : townMark(`marker ${kind} ${f}`, () => laneB.townMarker2(kind, f), time);
+}
+
+/** Which way the edge-of-screen pointer points. */
+export type PointerDirection = 'left' | 'right' | 'up' | 'down';
+
+/** Lane B's edge-of-screen chevron (B16), or null before it is in (the scene draws a plain one). */
+export function townPointer(
+  direction: PointerDirection,
+  frame: number,
+  time: TimeOfDay,
+): TownMark | null {
+  const make = laneB.townPointer2;
+  if (!make) return null;
+  const f = ((frame % MARKER_FRAMES) + MARKER_FRAMES) % MARKER_FRAMES;
+  return townMark(`pointer ${direction} ${f}`, () => make(direction, f), time);
 }
 
 /** The ring round the thing a tap would use, `w` across, at a frame. */

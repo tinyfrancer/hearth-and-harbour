@@ -63,6 +63,8 @@ import { foeArtId } from './fromLaneB';
 import { anchorOf, FIGURE2_SOLE_Y, heroPose, POSES2, STRIKE_POSES2 } from './figures2';
 import {
   lessonBlocks,
+  lessonStage,
+  lessonText,
   shownLesson,
   skipLessons,
   stepLessons,
@@ -84,9 +86,9 @@ import type { Play } from './play';
 import type { Size } from './camera';
 import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
-import { dungeonScale } from './scale';
+import { roomScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
-import { stage, type Insets, type StageExtra, type StillPicture } from './stage';
+import { stage, type Insets, type StageExtra, type StageLook, type StillPicture } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
 
@@ -100,6 +102,13 @@ export const DUNGEON_INSETS: Insets = { top: 64, right: 56, bottom: 80, left: 56
 
 /** How far above the hero's feet the camera looks: the middle of a 64-pixel figure, as in town. */
 export const FOCUS_RISE_DUNGEON = 30;
+
+/**
+ * A room no wider than this (art pixels: two of the dungeons' screens of
+ * world across) is meant to be seen whole, like the tide-pool cave's; the
+ * grotto's (816) are wider and the camera travels them.
+ */
+export const ONE_SCREEN = 2 * DUNGEON.scene.width;
 
 /** Half the width of the hero's contact shadow, as the art lane's figures are shaded (22 across). */
 export const HERO_SHADOW = 11;
@@ -684,20 +693,31 @@ export function dungeonView(options: DungeonViewOptions): View {
   /** Whether the room's doors have begun to open: the ground about them is lit from beyond. */
   const doorsAreOpen = (run: Run): boolean => !!run.battle && doorsOpen(run.battle, run.room) > 0;
 
-  /** What the camera showed last frame, in art pixels, less the edges kept for the HUD. */
-  const viewBox = (): Box | null => {
-    if (!lookedAt || lookedAt.cssPerArt <= 0) return null;
-    const per = lookedAt.cssPerArt;
+  /** What the camera shows this frame, in art pixels, less the edges kept for the HUD. */
+  const viewBox = (look: StageLook): Box | null => {
+    const per = look.cssPerArt;
+    if (!(per > 0)) return null;
     return {
-      x: lookedAt.camera.x + DUNGEON_INSETS.left / per,
-      y: lookedAt.camera.y + DUNGEON_INSETS.top / per,
-      w: (size.width - DUNGEON_INSETS.left - DUNGEON_INSETS.right) / per,
-      h: (size.height - DUNGEON_INSETS.top - DUNGEON_INSETS.bottom) / per,
+      x: look.camera.x + DUNGEON_INSETS.left / per,
+      y: look.camera.y + DUNGEON_INSETS.top / per,
+      w: look.view.width - (DUNGEON_INSETS.left + DUNGEON_INSETS.right) / per,
+      h: look.view.height - (DUNGEON_INSETS.top + DUNGEON_INSETS.bottom) / per,
     };
   };
 
   /** The rooms in the order a run meets them: the one after this is painted ahead. */
   const order = Object.keys(dungeon.rooms);
+  /** The largest room of the dungeon, art pixels: the one scale for all its rooms (`roomScale`). */
+  const biggestRoom: Size = order.reduce(
+    (most, id) => {
+      const map = dungeon.rooms[id]!.map;
+      return {
+        width: Math.max(most.width, map.cols * DUNGEON.tile),
+        height: Math.max(most.height, map.rows * DUNGEON.tile),
+      };
+    },
+    { width: 0, height: 0 },
+  );
 
   const showRoom = (): void => {
     const run = options.run();
@@ -774,7 +794,10 @@ export function dungeonView(options: DungeonViewOptions): View {
       play: run.play,
       keep: () => {},
       press: () => {},
-      scaleOf: (device) => dungeonScale(device, DUNGEON.scene.width),
+      // As large as a whole room still fits: the cave's one-screen rooms fill a wide phone.
+      scaleOf: (device) => roomScale(device, biggestRoom, DUNGEON.scene.width),
+      // A dungeon of one-screen rooms is seen whole, the camera still; the grotto's rooms travel.
+      holdWhenFits: biggestRoom.width <= ONE_SCREEN,
       focusRise: FOCUS_RISE_DUNGEON,
       pixelated: true,
       overlay: true,
@@ -815,9 +838,9 @@ export function dungeonView(options: DungeonViewOptions): View {
         if (!door) return point;
         return centreOf(runLocked(run) ? door.inside : door.cell, DUNGEON.tile);
       },
-      extra: (now) => {
+      extra: (now, _palette, seenNow) => {
         const run = options.run();
-        const extra = fightExtra(dungeon, run, look, art, { view: viewBox(), barredTap });
+        const extra = fightExtra(dungeon, run, look, art, { view: viewBox(seenNow), barredTap });
         const lesson = run.doorway ? null : shownLesson(run.lessons, lessons);
         return lesson ? withRing(extra, lesson.ring(dungeon, run), now) : extra;
       },
@@ -1050,10 +1073,10 @@ export function dungeonView(options: DungeonViewOptions): View {
    * one showing put on screen: its words, and the button it rings pulsing.
    * Not behind the turn-your-phone prompt or a Resume, nor through a door.
    */
-  function showLesson(): void {
+  function showLesson(ms = 0): void {
     let run = options.run();
     if (run.lessons && !run.lessons.off && sideways(size) && !waiting && roomIn(run)) {
-      const next = stepLessons(run.lessons, lessons, dungeon, run);
+      const next = stepLessons(run.lessons, lessons, dungeon, run, ms);
       if (next !== run.lessons) {
         run = { ...run, lessons: next };
         options.keep(run);
@@ -1061,7 +1084,10 @@ export function dungeonView(options: DungeonViewOptions): View {
     }
     const lesson = run.finished || run.doorway ? null : shownLesson(run.lessons, lessons);
     lessonCard.hidden = !lesson;
-    if (lesson) setText(lessonWords, lesson.text(dungeon, run));
+    if (lesson) setText(lessonWords, lessonText(run.lessons, lesson, dungeon, run));
+    // Said plainly once it has waited a while: the card says so too.
+    const stage = lesson ? String(lessonStage(run.lessons)) : '';
+    if (lessonCard.dataset.stage !== stage) lessonCard.dataset.stage = stage;
     const ring = lesson?.ring(dungeon, run) ?? null;
     const which = ring?.kind === 'button' ? ring.which : null;
     const button =
@@ -1081,10 +1107,16 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   showRoom();
   if (options.run().finished) showResults();
+  /** The app's clock at the last frame. */
+  let lastNow: number | undefined;
 
   return {
     el: root,
-    update: (state: GameState) => {
+    update: (state: GameState, now?: number) => {
+      // The page's time since the last frame, for how long a lesson has waited (not the run's clock).
+      const ms =
+        now === undefined || lastNow === undefined ? 0 : Math.min(250, Math.max(0, now - lastNow));
+      lastNow = now;
       const before = options.run();
       const ready = sideways(size);
       prompt.hidden = ready || before.finished;
@@ -1105,7 +1137,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         showResults();
         options.finished();
       }
-      showLesson();
+      showLesson(ms);
       showFight(options.run());
       showTitle(after, playing() && !after.doorway);
       placeTitle(after);
