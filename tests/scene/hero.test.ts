@@ -50,7 +50,9 @@ describe('the hero is the player’s own character', () => {
         (c) => c.id !== (a.look as unknown as Record<string, string>)[part],
       );
       expect(other, part).toBeDefined();
-      expect(dressKey({ ...a, look: { ...a.look, [part]: other!.id } }), part).not.toBe(dressKey(a));
+      expect(dressKey({ ...a, look: { ...a.look, [part]: other!.id } }), part).not.toBe(
+        dressKey(a),
+      );
     }
     // A part the art has not got yet still changes the key.
     expect(dressKey({ ...a, look: { ...a.look, cape: 'red' } as typeof a.look })).not.toBe(

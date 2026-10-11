@@ -242,8 +242,12 @@ describe('the way onward', () => {
     const c = centreOf(b.cell, T);
     expect(c.x).toBeGreaterThanOrEqual(box.x);
     expect(c.x).toBeLessThanOrEqual(box.x + box.w);
-    // Open and settled: nothing redrawn for the doors.
-    const open = fightExtra(grotto, cleared('store', ['pools', 'store']), look, art);
+    // Put in place already open (a run taken up, a jump): drawn again on that frame...
+    const settled = cleared('store', ['pools', 'store']);
+    const first = fightExtra(grotto, settled, look, art);
+    for (const d of look.doorsAt(0, false)) expect(first.boxes).toContainEqual(d.box);
+    // ... and once open and settled, not again.
+    const open = fightExtra(grotto, settled, look, art);
     for (const d of look.doorsAt(0, false)) expect(open.boxes).not.toContainEqual(d.box);
     // A barred door tapped says so for a moment, over it.
     const shut = { ...begin(prepared(), 3), room: 'store' };

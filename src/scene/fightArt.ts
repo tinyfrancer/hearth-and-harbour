@@ -1015,6 +1015,11 @@ export interface FightArt {
   readonly foes: FoePictures;
   readonly shadows: Map<string, CaveShadow>;
   readonly loot: LootArt | null;
+  /**
+   * How open the doors were drawn last frame, and the doors' pictures then: a
+   * change (fading, or a run put in place with them open) draws them again.
+   */
+  readonly doorsDrawn: { opening: number; shown: readonly unknown[] | null };
 }
 
 /** What a fight in a room draws with, made once for the room's look. */
@@ -1023,6 +1028,7 @@ export function fightArtFor(look: RoomLook): FightArt {
     foes: new FoePictures(look.glows),
     shadows: new Map(),
     loot: lootArt(),
+    doorsDrawn: { opening: -1, shown: null },
   };
 }
 
@@ -1384,7 +1390,11 @@ export function fightExtra(
     }
   });
   // The doors are drawn again only while they fade open.
-  if (opening > 0 && opening < 1) for (const d of doors) boxes.push(d.box);
+  if (opening !== art.doorsDrawn.opening || doors !== art.doorsDrawn.shown) {
+    for (const d of doors) boxes.push(d.box);
+    art.doorsDrawn.opening = opening;
+    art.doorsDrawn.shown = doors;
+  }
   const tide: TideNow = tideOf(battle, place);
   const ripples = rising(tide, clock) ? aboutToFlood(room, tide.level) : [];
   for (const c of ripples) boxes.push({ x: c.col * T, y: c.row * T, w: T, h: T });

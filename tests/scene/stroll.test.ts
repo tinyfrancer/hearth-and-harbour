@@ -356,7 +356,8 @@ describe('passing each other', () => {
     for (let t = 0; t < 20_000; t += 50) {
       clocks = folkOn(clocks, 50, startPlay({ x: -999, y: -999 }));
       const s = strolling(clocks)[0]!;
-      if (s.walking && s.at.y === centreOf({ col: 0, row: 51 }, TOWN2_TILE).y && s.at.x < 130) break;
+      if (s.walking && s.at.y === centreOf({ col: 0, row: 51 }, TOWN2_TILE).y && s.at.x < 130)
+        break;
     }
     const her = strolling(clocks)[0]!.at;
     let drawn: Point[] | null = null;

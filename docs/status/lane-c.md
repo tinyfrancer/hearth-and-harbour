@@ -1,8 +1,8 @@
 # Lane C: scenes
 
 **Next session: S16, dungeon progression and replay** (brief to come in `docs/lanes.md`; what it
-needs from the scene is under Notes, "For S16"). The grotto is at the C scale (wave 11); wave 12
-cleaned up its weak spots.
+needs from the scene is under Notes, "For S16", and "More dungeons" below). Wave 14 wired lane
+B's three-tile doors and the run kept through a reload, and dealt with wave 12's weak spots.
 
 ## The town's map
 
@@ -46,8 +46,12 @@ sideways screens of 360), with two rows of rock on top so lane B's wall is two t
 floor (the lanterns hang on the second).
 
 Every door is in a side wall (the room's first or last column) and is drawn with lane B's
-side-wall door (`door_side_open`/`door_side_barred`, turned to the open ground beside it), the
-rock above and below it the rock's top (`doorTile`, `tileKindsAt` in `grottoArt.ts`).
+side-wall door piece (`dungeonDoor2`, B13: 2 x 3 tiles, its door cell the middle of the inner
+column, the outer column past the room's edge), turned to the open ground beside it
+(`doorPieces`, `grottoArt.ts`). The ground is painted with every door barred; the open piece and
+the ground its light from beyond reaches are laid over it (`doorPaints`, `RoomLook.doorsAt`),
+fading in as the room is cleared. A door is still one walkable cell; its whole piece is its tap
+target (`doorUnder`), and a tap or a held finger anywhere on it walks to that cell (`aim`).
 
 | Room     | Tiles   | Doors              | Who (col, row)                                                          | The tide here                                                                                        |
 | -------- | ------- | ------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -66,6 +70,123 @@ rock above and below it the rock's top (`doorTile`, `tileKindsAt` in `grottoArt.
   each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 14: the doors as the way onward, the run kept through a reload, beards, the weak spots**
+  (Cody's Milestone A feedback #22, "dungeon doors to new areas too small", and lane A's save
+  version 9). No fight position, reach, pace, event or number changed: `scaleTimeline.test.ts`,
+  `grottoRun.test.ts` and every balance test pass with their expectations untouched. Review
+  sheets in `/home/claude/lane-shots/w14-c/`.
+  - **Doors as pieces** (`doorPieces`, `doorPaints`, `groundWithDoors`, `doorUnder` in
+    `grottoArt.ts`): every one of the eight grotto doors is lane B's `dungeonDoor2` piece, told
+    its neighbours (`aroundOf`) so it turns to its room, laid after the tiles and before anything
+    standing at the door cell's top-left plus (`dx`, `dy`). The ground (in the worker) is painted
+    with the barred pieces; with the open pieces and their light from beyond (moved with
+    `lightAt`, added to the room's lights) the ground about each door is worked out too, only
+    there (lit cells only inside each door's reach, so the worker's cost per tide state is
+    about the same: 112 to 157 ms a state with the doors' boxes, 120 to 142 for the barred ground
+    alone, in jsdom; lit across the whole room it was nearly double), and handed over
+    as a box of cells per door, barred and open (`DoorPaint`, `GroundAnswer.doors`). Past the
+    room's edge only the passage and its jambs show (the cells where the two pieces differ, 4 px
+    above and below); the rock round it would stand out of the room into the dark like a block.
+    `RoomLook.doorsAt` paints each box both ways; `fightExtra` draws barred while anything in the
+    room stands, then the open box fading in over `DOOR_LIFT_MS` (the light coming on), and draws
+    the boxes again whenever that changes (`FightArt.doorsDrawn`, so a run put in place with its
+    doors open is drawn open at once). The hero's contact shadow and the foes' are cut from the
+    open ground once the doors open (`cellsAt(level, warn, open)`), and the hero is lit by the
+    doors' glows too (`openGlows`). `barredDoor` and `FightArt.bars` are gone.
+  - **The way onward** (`wayOnward`, `wayMarks`, `doorsOpen` in `fightArt.ts`): once a room is
+    clear, over each open door to a room not yet cleared, a gold chevron at the screen's
+    resolution bobbing out through it, two rings spreading from it for `WAY_PULSE_MS` (2.4 s)
+    after it opens, and while it is off the screen a larger chevron at the screen's edge (inside
+    the HUD's insets, from the camera of the last frame, `viewBox` in `dungeonView.ts`) pointing
+    to it. None while shut, none back the way he came, none in the last room.
+  - **Tapping a door**: the whole piece, past the room's edge too, grown to a thumb where smaller
+    and 4 px all round, is the door (`doorUnder`). The stage takes a new `aim` option: a tap, or
+    a held finger steering, anywhere on an open door's piece walks to its one cell, so through it
+    (walking into it works as before); on a barred door's piece, to the cell inside it, and the
+    door says "Barred" over itself for `BARRED_SAY_MS` with a small shake (`barredTap`). Foes
+    under the finger still come first.
+  - **Proof nothing logical moved**: walkability, door cells, the doorway's timing and every
+    fight rule are untouched (`grottoRules`, `grotto`, `dungeon` tests unchanged);
+    `scaleTimeline.test.ts` and `grottoRun.test.ts` pass with their expectations untouched. New
+    `tests/scene/doors.test.ts`: pieces on all eight doors (size, place, turned to the room,
+    light only when open), barred and open ground differing only within four tiles of a door,
+    each door's boxes holding exactly the ground as painted each way and every changed cell,
+    the off-map passage only, a painter that leaves the doors out giving the same, the tap target
+    over the whole piece, the fade, the way onward (which doors, the edge arrow), and what the
+    frame says it draws. `run.test.ts`: a tap on the rock over a barred door walks him to the cell
+    inside it and no further; once cleared, a tap on the rock below the opening past the room's
+    edge takes him through to the next room.
+  - **The run kept through a reload** (`townView.ts`, `runSave.ts`, `dungeonView.ts`): the run is
+    handed to the shell (`Shell.keepRun`, lane A's) as it rows out, whenever its room, a door,
+    its kills or what was picked up change (`runMark`), at least every `KEEP_EVERY_MS` (3 s) of
+    the app's clock, and at once when the page is hidden (`pagehide`, and `visibilitychange` to
+    hidden, heard on `window` in the capture so it comes before the app's own save on the same
+    event). Each snapshot carries when it was kept (`savedRunOf(run, keptAt)`, `keptAtOf`; not
+    part of the run, left out by `restoreRun`); one over the save's 256 KB is handed over with its
+    spoils and an empty snapshot instead, so the save is never set aside for it (a run is about
+    14 KB). When the Town tab is built with no run in memory and `Shell.savedRun()` holds one this
+    scene can read, the run is put back as it stood, the idle clock stopped and the bars gone, and
+    paused behind a Resume card (`dungeonView`'s `resume`: the stage frozen, the ability, food and
+    room taps refused, Leave still there over it); one it cannot read, or kept more than
+    `TAKE_UP_MS` (60 s) ago by the app's clock on the first frame, is settled from its spoils as
+    rowed home early and the town shown. Settling (leave, a knock-out, a clear) hands the shell
+    `null` as well as settling, and nothing is kept once a run is settled or finished. The dice's
+    seed now comes from the app's clock as passed in (`View.update`'s `now`; a view updated
+    without one, as tests do, reads the date as before). Measured: the keep is 0.4 ms (median,
+    worst 7.8 ms) at 4x CPU throttle in the captain's second phase; frame rates with the cadence
+    on match `main`'s within the sandbox's noise (`frame-rates.txt`). Proved in Playwright (dev
+    server, 844 x 390 at 3x, `reload-proofs.txt`): reloaded mid-fight on the bridge, the Town tab
+    takes it up in the same room with the same health, the deckhands' health the same, the clock
+    held while the card shows, and on Resume it runs; reloaded in the captain's second phase, the
+    same phase and health (76 of 180); reloaded with the save two minutes old, the app settles it
+    ("cut short") with the three doubloons and coins in the bank and no run left kept, and Town
+    shows the town. `tests/scene/runKeep.test.ts` (through a stand-in shell that keeps what it is
+    handed through JSON, as the app does): kept on rowing out, on a kill and every 3 s; at once on
+    page hide; taken up in the same room paused behind Resume, time held; after Resume, 20 s of a
+    real fight (the crabs brought to him, one his target, dice rolled) equal to the unbroken run
+    through the shell's path; settled, not taken up, when kept too long ago or unreadable; let go
+    of on leaving and never kept again.
+  - **The look key** (`dressKey`, `hero.ts`): every part of the look by name (`beard=…`,
+    `hair=…`, sorted), whatever parts it has, then what is worn; so a change of beard, or of any
+    part lane B adds later, draws the hero afresh in town and in the dungeons. The loading card
+    does not show him. Tested over every part of `LOOK_CHOICES2`, a part the art does not have,
+    and a beard change redrawing `Hero2`.
+  - **Strollers** (`stroll.ts`, `town2Folk.ts`, `town2Place.ts`): on a way across the screen a
+    stroller steps aside by at least `PASS_DEPTH` (26 px, more than a tile) where she passes the
+    hero, so she reads as walking behind him (her head over his) or in front, not through him
+    (was 11.5 px); which side is chosen once for her whole passing, by whether it is open where
+    she is furthest aside, so she never swaps sides as the ground beside her changes; she comes
+    back onto her route over the last tile of each stretch, so a step aside never ends in a jump
+    at a corner or a rest (`END_EASE`). Where someone crosses straight through her line beside
+    her she still goes round his other side, but she is drawn sliding there at most
+    `GLIDE_SPEED` (120 px/s, three times her walk; `glide`), drawing only: taps and the hero's
+    walk go by where she is. Tested: never in his room, passing at least 25 px off level with
+    him, smooth frame to frame (a pixel or so a frame), and the cut-across drawn without a jump
+    while where she is does jump.
+  - **Rowing out on a slow phone** (`townView.ts`): the town now waits up to `ROW_OUT_WAIT_MS`
+    (8 s, was 1.5) for the first room's ground from the worker, up and moving, and after
+    `ROW_OUT_SHOW_MS` (0.3 s) says so with a "Rowing out…" card and a moving bar
+    (`.scene-rowing`); only past 8 s is the room worked out on the spot. Tested with a worker
+    that never answers: the card shows, the strollers walk on under it, and out he goes at the
+    end.
+  - **The loading card at the town's grain** (`cardScale(dpr, screen)`, `cardView`,
+    `loadingScene.ts`): three device pixels an art pixel on a 3x phone, the town's own scale rule
+    on this screen, the harbour cut on the left to the card's width (330 of its 432 at 390 wide;
+    the boat comes in from the cut edge, the gull flies within it); wider on a wide screen (up to
+    640 CSS, the card with it).
+  - **The face at 1x** (`faceFrame`, `face.ts`): no whole scale is under 72 CSS pixels there, so
+    the face is cut top and bottom to its safe box's height (56), centred on it, and the panel
+    keeps its height; phones unchanged.
+  - **Wide foes** (`APART_MOST` 12 to 14 in `apart.ts`, drawing only): with lane B's narrowed
+    captain (front 38) he needs 8 px and gets them; the giant crab needs 14 (its front 41 against
+    the hero's 13 at the 36 px stand, less the 4 allowed) and now gets it, so its claws touch him
+    by the 4 px every pair is allowed rather than 6. `wide-foes-before-after.png`.
+  - **Foes' blades**: nothing in the scene mirrors a foe's picture itself; foes come from lane
+    B's `foePicture2`/`foeSprite2` by facing (its left is its exact mirror, which is right for a
+    figure seen from the side), the hero's standing left is the mirror of his right, as before.
+    Brinebeard's cutlass held up reads as a slightly curved blade, point up, in both facings
+    (`captain-cutlass-both-facings.png`); the smuggler is not in the grotto.
 
 - **Wave 12: the cleanup and the weak spots** (Cody: "Go for the cleanup and the weak spots you
   mentioned"). No fight position, reach, pace, event or number changed: `scaleTimeline.test.ts`,
@@ -859,40 +980,49 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 12)
+## Weak spots, honestly (wave 14)
 
-- **Drawn apart is partial.** At the stand the hero is shown 12 px off a giant crab (the cap; a
-  claw's tip still touches him) and 9 off the captain (his cutlass arm, held clear of his body,
-  still crosses the hero's shoulder). A deckhand pressed right against the captain is moved the
-  full 12 and still stands over a corner of his coat. The marks on the ground judge the hero's
-  true feet, so for those moments he is drawn up to 12 px from where a slam or a volley line
-  would find him. The balance-changing alternative, for Cody: stand the hero (and the crew) off
-  by the foe's body (`FOE2_SIZES` box half plus the hero's) instead of a fixed 36 px; that moves
-  every melee distance with a wide foe, so the balance tests' expectations would move.
-- **The strike's facing** follows the target each frame: a target crossing above or below him
-  mid-swing turns the swing between across and down or up. In profile the blow is drawn wider
-  than his standing figure, and the drawn-apart offset is reckoned from his standing body, so a
-  swing can still reach over a wide foe (as a blade should).
-- **Strollers pass behind (or in front of) the hero** on a way that runs across the screen:
-  his room is 10 px deep there, so she passes 11.5 px above or below his feet, drawn behind or
-  in front by her feet, the two figures overlapping as people passing in a street do. On a way
-  up or down she steps a tile aside. Someone crossing straight through her line while she is
-  beside them makes her swap sides at once (a jump of up to twice her step), and tapping a
-  stroller mid-step returns her to her route as she stops to talk.
-- **Rowing out can wait** up to 1.5 s with the town still up while the worker paints the first
-  room (in practice it is painted as the boat's panel opens). If the worker is slower than
-  that, the room is worked out on the spot, a pause of a tenth of a second or more (more at 4x)
-  with the town frozen: not dark, but a hitch.
-- **A face at 1x is 72 CSS px** and the panel grows to fit it (a desktop browser): whole, but
-  taller than the strip the room's name and the panels were laid out for.
-- **The loading card's pixels are finer than the town's** (two device pixels an art pixel at 3x,
-  not three) so the wider harbour fits a phone; at 2x it is one, 216 CSS px across.
-- Frame rates and timings are headless Chromium in software on this sandbox, not a phone. Not
-  checked in WebKit or Safari (none here), nor on the live site (unreachable from here).
+- **A reload lands on the Skills tab.** The app opens on Skills after any load; the kept run is
+  taken up only when the Town tab is built. Until the player taps Town the run sits in the save
+  (and the idle game runs meanwhile, as on any tab); if they tap Town more than a minute after
+  it was kept, the scene settles it rather than resuming it (`TAKE_UP_MS`, on the app's clock).
+  A shell that opened Town when it offers a run back would make resuming automatic (lane A,
+  under Needs).
+- **What a reload takes back is up to a frame old**, and a page killed without `pagehide` or
+  `visibilitychange` (a crash) loses up to 3 s of run: the last kept snapshot comes back with its
+  own dice, so the same taps give the same blows from there.
+- **The open door's passage past the room's edge** shows only the lit (or dark) passage and its
+  jambs, hanging into the backdrop beyond the room, with no rock round it out there: a doorway
+  into the dark at the room's end, but a hard-edged shape where the camera shows past the edge
+  (only in the HUD's side insets).
+- **The way onward's edge arrow** is placed from the previous frame's camera, so for a frame after
+  a big camera move it can sit a few pixels off; it is inside the HUD's side inset.
+- **A tap on a barred door** walks him to the cell inside it (as near as the ground allows if a
+  foe stands there); "Barred" is drawn over the door for 1.2 s over whatever is there.
+- **Drawn apart is still partial for the crab's claws**: every pair may touch by 4 px, and the
+  crab's claw tips, drawn beyond its declared front in some frames of its walk and blow, can
+  reach over the hero's sword arm by a few pixels. He is drawn up to 14 px (was 12) from where a
+  slam or a volley line would find him. The strike's facing still follows the target each frame.
+- **Strollers still overlap the hero when passing behind him**: 26 px behind, her head shows over
+  his and her body is behind his, two figures in a street. Where both sides beside her way are
+  shut there, she stops and turns back as before.
+- **Rowing out on a very slow worker** (over 8 s) still works the room out on the spot, a pause
+  with the town held still; under 8 s the town is up and moving under the rowing-out card.
+- **The loading card at the town's grain** shows 330 of the harbour's 432 art pixels on a 390-wide
+  phone; the open water at its left is cut.
+- **The 1x face** is cut to its safe box's height; the crab's and the captain's safe boxes are the
+  portrait's full width, so at 1x the face is 72 CSS px wide in the 200 px panel.
+- Frame rates and timings are headless Chromium in software on a sandbox shared with the other
+  lanes' test runs (load about 4 while measuring), not a phone. Not checked in WebKit or Safari
+  (none here), nor on the live site (unreachable from here).
 
 ## Deferred
 
-- The overlap's balance-changing fix (above), Cody's decision.
+- The overlap's balance-changing fix (stand the hero off by the foe's body instead of a fixed
+  36 px), Cody's decision. With lane B's narrowed captain and the 14 px cap, the hero no longer
+  stands inside either wide foe: he touches each by the 4 px every pair is allowed
+  (`wide-foes-before-after.png`). This lane's view: the decision is no longer needed for the
+  look; it would matter only if Cody wants visible air between them.
 - From S16a: **not checked in Safari.** No WebKit build exists under `/opt/pw-browsers` and the
   Playwright WebKit download is blocked by this sandbox's proxy. Unverified there: that WebKit
   enlarges the town's and the rooms' canvases nearest-neighbour (`image-rendering: pixelated`;
@@ -900,11 +1030,11 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   words sit on the room in Safari's own rounding, that module workers with `OffscreenCanvas` take
   the bitmap path (Safari 16.4 and later), the kept town in Safari and the home-screen app, and
   frame rates on a real phone. If Safari smooths, the way back is `pixelated: true` off in
-  `town2Stage()` (`town2Place.ts`) and the dungeon's stage options, at the old frame cost.
+  `town2Stage()` (`town2Place.ts`) and the dungeon's stage options, at the old frame cost. Also
+  unverified there: that `pagehide` heard in the capture comes before the app's save in Safari
+  and the home-screen app (else the run is kept up to 3 s old).
 - From wave 10: a few frames over 40 ms still occur in town at 4x (0 to 4 in two minutes), with no
   script in them; not something this lane's code can reach in headless Chromium.
-- **A run is not saved while it lasts** (the pure half is here, `runSave.ts`; the save, the
-  version and the shell's calls are lane A's): a reload loses the run.
 - From S15: dungeons are always dusk.
 - From S14b, by choice: no eating by itself in a run (the food button is the player's); a heavy
   attack's circle is drawn over rock as well as floor.
@@ -912,27 +1042,65 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Needs from another lane
 
-- **Lane A:** (1) the cast now comes from `src/data/dungeons.ts` (`GROTTO_CAST` is built from
-  `DUNGEONS.brinebeards_grotto.cast`), so the drift test in `tests/data/content.test.ts` is
-  trivially true and can go (this lane did not touch it; it still passes). (2) `RunSpoils.dropped`
-  is filled (by monster id, each item once, as rolled when the foe fell, picked up or not; only
-  when something dropped), and `timeMs` (the run's length) comes with every settle. (3) The
-  run's save: `snapshotRun`, `restoreRun(data, scene)`, `savedRunOf(run)` and
-  `RUN_SCENE_VERSION` in `src/scene/runSave.ts`, pure and tested; the save's version, the
-  migration, `saveProblem` and the shell's `keepRun`/`savedRun` are yours. When you wire it, the
-  scene's half (calling `keepRun` on entering a room and every few seconds, taking the run back
-  in `townView`, a seed from `now` passed in rather than `Date.now()`) is this lane's next. (4)
-  The scene's tests tap `.scene canvas.scene-canvas`, so the header face can stay on Town.
-  Later wish, as before: the notice board could open `openBounties`.
-- **Lane B:** (1) the giant crab and the captain are drawn wider than the fight's 36 px stand (a
-  claw's tip, his cutlass arm): either drawn tighter about their feet, or the balance-changing
-  stand-off in the weak list, for Cody. (2) Nothing else blocking: the blow and the loot pile are
-  wired; say if the blow wants another pace than 100 ms a frame and 150 ms held
-  (`STRIKE2_FRAME_MS`, `STRIKE2_HOLD_MS`).
+- **Lane A:** (1) **open the Town tab when a run is offered back after a reload** (in
+  `mountApp`, when `state.run` is kept and the gap is under a minute): today the app opens on
+  Skills and the run is taken up only when the player taps Town; the scene then resumes it, or
+  settles it if more than a minute has passed by then. (2) Nothing else blocking: `keepRun` and
+  `savedRun` are called as designed; the scene hands over `null` on settling as well, a snapshot
+  over 256 KB goes with its spoils and an empty `data`, and each snapshot carries `$keptAt` (the
+  app's clock) beside the run, which `restoreRun` leaves out (`scene` stays 1). (3) Later wish,
+  as before: the notice board could open `openBounties`.
+- **Lane B:** (1) Nothing blocking: the doors are wired as B13 says. If the open side door's
+  passage past the room's edge should read as cut into rock out there, the piece's rock beyond
+  the room would need a ragged edge rather than a square block (this lane shows only where the
+  barred and open pieces differ, and 4 px of jamb). (2) The giant crab's claw tips reach past its
+  declared `front` (41) in some walk and blow frames; a `front` that holds the claws, or claws
+  kept within it, would let the drawn-apart rule clear them exactly. (3) The foes' blades look
+  right as drawn (Brinebeard's cutlass, point up, in both facings); nothing in the scene flips
+  one. As before, say if the blow wants another pace than 100 ms a frame and 150 ms held.
 - **Lane B, for the town** (unchanged): lights in `town2Facts` would let a cold open skip
   drawing every piece to find them.
 
+## More dungeons: what the scene code gives, and what it would need (a plan, no work)
+
+- **Reusable as is**: `DungeonPlan` and `buildDungeon` (rooms as rows, doors by letter, foes,
+  perches, spawns, titles, own tide, stone tide, every plan checked as it is read); `Run`,
+  `advanceRun`, the doorway, `startRun`; the whole fight (`battle.ts`, foes as `FOE_KINDS` rows,
+  heavy attacks as data, seeded dice); `runSave.ts` and the run kept through a reload (any
+  dungeon `dungeons(id)` knows); a room's look and painter (`roomLook`, `groundCells`, door
+  pieces in a side wall or, through `doorTile`, a face door `door_open`/`door_barred`);
+  `dungeonView` (HUD, way onward, resume, results); `apart.ts`; the balance harness
+  (`grottoBot.ts`, `grottoRun.test.ts`) and the scale proof (`scaleTimeline.test.ts`), written
+  against `GROTTO_DUNGEON` and easy to point at another plan.
+- **Grotto-specific, to generalise first**: (1) `grottoWorker.ts` builds only `GROTTO`: its
+  request should carry the plan's id, looked up in a table of plans. (2) `dungeons(id)` in
+  `townView.ts` knows only the grotto and its cast (`GROTTO_CAST`): a table of plans and casts by
+  id. (3) The boat's panel (`town2.ts`) is the one way in, to one dungeon: a choice there, or
+  another door in town, is Cody's #8. (4) The results card's words and `CAPTAIN_SAYS`
+  (`grottoWords.ts`) are the grotto's: words per plan. (5) The tiles and props are lane B's
+  grotto set; a dungeon of another kind needs its own from lane B, through the same doors. (6)
+  The tide: rows without `0`-`3` have none, so a dry dungeon needs nothing new.
+- **A small level-1 learning dungeon** (Cody's #21): two or three short rooms, one sideways
+  screen each (15 to 17 tiles across, no camera travel), one rat-weight foe from the tables per
+  room, no heavy attack (or one, slowly telegraphed, to teach the marks), no tide, doors that open
+  with the way onward marked, an end spot (`x`) for the results. Everything above serves it once
+  (1) to (4) are done; what is new is teaching: a small hint layer in `dungeonView`, keyed on the
+  run's state, saying the tap (target, ability, eat) the first time each is useful.
+
 ## Notes for this lane's next session
+
+- **Wave 14's pieces:** `doorPieces`, `doorPaints`, `groundWithDoors`, `doorUnder`,
+  `openGlowsOf` and `RoomLook.doorsAt` (`grottoArt.ts`); `doorsOpen`, `wayOnward`, `wayMarks`,
+  `FightExtraOptions` and `FightArt.doorsDrawn` (`fightArt.ts`); the stage's `aim`; `keepIt`,
+  `runMark`, `KEEP_EVERY_MS`, `TAKE_UP_MS` and the take-up (`townView.ts`); `savedRunOf(run,
+keptAt)` and `keptAtOf` (`runSave.ts`); `dungeonView`'s `resume`; `PASS_DEPTH`, `END_EASE`
+  (`stroll.ts`); `glide` (`town2Folk.ts`); `ROW_OUT_SHOW_MS` and `.scene-rowing`;
+  `cardScale(dpr, screen)` and `cardView` (`loadingScene.ts`); `faceFrame` (`face.ts`).
+- **Measuring (wave 14)**: on the dev server a second copy of `townView.ts` after an edit makes a
+  script's `runNow()` read null: restart the server after every edit. A reload in a script saves
+  the app's state on the way out, so edit the save in `context.addInitScript`, not before the
+  reload. `recordVideo` on the context and then `ffmpeg` (in `/usr/bin`) make a smooth GIF;
+  screenshots in a loop come about three a second.
 
 - **Wave 12's pieces:** `apart.ts` (figures drawn apart; `fightFigures`/`fightApart` in
   `fightArt.ts` say who and how wide), `face.ts` (a whole face at whole device pixels),
@@ -1018,8 +1186,8 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   else walks. The run's `play` is the truth; the stage's is only a way in for taps (`given` in
   `dungeonView.ts`).
 - A run is settled once (`settled` in `townView.ts`), from `finished` or `leave`, whichever comes
-  first. A reloaded page loses a run in progress and its spoils (nothing is saved while it lasts,
-  as the brief says).
+  first. Since wave 14 a run under way is kept through a reload (`keepIt` hands it to the shell;
+  the Town tab takes it up paused behind Resume, or settles it if it cannot).
 - Screenshot scripts on the dev server can read the run with `runNow()` (its `battle` has every
   foe, pile and timer). Restart the dev server after an edit: it otherwise serves a second copy
   of `townView.ts` that the page's own app does not use.
