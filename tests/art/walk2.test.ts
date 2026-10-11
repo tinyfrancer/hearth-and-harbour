@@ -544,20 +544,24 @@ describe('the townsfolk walking', () => {
       }
   });
 
-  it('walks across in profile and away from behind, and left mirrors right, re-lit (they carry no weapon)', () => {
-    for (const id of TOWNSFOLK2_IDS) {
-      expect(FOLK_SIDE[id], id).toBeDefined();
-      for (let f = 0; f < WALK2_FRAMES; f++) {
-        const r = townsfolkWalkPicture2(id, 'right', f)!.grid;
-        const l = townsfolkWalkPicture2(id, 'left', f)!.grid;
-        // The same shape and materials as the mirror; only the light moved back to the left.
-        expect(same(l, mirrorLit(r))).toBe(true);
-        expect(l.d.every((c, i) => c >> 3 === mirror(r).d[i]! >> 3)).toBe(true);
-        expect(eyes(townsfolkWalkPicture2(id, 'up', f)!.grid), `${id} up`).toBe(0);
-        expect(eyes(r), `${id} right`).toBeGreaterThan(0);
+  it(
+    'walks across in profile and away from behind, and left mirrors right, re-lit (they carry no weapon)',
+    SLOW,
+    () => {
+      for (const id of TOWNSFOLK2_IDS) {
+        expect(FOLK_SIDE[id], id).toBeDefined();
+        for (let f = 0; f < WALK2_FRAMES; f++) {
+          const r = townsfolkWalkPicture2(id, 'right', f)!.grid;
+          const l = townsfolkWalkPicture2(id, 'left', f)!.grid;
+          // The same shape and materials as the mirror; only the light moved back to the left.
+          expect(same(l, mirrorLit(r))).toBe(true);
+          expect(l.d.every((c, i) => c >> 3 === mirror(r).d[i]! >> 3)).toBe(true);
+          expect(eyes(townsfolkWalkPicture2(id, 'up', f)!.grid), `${id} up`).toBe(0);
+          expect(eyes(r), `${id} right`).toBeGreaterThan(0);
+        }
       }
-    }
-  });
+    },
+  );
 
   it('breathes', () => {
     for (const id of TOWNSFOLK2_IDS) {

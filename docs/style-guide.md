@@ -544,6 +544,76 @@ the swing, the blow landing (frame 2, `STRIKE2_HIT_FRAME`), the recovery.
 - **The shield arm is braced**: raised a little toward the blow and held there. With a bow the
   shield is not drawn (both hands are on the bow); see the status file's weak list.
 
+### The title screen (B14)
+
+Cody chose direction A of the title study, "but clean it up. House on hill is wider than hill": the
+harbour at dusk, the town seen across the water as the lamps come on. Code: `src/art/title/`,
+door `src/art/title.ts`.
+
+- **Layers with anchors, not a bitmap**: the sky stretches to fill whatever is above the town; the
+  town is anchored to the waterline, a little below the middle (57% down, clamped so its smoke
+  clears the logotype and its reflection clears the menu); the logotype sits in the upper part of
+  the sky; the water below the town's reflection is a calm band kept for the menu (`safe`). The
+  scenery beyond the town (hills, woods, the rocky shore past the quay) is a function of distance
+  from the middle, so a wider screen shows more of it and never moves the town. One art pixel is a
+  whole number of device pixels: the largest scale that keeps 360 art pixels across and 560 down
+  (3 on every portrait 3x phone).
+- **Ground carries every building**: the house stands on a broad shoulder of the hill, its flat top
+  three times the house's width, seen as a strip of ground before and beside the house, fenced as
+  a garden, a low dry-stone wall along its front edge, falling away in slopes that go down behind
+  the tavern and the smithy, with a path in turns down the face to the pier's head. The tavern
+  and the smithy stand at the back of the quay's top, on one ground line. Tested: every column of
+  each building's foot is on painted ground.
+- **Atmospheric steps**: the far hills, the far forest and the nearer woods are each one flat colour
+  with a lit rim on the slopes that face the light, each a step nearer the night than the one
+  behind (the `haze` ramp, farthest first). No noise in a silhouette.
+- **The sky is bands**: sixteen flat bands from the plum-navy zenith to the amber afterglow, deep at
+  the top, thinner toward the hills; where two meet, a row of short dashes of the lower colour
+  pokes up into the upper and the upper hangs a row down between them, unevenly spaced. Never a
+  gradient, never clumped noise (it read as mud).
+- **Stars are placed**: a jittered grid (never clumped, never in lines), thinning toward the
+  afterglow and absent where the sky is warm, kept off the logotype and the moon; four bright
+  crosses where the eye rests between the words and the edges; the Plough low on the left. A star
+  twinkles as a short dip once in a few seconds, not a constant flicker.
+- **Halos are rings**: a light adds warm light in two or three flat rings whose borders interlock
+  in a one-pixel checker (`light.ts`); never a soft radial gradient.
+- **The water is a mirror**: water row d shows the row d above the waterline (k = 1, column by
+  column), the sky a step darker and everything else two, cooled toward the sea and leaning
+  further toward the depth toward the viewer; nearer things (the pier, the ship) are mirrored
+  about their own waterlines. A lit window mirrors as one patch of light (its bars lost in the
+  blur) drawn out downward in dashes; lamps leave pools. Ripples are bands two or three rows
+  tall, each shifting the mirror a pixel or two (none right by the quay, up to three toward the
+  viewer) and broken by short runs of the water's face (the mirror halfway to the depth) and,
+  on some bands' top rows, a lip catching the afterglow. In the menu's band the runs are long and
+  the lips few.
+- **Motion is quiet and comes from the time passed in**: ripples drift and shift, smoke rises and
+  thins, lamps gutter rarely, the forge breathes, stars dip, clouds drift a pixel every 1.6 s
+  round a strip wider than the screen, two gulls glide and flap, the flag streams, the buoy bobs
+  a pixel. Nothing crosses the logotype. 8 frames a second is enough.
+- **The logotype** is the study's gilt Roman capitals with a cream uncial ampersand on a gold rule,
+  trued: every stem 7 pixels, every hairline and bar 3, serifs reaching 3 and 2 thick, all on whole
+  pixels at its one size (a 40-pixel cap); letters spaced by their shapes (the tightest gap 2
+  pixels, about 5 on average down their facing sides), not one fixed gap. Navy rim and a 3-pixel
+  navy drop shadow; it always sits on the zenith's dark bands (tested). It is drawn by
+  `logoDraw.ts` and baked into `logoData.ts`; change the drawing, then run the title test with
+  `UPDATE_LOGO=1`.
+
+#### Buildings at a fifth of their size (B14)
+
+- About 7.5 art pixels a metre at the quay (the house up the hill a little less, the ship nearer a
+  little more, 9.2): a door 15 pixels, a storey about 20, a window 7 to 9 across.
+- **Each building keeps what makes it itself at a glance**, drawn by its own painter, not one
+  generic house: the tavern's red tile in courses, its jettied timber upper storey with braces,
+  five bays, the gull-and-anchor sign on its bracket; the smithy's slate with hard course lines,
+  rubble walls with paler cut quoins, the forge open under an oak lintel with the fire at the back,
+  the log store, the horseshoe; the house's thick thatch combed in strands with an eyebrow over
+  the dormer, limewash, blue door and shutters, a box of flowers.
+- Lit from the upper left as at full size: hipped roof ends lit on the left and in shadow on the
+  right, eaves shading the wall, a jetty shading the storey below, chimneys casting down the roof.
+  Outlined in each material's own darkest step.
+- Not every window is lit; lit windows are the `glass` ramp (bright high in the pane, amber under
+  the head), dark ones `pane` with a glint.
+
 ### The dungeon at the C scale (B10a)
 
 Brinebeard's Grotto redrawn for a 64-pixel person (`src/art/dungeon2/`, doors
