@@ -1,3 +1,5 @@
+import { chartRoute } from '../../src/scene/fromLaneB';
+import { ROUTE_SHORT, routeShort } from '../../src/scene/chartPanel';
 import { describe, expect, it } from 'vitest';
 import { newGame, type GameState } from '../../src/core/state';
 import { xpForLevel as lvl } from '../../src/core/xp';
@@ -114,5 +116,23 @@ describe('the harbour chart', () => {
         expect(x - shift + LANDING_CSS / 2, `${width}`).toBeLessThanOrEqual(box + LANDING_CSS / 2);
       }
     }
+  });
+
+  it('stops the route and its boat short of the landing, clear of its marker', () => {
+    const home = { x: 40, y: 60 };
+    const to = { x: 200, y: 90 };
+    const dots = chartRoute(home, to);
+    const short = routeShort(dots, to);
+    expect(short.length).toBeGreaterThan(0);
+    // A route laid right up to the landing loses its last dots.
+    const straight = Array.from({ length: 11 }, (_, i) => ({
+      x: home.x + (i * (to.x - home.x)) / 10,
+      y: home.y,
+    }));
+    expect(routeShort(straight, { x: to.x, y: home.y })).toHaveLength(10);
+    for (const p of short)
+      expect(Math.hypot(p.x - to.x, p.y - to.y)).toBeGreaterThanOrEqual(ROUTE_SHORT);
+    // From home all the same.
+    expect(short[0]).toEqual(dots[0]);
   });
 });

@@ -81,6 +81,15 @@ const STATE_WORDS: Readonly<Record<Landing['state'], string>> = {
   soon: 'Not yet charted',
 };
 
+/** How far short of a landing the route and its boat stop, in map pixels: clear of its marker. */
+export const ROUTE_SHORT = 12;
+
+/** A route's dots less those within `ROUTE_SHORT` of the landing, so nothing is laid over its marker. */
+export function routeShort(dots: readonly Point[], to: Point): Point[] {
+  const kept = dots.filter((p) => Math.hypot(p.x - to.x, p.y - to.y) >= ROUTE_SHORT);
+  return kept.length ? kept : dots.slice(0, 1);
+}
+
 export function chartPanel(o: ChartPanelOptions): ChartPanel {
   const map = harbourChart();
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
@@ -244,7 +253,7 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
   };
   const drawMarks = (shown: number): void => {
     const l = list.find((x) => x.id === chosen);
-    const dots = l ? chartRoute(map.home, l.at) : [];
+    const dots = l ? routeShort(chartRoute(map.home, l.at), l.at) : [];
     const n = Math.round(dots.length * shown);
     if (n === drawn) return;
     drawn = n;
@@ -264,6 +273,12 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     c.imageSmoothingEnabled = false;
     const dot = chartDot();
     for (const p of dots.slice(0, n)) lay(c, dot, p);
+    // The boat at the route's head, rowing towards the landing, and stopping short of it:
+    // under the markers, so it never covers a landing's pole or the ring.
+    if (l && dots.length) {
+      const head = dots[Math.min(n, dots.length - 1)]!;
+      lay(c, chartBoat(l.at.x < map.home.x ? 'left' : 'right'), head);
+    }
     // Each landing's marker standing on it, its emblem beside it; the picked one ringed.
     for (const x of list) {
       lay(c, chartMarker(x.state), x.at);
@@ -271,11 +286,6 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
       lay(c, emblem, { x: x.at.x + 16, y: x.at.y - 6 });
     }
     if (l) lay(c, chartMarker('selected'), { x: l.at.x, y: l.at.y - 6 });
-    // The boat at the route's head, rowing towards the landing; home, before it sets out.
-    if (l) {
-      const head = n < dots.length ? (dots[n] ?? l.at) : l.at;
-      lay(c, chartBoat(l.at.x < map.home.x ? 'left' : 'right'), n === 0 ? map.home : head);
-    }
   };
 
   showPins();
