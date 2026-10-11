@@ -203,6 +203,37 @@ const HEADS: Readonly<Record<string, readonly Part2[]>> = {
       63,
     ),
   ],
+  // B15: the sou'wester from behind, its brim long over his neck; his beard either side of his jaw.
+  ferryman: [
+    SKULL,
+    hd(0, 10, ['2.............3', '22...........33', '.2...........3.'], 'hair'),
+    hd(
+      -3,
+      -1,
+      [
+        '........hiijk........',
+        '......hiiijjkkl......',
+        '.....hiiijjjjkkl.....',
+        '....hiiiijjjjjkkl....',
+        '...hiijjjjjjjjjkkl...',
+        '..hiiiiiiiiiiiijjkl..',
+        '.ijjjjjjjjjjjjjkkkll.',
+        'ijjjjjjjjjjjjjjkkkllm',
+        'jkkkkkkkkkkkkkkkklllm',
+        '.kk.............llm..',
+      ],
+      undefined,
+      {
+        h: ['ochre', 0],
+        i: ['ochre', 1],
+        j: ['ochre', 2],
+        k: ['ochre', 3],
+        l: ['ochre', 4],
+        m: ['ochre', 5],
+      },
+      63,
+    ),
+  ],
   elder: [
     SKULL,
     hd(
@@ -297,6 +328,8 @@ const BEHIND: Readonly<Record<string, (p: Part2, i: number) => Part2 | null>> = 
   market: (p, i) => (i <= 1 || i === 7 ? null : p),
   docker: (p, i) => (i === 0 || i === 3 ? null : p),
   elder: (p, i) => (i === 0 || i === 1 ? null : i === 2 ? rechar(filled(p, '2'), { '5': '3' }) : p),
+  // The face, the hat (drawn from behind in HEADS), the pipe and its ember, the coat's toggles.
+  ferryman: (p, i) => (i <= 3 || i === 5 ? null : p),
 };
 
 /**
@@ -313,6 +346,8 @@ const IN_FRONT: Readonly<Record<string, readonly number[]>> = {
   alewife: [6, 7, 10, 11],
   trader: [9, 10, 11],
   elder: [6, 8],
+  // The oar's loom, the fist round it and the blade.
+  ferryman: [9, 10, 11],
 };
 
 /** Walking away, a drawn-in near side is the far side, and the other way about. */

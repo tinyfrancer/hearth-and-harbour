@@ -104,7 +104,11 @@ export function rowboat(): Drawn {
       let t = 2 + strake * 0.6;
       if (py < 0.2) t -= 1;
       if (py > 0.8) t += 1;
-      put(g, x, yTop + j, C('wood', clamp(t + (x > cx + L * 0.3 ? 0.5 : 0), 1, 5)));
+      const turn = x > cx + L * 0.3 ? 0.5 : 0;
+      // B15: the top strake painted blue, cared for, so the boat reads as somebody's and ready.
+      if (strake === 0 && j > 0)
+        put(g, x, yTop + j, C('blue', clamp((py < 0.35 ? 1 : 2) + turn, 1, 4)));
+      else put(g, x, yTop + j, C('wood', clamp(t + turn, 1, 5)));
     }
   }
   // Inside: the bottom boards in shadow, the gunwale lit, thwarts across.
@@ -125,11 +129,37 @@ export function rowboat(): Drawn {
     for (let y = Math.round(cy - hw + 2); y <= cy + hw - 2; y++)
       for (let i = 0; i < 6; i++) put(g, x + i, y, C('wood', i === 0 ? 1 : i === 5 ? 5 : 2));
   }
-  // Two oars lying along the thwarts.
-  segment(g, cx - L * 0.3, cy - 2, cx + L * 0.34, cy - 4, C('linen', 2));
-  segment(g, cx - L * 0.3, cy - 1, cx + L * 0.34, cy - 3, C('linen', 4));
-  for (let i = 0; i < 12; i++)
-    put(g, cx + L * 0.34 + i, cy - 4 - (i > 2 ? 1 : 0), C('linen', i < 6 ? 1 : 3));
+  // Two oars shipped, lying along the thwarts, their blades toward the stern (B15: pale ash with
+  // red-tipped blades, so they read; they had been a thin grey line).
+  for (const dy of [-4, 3]) {
+    const y0 = Math.round(cy + dy);
+    for (let x = Math.round(cx - L * 0.22); x < Math.round(cx + L * 0.36); x++) {
+      put(g, x, y0, C('pinewood', 1));
+      put(g, x, y0 + 1, C('pinewood', 3));
+    }
+    // The blade, broad and flat, its tip painted red.
+    for (let i = 0; i < 16; i++) {
+      const x = Math.round(cx - L * 0.22) - 1 - i;
+      const red = i >= 12;
+      put(g, x, y0 - 1, C(red ? 'crimson' : 'pinewood', red ? 1 : 1));
+      put(g, x, y0, C(red ? 'crimson' : 'pinewood', red ? 2 : 2));
+      put(g, x, y0 + 1, C(red ? 'crimson' : 'pinewood', red ? 3 : 3));
+      put(g, x, y0 + 2, C(red ? 'crimson' : 'pinewood', 4));
+    }
+    // The grip.
+    put(g, Math.round(cx + L * 0.36), y0, C('pinewood', 0));
+    put(g, Math.round(cx + L * 0.36) + 1, y0, C('pinewood', 2));
+  }
+  // A coil of rope in the bows.
+  for (let a = 0; a < 20; a++) {
+    const t = (a / 20) * Math.PI * 2;
+    put(
+      g,
+      Math.round(cx + L * 0.4 + Math.cos(t) * 4),
+      Math.round(cy + Math.sin(t) * 2.4),
+      C('linen', a < 10 ? 2 : 3),
+    );
+  }
   // Waterline: foam along the hull's foot.
   for (let x = 1; x < W - 1; x++) {
     let y = H - 1;

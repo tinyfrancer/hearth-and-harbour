@@ -1467,7 +1467,203 @@ const ELDER: Folk = {
   ],
 };
 
-export const FOLK2: readonly Folk[] = [SMITH, TRADER, PIRATE, ALEWIFE, MARKET, DOCKER, ELDER];
+// ------------------------------------------------------------- the ferryman
+
+/** The oilskin's yellow, its steps as letters (so the hat and the coat share them). */
+const OIL: Pins = {
+  h: ['ochre', 0],
+  i: ['ochre', 1],
+  j: ['ochre', 2],
+  k: ['ochre', 3],
+  l: ['ochre', 4],
+  m: ['ochre', 5],
+};
+
+/**
+ * The ferryman (B15), who keeps the rowing boat: an old salt in a yellow
+ * oilskin coat and sou'wester, a short grey beard, a pipe in the corner of
+ * his mouth, his sea boots to the knee. He stands his oar upright beside
+ * him, its blade on the ground and his near fist round its loom, the far
+ * hand in his coat's pocket: the one person in town plainly waiting to take
+ * you somewhere. Yellow, so he reads from across the harbour.
+ */
+const FERRYMAN: Folk = {
+  id: 'ferryman',
+  name: 'The ferryman',
+  skin: 'skingolden',
+  hair: 'hairgrey',
+  parts: [
+    head(
+      [
+        '...............',
+        '....sosttu.....',
+        '..ssoossstttu..',
+        '.ssoossssttuuv.',
+        '.sssssssstttuv.',
+        '.ssbbBsssBbbuv.',
+        '.ssssssssttuuv.',
+        'stsKIKsstKIKuvu',
+        'tusWIWsstWIWuvv',
+        'stssssssttttuvu',
+        '.2ssssstuttu3..',
+        '.2311222233443.',
+        '.22123vvv23443.',
+        '..21222223334..',
+        '...222223334...',
+        '....2233344....',
+      ],
+      0,
+      1,
+    ),
+    // The sou'wester: a round crown, the brim turned up short in front and falling over the ears.
+    at(
+      17,
+      1,
+      61,
+      [
+        '........hiijk.........',
+        '......hiiijjkkl.......',
+        '.....hiiijjjjkkl......',
+        '....hiiiijjjjjkkl.....',
+        '...hiijjjjjjjjjkkl....',
+        '..hiiiiiiiiiiiijjkl...',
+        '.ijjjkkkkkkkkkkkkkll..',
+        'ijj..............kllm.',
+        'jk................llm.',
+        'k..................lm.',
+      ],
+      undefined,
+      OIL,
+      true,
+    ),
+    // The pipe, its stem from the far corner of his mouth, the bowl hanging, an ember in it.
+    at(33, 18, 62, ['ab...', '.aab.', '...cc', '..dcc', '..ccd'], undefined, {
+      a: ['wood', 2],
+      b: ['wood', 4],
+      c: ['tar', 2],
+      d: ['tar', 4],
+    }),
+    at(35, 20, 63, ['f'], undefined, { f: ['fire', 2] }),
+    // The collar turned up round his neck, and the coat, buttoned with toggles, to the knee.
+    cloth(
+      2,
+      'ochre',
+      [
+        [22, 21, 25],
+        [22, 31, 35],
+        [23, 20, 36],
+        ...rows(24, 26, 19, 37),
+        ...rows(27, 40, 19, 37),
+        ...rows(41, 48, 18, 38),
+        ...rows(49, 54, 17, 39),
+      ],
+      {
+        turn: 0.66,
+        folds: [
+          [
+            [42, 23],
+            [50, 22],
+          ],
+          [
+            [44, 34],
+            [53, 35],
+          ],
+        ],
+        hems: [54],
+        fix: Array.from({ length: 31 }, (_, i): [number, number, number] => [28, 24 + i, 4]),
+      },
+    ),
+    runs(
+      2.5,
+      [
+        [28, [29, 'g']],
+        [33, [29, 'g']],
+        [38, [29, 'g']],
+        [43, [29, 'g']],
+      ],
+      { pins: { g: ['wood', 4] } },
+    ),
+    // The far arm, its hand in the coat's pocket, the pocket's flap over it.
+    cloth(3, 'ochre', [...rows(25, 36, 36, 40), [37, 35, 39], [38, 34, 38]], {
+      turn: 0.45,
+      hems: [38],
+    }),
+    runs(3.5, [[39, [33, '44444']]], { mat: 'ochre' }),
+    // The near arm bent, the forearm across to the oar's loom.
+    cloth(3, 'ochre', [...rows(25, 31, 15, 20), [32, 14, 19], [33, 13, 18]], {
+      turn: 0.5,
+      hems: [33],
+    }),
+    // The oar upright beside him: its loom and handle above his fist, the blade on the ground.
+    runs(
+      8,
+      [
+        [1, [12, '23']],
+        [2, [12, '12']],
+        ...Array.from({ length: 45 }, (_, i): [number, [number, string]] => [3 + i, [12, '13']]),
+      ],
+      { mat: 'pinewood' },
+    ),
+    // The fist round the loom, in front of it.
+    at(10, 33, 9, ['.sst.', 'osstv', 'tuuuw', 'sstuv', '.uvw.'], undefined, undefined, false),
+    // The blade: broad, worn, its tip painted red.
+    runs(
+      8,
+      [
+        [48, [11, '1233']],
+        [49, [11, '1233']],
+        [50, [10, '012334']],
+        ...Array.from({ length: 12 }, (_, i): [number, [number, string]] => [
+          51 + i,
+          [10, '112334'],
+        ]),
+        [63, [10, 'cccccd']],
+        [64, [10, 'cccccd']],
+        [65, [10, 'ccccdd']],
+        [66, [10, '112334']],
+        [67, [10, '112334']],
+        [68, [10, '122344']],
+        [69, [11, '3444']],
+      ],
+      { mat: 'pinewood', pins: { c: ['crimson', 2], d: ['crimson', 4] } },
+    ),
+    // Trousers under the coat, and tall black sea boots.
+    cloth(0, 'indigo', [...rows(53, 56, 21, 27), ...rows(53, 56, 29, 35)], { turn: 0.6 }),
+    runs(
+      1,
+      [
+        [55, [20, '01112234'], [29, '01112234']],
+        ...[56, 57, 58, 59, 60, 61, 62, 63, 64].map(
+          (y): [number, [number, string], [number, string]] => [
+            y,
+            [21, '1222334'],
+            [29, '1222334'],
+          ],
+        ),
+        ...[65, 66].map((y): [number, [number, string], [number, string]] => [
+          y,
+          [20, '12222334'],
+          [29, '12222334'],
+        ]),
+        [67, [20, '11223344'], [29, '11223344']],
+        [68, [20, '44444455'], [29, '44444455']],
+        [69, [20, '55555555'], [29, '55555555']],
+      ],
+      { mat: 'tar' },
+    ),
+  ],
+};
+
+export const FOLK2: readonly Folk[] = [
+  SMITH,
+  TRADER,
+  PIRATE,
+  ALEWIFE,
+  MARKET,
+  DOCKER,
+  ELDER,
+  FERRYMAN,
+];
 const drawn = new Map<string, TGrid>();
 
 /** A townsperson drawn and outlined, in their own skin and hair; null for an id with none. */
@@ -1498,6 +1694,8 @@ const FOLK_RIGS: Readonly<Record<string, Partial<Rig2>>> = {
   market: { swing: [0, 0.6], skirt: [38, 66] },
   docker: { swing: [0, 0], hip: 42 },
   elder: { swing: [0.5, 0], skirt: [44, 56], hip: 47, knee: 55, ankle: 62, shoulder: 28 },
+  // B15: the oar is carried upright in the near fist, and the far hand stays in its pocket.
+  ferryman: { swing: [0, 0], skirt: [42, 54] },
 };
 
 /** A townsperson's joints. */

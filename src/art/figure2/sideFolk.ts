@@ -768,6 +768,104 @@ const ELDER = (): SideDress => {
   return d;
 };
 
+// -------------------------------------------------------------- the ferryman
+
+const OIL: Pins = {
+  h: ['ochre', 0],
+  i: ['ochre', 1],
+  j: ['ochre', 2],
+  k: ['ochre', 3],
+  l: ['ochre', 4],
+  m: ['ochre', 5],
+};
+
+/** His oar, upright in the near fist: the loom above it, the blade on the ground (B15). */
+const OAR_SIDE: readonly string[] = [
+  '.23.',
+  '.12.',
+  ...Array.from({ length: 44 }, () => '.13.'),
+  '.13.',
+  '0123',
+  '0123',
+  ...Array.from({ length: 12 }, () => '0123'),
+  'cccd',
+  'cccd',
+  'ccdd',
+  '0123',
+  '1233',
+  '.34.',
+];
+
+const FERRYMAN = (): SideDress => {
+  const d = base();
+  d.head.push(
+    // The sou'wester in profile: a round crown, the front brim turned up short, the back brim long
+    // and sloping down over his neck.
+    part(
+      PX - 2,
+      PY - 3,
+      H + 10,
+      [
+        '......hiijjk......',
+        '....hiiijjjjkl....',
+        '...hiiijjjjjjkl...',
+        '...iiijjjjjjjkkl..',
+        '..iijjjjjjjjjkkkh.',
+        '.ijjjjjjjjjjkkkl..',
+        'ijjk..............',
+        'jkk...............',
+        'kl................',
+        'l.................',
+      ],
+      undefined,
+      OIL,
+    ),
+    // A short grey beard along his jaw and chin.
+    part(
+      PX,
+      PY + 9,
+      H + 3,
+      [
+        '.......2........',
+        '.......23..2334.',
+        '.......2333.44..',
+        '......2333334...',
+        '.......23344....',
+        '........344.....',
+      ],
+      'hair',
+    ),
+    // The pipe out of the corner of his mouth, its bowl hanging, an ember in it.
+    part(PX + 14, PY + 11, H + 6, ['ab...', '.aab.', '...cf', '...cc', '...cd'], undefined, {
+      a: ['wood', 2],
+      b: ['wood', 4],
+      c: ['tar', 2],
+      d: ['tar', 4],
+      f: ['fire', 2],
+    }),
+  );
+  d.torso.push(torso('ochre', 22, 43, T + 2, 1));
+  d.skirt = skirt({ mat: 'ochre', hem: 54, x0: 21, x1: 33 });
+  d.arm.push(cover('ochre', 14));
+  d.leg.push(cover('indigo', 23, { hem: false }), {
+    mat: 'tar',
+    from: 10,
+    to: 30,
+    bulk: 1,
+    lip: true,
+  });
+  d.boot = 'tar';
+  d.nearJob = {
+    upper: 0.75,
+    fore: 1.25,
+    swing: 0,
+    hand: 'fist',
+    holds: [byFist(1, -31, -2, OAR_SIDE, 'pinewood', { c: ['crimson', 2], d: ['crimson', 4] })],
+  };
+  d.farJob = { upper: 0.1, fore: -0.2, swing: 0, hand: 'none' };
+  return d;
+};
+
 /** Each townsperson's dress seen from the side, by id. */
 export const FOLK_SIDE: Readonly<Record<string, () => SideDress>> = {
   smith: SMITH,
@@ -777,4 +875,5 @@ export const FOLK_SIDE: Readonly<Record<string, () => SideDress>> = {
   market: MARKET,
   docker: DOCKER,
   elder: ELDER,
+  ferryman: FERRYMAN,
 };

@@ -1,8 +1,62 @@
 # Lane B: art
 
-**Next session:** B15's second PR (the ferryman, the boat's sign and lantern, the town's
-interaction markers, polish of the boss, the tide-pool cave and the chart, the gallery), then
-Cody's review of the tide-pool cave and the chart.
+**Next session:** Cody's review of B15 (the tide-pool cave, Old Snapper, the harbour chart, the
+ferryman, the boat's sign and lantern, the town's markers) and whatever it asks for.
+
+## The ferryman, the boat's sign and lantern, the town's markers, for lane C (B15, second PR)
+
+Cody: "make it more apparent we need to click the boat". No existing door renamed or re-signed; no
+town placement moved or added (lane C places the new pieces). Added:
+
+```ts
+// character2.ts: a new townsperson, through every existing door
+TOWNSFOLK2_IDS                    // now ends 'ferryman'; townsfolkName2('ferryman') = 'The ferryman'
+townsfolkPicture2 / townsfolkSprite2 / townsfolkWalk2 / townsfolkIdle2 / ...Picture2('ferryman', …)
+portrait2('ferryman'), PORTRAIT2_SAFE.ferryman   // { x: 3, y: 0, w: 64, h: 56 }
+
+// town2/pieces.ts: two new piece ids (town2Piece, town2Facts, TOWN2_IDS)
+'boat_sign'     // 44 x 72, base 70, foot 16, ground 15 x 15 (one tile), its lamp lights at dusk
+'boat_lantern'  // 14 x 50, base 48, foot 6, no ground: rides in the boat, lights at dusk
+ROWBOAT_LANTERN_AT = { x: 114, y: 23 }  // where the lantern's foot goes, from the boat's top-left
+
+// town2/markers.ts (new)
+townMarker2(kind: 'talk' | 'enter' | 'gather' | 'travel' | 'new', frame = 0): { picture, anchor }
+TOWN_MARKER2_KINDS, TOWN_MARKER2_FRAMES = 4, TOWN_MARKER2_FRAME_MS = 180
+townHighlight2(w: number, frame = 0): { picture, anchor }   // the ring round the nearest thing
+```
+
+- **The ferryman** stands with his oar upright in his near fist (blade on the ground) and his far
+  hand in his pocket, a pipe in his mouth, in a yellow oilskin and sou'wester: same canvas, anchor,
+  breath, walk in four facings (he can stroll, but is meant to stand) and contact shadow as every
+  townsperson. Suggested place: on the quay just west of the boat's landing, feet at (420, 1436)
+  (tile (17, 59), beside `BOAT_LANDING2` (18, 59)), facing down or toward the hero; talked to from
+  the landing. His words are yours.
+- **`rowboat`** is redrawn behind the same id, size, base and foot (135 x 58, base 54, foot 68):
+  its oars shipped and plain to see (pale ash, red-tipped blades), the top strake painted blue, a coil
+  of rope in the bows. Its placement is unchanged.
+- **`boat_lantern`**: draw it with its foot at the boat's top-left plus `ROWBOAT_LANTERN_AT` and its
+  base row there, right after the boat (it is in the boat), bobbing with the boat; add its glow (dusk
+  only). With the rowboat at its placement (top-left (452, 1468)) that is foot (566, 1491).
+- **`boat_sign`**: a painted board on a post by the mooring with its own small lantern (dusk).
+  Suggested place: foot (444, 1413), on the square's edge above the landing (tile (18, 58), solid,
+  one tile): it reads over the boat from the square. Its words, if any, are yours.
+- **Markers**: 14 x 16 each (outline included), every frame of a kind the same size and anchor
+  (the pointer's tip, at the bottom middle): float one with its anchor 2 to 6 pixels above what it
+  marks (the boat's gunwale, a person's head, a door's lintel) and step its frame every
+  `TOWN_MARKER2_FRAME_MS`; the badge bobs inside the picture. `talk` for a person, `enter` a door,
+  `gather` a thing to work at, `travel` the rowing boat, `new` (a gold sparkle, no badge) for
+  something unseen. Few and quiet: the boat's `travel` always (it is Cody's point), the others only
+  near the hero, never all at once.
+- **The ring** (`townHighlight2(w, frame)`): a thin dashed ellipse of pale light `w` across, a third
+  as deep, no outline; lay it on the ground (or the water) centred on the nearest usable thing's
+  foot, under everything standing, the frame stepping with the markers'. For the boat about 150
+  across, centred 50 below its top-left's row and 68 across.
+- Rasterize everything with `DAY2` / `DUSK2` as the town; the badge (`sail`) and the sparkle (gold)
+  keep their brightness at dusk.
+- **Also in this PR**: the tide-pool cave's floor rock with worn, wandering slab edges (it read as
+  paving), calmer sand, `kelp_clump` redrawn as a heap of kelp the tide left (same id), the chart's
+  map kept inside its frame and its `unknown` marker darker, and the gallery's B15 sections (button
+  "See the new dungeon at the finer scale").
 
 ## The tide-pool cave, Old Snapper and the harbour chart, for lanes C and A (B15, first PR)
 
@@ -1597,6 +1651,15 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Needs from another lane
 
+- **Lane C, for B15's second PR** (Cody's point about the boat; nothing breaks if you wait):
+  - Place the ferryman (`'ferryman'`, a standing townsperson; suggested tile (17, 59), facing down),
+    `boat_sign` (suggested foot (444, 1413), one tile solid) and `boat_lantern` (in the boat, at
+    `ROWBOAT_LANTERN_AT`, bobbing with it, glow at dusk); give the ferryman and the sign words.
+  - Float `townMarker2('travel', frame)` over the boat always, and the other kinds over what is
+    usable near the hero; lay `townHighlight2(w, frame)` under the nearest usable thing.
+  - The rowboat's redraw needs nothing: same id, size and base.
+- **Lane A, for B15's second PR**: nothing (the ferryman's face is in `portrait2` if a menu wants it).
+
 - **Lane C, for B15's first PR** (the tide-pool cave and the chart):
   - Build the tide-pool cave's rooms on the same tile kinds (rows in your key as the grotto's) and
     draw them through `dungeonTheme2('tidepool')` (or each door with a trailing `'tidepool'`):
@@ -1777,6 +1840,39 @@ worn, 'dusk')` is identical under it.
   - `tests/ui` that look for the character canvas by its size will need the new size.
 
 ## Notes for this lane's next session
+
+- **Weak list (B15), honestly**, weakest first:
+  - Old Snapper's contact shadow is centred on his feet point, which is ahead of his shell's middle
+    (placed so a hero at the stand is not drawn over him), so a scene's shadow sits a little forward
+    under him; and his tap box (measured, 67 wide, centred there) leaves his tail out. A shadow
+    offset in the sizes would mend both; not added, as the table's shape is shared with lane C.
+  - The tide-pool walls' beds still read a little like coursed masonry from close up (regular
+    horizontal joins); at true size they read as layered rock. The rock's top seen from above is
+    plain.
+  - `light_shaft` is light only (glows and motes): on a scene that does not add glows it shows as a
+    slit and a few dots. Its floor pool needs `lightGround2(…, 'tidepool')`.
+  - The ferryman's sou'wester from behind reads as a cone; walking across, his oar passes in front
+    of his chin (he is meant to stand).
+  - Markers are small (14 x 16 art pixels, 42 device pixels on a 3x phone): legible over cobbles and
+    sea, but `gather`'s axe is the least clear; the ring's dashes on the sea can be taken for foam.
+  - The chart's town at home is a few pixels of roof; the `unknown` marker at the western islets
+    sits over the islet's edge; the sea serpent is small. The kelp heap has a hole in it.
+  - The open side door's rock surround past the room's edge is limited to rows 9 to 62 of the piece
+    (what lane C's scene shows), so its ragged edge is short above and below.
+  - Glows from `always` lights (the shafts, the cave's mouth, open doors) are the town lamp's warm
+    colour, not a cooler daylight: the shafts read as late-afternoon sun.
+- **How B15 was iterated**: `.shots/` vitests in a node config (`.shots/vitest.config.ts`,
+  `environment: 'node'`) wrote PNGs with a small zlib PNG writer, composed into sheets with Pillow;
+  the grotto was held to `main` by hashing grids from a copy of `main`'s `src` in `.shots/before`.
+  Move `.shots` to a name that does not exist before `npm run check` (a scratch folder of the same
+  name nests it).
+- **A new dungeon theme** is a `TileLook` (`dungeon2/tiles.ts`: textures by floor kind, the faces,
+  the materials joins use, its details), door painters (`tideDoors.ts`) chosen in `placeDoor2`, a
+  light scheme in `light.ts`, props under new ids, and a palette in `cave.ts` (new ramps appended to
+  `CAVE_BASE`, never inserted: ids must not move).
+- **A new townsperson** is a `Folk` (front, `figure2/folk.ts`, and `FOLK_RIGS`), a `SideDress`
+  (`sideFolk.ts`), a back (`folkBack.ts`: `HEADS`, `BEHIND`, `IN_FRONT`), a face (`FACES2`) and its
+  safe box; `tests/art/figure2.test.ts` lists the ids.
 
 - **Weak list (B14), honestly**, weakest first:
   - First paint is the slowest thing on the title: 170 to 270 ms unthrottled on this busy

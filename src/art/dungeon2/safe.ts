@@ -60,6 +60,8 @@ export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
   market: { x: 6, y: 0, w: 62, h: 56 },
   docker: { x: 3, y: 5, w: 66, h: 51 },
   elder: { x: 11, y: 6, w: 50, h: 50 },
+  // The ferryman by the rowing boat (B15).
+  ferryman: { x: 3, y: 0, w: 64, h: 56 },
   dock_rat: { x: 5, y: 5, w: 62, h: 51 },
   sand_crab: { x: 3, y: 3, w: 68, h: 53 },
   thieving_gull: { x: 2, y: 10, w: 68, h: 46 },

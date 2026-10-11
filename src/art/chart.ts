@@ -376,8 +376,8 @@ export function harbourChart2(): HarbourChart2 {
       if (edge < tear + 1) t = 4.4;
       g.d[y * W + x] = cell('parchment', lim(t, 0, 5));
     }
-  const onPaper = (x: number, y: number) =>
-    x >= 0 && y >= 0 && x < W && y < H && g.d[y * W + x] !== 0;
+  // Inside the frame's inner rule: the map is drawn there, the margin stays paper.
+  const inFrame = (x: number, y: number) => x >= 12 && y >= 12 && x < W - 12 && y < H - 12;
   // The sea's wash, deepest along the coast, fading out to plain paper.
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -403,14 +403,14 @@ export function harbourChart2(): HarbourChart2 {
       rose.y + Math.sin(a) * 420,
       cell('ink', k % 4 === 0 ? 1 : 0),
       k % 2 ? 3 : 2,
-      (x, y) => sea(x, y) && onPaper(x, y) && Math.hypot(x - rose.x, y - rose.y) > 30,
+      (x, y) => sea(x, y) && inFrame(x, y) && Math.hypot(x - rose.x, y - rose.y) > 30,
     );
   }
   // Wave lines offshore: two broken lines following the coast.
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      if (land[i] || !g.d[i]) continue;
+      if (land[i] || !g.d[i] || !inFrame(x, y)) continue;
       const d = dist[i]!;
       if (Math.abs(d - 3.2) < 0.55 && noise(x, y, 4, 908) > 0.3) g.d[i] = cell('ink', 2);
       else if (Math.abs(d - 6.6) < 0.5 && noise(x, y, 5, 909) > 0.5) g.d[i] = cell('ink', 1);
@@ -421,9 +421,8 @@ export function harbourChart2(): HarbourChart2 {
       const i = y * W + x;
       if (!land[i] || !g.d[i]) continue;
       const coast = sea(x - 1, y) || sea(x + 1, y) || sea(x, y - 1) || sea(x, y + 1);
-      const edge = Math.min(x, y, W - 1 - x, H - 1 - y);
+      if (!inFrame(x, y)) continue;
       if (coast) g.d[i] = cell('ink', 4);
-      else if (edge < 12) continue;
       else if (sea(x, y + 2) || sea(x + 2, y) || sea(x, y + 3)) g.d[i] = cell('parchment', 4);
       else {
         // The land in a warm wash, a green band of shore behind the coast.
@@ -710,7 +709,7 @@ export function chartMarker2(state: ChartMarker2State): ChartPiece2 {
             '..a.......a..',
             '....a.a.a....',
           ],
-          { a: ['ink', 3], q: ['ink', 5] },
+          { a: ['ink', 4], q: ['ink', 6] },
           6,
           5,
           false,

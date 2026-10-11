@@ -517,6 +517,8 @@ describe('the townsfolk at the C scale', () => {
       'market',
       'docker',
       'elder',
+      // B15: the ferryman by the rowing boat.
+      'ferryman',
     ]);
     for (const id of TOWNSFOLK2_IDS) {
       const pic = townsfolkPicture2(id)!;
