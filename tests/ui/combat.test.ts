@@ -323,8 +323,9 @@ describe('the Dungeons card (wave 15)', () => {
     expect(rows()).toEqual([
       'tidepool_cave open',
       'brinebeards_grotto open',
-      'uncharted_1 soon',
-      'uncharted_2 soon',
+      'unknown_1 soon',
+      'unknown_2 soon',
+      'unknown_3 soon',
     ]);
     const cave = q('[data-dungeon-row="tidepool_cave"]');
     expect(cave.querySelector('h3')!.textContent).toBe('Tidepool Cave');
@@ -333,7 +334,7 @@ describe('the Dungeons card (wave 15)', () => {
       'Recommended combat level 20',
     );
     // A landing to come keeps its name back, and says what will open it.
-    const soon = q('[data-dungeon-row="uncharted_1"]');
+    const soon = q('[data-dungeon-row="unknown_1"]');
     expect(soon.querySelector('h3')!.textContent).toBe('?');
     expect(soon.textContent).toContain('Clear Brinebeard’s Grotto.');
     expect(soon.textContent).not.toContain('Uncharted');
@@ -355,8 +356,9 @@ describe('the Dungeons card (wave 15)', () => {
     expect(rows()).toEqual([
       'tidepool_cave cleared',
       'brinebeards_grotto cleared',
-      'uncharted_1 soon',
-      'uncharted_2 soon',
+      'unknown_1 soon',
+      'unknown_2 soon',
+      'unknown_3 soon',
     ]);
     expect(q('[data-dungeon-row="tidepool_cave"]').textContent).toContain(
       'Recommended combat level 1 · cleared 2 times · best 1:24',

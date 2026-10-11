@@ -410,10 +410,11 @@ describe('the content tables', () => {
     expect(rows.map((row) => row.id)).toEqual([
       'tidepool_cave',
       'brinebeards_grotto',
-      'uncharted_1',
-      'uncharted_2',
+      'unknown_1',
+      'unknown_2',
+      'unknown_3',
     ]);
-    expect(rows.map((row) => row.order)).toEqual([1, 2, 3, 4]);
+    expect(rows.map((row) => row.order)).toEqual([1, 2, 3, 4, 5]);
     for (const row of rows) {
       expect(row.description.length, row.id).toBeGreaterThan(5);
       expect(row.unlockText, row.id).toMatch(/^[A-Z].*\.$/);

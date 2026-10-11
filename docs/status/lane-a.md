@@ -777,8 +777,9 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     `firstClear` (items paid once by the first clear) and `comingSoon` (a landing with nothing
     there yet). Rows: `tidepool_cave` (order 1, level 1, open from the start),
     `brinebeards_grotto` (order 2, level 20, open from the start: nothing gated it, so advice
-    only), and two landings to come, `uncharted_1` (opens on clearing the grotto) and
-    `uncharted_2` (on clearing the first), placeholder ids with the name "Uncharted", no loot,
+    only), and three landings to come, `unknown_1` (opens on clearing the grotto),
+    `unknown_2` and `unknown_3` (each on clearing the one before; named `uncharted_1`/`_2` in
+    PR #61 and renamed to lane B's chart's landing ids), placeholder ids with the name "Uncharted", no loot,
     cast or reward, renamed when each is designed (no save can hold a clear of one).
   - **`dungeonStatus(state, id, content)`** (`src/core/dungeons.ts`): `soon`, `locked`, `open`
     or `cleared`, with the unlock text, the recommended level, clears and best time; null for an
@@ -928,7 +929,7 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   for a player who walks there.
 - **For lane B (wave 15)**: `old_snapper`'s face (`portrait2`) and picture; the Combat page shows
   a framed initial until then. Landing ids for the chart: `tidepool_cave`, `brinebeards_grotto`,
-  and the two to come, `uncharted_1`, `uncharted_2` (placeholders, silhouettes).
+  and the three to come, `unknown_1` to `unknown_3` (matching B15's `harbourChart2`).
 
 - **For lane B (wave 14)**: export where each loop's work lands, e.g. `activityHitFrame2(activity)`
   (the axe in the log, the pick on the rock; the blow's `STRIKE2_HIT_FRAME` for combat). Until

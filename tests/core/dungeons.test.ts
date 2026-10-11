@@ -98,8 +98,9 @@ describe('dungeonStatus', () => {
     expect(states).toEqual([
       'tidepool_cave open',
       'brinebeards_grotto open',
-      'uncharted_1 soon',
-      'uncharted_2 soon',
+      'unknown_1 soon',
+      'unknown_2 soon',
+      'unknown_3 soon',
     ]);
   });
 });
