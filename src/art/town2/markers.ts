@@ -509,6 +509,15 @@ export function townHighlight2(w: number, frame = 0): TownMarker2 {
   }
   const on = (x: number, y: number): boolean =>
     x >= 0 && y >= 0 && x < GW && y < GH && !Number.isNaN(angle[y * GW + x]!);
+  // Thin the line where it steps: a pixel making an L with two neighbours goes (the diagonal holds).
+  for (let y = 0; y < GH; y++)
+    for (let x = 0; x < GW; x++) {
+      if (!on(x, y)) continue;
+      const h = on(x - 1, y) || on(x + 1, y);
+      const v = on(x, y - 1) || on(x, y + 1);
+      const n = +on(x - 1, y) + +on(x + 1, y) + +on(x, y - 1) + +on(x, y + 1);
+      if (h && v && n === 2) angle[y * GW + x] = NaN;
+    }
   // The glint: an eighth of the way round, a quarter further each frame.
   const glint = (f / TOWN_MARKER2_FRAMES) * Math.PI * 2 - Math.PI / 2;
   for (let y = 0; y < GH; y++)
