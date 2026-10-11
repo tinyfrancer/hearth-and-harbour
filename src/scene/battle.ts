@@ -284,6 +284,8 @@ export type Effect =
   | { readonly kind: 'splash'; readonly at: Point; readonly from: number }
   /** A cell's bars lifted. */
   | { readonly kind: 'released'; readonly at: Point; readonly from: number }
+  /** A heavy blow taken braced, answered: its maker reels (`BRACE_REEL_MS`), over its head here. */
+  | { readonly kind: 'reel'; readonly at: Point; readonly from: number }
   | { readonly kind: 'say'; readonly who: string; readonly line: SayLine; readonly from: number };
 
 /** What the run has earned so far: paid in by `settleRun` however it ends. */
@@ -845,7 +847,15 @@ function land(
     damage = Math.ceil(damage / 2);
     w.braceUntil = 0;
     w.blowMs = 0;
-    if (by) by.blowMs = Math.max(by.blowMs, BRACE_REEL_MS);
+    if (by) {
+      by.blowMs = Math.max(by.blowMs, BRACE_REEL_MS);
+      // Said, so the answer is seen: it was invisible before (wave 17).
+      effect(w, {
+        kind: 'reel',
+        at: { x: by.at.x, y: by.at.y - foeKind(by.monster).box.h },
+        from: w.clock,
+      });
+    }
   }
   if (def) {
     const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;

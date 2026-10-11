@@ -826,6 +826,9 @@ function drawEffectOver(
     case 'landed':
       if (e.doused) label(ctx, 'fizz', e.at.x, e.at.y - 26 - rise, 13, C.smoke, k, WORDS);
       break;
+    case 'reel':
+      label(ctx, 'Staggered!', e.at.x, e.at.y - 22 - rise, 14, C.gold, k, WORDS);
+      break;
     default:
       break;
   }
@@ -1421,6 +1424,8 @@ export function fightExtra(
       over.push({ x: x - 70, y: y - 48, w: 140, h: 58 });
     } else if (e.kind === 'splash') {
       over.push({ x: e.at.x - 50, y: e.at.y - HERO_TALL - 60, w: 100, h: 56 });
+    } else if (e.kind === 'reel') {
+      over.push({ x: e.at.x - 60, y: e.at.y - 70, w: 120, h: 60 });
     } else if (e.kind === 'landed' && e.doused) {
       over.push({ x: e.at.x - 40, y: e.at.y - 70, w: 80, h: 56 });
     } else if (e.kind === 'say' && clock - e.from < SAY_MS) {

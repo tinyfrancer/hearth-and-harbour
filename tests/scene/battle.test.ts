@@ -383,8 +383,12 @@ describe('the telegraph', () => {
     expect(landed.battle.braceUntil).toBe(0);
     // Reeling: its next ordinary blow is at least BRACE_REEL_MS off (less the tick it was counted in).
     expect(foe(landed.battle).blowMs).toBeGreaterThanOrEqual(BRACE_REEL_MS - TICK_MS);
+    // And it is seen (wave 17): its maker staggers, said over its head.
+    const reel = landed.battle.effects.find((e) => e.kind === 'reel');
+    expect(reel).toMatchObject({ at: { x: foe(landed.battle).at.x } });
     // Unbraced, nothing of the sort.
     const plain = run({ ...b, blowMs: 2000 }, play, t.lands - b.clock, TICK_MS);
+    expect(plain.battle.effects.some((e) => e.kind === 'reel')).toBe(false);
     expect(plain.battle.blowMs).toBeGreaterThan(0);
     expect(foe(plain.battle).blowMs).toBeLessThan(BRACE_REEL_MS - TICK_MS);
   });

@@ -163,6 +163,23 @@ describe('the cave’s lessons', () => {
     run = step({ ...run, battle: aimed.battle, play: aimed.play });
     expect(run.lessons!.done).toContain('attack');
     expect(run.lessons!.for ?? 0).toBe(0);
+    // Wave 17: done only after the run was let go on, it may have been the fight's doing (a rat
+    // walking into his reach becomes his target by itself): not learned, so shown again next run.
+    expect(startLessons(TIDEPOOL_ID, LESSONS, false).done).not.toContain('attack');
+  });
+
+  it('remembers a lesson done before the run was let go on as learned', () => {
+    let run = step(beginCave(novice(), 1));
+    const rat = run.battle!.foes.find((f) => f.room === 'landing')!;
+    run = {
+      ...run,
+      play: { ...run.play, walker: { at: { x: rat.at.x - 140, y: rat.at.y }, path: [] } },
+    };
+    run = step(step(run));
+    expect(shownLesson(run.lessons, LESSONS)!.id).toBe('attack');
+    const aimed = targetFoe(run.battle!, placeOf(CAVE, run), run.play, rat.key);
+    run = step({ ...run, battle: aimed.battle, play: aimed.play });
+    expect(startLessons(TIDEPOOL_ID, LESSONS, false).done).toContain('attack');
   });
 
   it('has plainer words for every lesson that holds the run', () => {

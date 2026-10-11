@@ -115,7 +115,11 @@ export function stepLessons(
   if (next.shown) {
     const lesson = lessons.find((l) => l.id === next.shown);
     if (!lesson || lesson.done(dungeon, run)) {
-      remember(learnedKey(run.dungeon, next.shown));
+      // Done after the run was let go on without it (`LESSON_GO_ON_MS`), it may have been done by
+      // the fight, not the player (a rat walking up into his reach makes itself his target): done
+      // for this run, but not learned, so a later run shows it again.
+      const letGo = !!lesson?.blocks && lessonStage(next) === 2;
+      if (!letGo) remember(learnedKey(run.dungeon, next.shown));
       next = { shown: null, done: [...next.done, next.shown], off: next.off };
     } else if (ms > 0) {
       next = { ...next, for: (next.for ?? 0) + ms };
