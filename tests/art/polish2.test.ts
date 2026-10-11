@@ -92,18 +92,22 @@ describe('the tide-pool cave by daylight (B16)', () => {
     expect(at({ rgb: DAYLIGHT2_RGB })).toEqual([...DAYLIGHT2_RGB]);
   });
 
-  it('draws the light shaft’s body, dithered, so it shows without its glows', () => {
+  it('draws the light shaft’s body, broken, so it shows without its glows', () => {
     const g = dungeonProp2('light_shaft')!.picture.grid;
     expect(count(g, 'lamp') + count(g, 'sail')).toBeGreaterThan(150);
-    // Dithered: no two lit pixels of its body side by side in a row.
-    let side = 0;
-    for (let y = 0; y < g.h; y++)
-      for (let x = 1; x < g.w; x++) {
+    // Broken so the rock shows through: B16 held it to a checker (no two lit pixels side by side);
+    // B17 draws it in streaks along the beam (the checker read as a screen door), so the rule is
+    // now that no row of it is lit solid across the beam's heart.
+    let longest = 0;
+    for (let y = 0; y < g.h; y++) {
+      let run = 0;
+      for (let x = 0; x < g.w; x++) {
         const a = g.d[y * g.w + x]!;
-        const b = g.d[y * g.w + x - 1]!;
-        if (a && b && isMat(a, 'lamp') && isMat(b, 'lamp')) side++;
+        run = a && isMat(a, 'lamp') ? run + 1 : 0;
+        longest = Math.max(longest, run);
       }
-    expect(side).toBeLessThan(6);
+    }
+    expect(longest).toBeLessThan(8);
   });
 });
 

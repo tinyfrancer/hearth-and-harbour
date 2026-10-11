@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { foe2Frame } from '../../src/art/dungeon2/cast2';
 import { prop2 } from '../../src/art/dungeon2/props';
 import { dungeonDoor2 } from '../../src/art/dungeonArt2';
-import { matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
+import { stepOf, type TGrid } from '../../src/art/town2/cells';
 import { matOf as caveMatOf } from '../../src/art/dungeon2/cave';
 
 const at = (g: TGrid, x: number, y: number) =>
