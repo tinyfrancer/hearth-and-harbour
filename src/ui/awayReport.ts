@@ -17,13 +17,16 @@ export function awayReportOverlay(
   const action = report.actionId ? content.actions[report.actionId] : undefined;
   const skill = action && content.skills[action.skill];
   const monster = report.fight ? content.monsters?.[report.fight.monster] : undefined;
+  const dungeon = report.dungeon ? content.dungeons?.[report.dungeon.dungeon] : undefined;
   const itemName = (id: string): string => content.items[id]?.name ?? id;
   const doing =
     action && skill
       ? `, ${skill.verb.toLowerCase()} ${action.name}`
       : monster
         ? `, fighting the ${monster.name}`
-        : '';
+        : dungeon
+          ? `, running ${dungeon.name} idle`
+          : '';
 
   const gains = [
     ...Object.entries(report.items).map(([item, qty]) =>
@@ -85,6 +88,17 @@ export function awayReportOverlay(
       fight.push(`${formatNumber(arrows)} ${arrows === 1 ? 'arrow' : 'arrows'} shot.`);
   }
 
+  // Idle runs' own account: runs finished, foes felled, and the cost.
+  if (report.dungeon) {
+    const { runs, kills, eaten, arrows, food } = report.dungeon;
+    fight.push(
+      `${formatNumber(runs)} ${runs === 1 ? 'run' : 'runs'} through ${dungeon?.name ?? 'the dungeon'}, ${formatNumber(kills)} ${kills === 1 ? 'foe' : 'foes'} felled.`,
+    );
+    if (eaten > 0) fight.push(`${formatNumber(eaten)} ${food ? itemName(food) : 'food'} eaten.`);
+    if (arrows > 0)
+      fight.push(`${formatNumber(arrows)} ${arrows === 1 ? 'arrow' : 'arrows'} shot.`);
+  }
+
   // A theft's own account: how often it worked, and how often it did not.
   const theft: string[] = [];
   if (report.theft) {
@@ -116,10 +130,14 @@ export function awayReportOverlay(
   let stopped = '';
   if (report.stopped?.reason === 'ran_out') {
     stopped = `Stopped: you ran out of ${itemName(report.stopped.item)}.`;
+  } else if (report.stopped?.reason === 'died' && dungeon) {
+    stopped = `Knocked out in ${dungeon.name}. No harm done: you came round on the quay, sore, and have been healing since.`;
   } else if (report.stopped?.reason === 'died') {
     stopped = `Knocked out by the ${monster?.name ?? 'monster'}. No harm done: you came round sore, and have been healing since.`;
   } else if (report.stopped?.reason === 'no_arrows') {
-    stopped = 'Stopped: your last arrow is gone, and the fight with it.';
+    stopped = dungeon
+      ? 'Stopped: your last arrow is gone, and the hero came home.'
+      : 'Stopped: your last arrow is gone, and the fight with it.';
   } else if (report.stopped) {
     stopped = 'Stopped: that is no longer something you can do.';
   }

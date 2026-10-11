@@ -43,13 +43,35 @@ export interface Doing {
 
 const RESTING: Doing = { activity: null, fraction: null, durationMs: null };
 
+/** Lane B's loop for a dungeon run idle (the boat rowed out and back), used when the art has it. */
+export const IDLE_DUNGEON_ACTIVITY = 'dungeon';
+
 /**
  * What is being done, read off the state and the tables: an action's skill
  * names its loop (`SkillDef.activity`); a fight uses the loop of the skill
- * its style trains, timed by the wait for the next blow. Caught mid-theft,
- * between foes, or with nothing running, the hero stands and breathes.
+ * its style trains, timed by the wait for the next blow, and so does a
+ * dungeon run idle while its foes are met (rowing out to it, lane B's
+ * `dungeon` loop). Caught mid-theft, between foes, or with nothing running,
+ * the hero stands and breathes.
  */
 export function doingNow(state: GameState, content: Content): Doing {
+  const idle = state.idleRun;
+  if (idle) {
+    if (idle.foes.length === 0) {
+      // Rowing out (the trip home and back ends in the first room's walk): lane
+      // B's rowing loop when there is one; walking between rooms, a breath.
+      const rowing = idle.room === 0 && ACTIVITY2_IDS.includes(IDLE_DUNGEON_ACTIVITY);
+      return rowing
+        ? { activity: IDLE_DUNGEON_ACTIVITY, fraction: null, durationMs: null }
+        : RESTING;
+    }
+    const skill = content.skills[playerCombat(state, content).skill];
+    return {
+      activity: skill?.activity ?? null,
+      fraction: 1 - idle.playerMs / PLAYER_ATTACK_MS,
+      durationMs: PLAYER_ATTACK_MS,
+    };
+  }
   if (state.fight) {
     if (!monsterDef(content, state.fight.monster) || state.fight.foeHp === 0) return RESTING;
     const skill = content.skills[playerCombat(state, content).skill];

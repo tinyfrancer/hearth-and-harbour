@@ -545,7 +545,9 @@ describe('the content tables', () => {
       const tally = (ids: string[]): Record<string, number> =>
         ids.reduce<Record<string, number>>((all, id) => ({ ...all, [id]: (all[id] ?? 0) + 1 }), {});
       const plan = DUNGEON_PLANS[dungeon.id]!;
-      const placed = Object.values(plan.foes).flatMap((foes) => foes.map((foe) => foe.monster));
+      const placed = Object.values(plan.foes ?? {}).flatMap((foes) =>
+        foes.map((foe) => foe.monster),
+      );
       const called = placed.flatMap((id) => {
         const calls = foeKind(id).boss?.calls;
         return calls ? Array.from({ length: calls.count }, () => calls.monster) : [];

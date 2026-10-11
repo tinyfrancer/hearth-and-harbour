@@ -2,6 +2,8 @@ import { FIGURE2_H } from '../art/character2';
 import { actionDuration } from '../core/actions';
 import { monsterDef, playerCombat } from '../core/combat';
 import type { Content } from '../core/content';
+import { dungeonDef } from '../core/dungeons';
+import { modifierDef } from '../core/progress';
 import { bankCount, type GameState } from '../core/state';
 import type { Prefs } from '../persistence/Prefs';
 import { workStage } from './atWork';
@@ -35,7 +37,8 @@ export const STRIP_TALLEST = 56;
 export const STRIP_FOLDED_PREF = 'strip-folded';
 
 /** Where the strip takes the thumb: the running action's skill, the fight, or the skills to choose from. */
-export type NowTarget = { kind: 'skill'; skill: string } | { kind: 'fight' } | { kind: 'choose' };
+export type NowTarget =
+  { kind: 'skill'; skill: string } | { kind: 'fight' } | { kind: 'dungeons' } | { kind: 'choose' };
 
 export interface NowDoing {
   readonly el: HTMLElement;
@@ -48,6 +51,30 @@ function said(
   state: GameState,
   content: Content,
 ): { line: string; detail: string; fraction: number | null; target: NowTarget } {
+  const idle = state.idleRun;
+  if (idle) {
+    const dungeon = dungeonDef(content, idle.dungeon);
+    const rooms = dungeon?.idle?.rooms.length ?? 0;
+    const modifier = idle.modifier ? modifierDef(content, idle.modifier)?.name : undefined;
+    const runs = `${formatNumber(idle.runs)} ${idle.runs === 1 ? 'run' : 'runs'}`;
+    const where =
+      idle.foes.length > 0
+        ? `Fighting, ${idle.room + 1} of ${rooms}`
+        : idle.room === 0
+          ? 'Rowing out'
+          : `On to ${idle.room + 1} of ${rooms}`;
+    // The bar is the room's foes' health gone, as a fight's is its foe's.
+    const room = dungeon?.idle?.rooms[idle.room];
+    const cast = new Map((dungeon?.cast ?? []).map((foe) => [foe.id, foe.hp]));
+    const whole = room ? room.foes.reduce((sum, id) => sum + (cast.get(id) ?? 0), 0) : 0;
+    const left = idle.foes.reduce((sum, foe) => sum + foe.hp, 0);
+    return {
+      line: `Running ${dungeon?.name ?? 'a dungeon'} idle`,
+      detail: [where, runs, ...(modifier ? [modifier] : [])].join(' · '),
+      fraction: idle.foes.length > 0 && whole > 0 ? Math.max(0, 1 - left / whole) : 0,
+      target: { kind: 'dungeons' },
+    };
+  }
   if (state.fight) {
     const monster = monsterDef(content, state.fight.monster);
     const skill = content.skills[playerCombat(state, content).skill];
