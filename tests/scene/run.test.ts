@@ -12,7 +12,14 @@ import { centreOf, type Point } from '../../src/scene/tileMap';
 import { TOWN2_H, TOWN2_TILE, TOWN2_W } from '../../src/art/town2/town';
 import { town2Scene } from '../../src/scene/town2';
 import { FOCUS_RISE2 } from '../../src/scene/town2Place';
-import { BOAT_LANDING, heroAt, resetTown, runNow, townView } from '../../src/scene/townView';
+import {
+  BOAT_LANDING,
+  heroAt,
+  keepRun,
+  resetTown,
+  runNow,
+  townView,
+} from '../../src/scene/townView';
 import { mountApp } from '../../src/ui/app';
 import type { Shell, View } from '../../src/ui/view';
 
@@ -349,6 +356,55 @@ describe('the way into the grotto', () => {
     expect(shell.calls.filter((c) => c.startsWith('settle:'))).toHaveLength(1);
     expect(view.el.querySelector('.dungeon')).toBeNull();
   }, 60_000);
+
+  it('goes through a door tapped anywhere on its piece, and only up to it while it is barred', () => {
+    character = champion();
+    const view = shown(shellSpy());
+    rowOut(view);
+    resize(844, 390);
+    wait(view, 100);
+    const door = { col: 33, row: 6 };
+    // The crabs asleep at the far end, out of the way, so the doors stay barred.
+    let run = runNow()!;
+    keepRun({
+      ...run,
+      battle: {
+        ...run.battle!,
+        foes: run.battle!.foes.map((f, i) =>
+          f.room === 'pools'
+            ? { ...f, at: centreOf({ col: 3 + i, row: 2 }, T), path: [], aware: false }
+            : f,
+        ),
+      },
+    });
+    // Barred: a tap on the rock over the door, part of its piece, walks him up to it and no further.
+    tap(view.el, { x: door.col * T + 12, y: (door.row - 1) * T + 6 });
+    wait(view, 12_000);
+    run = runNow()!;
+    expect(run.room).toBe('pools');
+    expect(run.battle!.foes.some((f) => f.room === 'pools' && alive(f))).toBe(true);
+    const inside = centreOf({ col: 32, row: 6 }, T);
+    expect(run.play.walker.at.x).toBeCloseTo(inside.x, 0);
+    expect(run.play.walker.at.y).toBeCloseTo(inside.y, 0);
+    // Cleared: the crabs down, the doors open.
+    const clock = run.battle!.clock;
+    keepRun({
+      ...run,
+      battle: {
+        ...run.battle!,
+        foes: run.battle!.foes.map((f) =>
+          f.room === 'pools' ? { ...f, hp: 0, diedAt: clock - 5000 } : f,
+        ),
+      },
+    });
+    wait(view, 1000);
+    expect(runNow()!.battle!.opened.pools).toBeGreaterThan(0);
+    // A tap on the rock below the opening, past the room's edge: through he goes.
+    tap(view.el, { x: (door.col + 1) * T + 8, y: (door.row + 1) * T + 10 });
+    for (let t = 0; t < 20_000 && runNow()!.room === 'pools'; t += 500) wait(view, 500);
+    run = runNow()!;
+    expect(run.room).toBe('store');
+  });
 
   it('washes a hero who falls back to town with what he picked up, settled once', () => {
     // A new character, no weapon, no food: the rats are a fair fight and the crabs are not.

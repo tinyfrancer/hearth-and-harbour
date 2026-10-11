@@ -341,6 +341,17 @@ function litOffMap(c: number, x: number, y: number, lights: readonly Light2[]): 
 }
 
 /**
+ * As far as an open door can change the ground: its light's pool and the
+ * dark it lifts round it are well inside four tiles across and three up and
+ * down (half-width 26, the dark's edge at 2.2 of that, ragged by a sixth).
+ */
+function doorReach(d: DoorAt): Box {
+  const cx = d.cell.col * T + T / 2;
+  const cy = d.cell.row * T + T / 2;
+  return { x: cx - 4 * T, y: cy - 3 * T, w: 8 * T, h: 6 * T };
+}
+
+/**
  * Each door's cells barred and open, from the room's ground lit both ways:
  * the box is the piece and every cell of the room the open door changes
  * (its light's pool on the floor), with its glows' reach. Pure.
@@ -357,12 +368,9 @@ export function doorPaints(room: Room, barredLit: TGrid, openLit: TGrid): DoorPa
     let y0 = d.box.y;
     let x1 = d.box.x + d.box.w;
     let y1 = d.box.y + d.box.h;
-    const cx = d.cell.col * T + T / 2;
-    const cy = d.cell.row * T + T / 2;
-    const reachX = 4 * T;
-    const reachY = 3 * T;
-    for (let y = Math.max(0, cy - reachY); y < Math.min(H, cy + reachY); y++)
-      for (let x = Math.max(0, cx - reachX); x < Math.min(W, cx + reachX); x++) {
+    const reach = doorReach(d);
+    for (let y = Math.max(0, reach.y); y < Math.min(H, reach.y + reach.h); y++)
+      for (let x = Math.max(0, reach.x); x < Math.min(W, reach.x + reach.w); x++) {
         const i = y * W + x;
         if (barredLit.d[i] === openLit.d[i]) continue;
         x0 = Math.min(x0, x);
@@ -402,7 +410,8 @@ export function doorPaints(room: Room, barredLit: TGrid, openLit: TGrid): DoorPa
           const x = box.x + i;
           const y = box.y + j;
           let c: number;
-          if (x >= 0 && x < W) c = lit.d[y * W + x]!;
+          // Inside the room, the ground as lit (the barred ground where the open was not worked out).
+          if (x >= 0 && x < W) c = lit.d[y * W + x]! || barredLit.d[y * W + x]!;
           else {
             // Past the room's edge: the piece alone, where the passage runs on into the rock.
             const px = x - d.box.x;
@@ -525,6 +534,7 @@ function litCells(
   level: number,
   warn: boolean,
   open: boolean,
+  only?: readonly Box[],
 ): TGrid {
   const g: TGrid = { w: tiles.g.w, h: tiles.g.h, d: tiles.g.d.slice() };
   const doors = doorPieces(room);
@@ -532,6 +542,14 @@ function litCells(
   overlays(room, g, level, warn);
   for (const p of propsOf(room))
     castShadow(g, p.feet, p.shadow, shadowSteps(tiles.kinds, p.feet));
+  if (only) {
+    // Only these boxes are wanted: the rest left empty, which the light passes over at no cost.
+    const keep = new Uint8Array(g.w * g.h);
+    for (const b of only)
+      for (let y = Math.max(0, b.y); y < Math.min(g.h, b.y + b.h); y++)
+        keep.fill(1, y * g.w + Math.max(0, b.x), y * g.w + Math.min(g.w, b.x + b.w));
+    for (let i = 0; i < g.d.length; i++) if (!keep[i]) g.d[i] = 0;
+  }
   const lights = lightsOf(room);
   return lightGround2(
     g,
@@ -547,8 +565,10 @@ export function groundWithDoors(
 ): { cells: TGrid; doors: DoorPaint[] } {
   const tiles = tileCells(room, level, warn);
   const cells = litCells(room, tiles, level, warn, false);
+  // The open ground is lit only about the doors: it is all that changes.
+  const near = doorPieces(room).map(doorReach);
   const doors = room.doors.length
-    ? doorPaints(room, cells, litCells(room, tiles, level, warn, true))
+    ? doorPaints(room, cells, litCells(room, tiles, level, warn, true, near))
     : [];
   return { cells, doors };
 }
