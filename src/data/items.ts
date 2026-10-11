@@ -154,6 +154,15 @@ export const ITEMS = {
     value: 480,
     equip: { slot: 'body', armour: 9 },
   },
+  // Cody's review: "Leg armor from smithing?" A plate for each shin and one for
+  // each knee: three bars, between the shield and the breastplate.
+  bronze_greaves: {
+    id: 'bronze_greaves',
+    name: 'Bronze greaves',
+    description: 'Shin plates that clank on the stairs. Kicks are now a matter of opinion.',
+    value: 355,
+    equip: { slot: 'legs', armour: 5 },
+  },
   iron_axe: {
     id: 'iron_axe',
     name: 'Iron axe',
@@ -200,6 +209,13 @@ export const ITEMS = {
     description: 'Takes two people to buckle on and a third to say it suits you.',
     value: 815,
     equip: { slot: 'body', armour: 15, requires: { skill: 'defence', level: 10 } },
+  },
+  iron_greaves: {
+    id: 'iron_greaves',
+    name: 'Iron greaves',
+    description: 'Grey plate from knee to ankle. Walking is louder; falling over is harder.',
+    value: 610,
+    equip: { slot: 'legs', armour: 8, requires: { skill: 'defence', level: 10 } },
   },
   bronze_arrowheads: {
     id: 'bronze_arrowheads',

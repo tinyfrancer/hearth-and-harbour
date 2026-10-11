@@ -142,6 +142,7 @@ const ALL: ActionDef[] = [
       ['smith_bronze_sword', 'Bronze sword', 3, 4, 23, { bronze_bar: 2 }, 'bronze_sword'],
       ['smith_bronze_helmet', 'Bronze helmet', 5, 4, 26, { bronze_bar: 2 }, 'bronze_helmet'],
       ['smith_bronze_shield', 'Bronze shield', 7, 5, 37, { bronze_bar: 3 }, 'bronze_shield'],
+      ['smith_bronze_greaves', 'Bronze greaves', 8, 5, 38, { bronze_bar: 3 }, 'bronze_greaves'],
       [
         'smith_bronze_breastplate',
         'Bronze breastplate',
@@ -169,6 +170,7 @@ const ALL: ActionDef[] = [
       ['smith_iron_sword', 'Iron sword', 16, 4, 44, { iron_bar: 2 }, 'iron_sword'],
       ['smith_iron_helmet', 'Iron helmet', 17, 4, 46, { iron_bar: 2 }, 'iron_helmet'],
       ['smith_iron_shield', 'Iron shield', 18, 5, 59, { iron_bar: 3 }, 'iron_shield'],
+      ['smith_iron_greaves', 'Iron greaves', 18, 5, 60, { iron_bar: 3 }, 'iron_greaves'],
       [
         'smith_iron_breastplate',
         'Iron breastplate',

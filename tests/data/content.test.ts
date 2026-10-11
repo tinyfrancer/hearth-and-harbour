@@ -111,6 +111,8 @@ describe('the content tables', () => {
       'iron_shield',
       'bronze_breastplate',
       'iron_breastplate',
+      'bronze_greaves',
+      'iron_greaves',
       'linen_hood',
       'linen_tunic',
       'linen_trousers',
@@ -144,12 +146,13 @@ describe('the content tables', () => {
       const def = CONTENT.items[id]!.equip!;
       return (def.attack ?? 0) + (def.strength ?? 0) + (def.armour ?? 0);
     };
-    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate', 'arrows']) {
+    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate', 'greaves', 'arrows']) {
       expect(sum(`iron_${piece}`), piece).toBeGreaterThanOrEqual(sum(`bronze_${piece}`) * 1.5);
     }
     for (const [cloth, metal] of [
       ['linen_hood', 'bronze_helmet'],
       ['linen_tunic', 'bronze_breastplate'],
+      ['linen_trousers', 'bronze_greaves'],
     ] as const) {
       expect(sum(cloth) * 3, cloth).toBeLessThanOrEqual(sum(metal));
     }
@@ -581,7 +584,7 @@ describe('the content tables', () => {
 
   it('asks levels to wear things: bronze at 1, iron at 10, bows by Ranged', () => {
     const needs = (id: string) => CONTENT.items[id]!.equip!.requires;
-    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate']) {
+    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate', 'greaves']) {
       expect(needs(`bronze_${piece}`), piece).toBeUndefined();
       expect(needs(`iron_${piece}`)?.level, piece).toBe(10);
     }
