@@ -10,6 +10,7 @@ describe('artGallery', () => {
     const buttons = [...page.querySelectorAll('button')].map((b) => b.textContent);
     expect(buttons).toContain('See the new town at the finer scale');
     expect(buttons).toContain('Draw the new figures');
+    expect(buttons).toContain('See the title screen');
   });
 
   it('draws every picture at a whole number of device pixels', () => {
