@@ -3,6 +3,77 @@
 **Next session:** Cody's review of B17 (the dungeon-replay pictures, rowing, and the weak spots
 of B12 to B16) and whatever it asks for.
 
+## The cave's creatures and walls, the town's markers and boat, the title, six icons, for lanes C and A (B17, third PR)
+
+Items 5 to 8 of the brief (the dungeon, the town, the title, the icons). No export renamed or
+re-signed; `FOE2_SIZES` (every box and reach) equals `measureFoe2` as before; every piece's size,
+base, foot and facts are unchanged. Added:
+
+```ts
+// src/art/town2/markers.ts
+TOWN_MARKER2_SIZES                      // ['small', 'large', 'medium']: 'medium' appended, small still the default
+townMarker2(kind, frame, 'medium')      // 22 x 23 with its keyline, one canvas and anchor for every kind and frame,
+                                        //   anchor { x: 10, y: 22 } (the keyline under the tip)
+townHighlight2(w, frame)                // now carries glows round its line (dusk only: not `always`)
+// src/art/town2/pieces.ts
+TOWN2_PIECE_FRAMES: Partial<Record<Town2Id, { frames: number; frameMs: number }>>
+                                        // { boat_lantern: { frames: 2, frameMs: 420 } }
+town2PieceFrame(id: Town2Id, frame: number): Town2Piece
+                                        // frame 0 is town2Piece(id); any other frame the same piece
+                                        //   (size, base, foot, facts) with its picture stirred
+```
+
+- **The cave's creatures** (item 5). The troll down: each part (head, ear, legs, the flung arm)
+  is drawn on its own and laid on with a dark seam where its edge meets the body, and the arm is
+  lit from above, so he reads as a troll on his back, not a heap. The wolf a step paler all over
+  (his top may now reach the light step) and his legs a pixel thicker. The giant crab's eye
+  stalks a pixel wider (the outline took one off each side). Every portrait was rendered and
+  compared: the people's heads are distinct (the closest pair shares a third of its cells), the
+  five thieving marks and the ferryman each their own.
+- **Creature strikes**: the rat, the boar and the wolf crouch at the wind-up, then spring: the
+  hind feet stay where they stood, the body stretches, the forefeet leave the ground and the
+  head drives in low, no further forward than before (the reach is unchanged). The gull draws its
+  head back and stabs down. The crabs, the parrot, the troll and the wyrm are as they were.
+- **The tide-pool cave**: the beds of its walls bend over a long stretch, a few long upright
+  joints wander down across several beds, and weed strands lean a pixel a row and darken to the
+  tip (they read as drips). The light shaft is streaks along the beam, thick in its heart and
+  thin at its edges, in place of B16's checker. The open side door's rock surround past the
+  room's edge is taller and lumpy (4 to 11 rows off the passage, to the piece's fourth row); the
+  grotto's is as it was (`cheeks` takes an optional `tall`).
+- **The town** (item 6). `medium` markers, half as big again as the small: the large one's
+  rounded plaque with a one-pixel gold rim, the same pictograms hand-drawn at 14 x 9 (travel is
+  the little boat, as the large). Judged over the real town by day and dusk with the small and the
+  large (`markers-three-sizes.png`); small stays the default. The ring round the nearest thing
+  carries its own soft light at dusk. The boat's painter ends in an iron ring at the top of the
+  boat's picture, which in town lies on the quay wall's wet foot (the ring's middle is about
+  (124, 5) in the piece). The boat lantern's pennant has two frames (`town2PieceFrame`). The
+  ferryman walking across leans his oar, its head forward of his face and its blade back by his
+  feet, so it no longer runs up across his chin. On the chart the chimneys are two pixels wide and
+  set into their roofs.
+- **The title** (item 7). The ship moved left (its mast in the gap between the hill's path and
+  the smithy, its waterline where it was), so its rigging and flag no longer cross the smithy's
+  face and roof at 360 wide, nor at any other width; a pier light the hull stands in front of is
+  not drawn over it. On the hill's face: a dry-stone wall with a gap for a gate, four sheep and a
+  few dots of gorse. A light's reflected columns now break together (staggered, they read as
+  hooks when enlarged). The gulls half as big again, with a body, a beak and dark wingtips.
+- **Icons** (item 8). The greaves, bronze and iron: the pair stands apart, the far one higher and
+  darker, each a leg's silhouette (knee cop, straight shin, swelling calf, ankle, instep lip) with
+  a strap at the calf and the ankle; at 24 pixels B14's overlapping pair ran into one tangle. Five
+  more redrawn, chosen as the most out of their families on a contact sheet of every icon: the
+  hide (a pelt laid out, head and ears, legs at the corners; it read as a squashed beetle), the
+  smuggled tea (a wooden chest with a stencilled leaf and a wax seal; it read as a tin of soup),
+  leather (a laced sheet with a corner turned; the roll read as a log), the hunter's charm (a
+  large curved fang under red beads; the cord's loop was most of it) and the velvet cap (crown,
+  folds and band apart; it was one plum blob).
+- **The dev server**: `tidepool.ts` read the tile size at load, which `tiles.ts` (they import
+  each other) had not yet set when it was loaded first, and the page stopped there under
+  `npm run dev` ("Cannot access 'TILE2' before initialization"); it now reads it when drawing.
+  The production build was not affected.
+- **Gallery**: the markers plate shows the medium markers; the rest shows in the plates as before.
+- **Review sheets** in `/home/claude/lane-shots/w17-b/`: `foes-fixes.png`,
+  `markers-three-sizes.png`, `town-fixes.png`, `title-before-after.png`, `icons-redrawn.png`,
+  and `s16-icons.png` (redone with the slow and dodge kinds).
+
 ## The blow toward and away, the back view, the walk, standing turned, for lanes C and A (B17, second PR)
 
 The figure weak spots on the B12 to B16 lists, worst first. No export renamed or re-signed;
@@ -1867,6 +1938,22 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Needs from another lane
 
+- **Lane C, for B17** (third PR; nothing breaks if you wait):
+  - The boat lantern's pennant stirs: draw `town2PieceFrame('boat_lantern', Math.floor(now /
+TOWN2_PIECE_FRAMES.boat_lantern.frameMs))` where `BOAT_LANTERN` draws `town2Piece`; size,
+    foot and base are the same every frame.
+  - If the boat ever bobs: its painter now ends in an iron ring in the top rows of the rowboat's
+    picture (rows 0 to 8, about column 124), standing for a ring in the quay wall. Bobbed with
+    the boat it would bob with it: keep those rows still, or tell lane B and it moves to a piece
+    of its own.
+  - `townHighlight2` carries glows round its line at dusk. `cellPixels` clears every empty pixel,
+    so in the scene only the line itself brightens; to show the soft light on the ground round it,
+    add the ring's glows the way the scene adds the lamps' (or paint it without clearing the
+    pixels a glow falls on).
+  - `townMarker2(kind, frame, 'medium')` is there if the small marker is too quiet near the hero
+    (22 x 23, anchor `{ x: 10, y: 22 }`); `MarkerSize` in `fromLaneB.ts` would gain `'medium'`.
+- **Lane A, for B17** (third PR): nothing. The redrawn icons keep their ids and size; the
+  title's composition changed (the ship, the hill, the gulls), its doors and safe box did not.
 - **Lane A, for B17** (all optional; nothing breaks without them):
   - Show `modifierIconFor(modifier.effects)` (or `modifierIcon(id)`) beside each daily modifier,
     `challengeIcon(id)` beside each challenge with `challengeMedal(state)` for its state, and play
@@ -2099,6 +2186,31 @@ worn, 'dusk')` is identical under it.
 
 ## Notes for this lane's next session
 
+- **Weak list (B17), honestly**, weakest first:
+  - Standing turned is the front figure warped row by row, not a drawn three-quarter: the face is
+    narrowed on the far side and widened on the near, but the nose and mouth do not come round,
+    so close up it reads as a front face squeezed; at true size it reads as turned.
+  - The ship on the title still crosses the smithy's left corner with its backstay and shrouds,
+    and its hull now stands in front of the pier's end at every width; its black flag sits on
+    the dark hill and reads by its shape more than its tone.
+  - The lying troll's flung arm reads as three pale blocks (upper arm, forearm, hand) more than
+    one limb; the head and the body are still one green at dusk.
+  - The light shaft without its glows is streaky and a little clumpy where streaks meet; with its
+    glows it reads as a beam.
+  - The creature strikes: the forefoot "off the ground" is the leg drawn shorter (no paw lifted
+    and bent); the crabs', the parrot's and the wyrm's strikes are as they were.
+  - The ferryman's leant oar steps a pixel every five rows and its blade crosses his front shin.
+  - The tide-pool weed strands all lean the same way; in a thick patch they read as hatching.
+  - Toward and away, the feet still slide a little (the stride and the frames cannot change).
+  - The greaves icons read as greaves beside their family; alone, two small segmented plates. The
+    bowstring's coil still reads a little like a basket (not redrawn: the five chosen read worse).
+  - The wolf at dusk is lighter but still a mid grey on a grey floor; the gulls are bigger but
+    still small against the sky.
+  - The medium marker was judged on stills pasted over the town, not in motion in the scene.
+- **How B17 was iterated**: `.shots`-style vitests under the scratchpad (node environment,
+  `before/` a copy of `main`'s `src`) rendering every frame and every piece to PNGs, composed into
+  sheets with Pillow; the title as `TitleScene(w, h, 3).frame(ms)`; Playwright on a production
+  build at 360 x 760, 390 x 844 and 844 x 390 for the title as the phone shows it.
 - **Weak list (B16), honestly**, weakest first:
   - The large marker and the edge pointer are not in the game until lane C wires them; they were
     judged on mock-ups pasted into real-game screenshots at true size, not in motion in the scene.

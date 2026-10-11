@@ -29,7 +29,10 @@ import {
   type Tile2Kind,
 } from './tiles';
 
-const P = TILE2;
+// B17: the tile size is read inside the functions, never at load: tiles.ts and this file import
+// each other, and read at load it is not yet set when tiles.ts is loaded first (the dev server
+// stopped on it).
+const tile = (): number => TILE2;
 const lim = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(v)));
 const frac = (v: number) => v - Math.floor(v);
 
@@ -267,6 +270,7 @@ function faceAt(x: number, y: number, wy: number): Cell {
 /** Now and then a detail: shells, pebbles, a purple starfish, a razor shell, weed, a pool, limpets, mussels. */
 function details(g: TGrid, kind: Tile2Kind, wear: number): void {
   const set = (x: number, y: number, c: Cell) => {
+    const P = tile();
     if (x >= 0 && y >= 0 && x < P && y < P) g.d[y * P + x] = c;
   };
   const r = (i: number) => hash(wear, i, 390 + kind.length);
