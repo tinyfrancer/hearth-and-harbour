@@ -634,61 +634,45 @@ const liquid = (ramp: 'tonic' | 'draught' | 'tincture' | 'midnight'): Legend =>
   }) as Legend;
 
 // ---------------------------------------------------------------------------
-// Greaves (B13, redrawn in B14: the first drawing, two symmetric plates with a
-// bulb on top and a flared foot, read as a pair of vases): a pair in profile,
-// the near one lower, each with a leg's own silhouette (the knee cop domed
-// over the knee, the shin straight in front, the calf swelling behind, the
-// ankle narrow, a small lip over the instep), round as a shin, two straps
-// buckled behind the calf. Bronze strapped in hide, iron in leather.
+// Greaves (B13, redrawn in B14 and again in B17). B13's two symmetric plates
+// read as a pair of vases; B14's pair in profile overlapped, the near one over
+// the far, and at 24 pixels the two ran together into a tangle. Now the pair
+// stand apart, the far one a little higher and a step darker, each a leg's
+// own silhouette with no more in it than reads: the knee cop domed forward,
+// the shin's front straight, the calf swelling behind, a narrow ankle and a
+// lip over the instep, a broad strap at the calf and a short one at the ankle.
+// Bronze strapped in hide, iron in leather.
 const BRONZE_GREAVES: readonly string[] = [
-  '...........2345',
-  '..........233445',
-  '..........2233445',
-  '....1234...455555',
-  '...122334..222334',
-  '...1122334.2233445',
-  '....344444.FXXXXXX1#',
-  '....111223.22334445',
-  '....112233422334445',
-  '....FXXXXXX1#33445',
-  '....11223334233445',
-  '....1122333433445',
-  '....1122334233445',
-  '....1122334FXXX1#',
-  '....122334.23345',
-  '....122334.2345',
-  '....FXXX1#.2345',
-  '....12234..2345',
-  '....1234..23345',
-  '....1234',
-  '....1234',
-  '...12234',
+  '..1233',
+  '.112334',
+  '.1122344...2344',
+  '..34455...223445',
+  '.112234...2233455',
+  '1122334....45555',
+  'FXXXXX#...223345',
+  '1122334..2233445',
+  '.112234..FXXXXX#',
+  '..11234..2233445',
+  '..FXX#....223345',
+  '..11234....22345',
+  '..11234....FXX#',
+  '..11234....22345',
+  '..112344...22345',
+  '...2345....22345',
+  '...........223455',
+  '............3455',
 ];
 
-const IRON_GREAVES: readonly string[] = [
-  '...........mmnd',
-  '..........mmmnnd',
-  '..........mmmmnnd',
-  '....Mmmn...nddddd',
-  '...Mmmmmn..mmmmmn',
-  '...MMmmmmn.mmmmnnd',
-  '....mnnnnn.offffffMO',
-  '....MMMmmm.mmmmnnnd',
-  '....MMmmmmnmmmmnnnd',
-  '....offffffMOmmnnd',
-  '....MMmmmmmnmmmnnd',
-  '....MMmmmmmnmmnnd',
-  '....MMmmmmnmmmnnd',
-  '....MMmmmmnofffMO',
-  '....Mmmmmn.mmmnd',
-  '....Mmmmmn.mmnd',
-  '....offfMO.mmnd',
-  '....Mmmmn..mmnd',
-  '....Mmmn..mmmnd',
-  '....Mmmn',
-  '....Mmmn',
-  '...Mmmmn',
-];
+const IRON_GREAVES: readonly string[] = recolour(BRONZE_GREAVES, {
+  '1': 'M',
+  '2': 'm',
+  '3': 'n',
+  '4': 'd',
+  '5': 'd',
+  F: 'f',
+  X: 'f',
+  '#': 'O',
+});
 
 // ---------------------------------------------------------------------------
 

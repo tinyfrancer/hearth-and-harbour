@@ -796,6 +796,22 @@ const OAR_SIDE: readonly string[] = [
   '.34.',
 ];
 
+/**
+ * B17: the oar leant, its head forward of his face and its blade back by his
+ * feet, turned about the fist (row 31); stood upright, its loom ran up across
+ * his chin and pipe. Returns the rows and how far the leftmost moved.
+ */
+function leant(rows: readonly string[], pivot: number, k: number): { rows: string[]; dx: number } {
+  const shift = rows.map((_, j) => Math.round((pivot - j) * k));
+  const lo = Math.min(...shift);
+  const hi = Math.max(...shift);
+  return {
+    rows: rows.map((r, j) => '.'.repeat(shift[j]! - lo) + r + '.'.repeat(hi - shift[j]!)),
+    dx: lo,
+  };
+}
+const OAR_LEANT = leant(OAR_SIDE, 31, 0.2);
+
 const FERRYMAN = (): SideDress => {
   const d = base();
   d.head.push(
@@ -860,7 +876,12 @@ const FERRYMAN = (): SideDress => {
     fore: 1.25,
     swing: 0,
     hand: 'fist',
-    holds: [byFist(1, -31, -2, OAR_SIDE, 'pinewood', { c: ['crimson', 2], d: ['crimson', 4] })],
+    holds: [
+      byFist(1 + OAR_LEANT.dx, -31, -2, OAR_LEANT.rows, 'pinewood', {
+        c: ['crimson', 2],
+        d: ['crimson', 4],
+      }),
+    ],
   };
   d.farJob = { upper: 0.1, fore: -0.2, swing: 0, hand: 'none' };
   return d;

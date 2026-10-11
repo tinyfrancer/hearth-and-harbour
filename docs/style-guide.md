@@ -641,6 +641,12 @@ door `src/art/title.ts`.
   `logoDraw.ts` and baked into `logoData.ts`; change the drawing, then run the title test with
   `UPDATE_LOGO=1`.
 
+- **B17, at 360 wide**: nothing tall in the water stands in front of a building's face: the ship's
+  mast stands in the gap between the hill's path and the smithy, its flag against the hill. A
+  slope with nothing on it reads as unfinished: the hill's face has a dry-stone wall, sheep and
+  gorse, few and small. A light's reflection breaks across all its columns at once; staggered
+  breaks read as hooks when enlarged. Gulls are 13 pixels across with dark wingtips.
+
 #### Buildings at a fifth of their size (B14)
 
 - About 7.5 art pixels a metre at the quay (the house up the hill a little less, the ship nearer a
@@ -753,7 +759,21 @@ sets the look of the ones after it.
   feet, the keg over his head in both hands with a painted skull and a lit fuse. **Brinebeard's
   coat is purple**, as the item says.
 
-#### Portraits at the C scale (B10a, redrawn in B11)
+- **B17, a creature in parts of one stuff** (the troll down): draw each part on its own and lay
+  it on with a dark seam where its edge meets what is already drawn, so a limb of the same green
+  over the same green still has an edge. A **strike springs**: the wind-up gathers low, then the
+  back feet stay planted while the body stretches and the front leaves the ground. Everything
+  sliding forward together reads as a shuffle. Keep the reach: what goes furthest forward in the
+  strike frame (the head) goes no further than before, as `FOE2_SIZES` holds.
+
+##- **B17, what reads at 24 pixels**: a pair of things (greaves) stands apart, the far one higher
+and a step darker, never overlapping, each with no more in it than reads (a silhouette, two
+straps); overlapped, two plates run into one tangle. An icon that reads as something else (a
+splat, a soup tin, a log, a loop of cord, a blob) is redrawn by what the thing is first known
+by: a pelt by its head and legs, tea by its chest, leather by its laced edge and turned corner,
+a charm by its fang, a cap by its band.
+
+## Portraits at the C scale (B10a, redrawn in B11)
 
 Cody, on B10a's faces: "Honestly the character portraits freak me out." They were one built head
 for everyone (a tall, narrow egg), small evenly spaced features in it, a blank straight stare, a
@@ -854,6 +874,14 @@ not only their colour.
   a heap of kelp the tide left (a tangle of olive ribbons, strands trailing over the sand, bladders), starfish and limpets on a rock, anemones and mussels, a silvered
   driftwood log, an old rowing boat's ribs half buried (seen from above: the hull's line, ribs
   across, the stem post). Boulders are lumpy domes of the cave's rock with a wet band where they sit.
+
+- **B17, walls, weed and the shaft.** The beds also bend over a long stretch (folded rock), and a
+  few long upright joints wander down across several beds, lit on their right lip: never one in
+  every bed, which is what made coursed masonry. A weed strand leans a pixel for each row it
+  falls and darkens to its tip: a straight strand of one green is a drip. A shaft of light is
+  streaks along its beam, each one-pixel lane cut into short dashes, thick in the heart and thin
+  at the edges and ends; never a regular checker, which enlarged is a screen door. The open side
+  door's lit rock runs out to a lumpy edge 4 to 11 rows off the passage.
 
 ### Old Snapper (B15)
 
@@ -964,6 +992,18 @@ without looking like a menu.
 - **Off the screen, a gold chevron (B16)**: the edge pointer is the dungeon's way-onward arrow in the
   town's pixels, a notched gold arrowhead lit as a solid with a dark keyline, nudging two pixels
   toward what it points at. No pictogram on it: it points, the marker says what is there.
+
+- **Three sizes (B17)**: small for things near the hero (the default), large for the boat from
+  across the square, and between them a medium, half as big again as the small (20 x 21 before
+  its keyline): the large one's rounded plaque with a one-pixel gold rim, its pictograms drawn by
+  hand at 14 x 9. Judge a size over the real town, day and dusk, never on a plain ground.
+- **The ring at dusk (B17)**: the ring carries small glows close round its line that shine only
+  when the lights are on, so it holds against the dark ground; by day it is the plain gold line.
+- **A line is tied to something (B17)**: the boat's painter ends in an iron ring where the quay
+  wall's wet foot is, inside the boat's own picture; a line that runs off the top of a piece reads
+  as cut. The lantern's pennant has two frames, the ripple run on down it.
+- **What a figure carries upright never crosses his face (B17)**: walking across, the ferryman
+  leans his oar about his fist, its head forward of his face and its blade back by his feet.
 
 ## Colour
 

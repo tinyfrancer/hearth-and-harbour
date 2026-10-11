@@ -29,7 +29,10 @@ import {
   type Tile2Kind,
 } from './tiles';
 
-const P = TILE2;
+// B17: the tile size is read inside the functions, never at load: tiles.ts and this file import
+// each other, and read at load it is not yet set when tiles.ts is loaded first (the dev server
+// stopped on it).
+const tile = (): number => TILE2;
 const lim = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(v)));
 const frac = (v: number) => v - Math.floor(v);
 
@@ -142,10 +145,13 @@ function wallTopAt(x: number, y: number): Cell {
 function bedAt(x: number, wy: number): { bed: number; at: number; size: number } {
   // B16: the beds dip gently across the room and wander more along it, so no join runs level
   // for long (straight level joins read as coursed masonry from close up).
+  // B17: and they bend, rising and falling over a long stretch (folded rock), so the face is not
+  // a stack of level bands.
   const w =
     wy +
     Math.round(
       x * 0.07 +
+        (noise(x, 0, 67, 369) - 0.5) * 14 +
         (noise(x, 0, 41, 360) - 0.5) * 9 +
         (noise(x, 0, 23, 361) - 0.5) * 5 +
         (noise(x, 0, 7, 367) - 0.5) * 1.6,
@@ -187,9 +193,20 @@ function strata(x: number, wy: number, base: number, wet = 0): Cell {
     if (weed > 0.64) return cell('moss', weed > 0.76 ? 4 : 5);
     return cell('tiderock', lim(base + 1.6 + tone * 0.5, 2, 6));
   }
-  // Strands of that weed hanging over the top of the bed below.
-  if (at <= 2 && weed > 0.7 && hash(x, bed, 376) < 0.45 && at < 1 + hash(x, bed, 377) * 3)
+  // Strands of that weed over the top of the bed below. B17: each strand lies over a pixel for each
+  // row it falls, swept by the water, so it reads as weed and not as a drip.
+  const sx = x - at;
+  if (at <= 2 && weed > 0.7 && hash(sx, bed, 376) < 0.45 && at < 1 + hash(sx, bed, 377) * 3)
     return cell('moss', at === 0 ? 4 : 5);
+  // B17: a few long upright joints, each wandering down across several beds (B16 took out the
+  // short joint in every bed, which cut the beds into blocks); its right lip catches the light.
+  const jx = x + Math.round((noise(x, wy, 7, 390) - 0.5) * 6 + (noise(x, wy, 19, 393) - 0.5) * 8);
+  const band = Math.floor(jx / 31);
+  const off = jx - band * 31 - (4 + Math.floor(hash(band, 1, 391) * 22));
+  if ((off === 0 || off === 1) && hash(band, 0, 391) < 0.6 && noise(band * 9, wy, 9, 392) > 0.5)
+    return off === 0
+      ? cell('tiderock', lim(base + 2.2, 4, 6))
+      : cell('tiderock', lim(base + tone - 1.4, 0, 4));
   if (at === 0 && tone <= 0 && joint > 0.45) return cell('tiderock', lim(base - 1.2, 0, 5));
   // Barnacles: pale specks in loose clusters, thicker toward the tide's mark.
   const crust = noise(x, wy, 8, 378);
@@ -216,9 +233,13 @@ function faceHighAt(x: number, y: number, wy: number): Cell {
   if (y === lip - 1) return cell('tiderock', 2);
   if (y === lip) return cell('tiderock', 6);
   if (y === lip + 1 && hash(x, 0, 372) < 0.6) return cell('tiderock', 5);
-  // Weed hanging over the lip in strands.
-  if (y < lip + 6 && noise(x, 3, 3, 373) > 0.72 && y - lip < 2 + noise(x, 4, 2, 374) * 5)
-    return cell('moss', y === lip + 2 ? 3 : 4);
+  // Weed hanging over the lip in strands. B17: each strand leans a pixel every other row and darkens
+  // to its tip (straight one-pixel strands of one green read as drips).
+  const k = y - lip - 2;
+  const wx = x - Math.floor(Math.max(0, k) / 2);
+  const len = 2 + noise(wx, 4, 2, 374) * 5;
+  if (y < lip + 6 && noise(wx, 3, 3, 373) > 0.72 && y - lip < len)
+    return cell('moss', k <= 0 ? 3 : y - lip >= len - 1 ? 5 : 4);
   return strata(x, wy, 3.6 - (y / 24) * 0.8);
 }
 
@@ -249,6 +270,7 @@ function faceAt(x: number, y: number, wy: number): Cell {
 /** Now and then a detail: shells, pebbles, a purple starfish, a razor shell, weed, a pool, limpets, mussels. */
 function details(g: TGrid, kind: Tile2Kind, wear: number): void {
   const set = (x: number, y: number, c: Cell) => {
+    const P = tile();
     if (x >= 0 && y >= 0 && x < P && y < P) g.d[y * P + x] = c;
   };
   const r = (i: number) => hash(wear, i, 390 + kind.length);

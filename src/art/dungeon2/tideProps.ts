@@ -454,9 +454,21 @@ function lightShaft(): TideProp {
       const across = Math.abs((x - top[0]) * dy - (y - top[1]) * dx) / len;
       const half = 2.5 + t * 9;
       if (across > half) continue;
-      const heart = across < half * 0.55 && t > 0.14 && t < 0.92;
-      const on = heart ? (x + y) % 2 === 0 : x % 2 === 0 && y % 2 === 0 && (x + y) % 4 === 0;
-      if (on && !g.d[y * W + x]) put(g, x, y, cell(heart ? 'lamp' : 'sail', 0));
+      // B17: rays, not a checker (enlarged, the checker read as a screen door). The beam is split
+      // into rays fanning from the slit, each a pixel wide and broken along its length, the middle
+      // ones longer and brighter; between them the rock shows through.
+      const signed = ((x - top[0]) * dy - (y - top[1]) * dx) / len;
+      // Each one-pixel lane along the beam (fanning with it) is cut into streaks a few pixels long,
+      // each streak lit or not by its own draw against how dense the light is there: thick in the
+      // heart, thin at the edges and the ends.
+      const lane = Math.round((signed / half) * 7);
+      const streak = Math.floor(t * 26 + hash(lane, 1, 711) * 4);
+      const u = Math.abs(signed) / half;
+      const ends = Math.min(1, (t - 0.06) / 0.12, (1 - t) / 0.14);
+      const dense = (u < 0.6 ? 0.58 : 0.58 - (u - 0.6) * 0.95) * ends;
+      if (hash(lane, streak, 712) > dense) continue;
+      const heart = u < 0.5 && t > 0.14 && t < 0.92;
+      if (!g.d[y * W + x]) put(g, x, y, cell(heart ? 'lamp' : 'sail', 0));
     }
   // Motes in the beam, placed along it.
   for (let i = 0; i < 18; i++) {

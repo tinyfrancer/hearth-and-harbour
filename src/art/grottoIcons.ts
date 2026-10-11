@@ -141,29 +141,30 @@ const BARBED_ARROWS: readonly string[] = [
   '.....ORR',
 ];
 
-// A wolf's tooth on a cord, notched for every bounty.
+// A wolf's tooth on a cord, notched for every bounty (B17: the fang large and
+// curved, two red beads above it and the cord short; B10's loop of cord was
+// most of the picture and the tooth a peg below it).
 const HUNTERS_CHARM: readonly string[] = [
-  '.....cccccccc',
-  '...cc........cc',
-  '..c............c',
-  '.c..............c',
-  '.c..............c',
-  '..c............c',
-  '...cc........cc',
-  '.....cc....cc',
-  '.......cbbc',
-  '........bb',
-  '.......eeee',
-  '.......ewwE',
-  '.......eweE',
-  '.......edeE',
-  '.......eeeE',
-  '.......edEE',
-  '........eeE',
-  '........edE',
-  '........eE',
-  '.........eE',
-  '.........E',
+  '.c............c.',
+  '..c..........c..',
+  '...c........c...',
+  '....c......c....',
+  '.....c....c.....',
+  '......crrc......',
+  '......bRRb......',
+  '.......bb.......',
+  '......eeee......',
+  '.....ewwweE.....',
+  '.....ewwwweE....',
+  '......wwwweE....',
+  '......dwwweE....',
+  '.......wwweE....',
+  '.......dwweE....',
+  '........wweE....',
+  '........dweE....',
+  '.........weE....',
+  '.........wE.....',
+  '.........E......',
 ];
 
 // A broad brim, a red band, and a plume the size of a gull's opinion.
@@ -378,23 +379,24 @@ const VELVET: Legend = {
 };
 
 // The velvet cap: soft plum velvet slouched to one side, a sheen along its
-// crown, its band showing below, a gold pin at the front. Its worn layer is
-// the C-scale figure's `velvet_cap`.
+// crown and a button on top, gathered in folds over a band that shows plainly
+// below it, a gold pin at the front (B17; B10b's crown and band were one plum
+// blob). Its worn layer is the C-scale figure's `velvet_cap`.
 const VELVET_CAP: readonly string[] = [
-  '........aaaab.........',
-  '.....aaaaaaaabbb......',
-  '...aaaAAAaaaaabbbb....',
-  '..aaAAAAaaaaaabbbbb...',
-  '.aaaAAaaaaaaaabbbbbc..',
-  '.aaaaaaaaaaaabbbbbbcc.',
-  'aaaaaaaaaaaabbbbbbbccc',
-  'aaaaaaaaaaabbbbbbbbccc',
-  '.aaaaaaaaabbbbbbbbcccc',
-  '..bbbbbbbbbbbbbbbccccc',
-  '...bbbbbgGbbbbbbcccc..',
-  '...bbbbgggGbbbbccccc..',
-  '....bbbbGGbbbbccccc...',
-  '.....bbbbbbbbcccc.....',
+  '.........gG..........',
+  '......aaaaaaab.......',
+  '....aaAAAaaaaabbb....',
+  '..aaAAAAaaaaaabbbbb..',
+  '.aaAAaaaaaaaaabbbbbc.',
+  'aaaAaaaabaaaaabbbbbcc',
+  'aaaaaaaabaaaabbbcbbcc',
+  '.aaaaaaabaaabbbbcbccc',
+  '..aaaaaaabaabbbbcbcc.',
+  '...ccccccccccccccc...',
+  '....bbbbbgGbbbbbc....',
+  '....abbbgggGbbbbc....',
+  '....abbbbGGbbbbbc....',
+  '.....ccccccccccc.....',
 ];
 
 export const GROTTO_ICON_DEFS: Readonly<Record<string, IconDef>> = {

@@ -412,19 +412,31 @@ export function buoy(): TGrid {
   return outlined(g);
 }
 
-/** A gull at frame 0 (wings up) or 1 (wings level) or 2 (wings down), as [dx, dy, cell]. */
+/**
+ * A gull at frame 0 (wings up) or 1 (wings level) or 2 (wings down), as [dx, dy, cell]. B17: half
+ * as big again, with a body, a beak and dark wingtips (it was a tick of three pixels a wing).
+ */
 export function gullCells(f: number): readonly (readonly [number, number, number])[] {
   const rows =
     f === 0
-      ? ['ww.....ww', '..w...w..', '...wbw...']
+      ? ['kw.........wk', '.ww.......ww.', '..www...www..', '....wbbbwo...', '.....bbb.....']
       : f === 1
-        ? ['.ww...ww.', 'w..wbw..w']
-        : ['.........', '...wbw...', '..w...w..', '.w.....w.'];
+        ? ['.............', 'kwwww...wwwwk', '....wbbbwo...', '.....bbb.....']
+        : ['.............', '.....bbb.o...', '...wwbbbww...', '.ww.......ww.', 'kw.........wk'];
   const out: [number, number, number][] = [];
   rows.forEach((r, j) =>
     [...r].forEach((ch, i) => {
-      if (ch === 'w') out.push([i - 4, j - 1, C('sail', 2)]);
-      if (ch === 'b') out.push([i - 4, j - 1, C('sail', 0)]);
+      const c =
+        ch === 'w'
+          ? C('sail', 1)
+          : ch === 'b'
+            ? C('sail', 0)
+            : ch === 'k'
+              ? C('tar', 4)
+              : ch === 'o'
+                ? C('gold', 2)
+                : 0;
+      if (c) out.push([i - 6, j - 2, c]);
     }),
   );
   return out;

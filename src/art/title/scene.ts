@@ -45,7 +45,9 @@ const PLACE = {
   houseMid: -6,
   pierMid: -8,
   pierLen: 44,
-  shipL: 32,
+  // B17: the ship moved left, its mast in the gap between the hill's path and the smithy, so its
+  // rigging and flag no longer cross the smithy's face and roof at a phone's width (it lay at 32).
+  shipL: -44,
   shipWl: 60,
   quayL: -196,
   quayR: 196,
@@ -511,7 +513,16 @@ function build(L: TitleLayout): Built {
     ...pr.halos.map((hl) => ({ ...hl, x: hl.x + prX, y: hl.y + prY })),
     ...sh.halos.map((hl) => ({ ...hl, x: hl.x + shX, y: hl.y + shY })),
   ];
-  for (const fl of pr.flicker) live.push(liveOf(fl, prX, prY));
+  // A pier lamp the ship stands in front of is hidden by it: its flicker is not drawn over the hull.
+  const underShip = (x: number, y: number) => {
+    const i = x - shX;
+    const j = y - shY;
+    return i >= 0 && j >= 0 && i < sh.g.w && j < sh.g.h && sh.g.d[j * sh.g.w + i] !== 0;
+  };
+  for (const fl of pr.flicker) {
+    const l = liveOf(fl, prX, prY);
+    if (!underShip(l.x, l.y)) live.push(l);
+  }
   for (const fl of sh.flicker) live.push(liveOf(fl, shX, shY));
   const sprite = (g: TGrid, x: number, y: number): Sprite => {
     const px = new Uint32Array(g.w * g.h);
@@ -700,7 +711,9 @@ function streakLights(
     const len = 2 + Math.round(d * 0.1);
     for (let j = 1; j <= len; j++) {
       const dd = d + j;
-      if (dd >= wh || (dd + (x & 1)) % 3 === 2 || hash(x, dd, 71) < j / (len + 3)) continue;
+      // B17: a light's columns break together (the gaps were staggered column by column, so a
+      // lamp's streak read as a hook when enlarged).
+      if (dd >= wh || dd % 3 === 2 || hash(x >> 2, dd, 71) < j / (len + 3)) continue;
       mirror[dd * w + x] = TITLE_RGBA[
         (c & ~7) | Math.min(4, (c & 7) + (j > len / 2 ? 2 : 1))
       ] as number;

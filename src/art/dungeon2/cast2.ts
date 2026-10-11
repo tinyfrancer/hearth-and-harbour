@@ -40,8 +40,12 @@ const FOUR_FEET: BeastKeys = {
     { at: { front: [-2, 0], hind: [2, -1], body: [0, 0] } },
     { at: { front: [0, -1], hind: [0, 0], body: [0, -1], head: [0, -1] } },
   ],
-  windup: [{ at: { body: [-2, 1], head: [-2, 2], front: [-1, 0], hind: [-1, 0] }, open: true }],
-  strike: [{ at: { body: [3, 0], head: [5, 1], front: [3, 0], hind: [2, 0] }, open: true }],
+  // B17: a crouch and a spring (the strike had everything slide forward together, which read as a
+  // shuffle): gathered low on bent legs, then the hind feet stay planted while the body stretches,
+  // the forefeet leave the ground reaching and the head drives in low. The head goes no further
+  // forward than before, so the reach is unchanged.
+  windup: [{ at: { body: [-2, 2], head: [-3, 3], front: [-1, 0], hind: [-1, 0] }, open: true }],
+  strike: [{ at: { body: [3, 1], head: [5, 2], front: [6, -2], hind: [0, 0] }, open: true }],
   hurt: [{ at: { body: [-3, 0], head: [-4, -2], front: [-2, 0], hind: [-1, 0] }, open: true }],
   fall: [{ at: { body: [-2, 2], head: [-3, 3], front: [-1, 0], hind: [0, 0] }, open: true }, {}],
 };
@@ -101,6 +105,13 @@ const TROLL_KEYS: BeastKeys = {
   fall: [{ at: { body: [-1, 3], head: [-1, 4], arms: [-2, 4] }, open: true }, {}],
 };
 
+/** B17: the gull draws its head back and stabs down with its beak (it only nodded). */
+const GULL_KEYS: BeastKeys = {
+  ...STANDING,
+  windup: [{ at: { head: [-2, -2], body: [-1, 0] }, open: true }],
+  strike: [{ at: { head: [2, 3], body: [1, 1] }, open: true }],
+};
+
 const BEAST_KEYS: Readonly<Record<string, BeastKeys>> = {
   dock_rat: FOUR_FEET,
   bramble_boar: FOUR_FEET,
@@ -108,7 +119,7 @@ const BEAST_KEYS: Readonly<Record<string, BeastKeys>> = {
   sand_crab: crabKeys(1),
   giant_crab: crabKeys(2),
   ships_parrot: PARROT_KEYS,
-  thieving_gull: STANDING,
+  thieving_gull: GULL_KEYS,
   marsh_troll: TROLL_KEYS,
   bramble_wyrm: STANDING,
 };

@@ -132,7 +132,7 @@ export function boatSign(): Drawn {
  * its foot, a ship's lantern at its top that lights at dusk (so the boat
  * shows across the harbour), a ribbon of red at the top.
  */
-export function boatLantern(): Drawn {
+export function boatLantern(frame = 0): Drawn {
   // B16: the pole a staff's length taller with a red pennant flying from its head (the boat had
   // nothing standing above the quay's edge to catch the eye from across the square).
   const W = 24;
@@ -149,17 +149,27 @@ export function boatLantern(): Drawn {
   put(g, cx, 0, C('gold', 1));
   put(g, cx + 1, 0, C('gold', 3));
   // The pennant, long and tapering, rippling out to the right; lit along its top.
+  // B17: two frames, so it can stir (`town2PieceFrame`): the second has the ripple run on down it,
+  // its tail lifting.
   rowsAt(
     g,
     cx + 2,
     1,
-    [
-      'RRRRRRRRR........',
-      'rrrrrrrrrrrrRR...',
-      'rrrrrrrrrrrrrrrrr',
-      'sssssssssssss....',
-      'ssssss...........',
-    ],
+    frame % 2 === 0
+      ? [
+          'RRRRRRRRR........',
+          'rrrrrrrrrrrrRR...',
+          'rrrrrrrrrrrrrrrrr',
+          'sssssssssssss....',
+          'ssssss...........',
+        ]
+      : [
+          'RRRRRRRRRRRRR....',
+          'rrrrrrrrrrrrrrRRR',
+          'rrrrrrrrrrrrrr...',
+          'sssssssss........',
+          'sssss............',
+        ],
     { R: C('crimson', 1), r: C('crimson', 2), s: C('crimson', 3) },
   );
   // Lashing at the foot.

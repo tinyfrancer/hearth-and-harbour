@@ -178,13 +178,35 @@ export function rowboat(): Drawn {
   }
   // The painter (B16: a mooring line that can be seen, not a thread): out of the coil in the bows,
   // over the far gunwale and up to the top edge toward the quay, lit along one side.
+  // B17: it ends in an iron ring at the boat's top edge, which in town lies on the quay wall's wet
+  // foot, so the line is tied to something rather than running out into the air.
   const bowX = Math.round(cx + L * 0.4);
-  for (let y = 0; y <= Math.round(cy - 2); y++) {
+  const ring = { x: bowX + 5, y: 4, r: 3.2 };
+  // The wall's wet stone inside the ring, so the piece's keyline does not fill its hole.
+  for (let y = 1; y <= 7; y++)
+    for (let x = ring.x - 3; x <= ring.x + 4; x++)
+      if (Math.hypot(x + 0.5 - (ring.x + 0.5), y + 0.5 - (ring.y + 0.5)) < ring.r - 0.6)
+        put(g, x, y, C('moss', 5));
+  for (let y = Math.ceil(ring.y + ring.r); y <= Math.round(cy - 2); y++) {
     const s = y / (cy - 2);
     const x = Math.round(bowX + 5 - 5 * s * s);
     put(g, x, y, C('linen', 1));
     put(g, x + 1, y, C('linen', 4));
   }
+  for (let a = 0; a < 28; a++) {
+    const th = (a / 28) * Math.PI * 2;
+    put(
+      g,
+      Math.round(ring.x + Math.cos(th) * ring.r),
+      Math.round(ring.y + Math.sin(th) * ring.r),
+      C('iron', Math.sin(th) > 0.3 ? 2 : 0),
+    );
+  }
+  // The eye it hangs from, let into the stone, and the line's turn round the ring.
+  put(g, ring.x, 0, C('iron', 2));
+  put(g, ring.x + 1, 0, C('iron', 3));
+  put(g, ring.x, Math.round(ring.y + ring.r), C('linen', 1));
+  put(g, ring.x + 1, Math.round(ring.y + ring.r), C('linen', 3));
   return { grid: g, glows: [] };
 }
 
