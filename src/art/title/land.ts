@@ -320,6 +320,42 @@ export function paintGarden(g: TGrid, f: LandFrame, gate: number): void {
     [122, -70, 20],
   ] as const)
     pine(g, cx + px, wl + base, h, 'pine', 4, 3, 5);
+  // B17: the face was quiet. A dry-stone wall runs across the left of it, following the slope, a
+  // gap for a gate in it; sheep graze either side of the path, and on the right a few dots of
+  // gorse in flower.
+  for (let x = -60; x <= -28; x++) {
+    const y = Math.round(-47 + (x + 60) * 0.38 + Math.sin(x / 5) * 0.8);
+    if (x > -40 && x < -36) continue;
+    put(g, cx + x, wl + y, C('stone', (x & 3) === 0 ? 2 : 0));
+    put(g, cx + x, wl + y + 1, C('stone', (x & 3) === 2 ? 5 : 4));
+  }
+  for (const [sx, sy, face] of [
+    [-50, -66, 1],
+    [-42, -61, -1],
+    [-52, -38, 1],
+    [26, -60, -1],
+  ] as const) {
+    // A sheep: a woolly body two rows deep, its dark head down to the grass.
+    for (let i = 0; i < 4; i++) {
+      put(g, cx + sx + i, wl + sy, C('sail', i === 1 ? 0 : 1));
+      put(g, cx + sx + i, wl + sy + 1, C('sail', 3));
+    }
+    const hx = face > 0 ? sx + 4 : sx - 1;
+    put(g, cx + hx, wl + sy + 1, C('tar', 4));
+    put(g, cx + sx + 1, wl + sy + 2, C('tar', 5));
+    put(g, cx + sx + 3, wl + sy + 2, C('tar', 5));
+  }
+  for (const [gx, gy] of [
+    [30, -74],
+    [34, -71],
+    [58, -60],
+    [62, -58],
+    [20, -56],
+  ] as const) {
+    put(g, cx + gx, wl + gy, C('gold', 2));
+    put(g, cx + gx + 1, wl + gy, C('gold', 3));
+    put(g, cx + gx, wl + gy + 1, C('leaf', 4));
+  }
   // Stones lying on the face in twos and threes.
   for (const [sx, sy] of [
     [-26, -80],
