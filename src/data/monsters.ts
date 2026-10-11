@@ -151,7 +151,7 @@ const ALL: MonsterDef[] = [
         { item: 'iron_arrows', min: 10, max: 25, oneIn: 10 },
         { item: 'smugglers_cutlass', min: 1, max: 1, oneIn: 120 },
       ],
-      bounty: { kills: [16, 27], points: 10 },
+      bounty: { kills: [16, 26], points: 10 },
     },
     marsh_troll: {
       name: 'Marsh troll',
@@ -162,13 +162,13 @@ const ALL: MonsterDef[] = [
       defence: 40,
       maxHit: 20,
       speedMs: 3600,
-      coins: [600, 1500],
+      coins: [600, 1600],
       always: [{ item: 'hide', min: 2, max: 4 }],
       rare: [
         { item: 'iron_ore', min: 2, max: 5, oneIn: 6 },
         { item: 'trollstone', min: 1, max: 1, oneIn: 150 },
       ],
-      bounty: { kills: [14, 21], points: 12 },
+      bounty: { kills: [14, 20], points: 12 },
     },
   }),
   ...monsters('blackthorn_wood', {
@@ -202,7 +202,7 @@ const ALL: MonsterDef[] = [
       always: [{ item: 'hide', min: 2, max: 3 }],
       rare: [{ item: 'wyrmscale_shield', min: 1, max: 1, oneIn: 30 }],
       bountyOnly: true,
-      bounty: { kills: [15, 24], points: 15 },
+      bounty: { kills: [15, 23], points: 15 },
     },
   }),
 ];

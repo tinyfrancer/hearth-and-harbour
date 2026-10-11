@@ -44,21 +44,22 @@ describe.each(['melee', 'ranged'] as const)('fighting with %s', (style) => {
 });
 
 // What a fight costs in cooked fish: an hour against each monster at its
-// level, in its level's gear, eating that tier's fish below half health.
+// level, in its level's gear (greaves since wave 16), eating that tier's
+// fish below half health.
 // Shrimp heal 6, herring 12, cod 20. A Fishing level-20 character catches
 // about 600 cod an hour, so the marsh costs a third of an hour's fishing.
 describe('food', () => {
   it.each([
     ['dock_rat', 0],
     ['sand_crab', 54],
-    ['thieving_gull', 135],
+    ['thieving_gull', 139],
     ['bramble_boar', 117],
-    ['footpad', 189],
-    ['grey_wolf', 250],
-    ['smuggler', 187],
-    ['marsh_troll', 190],
-    ['goblin_poacher', 165],
-    ['bramble_wyrm', 182],
+    ['footpad', 168],
+    ['grey_wolf', 216],
+    ['smuggler', 174],
+    ['marsh_troll', 206],
+    ['goblin_poacher', 145],
+    ['bramble_wyrm', 169],
   ] as const)('costs a fixed number of fish an hour against the %s: %i', (id, fish) => {
     const level = CONTENT.monsters![id]!.level;
     const hour = hourOf(level, id);
