@@ -255,6 +255,48 @@ describe('a new save’s first look at the town', () => {
     expect(PAN_MS).toBeLessThan(5000);
   });
 
+  it('is remembered in the save through the shell: a reloaded page of the same save does not pan', () => {
+    const store = new Set<string>();
+    const keeping = (): Shell =>
+      Object.assign(shellSpy(), {
+        remembered: (key: string) => store.has(key),
+        remember: (key: string) => void store.add(key),
+      });
+    const view = shown(keeping());
+    wait(view, 200);
+    expect([...store]).toEqual(['town.pan']);
+    // A reload: the page forgets everything, the save does not.
+    view.el.remove();
+    resetTown();
+    forgetLessons();
+    const again = shown(keeping());
+    wait(again, 100);
+    const before = heroAt();
+    const c2 = again.el.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
+    c2.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    c2.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 10, clientY: 10 }));
+    wait(again, 200);
+    // No pan to skip: the tap walks at once.
+    expect(heroAt().walking || heroAt().x !== before.x || heroAt().y !== before.y).toBe(true);
+  });
+
+  it('falls back to the page where the shell cannot remember: a reload pans again', () => {
+    const view = shown(shellSpy());
+    wait(view, 200);
+    view.el.remove();
+    resetTown();
+    forgetLessons();
+    const again = shown(shellSpy());
+    wait(again, 200);
+    const before = heroAt();
+    const c2 = again.el.querySelector<HTMLCanvasElement>('canvas.scene-canvas')!;
+    c2.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10 }));
+    c2.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientX: 10, clientY: 10 }));
+    wait(again, 200);
+    // The tap only ended the pan.
+    expect(heroAt()).toMatchObject({ x: before.x, y: before.y, walking: false });
+  });
+
   it('is not shown to a save that has rowed out before', () => {
     character = { ...newGame('Cody', 0), dungeons: { tidepool_cave: { clears: 1 } } };
     const view = shown(shellSpy());

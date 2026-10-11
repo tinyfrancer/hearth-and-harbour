@@ -63,6 +63,8 @@ import { foeArtId } from './fromLaneB';
 import { anchorOf, FIGURE2_SOLE_Y, heroPose, POSES2, STRIKE_POSES2 } from './figures2';
 import {
   lessonBlocks,
+  lessonStage,
+  lessonText,
   shownLesson,
   skipLessons,
   stepLessons,
@@ -1050,10 +1052,10 @@ export function dungeonView(options: DungeonViewOptions): View {
    * one showing put on screen: its words, and the button it rings pulsing.
    * Not behind the turn-your-phone prompt or a Resume, nor through a door.
    */
-  function showLesson(): void {
+  function showLesson(ms = 0): void {
     let run = options.run();
     if (run.lessons && !run.lessons.off && sideways(size) && !waiting && roomIn(run)) {
-      const next = stepLessons(run.lessons, lessons, dungeon, run);
+      const next = stepLessons(run.lessons, lessons, dungeon, run, ms);
       if (next !== run.lessons) {
         run = { ...run, lessons: next };
         options.keep(run);
@@ -1061,7 +1063,10 @@ export function dungeonView(options: DungeonViewOptions): View {
     }
     const lesson = run.finished || run.doorway ? null : shownLesson(run.lessons, lessons);
     lessonCard.hidden = !lesson;
-    if (lesson) setText(lessonWords, lesson.text(dungeon, run));
+    if (lesson) setText(lessonWords, lessonText(run.lessons, lesson, dungeon, run));
+    // Said plainly once it has waited a while: the card says so too.
+    const stage = lesson ? String(lessonStage(run.lessons)) : '';
+    if (lessonCard.dataset.stage !== stage) lessonCard.dataset.stage = stage;
     const ring = lesson?.ring(dungeon, run) ?? null;
     const which = ring?.kind === 'button' ? ring.which : null;
     const button =
@@ -1081,10 +1086,16 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   showRoom();
   if (options.run().finished) showResults();
+  /** The app's clock at the last frame. */
+  let lastNow: number | undefined;
 
   return {
     el: root,
-    update: (state: GameState) => {
+    update: (state: GameState, now?: number) => {
+      // The page's time since the last frame, for how long a lesson has waited (not the run's clock).
+      const ms =
+        now === undefined || lastNow === undefined ? 0 : Math.min(250, Math.max(0, now - lastNow));
+      lastNow = now;
       const before = options.run();
       const ready = sideways(size);
       prompt.hidden = ready || before.finished;
@@ -1105,7 +1116,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         showResults();
         options.finished();
       }
-      showLesson();
+      showLesson(ms);
       showFight(options.run());
       showTitle(after, playing() && !after.doorway);
       placeTitle(after);

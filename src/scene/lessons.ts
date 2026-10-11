@@ -10,9 +10,13 @@
  * - One that `blocks` holds the run still while it shows (no time passes,
  *   so nothing can notice the hero or land on him): it is read, then done.
  *   The player's tap or button press still counts while it waits.
- * - Done is done: it never shows again in the run, nor in a later run this
- *   page (`learned`), nor for a player who has cleared the dungeon before.
- * - Skipping puts every lesson away for the run and the page.
+ * - Done is done: it never shows again in the run, nor in a later run
+ *   (remembered in the save where the shell can, else for the page:
+ *   `remember.ts`), nor for a player who has cleared the dungeon before.
+ * - Skipping puts every lesson away, remembered the same way.
+ * - A player who has not done what a lesson says after a while is told it
+ *   more plainly (`LESSON_PLAIN_MS`), and after longer still the run goes on
+ *   while it shows (`LESSON_GO_ON_MS`): nobody is held for ever.
  *
  * Which lesson shows when two are due at once: the first in the list. The
  * cave's rooms are laid out so they come due in the list's order.
@@ -35,6 +39,7 @@ import {
 import { placeOf, type Dungeon, type Run } from './dungeon';
 import { DUNGEON } from './dungeonMetrics';
 import { foeKind } from './foes';
+import { forgetRemembered, KEYS, remember, remembered } from './remember';
 import { centreOf, type Point } from './tileMap';
 
 const T = DUNGEON.tile;
@@ -51,6 +56,8 @@ export interface Lesson {
   readonly blocks: boolean;
   /** Its words, for the run as it is (a bow's buttons are not a blade's). */
   text(dungeon: Dungeon, run: Run): string;
+  /** The same said more plainly, for a player who has not done it after a while. */
+  plain?(dungeon: Dungeon, run: Run): string;
   /** Whether it is useful now; `done` is the lessons already done this run. */
   due(dungeon: Dungeon, run: Run, done: readonly string[]): boolean;
   done(dungeon: Dungeon, run: Run): boolean;
@@ -62,60 +69,90 @@ export interface LessonsState {
   readonly shown: string | null;
   readonly done: readonly string[];
   readonly off: boolean;
+  /** How long the one showing has been up, ms of the page's clock (not the run's: that stops). */
+  readonly for?: number;
 }
+
+/** A lesson not done after this long is said more plainly. */
+export const LESSON_PLAIN_MS = 8000;
+/** ...and after this long, one that held the run lets it go on while it shows. */
+export const LESSON_GO_ON_MS = 20_000;
+
+/** What a run's lessons are called in what is remembered: short and plain. */
+const SHORT_NAMES: Readonly<Record<string, string>> = { tidepool_cave: 'cave' };
+const shortName = (dungeon: string): string => SHORT_NAMES[dungeon] ?? dungeon;
+const learnedKey = (dungeon: string, id: string): string => KEYS.lesson(shortName(dungeon), id);
+const offKey = (dungeon: string): string => KEYS.tipsOff(shortName(dungeon));
 
 export const NO_LESSONS: LessonsState = { shown: null, done: [], off: true };
 
-/** Lessons done this page, by dungeon and id: a later run does not show them again. */
-const learned = new Set<string>();
-/** Dungeons whose lessons were skipped this page. */
-const skipped = new Set<string>();
-
-/** A run's lessons as it starts: none for a player who has cleared it, or skipped them, this page. */
+/** A run's lessons as it starts: none for a player who has cleared it, or put the tips away. */
 export function startLessons(
   dungeon: string,
   lessons: readonly Lesson[],
   cleared: boolean,
 ): LessonsState {
-  if (cleared || skipped.has(dungeon) || lessons.length === 0) return NO_LESSONS;
-  const done = lessons.filter((l) => learned.has(`${dungeon} ${l.id}`)).map((l) => l.id);
+  if (cleared || remembered(offKey(dungeon)) || lessons.length === 0) return NO_LESSONS;
+  const done = lessons.filter((l) => remembered(learnedKey(dungeon, l.id))).map((l) => l.id);
   if (done.length === lessons.length) return NO_LESSONS;
   return { shown: null, done, off: false };
 }
 
 /**
- * The lessons after a frame: the one showing is checked for done, and if
- * none is showing, the first due is shown. Unchanged (the same object) when
- * nothing changed.
+ * The lessons after a frame of `ms` (the page's time, while the lesson can
+ * be seen): the one showing is checked for done, and if none is showing,
+ * the first due is shown. Unchanged (the same object) when nothing changed.
  */
 export function stepLessons(
   state: LessonsState,
   lessons: readonly Lesson[],
   dungeon: Dungeon,
   run: Run,
+  ms = 0,
 ): LessonsState {
   if (state.off || !run.battle || run.finished) return state;
   let next = state;
   if (next.shown) {
     const lesson = lessons.find((l) => l.id === next.shown);
     if (!lesson || lesson.done(dungeon, run)) {
-      learned.add(`${run.dungeon} ${next.shown}`);
-      next = { ...next, shown: null, done: [...next.done, next.shown] };
+      remember(learnedKey(run.dungeon, next.shown));
+      next = { shown: null, done: [...next.done, next.shown], off: next.off };
+    } else if (ms > 0) {
+      next = { ...next, for: (next.for ?? 0) + ms };
     }
   }
   if (!next.shown && !run.doorway) {
     const due = lessons.find(
       (l) => !next.done.includes(l.id) && l.due(dungeon, run, next.done) && !l.done(dungeon, run),
     );
-    if (due) next = { ...next, shown: due.id };
+    if (due) next = { ...next, shown: due.id, for: 0 };
   }
   return next;
 }
 
-/** Every lesson put away, for this run and the page. */
+/** Every lesson put away, for this run and those after (remembered). */
 export function skipLessons(state: LessonsState, dungeon: string): LessonsState {
-  skipped.add(dungeon);
-  return { ...state, shown: null, off: true };
+  remember(offKey(dungeon));
+  return { shown: null, done: state.done, off: true };
+}
+
+/** How long the lesson showing has been up without being done: 0 plain, 1 said plainly, 2 let go. */
+export function lessonStage(state: LessonsState | undefined): 0 | 1 | 2 {
+  const t = state?.for ?? 0;
+  return t >= LESSON_GO_ON_MS ? 2 : t >= LESSON_PLAIN_MS ? 1 : 0;
+}
+
+/** The words of the lesson showing, said more plainly the longer it is not done. */
+export function lessonText(
+  state: LessonsState | undefined,
+  lesson: Lesson,
+  dungeon: Dungeon,
+  run: Run,
+): string {
+  const stage = lessonStage(state);
+  if (stage === 0 || !lesson.plain) return lesson.text(dungeon, run);
+  const plain = lesson.plain(dungeon, run);
+  return stage === 2 && lesson.blocks ? `${plain} The fight goes on meanwhile.` : plain;
 }
 
 /** The lesson showing, if any. */
@@ -127,15 +164,14 @@ export function shownLesson(
   return lessons.find((l) => l.id === state.shown) ?? null;
 }
 
-/** Whether the run waits on a lesson just now. */
+/** Whether the run waits on a lesson just now: not once it has waited long enough (`LESSON_GO_ON_MS`). */
 export function lessonBlocks(state: LessonsState | undefined, lessons: readonly Lesson[]): boolean {
-  return shownLesson(state, lessons)?.blocks ?? false;
+  return (shownLesson(state, lessons)?.blocks ?? false) && lessonStage(state) < 2;
 }
 
-/** Forgets what was learned and skipped this page. For tests. */
+/** Forgets what was learned and put away this page (and the shell remembered through). For tests. */
 export function forgetLessons(): void {
-  learned.clear();
-  skipped.clear();
+  forgetRemembered();
 }
 
 /* ----- Reading a run ----- */
@@ -218,6 +254,11 @@ export const CAVE_LESSONS: readonly Lesson[] = [
       const name = foe ? run.battle!.monsters[foe.monster]?.name.toLowerCase() : null;
       return `A ${name ?? 'foe'}! Tap it to attack. You keep swinging while it is in reach.`;
     },
+    plain: (dungeon, run) => {
+      const foe = meeting(dungeon, run);
+      const name = foe ? run.battle!.monsters[foe.monster]?.name.toLowerCase() : null;
+      return `Tap right on the ${name ?? 'foe'}, inside the gold ring, to fight it.`;
+    },
     due: (dungeon, run) => meeting(dungeon, run) !== null,
     done: (_dungeon, run) => run.battle!.target !== null,
     ring: (dungeon, run) => {
@@ -243,6 +284,8 @@ export const CAVE_LESSONS: readonly Lesson[] = [
       melee(run)
         ? 'Surrounded! Wide swing hits everything near you at once.'
         : `Double shot looses two arrows at your target at once.`,
+    plain: (_dungeon, run) =>
+      `Press the glowing ${BUTTON_NAMES.first(run.battle!.fighter.style)} button at the bottom of the screen.`,
     due: (dungeon, run) => {
       const b = run.battle!;
       const hero = run.play.walker.at;
@@ -257,10 +300,15 @@ export const CAVE_LESSONS: readonly Lesson[] = [
   {
     id: 'heavy',
     blocks: true,
+    // Shown once, so it says once what happens after: he goes back in by himself.
     text: (_dungeon, run) =>
       melee(run)
-        ? 'The ground under you is marked: a heavy blow is coming. Walk out of it, or Brace to take half.'
-        : 'The ground under you is marked: a heavy blow is coming. Walk out of it, or Step back.',
+        ? 'The ground under you is marked: a heavy blow is coming. Brace to take half and keep swinging, or walk out of it. Once it lands you go back in by yourself.'
+        : 'The ground under you is marked: a heavy blow is coming. Walk out of it, or Step back. Once it lands you go back to your target by yourself.',
+    plain: (_dungeon, run) =>
+      melee(run)
+        ? 'Press the glowing Brace button, or tap the ground well outside the marked circle.'
+        : 'Press the glowing Step back button, or tap the ground well outside the marked circle.',
     due: (dungeon, run) => markOn(dungeon, run) !== null,
     done: (dungeon, run) => {
       const b = run.battle!;
@@ -277,6 +325,7 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     id: 'eat',
     blocks: true,
     text: () => 'You are hurt. Tap Eat to have one of the fish from the crate.',
+    plain: () => 'Press the glowing Eat button at the bottom of the screen.',
     // Hurt, once the heavy blow has been shown (so the lessons come in their order); at once if
     // badly hurt; and at the latest at a boss's door, hurt at all, so it is learned before the boss.
     due: (_dungeon, run, done) => {
@@ -296,7 +345,12 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     text: (_dungeon, run) => {
       const boss = bossOf(run.battle!, run.room);
       const name = boss ? run.battle!.monsters[boss.monster]?.name : null;
-      return `${name ?? 'The boss'}: slow, but it hits hard. Tap it to fight, and step out when the ground round it is marked.`;
+      return `${name ?? 'The boss'}: slow, but it hits hard. Tap it to fight, and brace or step out when the ground round it is marked.`;
+    },
+    plain: (_dungeon, run) => {
+      const boss = bossOf(run.battle!, run.room);
+      const name = boss ? run.battle!.monsters[boss.monster]?.name : null;
+      return `Tap right on ${name ?? 'the boss'}, inside the gold ring, to fight.`;
     },
     // As the hero comes into its room, before it is near enough to notice him: after the fish,
     // if there is one to eat.

@@ -19,6 +19,7 @@ import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './from
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { labelFor, panFocus, ringed } from './townMarks';
+import { KEYS, remember, remembered, rememberWith } from './remember';
 import { Hero2, type Town2Art } from './town2Art';
 import { roomLook } from './grottoArt';
 import { KEPT_RUN_MAX_CHARS, keptAtOf, restoreRun, savedRunOf } from './runSave';
@@ -55,10 +56,9 @@ const rowedTo = new Set<string>();
 
 /**
  * Whether the first visit's pan (the camera out to the boat and back) has
- * played, or been skipped, this page. A save that has rowed out before is
- * never shown it (`firstVisit`); the save has no place to remember that the
- * chart was opened (lane A, under Needs), so a fresh page of a new save that
- * has not rowed out yet may see it again.
+ * been weighed this page. Once it has played, or the chart has been opened,
+ * that is remembered (`KEYS.pan`, in the save through the shell where it can,
+ * `remember.ts`), and a save that has rowed out before is never shown it.
  */
 let panned = false;
 
@@ -206,6 +206,8 @@ function loadingCard(): { el: HTMLElement; update(): void } {
  */
 export function townView(state: GameState, content: Content, shell?: Shell): View {
   prepareTown(now());
+  // One-off things remembered (the pan, lessons learned) go in the save through this shell.
+  rememberWith(shell);
   /** The state as of the last frame: what a run starts from. */
   let latest = state;
   hero?.wear(state);
@@ -407,6 +409,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     host.append(panel.el);
     panel.update(latest, clockNow);
     chartOpened(shell);
+    // The boat has been found: the first visit's pan has nothing left to show.
+    remember(KEYS.pan);
   };
 
   const closeChart = (): void => {
@@ -457,8 +461,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (panned || panFrom !== null || clockNow === undefined || townLoading()) return;
     if (!art2Now()?.held()) return;
     panned = true;
-    if (Object.keys(latest.dungeons).length > 0 || latest.run || wantChart) return;
+    if (remembered(KEYS.pan) || Object.keys(latest.dungeons).length > 0 || latest.run || wantChart)
+      return;
     panFrom = clockNow;
+    remember(KEYS.pan);
   };
 
   const showDungeon = (dungeon: Dungeon, resume = false): void => {
@@ -671,7 +677,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         wear2(next);
         // The facts came in: the town can be walked, under the loading card until its picture comes.
         if (!run && loading && !current.update && townReady()) showTown();
-        current.update?.(next);
+        current.update?.(next, now);
         if (!run) {
           // The menus asked for the chart: to the quay by the boat with it open, once the town is up.
           if (takeRequest(shell) === 'chart') wantChart = true;
