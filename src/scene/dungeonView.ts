@@ -103,6 +103,13 @@ export const DUNGEON_INSETS: Insets = { top: 64, right: 56, bottom: 80, left: 56
 /** How far above the hero's feet the camera looks: the middle of a 64-pixel figure, as in town. */
 export const FOCUS_RISE_DUNGEON = 30;
 
+/**
+ * A room no wider than this (art pixels: two of the dungeons' screens of
+ * world across) is meant to be seen whole, like the tide-pool cave's; the
+ * grotto's (816) are wider and the camera travels them.
+ */
+export const ONE_SCREEN = 2 * DUNGEON.scene.width;
+
 /** Half the width of the hero's contact shadow, as the art lane's figures are shaded (22 across). */
 export const HERO_SHADOW = 11;
 
@@ -789,6 +796,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       press: () => {},
       // As large as a whole room still fits: the cave's one-screen rooms fill a wide phone.
       scaleOf: (device) => roomScale(device, biggestRoom, DUNGEON.scene.width),
+      // A dungeon of one-screen rooms is seen whole, the camera still; the grotto's rooms travel.
+      holdWhenFits: biggestRoom.width <= ONE_SCREEN,
       focusRise: FOCUS_RISE_DUNGEON,
       pixelated: true,
       overlay: true,

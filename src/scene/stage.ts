@@ -352,6 +352,13 @@ export interface StageOptions {
    * in it. Nothing by default.
    */
   readonly insets?: Insets;
+  /**
+   * Hold the camera still, the whole map centred, whenever the whole map fits
+   * the view (edges and all): a room meant to be seen whole (the tide-pool
+   * cave's) does not drift a few pixels after the hero to keep him clear of
+   * the edges. The insets apply only to a map bigger than the view.
+   */
+  readonly holdWhenFits?: boolean;
   /** While true, time does not move the walker: a run paused, a door being gone through. */
   readonly frozen?: () => boolean;
   /**
@@ -546,6 +553,8 @@ export function stage(options: StageOptions): View {
 
   const camera = (scale: number): Point => {
     const view = viewSize(device, scale);
+    if (options.holdWhenFits && world.width <= view.width && world.height <= view.height)
+      return cameraFor({ x: 0, y: 0 }, view, world);
     const room = inset(scale);
     const looked = options.lookAt?.() ?? null;
     const focus = looked ?? { x: play.walker.at.x, y: play.walker.at.y - rise };
