@@ -19,9 +19,9 @@ function iconCanvas(icon: IconArt, size = 36): HTMLCanvasElement {
   return c;
 }
 
-function todayImg(): HTMLImageElement {
+function todayImg(src = TODAY): HTMLImageElement {
   const i = new Image();
-  i.src = TODAY;
+  i.src = src;
   i.style.imageRendering = 'pixelated';
   return i;
 }
@@ -53,12 +53,12 @@ body { margin: 0; background: #f3ead6; color: #2a2236; font-family: 'Pixelify Sa
 .ph5 { background: #ff3b30; } .ph6 { background: #8e8e93; } .ph7 { background: #5856d6; }
 .walltitle { font: 700 15px 'Pixelify Sans'; }
 .wall.dark .walltitle { color: #f0e6d0; }
-.safe { position: relative; width: 216px; height: 216px; }
-.safe canvas, .safe img { width: 216px; height: 216px; image-rendering: pixelated; display: block; }
+.safe { position: relative; width: 240px; height: 240px; }
+.safe canvas, .safe img { width: 240px; height: 240px; image-rendering: pixelated; display: block; }
 .safe .ring { position: absolute; border: 2px dashed #ff2d55; border-radius: 50%; pointer-events: none; }
 .safe .sq { position: absolute; border: 2px solid rgba(255, 45, 85, 0.6); pointer-events: none; }
-.mask { width: 108px; height: 108px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-.mask canvas, .mask img { width: 162px; height: 162px; flex: none; image-rendering: pixelated; }
+.mask { width: 128px; height: 128px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.mask canvas, .mask img { width: 192px; height: 192px; flex: none; image-rendering: pixelated; }
 .circle { border-radius: 50%; } .squircle { border-radius: 30%; } .teardrop { border-radius: 50% 50% 50% 12%; }
 `;
 
@@ -124,7 +124,7 @@ export function iconsHomePage(): void {
     wall.append(el('div', 'walltitle', tone === 'light' ? 'Light wallpaper' : 'Dark wallpaper'));
     const all: { id: string; node: () => HTMLElement }[] = [
       ...ICONS.map((i) => ({ id: i.id, node: () => iconCanvas(i) })),
-      { id: 'Today', node: () => todayImg() },
+      { id: 'Today', node: () => todayImg('/icons/apple-touch-icon.png') },
     ];
     for (const it of all) {
       const ph = [1, 2, 3, 4, 5, 6, 7];
@@ -166,11 +166,11 @@ export function iconsSafePage(): void {
     const safe = el('div', 'safe');
     safe.append(iconCanvas(icon, 48));
     const ring = el('div', 'ring');
-    const d = 216 * 0.66;
-    Object.assign(ring.style, { width: `${d}px`, height: `${d}px`, left: `${(216 - d) / 2 - 2}px`, top: `${(216 - d) / 2 - 2}px` });
+    const d = 240 * 0.66;
+    Object.assign(ring.style, { width: `${d}px`, height: `${d}px`, left: `${(240 - d) / 2 - 2}px`, top: `${(240 - d) / 2 - 2}px` });
     const sq = el('div', 'sq');
-    const v = 216 * (72 / 108);
-    Object.assign(sq.style, { width: `${v}px`, height: `${v}px`, left: `${(216 - v) / 2 - 2}px`, top: `${(216 - v) / 2 - 2}px` });
+    const v = 240 * (72 / 108);
+    Object.assign(sq.style, { width: `${v}px`, height: `${v}px`, left: `${(240 - v) / 2 - 2}px`, top: `${(240 - v) / 2 - 2}px` });
     safe.append(sq, ring);
     const masks = el('div', 'row');
     masks.style.gap = '10px';

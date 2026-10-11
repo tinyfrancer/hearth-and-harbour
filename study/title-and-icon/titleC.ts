@@ -14,7 +14,7 @@
  * (its edge streaming out in the wind), gulls wheeling, the pine's top
  * swaying a pixel, smoke from the town's chimneys.
  */
-import { at, hash, outlined, put, stamp, tgrid, type TGrid } from '../../src/art/town2/cells';
+import { at, bevel, FLAT_LIGHT, hash, outlined, put, stamp, tgrid, type TGrid } from '../../src/art/town2/cells';
 import { characterWalkPicture2, KNIGHT_GEAR2 } from '../../src/art/character2';
 import { pineTree2 } from '../../src/art/town2/trees';
 import { flowerDrift, longGrass } from '../../src/art/town2/ground';
@@ -208,25 +208,27 @@ function clouds(g: TGrid, ph: number): void {
       const r = hp.h * (0.45 + Math.sin(f * Math.PI) * 0.55) * (0.8 + hash(i, 2, hp.k) * 0.4);
       puffs.push([px, hp.cy - r * 0.55, r]);
     }
-    for (let y = Math.floor(hp.cy - hp.h * 1.8); y <= hp.cy + 2; y++)
-      for (let x = Math.floor(cx - hp.w / 2 - hp.h); x <= cx + hp.w / 2 + hp.h; x++) {
-        let best = -1;
-        let nx = 0;
-        let ny = 0;
-        for (const [px, py, r] of puffs) {
-          const dx = (x + 0.5 - px) / r;
-          const dy = (y + 0.5 - py) / r;
-          const d = 1 - (dx * dx + dy * dy);
-          if (d > best) {
-            best = d;
-            nx = dx;
-            ny = dy;
-          }
-        }
-        if (best < 0 || y > hp.cy + (hash(x >> 2, 0, hp.k) < 0.5 ? 1 : 0)) continue;
-        const toSun = -nx * 0.7 + ny * 0.5;
-        const t = 2.6 - toSun * 2.2 + hp.depth * 1.5 + (clumps(x / 2, y / 2, hp.k) - 0.5) * 0.7;
-        put(g, x, y, X('cloud', clamp(t, 0, 6)));
+    const x0 = Math.floor(cx - hp.w / 2 - hp.h);
+    const y0 = Math.floor(hp.cy - hp.h * 1.8);
+    const W = Math.ceil(hp.w + hp.h * 2);
+    const H = Math.ceil(hp.h * 1.8) + 3;
+    const inside = (lx: number, ly: number) => {
+      const x = lx + x0;
+      const y = ly + y0;
+      if (y > hp.cy + (hash(x >> 2, 0, hp.k) < 0.5 ? 1 : 0)) return false;
+      return puffs.some(([px, py, r]) => (x + 0.5 - px) ** 2 + (y + 0.5 - py) ** 2 <= r * r);
+    };
+    const mask = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (inside(x, y)) mask[y * W + x] = 1;
+    const lit = bevel(mask, W, H, Math.max(3, hp.h * 0.45));
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        if (!mask[y * W + x]) continue;
+        // Lit as a solid from the upper left, and from beneath by the low sun.
+        const below = !mask[(y + 2) * W + x] || y + 2 >= H;
+        let t = 2.6 + (FLAT_LIGHT - (lit[y * W + x] as number)) * 3.2 + hp.depth * 1.2;
+        if (below) t = 0.6 + hp.depth;
+        put(g, x0 + x, y0 + y, X('cloud', clamp(t, 0, 6)));
       }
   });
   // Cirrus: long thin streaks near the horizon, tapered, lit along their lower edge.

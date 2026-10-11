@@ -304,49 +304,47 @@ const shipSunset: IconArt = {
           put(g, x, y, X('sunsea', clamp(2 + f * 4 + (clumps(x / 3, y, 5) - 0.5) * 1.2, 1, 6)));
         }
       }
-    // The sun, low, not yet touching the sea: the sails stand against it.
+    // The sun, low, off to the right of the mast, so half of it shows past the sail.
+    const sun = { x: o + 18.5, y: o + 16 };
     for (let y = 0; y < hz; y++)
       for (let x = 0; x < size; x++) {
-        const d = Math.hypot(x + 0.5 - (o + 18), y + 0.5 - (o + 15.5));
-        if (d <= 9.5) put(g, x, y, X('gilt', d < 7.5 ? 0 : 1));
+        const d = Math.hypot(x + 0.5 - sun.x, y + 0.5 - sun.y);
+        if (d <= 13.5) put(g, x, y, X('gilt', d < 11 ? 0 : d < 12.5 ? 1 : 2));
       }
     // Its road on the water.
     for (let y = hz + 1; y < size; y++) {
       const f = (y - hz) / (size - hz);
-      const half = 3 + f * 8;
-      for (let x = Math.round(o + 18 - half); x <= o + 18 + half; x++)
+      const half = 3 + f * 7;
+      for (let x = Math.round(sun.x - half); x <= sun.x + half; x++)
         if ((x + y * 3) % 5 < 2 + (1 - f) * 2) put(g, x, y, X('gilt', y % 2 ? 1 : 2));
     }
-    // The ship: a dark silhouette, three masts, sails set and full, bow to the left.
-    const L = { D: C('tar', 6), f: C('tar', 6), l: X('sunsea', 0) };
-    rows(g, o, o, [
-      '....................................',
-      '....................................',
-      '.................Dff................',
-      '.................Dfff...............',
-      '.................D..................',
-      '..........D......D......D...........',
-      '.........DDD..DDDDDDD..DDD..........',
-      '.........DDDD.DDDDDDDD.DDDD.........',
-      '........DDDDD.DDDDDDDD.DDDD.........',
-      '..........D......D......D...........',
-      '......DDDDDDD.DDDDDDDDD.DDDDDD......',
-      '.......DDDDDDD.DDDDDDDDD.DDDDDD.....',
-      '.......DDDDDDD.DDDDDDDDD.DDDDDDD....',
-      '........DDDDDD.DDDDDDDDD.DDDDDDD....',
-      '........DDDDDD..DDDDDDDD..DDDDDD....',
-      '.........DDDDD...DDDDDDD...DDDD.....',
-      '..........D......D......D...........',
-      'DD........D......D......D....DDDD...',
-      '..DDD.....D......D......D...DDDDD...',
-      '....DDDDDDDDDDDDDDDDDDDDDDDDDDDDD...',
-      '.....DDDDDDDDDDDDDDDDDDDDDDDDDDDDD..',
-      '......DDDDDDDDDDDDDDDDDDDDDDDDDDDD..',
-      '.......DDDDDDDDDDDDDDDDDDDDDDDDDD...',
-      '........DDDDDDDDDDDDDDDDDDDDDDDD....',
-      '.......llllllllllllllllllllllllll...',
-    ], L);
-    return { g, glows: [{ x: o + 18, y: hz - 3, r: 18, strength: 0.18, bands: 3 }] };
+    // The cutter as a silhouette: one mast, the mainsail full of wind, a jib,
+    // the raised stern, the bowsprit, the flag; one dark, nothing fussy.
+    const inPoly = (pts: readonly (readonly [number, number])[], x: number, y: number) => {
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i]!;
+        const [xj, yj] = pts[j]!;
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      return inside;
+    };
+    const MAIN = [[17.5, 6], [24, 6.5], [27.5, 10], [28.5, 15], [27, 21.5], [17.5, 21.5]] as const;
+    const JIB = [[16, 6.5], [15.5, 21.5], [6, 21.5]] as const;
+    const HULL = [[4, 21], [27, 21], [27, 18.5], [32.5, 18.5], [32, 21.5], [29, 25], [9, 25]] as const;
+    const D = C('tar', 6);
+    for (let y = 0; y < 36; y++)
+      for (let x = 0; x < 36; x++) {
+        const px = x + 0.5;
+        const py = y + 0.5;
+        const mast = x === 17 && y >= 3 && y <= 21;
+        const sprit = y === 20 && x >= 1 && x <= 6;
+        const flag = y >= 2 && y <= 4 && x >= 18 && x <= 21 - (y === 4 ? 1 : 0);
+        if (mast || sprit || flag || inPoly(MAIN, px, py) || inPoly(JIB, px, py) || inPoly(HULL, px, py)) put(g, o + x, o + y, D);
+      }
+    // The waterline: a lit lip where the hull meets the sea.
+    for (let x = 9; x <= 29; x++) put(g, o + x, o + 25, X('sunsea', 0));
+    return { g, glows: [] };
   },
 };
 

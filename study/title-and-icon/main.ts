@@ -31,6 +31,7 @@ function titlePage(): void {
   }
   // For GIFs: frames as PNG data, at one pixel per art pixel.
   (window as unknown as { paintAt: (t: number) => void }).paintAt = (time: number) => s.paint(time);
+  (window as unknown as { loopMs: number }).loopMs = title.loop ?? 4000;
 }
 
 const pages: Record<string, () => void | Promise<void>> = { logos: logosPage, title: titlePage, hero: heroPage,

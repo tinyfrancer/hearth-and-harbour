@@ -161,7 +161,38 @@ function boots(g: TGrid, x: number, base: number): void {
   }
 }
 
-function chair(g: TGrid): void {
+/**
+ * A rug before the hearth, in perspective: madder red with a gold border and
+ * a lozenge down its middle, its near edge fringed.
+ */
+function rug(g: TGrid): void {
+  const y0 = FLOOR + 26;
+  const y1 = 812;
+  for (let y = y0; y < y1; y++) {
+    const f = (y - y0) / (y1 - y0);
+    const half = 120 + f * 60;
+    const cx = FIRE.x;
+    for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) {
+      const u = (x - cx) / half;
+      const edge = Math.abs(u) > 0.9 || y - y0 < 4 + f * 2 || y1 - y < 6;
+      const stripe = Math.abs(Math.abs(u) - 0.82) < 0.025 || Math.abs(y - y0 - (8 + f * 4)) < 1 + f;
+      const loz = Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 < 0.62 && Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 > 0.5;
+      const loz2 = Math.abs(u) * 2.4 + Math.abs(f - 0.5) * 2 < 0.28;
+      let c = C('madder', 2 + ((Math.floor(x / 6) + Math.floor(y / 4)) % 5 === 0 ? 1 : 0));
+      if (edge) c = C('madder', 4);
+      if (stripe || loz) c = C('ochre', 2);
+      if (loz2) c = C('indigo', 2);
+      put(g, x, y, c);
+    }
+    put(g, Math.round(FIRE.x - half) - 1, y, C('madder', 6));
+    put(g, Math.round(FIRE.x + half) + 1, y, C('madder', 6));
+  }
+  // Fringe along the near edge.
+  for (let x = FIRE.x - 178; x <= FIRE.x + 178; x += 2)
+    for (let j = 0; j < 4; j++) put(g, x, y1 + j, C('linen', 2 + j));
+}
+
+export function chair(g: TGrid): void {
   // A high-backed settle, its back to us, facing the fire: dark, rim-lit on the fire's side.
   const x0 = 0;
   const x1 = 96;
@@ -361,7 +392,7 @@ function floor(g: TGrid): void {
 
 function backdrop(): TGrid {
   const g = tgrid(SCREEN_W, SCREEN_H);
-  render(g, { x: 0, y: 0, w: SCREEN_W, h: FLOOR }, 580, 7);
+  render(g, { x: 0, y: 0, w: SCREEN_W, h: FLOOR }, FLOOR, 7);
   // Indoors the render is smoke-stained and even: fold its patches a step toward the middle.
   for (let i = 0; i < g.d.length; i++) {
     const c = g.d[i] as number;
@@ -405,7 +436,7 @@ function backdrop(): TGrid {
   beamH(g, 336, 286, 46, 5, 8);
   cloak(g, 360, 300);
   boots(g, 334, FLOOR + 44);
-  chair(g);
+  rug(g);
   const b = outlined(barrel().grid);
   stamp(g, b, 340, 818 - b.h);
   stamp(g, outlined(barrel().grid), 312, 830 - b.h);
@@ -482,7 +513,7 @@ export function drawB(t: number): Frame {
       const m = xmatOf(c);
       if (m && LIGHTS.includes(m) && m !== 'gilt') continue;
       const d = Math.hypot((x - FIRE.x) / 1.1, (y - FIRE.y) * (y < FIRE.y ? 0.8 : 1.25));
-      const jit = (clumps(x / 2, y / 2, 21) - 0.5) * 0.9;
+      const jit = (clumps(x / 3, y / 3, 21) - 0.5) * 0.55;
       let n = clamp(d / 84 + jit - 0.9, 0, 4);
       // The wall lantern by the cloak lights its own corner a little.
       const dl = Math.hypot(x - LANTERN.x, (y - LANTERN.y) * 0.8);

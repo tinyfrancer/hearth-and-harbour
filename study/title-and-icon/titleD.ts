@@ -46,8 +46,24 @@ function field(g: TGrid): void {
       const d = Math.hypot((x - CX) / 220, (y - 390) / 470);
       const n = clamp(d * 2.2 - 0.9 + (clumps(x / 4, y / 4, 5) - 0.5) * 0.3, 0, 2);
       put(g, x, y, X('azure', Math.min(7, s + n)));
-      const near = Math.min(fa, 1 - fa) + Math.min(fb, 1 - fb);
-      if (near < 0.09 && fa < 0.5 === fb < 0.5) put(g, x, y, X('gilt', 4));
+    }
+  // Gold studs where the lozenges' lines cross: a small lit diamond each.
+  for (let a = -40; a < 80; a++)
+    for (let b = -40; b < 120; b++) {
+      // Invert the lozenge coordinates: u + v = 2a, u - v + 200 = 2b.
+      const u = a + b - 100;
+      const v = a - b + 100;
+      const x = Math.round(u * 13 + CX - 1300);
+      const y = Math.round(v * 15 - 15);
+      if (x < -3 || y < -3 || x > SCREEN_W + 3 || y > SCREEN_H + 3) continue;
+      for (const [dx, dy, s] of [
+        [0, -1, 1],
+        [-1, 0, 2],
+        [0, 0, 2],
+        [1, 0, 4],
+        [0, 1, 4],
+      ] as const)
+        put(g, x + dx, y + dy, X('gilt', s));
     }
 }
 
@@ -168,11 +184,17 @@ function anchor(g: TGrid, ph: number): void {
     }
   // The flame where the ring would be: the hearth on the harbour's anchor.
   const fx = CX;
-  const fb = ay + Math.round(22 * K);
-  for (let i = 0; i < 3; i++) {
-    const tw = [10, 15, 9][i]! * K;
-    const th = [26, 44, 22][i]! * K * (0.9 + 0.12 * Math.sin(ph * Math.PI * 2 * (3 + i) + i * 2));
-    const ox = [-9, 0, 9][i]! * K;
+  const fb = ay + Math.round(18 * K);
+  // A shallow gold cup on the shank's head holds it.
+  for (let j = 0; j < 7; j++) {
+    const half = Math.round((16 - j * 1.2) * K);
+    for (let x = -half; x <= half; x++)
+      put(g, fx + x, fb + j - 3, j === 0 ? C('gold', 1) : j === 6 ? C('gold', 6) : C('gold', x < -half * 0.4 ? 1 : x > half * 0.4 ? 4 : 2 + (j > 3 ? 1 : 0)));
+  }
+  for (let i = 0; i < 5; i++) {
+    const tw = [7, 10, 13, 10, 7][i]! * K;
+    const th = [24, 38, 52, 36, 22][i]! * K * (0.88 + 0.14 * Math.sin(ph * Math.PI * 2 * (3 + (i % 3)) + i * 2));
+    const ox = [-13, -7, 0, 7, 13][i]! * K;
     for (let y = 0; y < th; y++) {
       const f = y / th;
       const sway = Math.sin(f * 3 + ph * Math.PI * 4 + i) * f * 3;
@@ -190,8 +212,8 @@ function anchor(g: TGrid, ph: number): void {
   }
   // Outline the flame in the fire's own darkest red.
   const src = new Int16Array(g.d);
-  for (let y = fb - 60; y <= fb + 2; y++)
-    for (let x = fx - 34; x <= fx + 34; x++) {
+  for (let y = fb - 70; y <= fb - 4; y++)
+    for (let x = fx - 40; x <= fx + 40; x++) {
       const c = src[y * g.w + x] as number;
       if (isX(c, 'fire')) continue;
       const n = [src[y * g.w + x - 1], src[y * g.w + x + 1], src[(y - 1) * g.w + x], src[(y + 1) * g.w + x]];
@@ -207,14 +229,20 @@ function pine(g: TGrid, cx: number, base: number, h: number): void {
     for (let x = -3; x <= 3; x++) put(g, cx + x, y, X('gilt', x < -1 ? 1 : x > 1 ? 4 : 2));
   for (let t = 0; t < tiers; t++) {
     const ty0 = base - h + Math.round((t / tiers) * (h - tr) * 0.9);
-    const th = Math.round((h - tr) / tiers) + 10;
+    const th = Math.round((h - tr) / tiers) + 12;
     const maxHalf = 8 + (t / (tiers - 1)) * 30;
+    const tips = 2 + Math.floor(t / 2);
     for (let y = 0; y < th; y++) {
       const f = y / th;
-      const half = maxHalf * (0.25 + 0.75 * f) - (f > 0.82 ? (f - 0.82) * 40 : 0);
+      const half = maxHalf * (0.2 + 0.8 * f);
       for (let x = Math.round(-half); x <= Math.round(half); x++) {
         const nx = x / Math.max(1, half);
-        const s = f > 0.82 ? 4 : nx < -0.6 ? 1 : nx > 0.4 ? 3 : 2;
+        // The tier's foot droops into points, a few each side, the boughs' tips.
+        const across = Math.abs(nx) * tips;
+        const tipCurve = Math.abs((across % 1) - 0.5) * 2;
+        if (f > 0.78 && tipCurve * 0.3 + 0.78 < f) continue;
+        const under = f > 0.7;
+        const s = under ? 4 : nx < -0.55 ? 1 : nx > 0.35 ? 3 : 2;
         put(g, cx + x, ty0 + y, C('pine', s));
       }
     }
