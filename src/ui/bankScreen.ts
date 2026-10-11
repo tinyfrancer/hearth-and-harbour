@@ -295,7 +295,10 @@ export function bankView(
           attrs: { type: 'button', 'data-store-door': '' },
           on: { click: actions.store },
         },
-        [h('span', { text: 'The general store' }), h('span', { class: 'hint', text: '›' })],
+        [
+          h('span', { class: 'door-name', text: 'General store' }),
+          h('span', { class: 'hint', text: '›' }),
+        ],
       ),
   ]);
 

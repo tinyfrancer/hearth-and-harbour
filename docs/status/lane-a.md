@@ -1,8 +1,8 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 13** (his Milestone A feedback, `docs/feedback-milestone-a.md` on
-its branch), then the next wave's brief: the hero shown doing the idle activity (needs lane B's
-activity poses). Lane C's half of the run's save (calling `keepRun`/`savedRun`) is theirs next.
+**Next: Cody's review of wave 14** (the bank as a grid, the hero at work, the new icon, and the
+title screen once lane B's art for it lands), and whatever it asks for. Waiting on Cody: whether
+the combat pins move to greaves (below).
 
 ## Done
 
@@ -679,7 +679,89 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     `tests/data/pacing.test.ts`: cases added, none changed.
   - **Checked** at 390 x 844 and 360 x 740 at 3x: `/home/claude/lane-shots/w13-a/`.
 
+- Wave 14: Cody's feedback, continued (branch `lane-a/w14-bank-activity-title`). **Save version
+  unchanged (9)**: nothing here changes the save's shape or meaning.
+  - **The bank as a grid** (`src/ui/bankScreen.ts`, `src/ui/bankOrder.ts`, `src/ui/grid.ts`):
+    every stack a square cell (its 24-pixel icon at a whole number of device pixels, about 36 to
+    40 CSS, `GRID_ICON_SCALE`), its count in the corner shortened and rounded down (999, 1.2k,
+    12k, 1.2M; `shortCount`); five across at 360, six at 390 and 430, each cell at least 54 CSS.
+    The purse and the store's door share a row; a search field (18px) and a sort menu share the
+    next; the kinds are chips in a row that scrolls sideways on its own. **Kinds** come from each
+    item's own row and the action tables (`categoryOf`): potions, food (heals), ammunition and
+    equipment (worn), resources (an action makes or uses it), other (only monsters, marks, shops
+    and dungeons give it). **Sorts**: type (headed by kind, in that order: resources, food,
+    potions, equipment, ammunition, other), name, value each, value of the stack, count, and
+    newest find (the collection log's order, which is the order things were first held, so it
+    needs no new state). Ties keep the tables' order. **The open card** is pinned at the foot of
+    the screen above the strip and the tabs (sticky inside the screen, at most 58% of its height,
+    scrolling inside), with the doing first (drink, equip, food slot, the sell amounts and Sell)
+    and the facts after; opening one scrolls nothing unless the card would cover its cell, and then
+    only enough to show it; a second tap on the cell closes it. **In place**: counts move every
+    frame without a rebuild; a new kind gets its cell where the sort puts it and whatever the eye
+    was on (the open cell, or the first cell on screen) is held still; the order is worked out
+    again only when the kinds held change or the player sorts, so climbing counts never shuffle
+    cells under a thumb. **The sort is kept on the device** across sessions, not in the save: a
+    new `Prefs` store (`src/persistence/Prefs.ts`, local storage under
+    `hearth-and-harbour:pref:`, `AppDeps.prefs`, memory-only if left out); the kind and the
+    search are kept for the session. Selling several at once: as before (1, 10, 100, All).
+  - **The store and the collection log as grids**: the store's beginner things are cells with
+    their lot (×50) and price under the picture, a tap opening the card (everything it said, and
+    Buy) at the foot of the screen; the dear things stay as panels (they need their words). The
+    log's chips are cells: a picture once found, a "?" until then, a tap names it under its
+    source.
+  - **The hero at work** (`src/ui/atWork.ts`, `src/ui/nowDoing.ts`): lane B's
+    `characterActivity2` and `activityProp2` on one canvas, in the player's look and gear, drawn
+    with whole device pixels per art pixel and only when the frame (or the outfit) changes; a
+    hidden page draws nothing; with less motion asked for, one still frame. **Which loop** comes
+    from the tables: `SkillDef.activity` (new, optional; every skill has one, a test holds them to
+    `ACTIVITY2_IDS`); a fight uses its style's skill's. **Frames tied to the action**: a whole
+    number of turns of the loop to each completion (as near the art's own pace as it can be), each
+    turn starting on the frame where the work lands, so the axe bites as the log lands; a fight is
+    timed by the wait for the hero's next blow, so the blow lands as the hit is rolled. An action
+    shorter than 0.6 of a turn runs at the art's pace by the clock. Between foes, stunned, or with
+    nothing running, he stands and breathes. **Where**: a "now doing" strip above the tabs on
+    every tab (hidden in a full-screen dungeon), made once and kept across screens, with the
+    hero at 2 device pixels an art pixel at 3x, what is being done, a bar (the action's progress,
+    or the foe's health gone) and a line under (what it makes and how many are held, or kills); a
+    tap opens the action's skill page, the fight, or the skills when resting. The running
+    action's card (and a running theft's) has him at work at its top, at 4 device pixels at 3x.
+    The fight screen opens on a duel: the hero striking on the left at the large portrait's
+    height, the foe's portrait opposite; the panels below keep the numbers (their faces moved to
+    the duel).
+  - **The new app icon**: the ship at sunset, harvested from the study as its colour grids (36
+    x 36, and the field grown to 48 x 48 for maskable) into `scripts/make-icons.mjs`:
+    `apple-touch-icon.png` at 180 (was 176), `icon-192.png` and `icon-512.png` (5 and 14 pixels a
+    cell, the edge cells run out to fill), `icon-maskable-192.png` and `icon-maskable-512.png`
+    (4 and 10 a cell), `favicon-32.png` (the 36 drawing less a 2-pixel border) and
+    `favicon.svg` (crisp squares). The manifest names "any" and "maskable" separately;
+    `background_color` is the dusk sea (`#2e2450`), `theme_color` stays the menus' panel
+    (`#1e1a2a`, the bars a player sees). The service worker's cache is `hearth-and-harbour-v2`.
+  - **Wave 13's weak spots**: the away report names the monsters whose bounties auto bounty
+    handed in (`AwayReport.claimed.monsters`, read off the bestiary: every kill in that time is of
+    a bounty's monster, so each monster killed was handed in, but for the bounty now held unless
+    more fell than it counts); the combat pages' food list follows the bank in place (a kind
+    arriving gets its row). **Greaves in the simulations**: `gearAt(level, style, greaves)` in
+    `tests/data/fighting.ts`; the pins are held without them, and new cases in
+    `tests/data/pacing.test.ts` pin what greaves move (see Deferred).
+  - **Expectations changed on purpose**: the bank's open card leaves its cell in the grid,
+    marked (was: the card replaced the row) in `inPlace.test.ts`; the store's beginner things
+    are bought from their card (a tap on the cell first) in `records.test.ts`; the fight's faces
+    moved to the duel in `faces.test.ts`; the store door says "General store" (the test matches
+    it without case). `tests/data/pacing.test.ts`: cases added, none changed.
+  - **Checked** at 390 x 844, 360 x 740 and 430 x 932 at 3x: `/home/claude/lane-shots/w14-a/`.
+
 ## Deferred
+
+- Wave 14: **greaves and the combat pins, a decision for Cody.** In greaves (bronze from 5, iron
+  from 10) the simulations move: fish an hour against the gull 135 → 139, footpad 189 → 168,
+  grey wolf 250 → 216, smuggler 187 → 174, marsh troll 190 → 206, goblin poacher 165 → 145,
+  bramble wyrm 182 → 169; an hour's coins at level 10 (gull) 47,020 → 48,060 and at 20 (footpad)
+  67,024 → 66,979; bounty points an hour, level 10 top 36 → 38, level 20 top 50 → 49; the marsh
+  troll no longer pays its way (0.98 of its fish); the most kills a bounty on the smuggler, the
+  troll or the wyrm asks take a little over twenty minutes (20.25 to 21). Nothing retuned: the
+  pins stay in linen until Cody says whether they follow (and if so, the bounty counts and the
+  troll's coins with them).
+- Wave 14: **the title screen** (item 4) waits on lane B's `src/art/title.ts`.
 
 - Wave 13: nothing from the brief. Not done: greaves in the simulations' gear ladder
   (`tests/data/fighting.ts` still wears linen trousers, so fights are a little easier in play
@@ -701,6 +783,12 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   notes).
 
 ## Needs from another lane
+
+- **For lane B (wave 14)**: export where each loop's work lands, e.g. `activityHitFrame2(activity)`
+  (the axe in the log, the pick on the rock; the blow's `STRIKE2_HIT_FRAME` for combat). Until
+  then `LANDS` in `src/ui/atWork.ts` holds it, read off the beats (woodcutting 2, fishing 3,
+  mining 2, foraging 1, cooking 3, smithing 2, crafting 0, fletching 2, alchemy 3, thieving 2).
+  And the title door (`titleScene`, `TITLE_FRAME_MS` in `src/art/title.ts`) as briefed.
 
 - **For lane C (wave 13), the run's save**: call `shell.keepRun?.(savedRunOf(run))` on entering a
   room, every few seconds and on `pagehide`, and take `shell.savedRun?.()` back when `townView`
@@ -752,6 +840,12 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 ## Notes for this lane's next session
 
 - Save is version 9. The next shape change is 10.
+- **Menu preferences are not the save**: `Prefs` (`src/persistence/Prefs.ts`) keeps how the menus
+  are arranged on a device (today `bank-sort`). A new preference is a key there, never a save
+  field.
+- The "now doing" strip (`nowDoing`) is made once in `mountApp` and appended by every `render`;
+  `tick` updates it after the game's step. A view that wants the hero at work makes its own
+  `workStage` and calls `show(state, now)` from its `update`.
 - `View.stale(before, after)`: a view that rebuilds when time changes what it is built of. A new
   view that shows something time changes structurally must say so, or update it in place.
 - The character sheet is a paper doll (wave 9). Since wave 12 the squares and the figure share

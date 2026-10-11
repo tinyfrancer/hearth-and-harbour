@@ -99,7 +99,9 @@ describe('faces in the menus', () => {
   it('show the store keeper behind the counter', () => {
     playing();
     tab('bank');
-    [...root.querySelectorAll('button')].find((b) => /general store/.test(b.textContent!))!.click();
+    [...root.querySelectorAll('button')]
+      .find((b) => /general store/i.test(b.textContent!))!
+      .click();
     expect(q('[data-store] .portrait .portrait2-art').dataset.door).toBe('trader');
   });
 

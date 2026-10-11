@@ -1424,7 +1424,7 @@ button.card:active {
 }
 
 .bank-purse {
-  flex: 1;
+  flex: 1 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1438,7 +1438,8 @@ button.card:active {
 }
 
 .store-door {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   width: auto;
   flex-direction: row;
   align-items: center;
@@ -1831,4 +1832,10 @@ button.card:active {
 
 .duel .portrait {
   margin-bottom: 8px;
+}
+
+.door-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
