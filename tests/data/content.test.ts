@@ -8,7 +8,6 @@ import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { PORTRAIT2_IDS } from '../../src/art/portraits2';
-import { GROTTO_CAST } from '../../src/scene/cast';
 
 // Fixed in docs/lanes.md (wave 6): the dungeon drops them, and art draws them, by these ids.
 const GROTTO_LOOT = [
@@ -403,23 +402,12 @@ describe('the content tables', () => {
     expect(CONTENT.dungeons!.brinebeards_grotto!.loot).toEqual(GROTTO_LOOT);
   });
 
-  it("knows the grotto's cast by the ids and names its scene fights them by, none a table monster", () => {
-    const cast = CONTENT.dungeons!.brinebeards_grotto!.cast!;
-    expect(cast.map((foe) => foe.id).sort()).toEqual(Object.keys(GROTTO_CAST).sort());
-    for (const foe of cast) {
-      expect(foe.name, foe.id).toBe(GROTTO_CAST[foe.id]!.name);
+  // The scene reads its cast from src/data/dungeons.ts (lane C, wave 12), so
+  // there is one set of numbers and nothing to keep in step with it.
+  it("holds the grotto's cast: none a table monster, each with a face and real drops, weakest first", () => {
+    for (const foe of CONTENT.dungeons!.brinebeards_grotto!.cast!) {
       expect(CONTENT.monsters![foe.id], foe.id).toBeUndefined();
       expect(PORTRAIT2_IDS, foe.id).toContain(foe.id);
-    }
-  });
-
-  // The rows are in two places until the scene reads them from src/data/dungeons.ts:
-  // this keeps the bestiary's numbers the ones the grotto is fought by.
-  it("holds the grotto's cast at the very numbers its scene fights them by", () => {
-    for (const foe of CONTENT.dungeons!.brinebeards_grotto!.cast!) {
-      const { area, ...scene } = GROTTO_CAST[foe.id]!;
-      expect(area, foe.id).toBe('brinebeards_grotto');
-      expect(foe, foe.id).toEqual(scene);
       for (const id of [
         ...foe.always.map((drop) => drop.item),
         ...foe.rare.map((drop) => drop.item),

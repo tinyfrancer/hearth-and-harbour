@@ -205,7 +205,7 @@ describe('save export and import', () => {
   it('round-trips the notice board, auto bounty, a bounty’s pay, a beard and a run under way', () => {
     const board: GameState = {
       ...state,
-      look: { ...state.look, beard: 'a-beard' },
+      look: { ...state.look, beard: 'a-beard', ...{ eyeColour: 'a-part-the-art-added' } },
       bountyBoard: [
         { monster: 'dock_rat', count: 60, points: 4 },
         { monster: 'footpad', count: 22, points: 6 },
@@ -285,7 +285,9 @@ describe('save export and import', () => {
       { ...state, look: undefined },
       { ...state, look: 'handsome' },
       { ...state, look: { skin: 3 } },
-      { ...state, look: { nose: 'long' } },
+      // A part must be a plain name (any the art may add); its value a string.
+      { ...state, look: { 'a nose': 'long' } },
+      { ...state, look: { nose: 3 } },
       { ...state, equipment: undefined },
       { ...state, equipment: [] },
       { ...state, equipment: { pocket: { item: 'seashells', qty: 1 } } },

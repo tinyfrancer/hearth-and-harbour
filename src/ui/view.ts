@@ -1,5 +1,5 @@
 import type { RunSpoils } from '../core/run';
-import type { GameState } from '../core/state';
+import type { GameState, SavedRun } from '../core/state';
 import type { TabId } from './tabs';
 
 /**
@@ -63,4 +63,21 @@ export interface Shell {
    * own stand-in shells need not have it; call it as `shell.openBounties?.()`.
    */
   openBounties?(): void;
+  /**
+   * Keep the dungeon run under way so a reload or a dropped page takes it up
+   * again: the scene's own snapshot (`savedRunOf` in src/scene/runSave.ts),
+   * on entering a room, every few seconds and when the page is hidden; null
+   * once the run is over (settling it clears it too). It is written with the
+   * app's next save and never advanced by the idle game. Optional, like
+   * `openBounties`, so stand-in shells need not have it.
+   */
+  keepRun?(run: SavedRun | null): void;
+  /**
+   * The run kept from before a reload, for the scene to take up when it is
+   * built, or null. Only a run left less than a minute ago comes back: one
+   * left longer is settled from its spoils as if rowed home early, before the
+   * time away is paid, so nothing picked up is lost. The scene restores it if
+   * it can read its `scene` version, and settles its spoils if it cannot.
+   */
+  savedRun?(): SavedRun | null;
 }

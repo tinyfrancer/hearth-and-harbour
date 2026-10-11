@@ -690,6 +690,14 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         fightOver = null;
         turnTo();
       },
+      keepRun: (run) => {
+        if (!state) return;
+        // Kept with the next save (every few seconds while a run pauses the
+        // idle clock, and when the page is hidden); a run over is saved at once.
+        state = { ...state, run };
+        if (!run) save();
+      },
+      savedRun: () => state?.run ?? null,
     });
   };
 
@@ -924,8 +932,25 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     refresh(before, time);
   };
 
-  // A game that was closed: everything since its last save is time away.
-  if (state) returnFrom(now() - state.savedAt);
+  // A game that was closed: everything since its last save is time away. A
+  // dungeon run it was left in is taken up again after a quick reload (the
+  // scene asks for it, `savedRun`), and no idle time is owed for the gap, as
+  // the run had the idle clock stopped. Left longer, the run is over: what was
+  // picked up comes home as from a run rowed back early, and then the time
+  // away is paid to the idle task like any other.
+  if (state) {
+    const gap = now() - state.savedAt;
+    if (state.run && gap < AWAY_MS) {
+      lastTick = now();
+    } else {
+      if (state.run) {
+        // Rowed home early: no clear, whatever the snapshot says.
+        state = settleRun(state, { ...state.run.spoils, cleared: undefined }, content);
+        toast('Your dungeon run was cut short. What you carried came home with you.');
+      }
+      returnFrom(gap);
+    }
+  }
   render();
   return { save, tick };
 }

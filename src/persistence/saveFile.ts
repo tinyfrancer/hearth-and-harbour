@@ -137,7 +137,7 @@ function saveProblem(state: Record<string, unknown>): string | null {
   const { look } = state;
   if (
     !isRecord(look) ||
-    !Object.entries(look).every(([part, id]) => LOOK_PARTS.includes(part) && typeof id === 'string')
+    !Object.entries(look).every(([part, id]) => isLookPart(part) && typeof id === 'string')
   ) {
     return 'the look should be a skin, a hair, a hair colour and a beard';
   }
@@ -357,8 +357,15 @@ function isFight(fight: unknown): boolean {
   );
 }
 
-/** The parts of a look a save may name. Their values are the art's to judge. */
+/**
+ * The parts of a look a save may name: those known, and any other the art
+ * offers by a plain name (the menus build a row for every part the art has,
+ * so a part it adds is saved before this file has heard of it, and such a
+ * save must still load). Their values are the art's to judge.
+ */
 const LOOK_PARTS: readonly string[] = ['skin', 'hair', 'hairColour', 'beard'];
+const isLookPart = (part: string): boolean =>
+  LOOK_PARTS.includes(part) || /^[a-z][A-Za-z]{0,23}$/.test(part);
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
