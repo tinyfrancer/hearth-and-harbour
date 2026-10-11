@@ -391,11 +391,11 @@ export interface BattleCount {
 
 /**
  * The parts of a day's modifier the rules read as the fight goes (the rest
- * are applied to the rows a run starts with, or to its spoils): a volley's
- * damage, the tide's pace, and whether anything may be eaten.
+ * are applied to the rows a run starts with): the tide's pace, and whether
+ * anything may be eaten. (A boss's cannon is not his blow: lane A's
+ * `foeDamage` is the foes' max hit, and the cannon's damage stays.)
  */
 export interface BattleMods {
-  readonly foeDamage?: number;
   readonly tidePace?: number;
   readonly noFood?: boolean;
 }
@@ -1474,7 +1474,7 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
       from: w.clock,
       lands: w.clock + volley.warnMs,
       origin: null,
-      damage: w.mods?.foeDamage ? Math.round(volleys.damage * w.mods.foeDamage) : volleys.damage,
+      damage: volleys.damage,
     });
   }
 }

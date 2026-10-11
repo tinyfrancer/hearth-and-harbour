@@ -5,7 +5,7 @@
  * never by its name:
  *
  * - foe health, damage and swing: the monsters' rows a run starts with,
- *   by lane A's `foeUnder` (a boss's volleys through `Battle.mods.foeDamage`);
+ *   by lane A's `foeUnder` (heavy blows are made of a foe's max hit; a cannon's are not);
  * - hero damage: his max hit as he rows out, by `heroMaxHitUnder`;
  * - the tide's pace, and no food: read by the rules as the fight goes
  *   (`BattleMods`, `battleMods`);
@@ -52,8 +52,7 @@ export function modifiedFighter(fighter: Fighter, e: ModifierEffects | undefined
 /** What the rules read as the fight goes; null when nothing of it applies. */
 export function battleMods(e: ModifierEffects | undefined): BattleMods | null {
   if (!e) return null;
-  const mods: { foeDamage?: number; tidePace?: number; noFood?: boolean } = {};
-  if (factor(e.foeDamage) !== 1) mods.foeDamage = factor(e.foeDamage);
+  const mods: { tidePace?: number; noFood?: boolean } = {};
   if (factor(e.tideFaster) !== 1) mods.tidePace = factor(e.tideFaster);
   if (e.noFood) mods.noFood = true;
   return Object.keys(mods).length ? mods : null;
