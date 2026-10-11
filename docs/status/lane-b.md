@@ -3,6 +3,57 @@
 **Next session:** Cody's review of B17 (the dungeon-replay pictures, rowing, and the weak spots
 of B12 to B16) and whatever it asks for.
 
+## The blow toward and away, the back view, the walk, standing turned, for lanes C and A (B17, second PR)
+
+The figure weak spots on the B12 to B16 lists, worst first. No export renamed or re-signed;
+`STRIKE2_FRAMES` 4, `STRIKE2_HIT_FRAME` 2, the canvas, the anchor, every stride and frame constant
+unchanged. Added:
+
+```ts
+// character2.ts: the standing hero turned toward his facing (a new door; the standing picture is unchanged)
+characterThreeQuarterPicture2(look, worn, frame = 0, extra = [], facing: 'right' | 'left' = 'right'): Picture2
+characterThreeQuarter2(look, worn, time, frame = 0, extra = [], facing = 'right'): HTMLCanvasElement
+```
+
+- **The blow toward the camera** is a diagonal cut across his front: cocked over the right
+  shoulder, swept across at the chest, landing low on his left with the blade laid out beside him
+  at its full length (a long blade gives up its lean before its length at the landing, in every
+  facing; across, the landing is steeper for the same reason), eased on through. **From behind**
+  the same cut seen from the back: raised on the right, carried over the head, landing low on the
+  left with the blade past his side. **A swung weapon trails an arc** on the swing and the landing
+  (pale steel, only on empty pixels, never over the figure). **A bow toward and away** is drawn
+  three-quarter at full draw, the string to the jaw in a V and the arrow past the grip. **A shield
+  with a bow** is strapped to the bow arm across (its edge by the grip) and slung on the back
+  toward the camera and away. **The punch** lands beside the shoulder, a larger fist (nearer the
+  viewer), the body turned into it, a flash about it in every facing (the fist and the arm kept
+  clear of it). Lane C's fight draws the frames as before; the arc and the flash are in them.
+- **From behind**: the shield held out from the body and cut at its side (`SHIELD_OUT` 3,
+  `SHIELD_CUT` 19 in `views.ts`), so it is a solid band past the arm and never shows through the
+  gap at the body; a cloak's top laid over the shoulders as a mantle (the knight's pauldrons no
+  longer poke out); twin braids are full plaits over both shoulders; curls under a helm are
+  pressed in to the head (a style may now say how it is worn under head gear, `under` in
+  `HairDrawing`); long hair has a sheen across it and lit strands (black is no longer a mass); a
+  bald head has creases at the ears and a shadow under the skull. Townsfolk backs: the alewife's
+  elbows rounded and turning in, her bun rimmed, her apron's bow at her back; the smith's apron
+  straps crossed on his back; the old man's coat seamed with a half-belt and a vent.
+- **The walk**: across, a cloak covers a leg striding back only to the knee, so the knight's
+  trailing shin and boot show (he read one-legged); greaves stop short of the boot, so a band of
+  leather shows between plate and foot (they read as boots); toward the camera and away the
+  planted foot's welt is pressed out a pixel either side, so it reads flat and heavy against the
+  free foot.
+- **Standing turned**: the front figure, before its outline, turned row by row about the body's
+  middle (the near side widened, the far side drawn in, the head furthest, the chest less, the
+  legs least, eased through the neck and the hips), then outlined. It holds for every look and
+  wearable at once (a shield turns with its arm, a hat with the head), and is never a turned head
+  on a square body. It is not a redrawn three-quarter: see the weak list. Facing right; `'left'`
+  is it mirrored and re-lit, so what he holds changes hands, as `facingLeft2` does for the
+  standing picture.
+- **Gallery**: "Standing turned (B17)" in the figures' section; the blow, the back and the walk
+  plates show the new frames.
+- **Review sheets** in `/home/claude/lane-shots/w17-b/`: `strike-down-up-before-after` (two
+  parts), `strike-4way.gif`, `back-view-before-after.png`, `walk-before-after.png`,
+  `three-quarter.png`.
+
 ## Dungeon replay: icons, medals, seals, the pennant, rowing, corner pointers, for lanes A and C (B17, first PR)
 
 S16 adds daily modifiers, challenges and idle dungeon runs. Lane A's ids were not on `main` when
@@ -16,8 +67,8 @@ challengeIcon(id: string): HTMLCanvasElement         //   aria-hidden (its name 
 modifierIconFor(effects: unknown): HTMLCanvasElement // from the effects, for ids never seen here
 modifierIconPicture(id) / challengeIconPicture(id) / modifierIconForPicture(effects): Picture2
 modifierKind(id) / challengeKind(id) / modifierKindFor(effects): DungeonIconKind
-DUNGEON_ICON_KINDS   // tough fierce swift might frail loot coins xp tide hungry dark modifier |
-                     // time untouched nobrace nopotion unarmed boss slayer challenge
+DUNGEON_ICON_KINDS   // tough fierce swift slow might frail loot coins xp tide hungry dark modifier |
+                     // time untouched nobrace nopotion unarmed dodge boss slayer challenge
 dungeonIconPicture(kind): Picture2;  DUNGEON_ICON_SIZE = 24
 challengeMedal(state: 'todo' | 'done' | 'new', frame = 0): HTMLCanvasElement
 challengeMedalPicture(state, frame = 0): Picture2
@@ -35,11 +86,12 @@ townPointer2(direction, frame)   // a diagonal is 22 x 22 with its keyline, one 
 ```
 
 - **Matching**: a modifier id is read for words (`tough|health|hardy` tough, `fierce|damage|hit|
-strong` fierce, `swift|speed|fast|frenzy` swift, `hero|might|keen` might, `frail|fragile` frail,
-  `loot|bounty|treasure` loot, `coin|gold|rich` coins, `xp|learn|wisdom` xp, `tide|flood|wave`
+strong` fierce, `swift|speed|fast|frenzy` swift, `slack|slow|sleep` slow (before the tide's words: a slack tide is its sea at rest),
+  `hero|might|keen` might, `frail|fragile` frail,
+  `loot|bounty|treasure|rich` loot, `coin|gold|purse` coins, `xp|learn|wisdom` xp, `tide|flood|wave`
   tide, `hung|no_food|famine` hungry, `dark|gloom|night` dark; else a die, `modifier`). A
   challenge is read by its slug after the last dot (`untouched|no_damage|flawless`, `brace`,
-  `no_food`, `potion`, `unarmed|fist|bare`, `time|under|swift|minute` an hourglass, `boss|captain`,
+  `no_food`, `potion`, `unarmed|fist|bare`, `dodge|step` a blow stepped out of, `time|under|swift|minute` an hourglass, `boss|captain`,
   `kill|every|all` crossed swords, `tide`, `loot`; else a target, `challenge`). The dungeon's own
   id is never read (the tide-pool cave's "tide"). `modifierKindFor` reads effects as an object
   (`{ foeHealth: 1.5 }`) or a list (`[{ kind: 'foeDamage', by: 1.3 }]`): who it touches (hero or
@@ -47,6 +99,14 @@ strong` fierce, `swift|speed|fast|frenzy` swift, `hero|might|keen` might, `frail
   biggest change winning; `heroHealth` below 1 is `frail`. `tests/art/dungeonIcons2.test.ts`
   asserts every modifier and challenge id in `src/data/dungeons.ts` gets a non-generic icon
   (skipped until those ids land).
+- **Lane A's ids (wave 17), checked**: `slack_tide` slow (its effect is `foeSpeed` 0.8, so the
+  effects give slow too: a speed below 1, or an interval above 1), `rich_pickings` loot,
+  `thick_skulls` tough, `angry_crew` fierce, `quick_tempers` swift, `spring_tide` tide,
+  `no_rations` hungry, `unlit_lamps` dark; `tidepool_cave.quick` and `brinebeards_grotto.swift`
+  the hourglass, `.unhurt` and `.nearly_unhurt` the bright heart, `.no_food` the forbidden meat,
+  `tidepool_cave.snapper_dodge` the dodge (an arrow arching over a blow; the data's note
+  expected the boss, but the challenge is stepping out of his blows), `brinebeards_grotto.spring_tide`
+  the tide. The data test now runs on them.
 - **Medals**: `todo` a dull iron disc with a hollow face on a grey ribbon; `done` gold with a
   star on a red ribbon; `new` the gold medal with a glint sweeping across it and a sparkle
   blooming: play frames 0 to 5 once at `CHALLENGE_MEDAL_FRAME_MS`; frame 5 on is exactly `done`.
@@ -1817,6 +1877,10 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
   - When `DUNGEON_MODIFIERS` and the challenges land, `tests/art/dungeonIcons2.test.ts` checks
     every id gets a fitting icon; a new id whose words fit no kind fails it until lane B adds a
     word or a picture (or name the modifier by what it does).
+- **Lane C, for B17** (second PR): `characterThreeQuarterPicture2(look, worn, frame)` is a turned
+  standing hero for the town's idle (frame 0 standing, 1 breathing, as `characterIdlePicture2`),
+  on the same canvas and anchor; use it when he stands still facing right (mirror for left). The
+  blow's frames now carry their own arc and flash: your glint can stay or go.
 - **Lane C, for B17**:
   - On the chart: `dungeonSeal(id, 'cleared' | 'all-challenges')` beside a cleared landing's
     marker (anchor the disc's middle), and `chartPennant2(frame)` 6 to 10 pixels left of the marker

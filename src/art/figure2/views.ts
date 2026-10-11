@@ -260,6 +260,56 @@ const forearmBehind = (p: Part2): Part2[] => [
   { ...below(p, BACK_FOREARM_ROW), depth: BACK_DEPTH.HELD + 5 + p.depth / 100 },
 ];
 
+/**
+ * The shield from behind, held out from the body (B17): a kite showed only as
+ * a sliver at the elbow, and its planks showed through the gap between arm
+ * and body. Moved three columns out and cut at the body's side, so what shows
+ * is a solid band of its back (planks, rim, straps) past the arm, and nothing
+ * of it inside the body's outline.
+ */
+export const SHIELD_OUT = 3;
+export const SHIELD_CUT = 19;
+function shieldOut(p: Part2): Part2 {
+  const px: [number, number, string][] = [];
+  for (const [y, row] of rowsOf(p))
+    for (const [x, ch] of row) if (x - SHIELD_OUT <= SHIELD_CUT) px.push([x - SHIELD_OUT, y, ch]);
+  return fromPixels(p, px);
+}
+
+/**
+ * A cloak from behind with its top laid over the shoulders (B17): it hung
+ * from the neck, and the knight's pauldrons poked out beside it. Its first
+ * rows widen to the shoulders' width in a rounded mantle, each row's added
+ * cloth taking the row's own edge on that side.
+ */
+function mantle(p: Part2): Part2 {
+  const by = rowsOf(p);
+  const ys = [...by.keys()].sort((a, b) => a - b);
+  if (!ys.length) return p;
+  const y0 = ys[0]!;
+  const px: [number, number, string][] = [];
+  for (const y of ys) {
+    const row = by.get(y)!.sort((a, b) => a[0] - b[0]);
+    for (const [x, ch] of row) px.push([x, y, ch]);
+    const k = y - y0;
+    if (k > 8) continue;
+    // The shoulders' line: rounded over the first rows, then the full width.
+    const inset = [5, 2, 1, 0, 0, 0, 0, 0, 0][k]!;
+    const left = 14 + inset;
+    const right = 42 - inset;
+    const a = row[0]!;
+    const b = row[row.length - 1]!;
+    for (let x = left; x < a[0]; x++) px.push([x, y, a[1]]);
+    for (let x = b[0] + 1; x <= right; x++) px.push([x, y, b[1]]);
+  }
+  // A row over the first, across the shoulders' tops (the pauldrons rise above the neckline).
+  const top = by.get(y0)!.sort((a, b) => a[0] - b[0]);
+  for (let x = 17; x <= 39; x++)
+    if (x < top[0]![0] || x > top[top.length - 1]![0])
+      px.push([x, y0 - 1, x < 28 ? top[0]![1] : top[top.length - 1]![1]]);
+  return fromPixels(p, px);
+}
+
 /** A held thing seen from behind: behind the person, its own parts kept in their order. */
 const heldBehind = (p: Part2): Part2 => ({ ...p, depth: BACK_DEPTH.HELD + p.depth / 100 });
 
@@ -410,7 +460,7 @@ export function backParts(
       if (slot === 'shield') {
         if (index > 0 && gear !== 'spyglass') continue;
         out.push({
-          part: heldBehind(gear === 'spyglass' ? mirrored(p, BACK_AXIS) : shieldBack(p)),
+          part: heldBehind(gear === 'spyglass' ? mirrored(p, BACK_AXIS) : shieldOut(shieldBack(p))),
           bone: 'nearHeld',
           tag,
         });
@@ -436,7 +486,7 @@ export function backParts(
     }
     if (bone === 'cloak') {
       out.push({
-        part: { ...flipLit(p, BACK_AXIS), depth: BACK_DEPTH.CLOAK, cast: true },
+        part: { ...mantle(flipLit(p, BACK_AXIS)), depth: BACK_DEPTH.CLOAK, cast: true },
         bone: 'cloak',
         tag,
       });

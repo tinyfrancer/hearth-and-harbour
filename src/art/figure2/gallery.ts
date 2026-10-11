@@ -23,6 +23,7 @@ import {
   c2Scale,
   characterIdlePicture2,
   characterPicture2,
+  characterThreeQuarterPicture2,
   characterStrike2,
   characterWalk2,
   STRIKE2_FRAMES,
@@ -323,6 +324,22 @@ export function figure2Gallery(): { section: HTMLElement; draw: () => void } {
   const build = () => {
     if (built) return;
     built = true;
+    sub('Standing turned (B17): each rung front-on, then turned right and left, in a few looks');
+    for (const rung of LADDER2)
+      shot(rung.name, () =>
+        plate(
+          [
+            {},
+            { hair: 'long', hairColour: 'black', skin: 'brown' },
+            { hair: 'curly', beard: 'full_beard' },
+          ].flatMap((look) => [
+            characterPicture2(look, rung.items, rung.extra ?? []),
+            characterThreeQuarterPicture2(look, rung.items, 0, rung.extra ?? []),
+            characterThreeQuarterPicture2(look, rung.items, 0, rung.extra ?? [], 'left'),
+          ]),
+          2,
+        ),
+      );
     sub(
       'Hair in every facing (B13): standing, toward you, right, left, away; then under a helm and a hood',
     );

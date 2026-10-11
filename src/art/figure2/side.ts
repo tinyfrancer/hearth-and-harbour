@@ -619,7 +619,7 @@ export function extent(p: Part2) {
  * columns (its rim, its field, its device where it crosses the middle), so it
  * shows as a shield's edge beyond the chest rather than vanishing.
  */
-function edgeOn(parts: readonly Part2[]): Part2[] {
+export function edgeOn(parts: readonly Part2[]): Part2[] {
   const main = parts[0];
   if (!main) return [];
   const w = Math.max(...main.rows.map((r) => r.length));
@@ -730,7 +730,9 @@ function drawCloak(sheet: Sheet, mat: Mat, bob: number, f: number, backLine: num
         step += 1;
       if (y === hem) step += 1;
       void lift;
-      const over = x < backLine && y > 44 + bob;
+      // Over a leg striding back only down to the knee (B17): below it the calf presses back
+      // through the drape, so the trailing shin and boot show and the knight has two legs.
+      const over = x < backLine && y > 44 + bob && y <= 56 + bob;
       sheet.add(x, y, cell(mat, Math.min(5, step)), over ? SIDE.CLOAK_OVER : SIDE.CLOAK, 'cloak');
     }
   }

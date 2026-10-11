@@ -137,6 +137,12 @@ export interface HairDrawing {
   readonly hood?: { front?: Part2[]; side?: Part2[]; back?: Part2[] };
   /** Tucked away whole under a hood. */
   readonly tucked?: boolean;
+  /**
+   * The style as worn under head gear, before it is cut at the rim (B17), where
+   * the whole style would push out past the rim (a cloud of curls bulged wide
+   * under a helm): pressed in to the head's width. Left out, the whole style.
+   */
+  readonly under?: { front?: Part2[]; side?: Part2[]; back?: Part2[] };
 }
 
 const PONYTAIL: HairDrawing = {
@@ -348,6 +354,47 @@ const CURLY: HairDrawing = {
       0.1,
     ),
   ],
+  // B17: under a helm the curls are pressed in under the rim, a curl's width past the ears at
+  // most (the whole cloud cut at the rim bulged out four pixels either side from behind).
+  under: {
+    front: [
+      curls(
+        [
+          [20.5, 11, 1.6],
+          [35.5, 11, 1.6],
+          [20.5, 14, 1.5],
+          [35.5, 14, 1.5],
+          [21, 17, 1.2],
+          [35, 17, 1.2],
+          [23, 10, 1.1],
+          [34, 10, 1.1],
+        ],
+        faceFront,
+      ),
+    ],
+    back: [
+      curls(
+        [
+          [20.5, 11, 1.7],
+          [35.5, 11, 1.7],
+          [21, 14, 1.7],
+          [35, 14, 1.7],
+          [23, 17, 1.5],
+          [33, 17, 1.5],
+          [25, 12, 2],
+          [28, 11.5, 2],
+          [31, 12, 2],
+          [25.5, 16, 1.8],
+          [28, 16.5, 1.8],
+          [30.5, 16, 1.8],
+        ],
+        () => false,
+        HAIR,
+        0.5,
+        0.1,
+      ),
+    ],
+  },
 };
 
 const MOHAWK: HairDrawing = {
@@ -538,28 +585,36 @@ const TWIN_BRAIDS: HairDrawing = {
       '..11212142334..',
       '...122224334...',
     ]),
-    // Each braid from the nape forward over its shoulder (the rest is in front of the body).
-    part(HX, HY + 8, [
-      '..12.',
-      '.123.',
-      '..23.',
-      '.123.',
-      '.232.',
-      '123..',
-      '232..',
-      '23...',
-      '3....',
+    // Each braid from the nape out over its shoulder (the rest is in front of the body). B17:
+    // a full plait four wide reaching the shoulder's edge, lobes lit on alternate sides; B13's
+    // were stubs that stopped at the neck.
+    part(HX - 3, HY + 8, [
+      '......12...',
+      '.....1223..',
+      '.....2332..',
+      '....1223...',
+      '....2332...',
+      '...1223....',
+      '...2332....',
+      '..1223.....',
+      '..2332.....',
+      '.1223......',
+      '.233.......',
+      '.23........',
     ]),
-    part(HX + 10, HY + 8, [
-      '.23..',
-      '.234.',
-      '.34..',
-      '.234.',
-      '.343.',
-      '..234',
-      '..343',
-      '...34',
-      '....4',
+    part(HX + 8, HY + 8, [
+      '..23.......',
+      '..2334.....',
+      '..3443.....',
+      '...2334....',
+      '...3443....',
+      '....2334...',
+      '....3443...',
+      '.....2334..',
+      '.....3443..',
+      '......2334.',
+      '.......344.',
+      '........34.',
     ]),
   ],
 };
