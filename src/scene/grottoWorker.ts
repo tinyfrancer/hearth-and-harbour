@@ -25,6 +25,13 @@ export interface GroundAnswer {
   readonly h: number;
   readonly cells: Int16Array;
   readonly data: Uint8ClampedArray;
+  /** Each door's cells barred and open over its box (`DoorPaint`), flattened for the hand-over. */
+  readonly doors: readonly {
+    readonly letter: string;
+    readonly box: { x: number; y: number; w: number; h: number };
+    readonly barred: Int16Array;
+    readonly open: Int16Array;
+  }[];
 }
 
 const scope = self as unknown as {
@@ -39,9 +46,16 @@ scope.onmessage = (event) => {
   dungeon ??= buildDungeon(GROTTO);
   const r = dungeon.rooms[room];
   if (!r) return;
-  const { cells, data } = groundPixels(r, level, warn);
-  scope.postMessage({ id, w: cells.w, h: cells.h, cells: cells.d, data }, [
+  const { cells, data, doors } = groundPixels(r, level, warn);
+  const flat = doors.map((d) => ({
+    letter: d.letter,
+    box: d.box,
+    barred: d.barred.d,
+    open: d.open.d,
+  }));
+  scope.postMessage({ id, w: cells.w, h: cells.h, cells: cells.d, data, doors: flat }, [
     cells.d.buffer as ArrayBuffer,
     data.buffer as ArrayBuffer,
+    ...flat.flatMap((d) => [d.barred.buffer as ArrayBuffer, d.open.buffer as ArrayBuffer]),
   ]);
 };

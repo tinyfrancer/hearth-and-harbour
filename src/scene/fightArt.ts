@@ -28,12 +28,10 @@ import {
   dungeonPropSprite2,
   dungeonProp2,
   flicker2,
-  dungeonTile2,
   foeFrames2,
   foePicture2,
   foeSprite2,
   foeSize2,
-  aroundOf,
   type Foe2Pose,
   type Foe2Size,
 } from '../art/dungeonArt2';
@@ -57,15 +55,13 @@ import {
 } from './battle';
 import { shownApart, type Figure } from './apart';
 import type { Placed, Standing } from './draw';
-import { placeOf, type Dungeon, type Room, type Run } from './dungeon';
+import { placeOf, type Door, type Dungeon, type Room, type Run } from './dungeon';
 import { DUNGEON, far } from './dungeonMetrics';
 import { breathFrame, type Pose2 } from './figures2';
 import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import {
   CaveShadow,
-  cellVariant,
-  doorTile,
   glowsIn,
   paintCells,
   perchLift,
@@ -1025,8 +1021,6 @@ export interface FightArt {
   readonly foes: FoePictures;
   readonly shadows: Map<string, CaveShadow>;
   readonly loot: LootArt | null;
-  /** Each door's barred tile, on a canvas, by the door's letter. */
-  readonly bars: Map<string, HTMLCanvasElement | null>;
 }
 
 /** What a fight in a room draws with, made once for the room's look. */
@@ -1035,23 +1029,145 @@ export function fightArtFor(look: RoomLook): FightArt {
     foes: new FoePictures(look.glows),
     shadows: new Map(),
     loot: lootArt(),
-    bars: new Map(),
   };
 }
 
-/** A door's barred tile, as the art lane draws it set in the wall beside it. */
-function barredDoor(art: FightArt, look: RoomLook, room: Room, cell: Cell, letter: string) {
-  if (!art.bars.has(letter)) {
-    const kinds = look.kindsAt(0, false);
-    const tile = dungeonTile2(
-      doorTile(room, cell.col, true),
-      cellVariant(room.ground.cols, cell.col, cell.row),
-      aroundOf(kinds, cell.col, cell.row),
-      cell,
-    );
-    art.bars.set(letter, tile ? paintCells(tile) : null);
-  }
-  return art.bars.get(letter) ?? null;
+/* ----- The way onward ----- */
+
+/** How long, once a room's doors open, the way onward pulses before its arrow only bobs. */
+export const WAY_PULSE_MS = 2400;
+/** How long a tap on a barred door says so. */
+export const BARRED_SAY_MS = 1200;
+
+/**
+ * How far a room's doors have opened, 0 (barred) to 1 (open), on the fight's
+ * clock: they fade from barred to open over `DOOR_LIFT_MS` once the room is
+ * clear, the light from beyond coming on as they do.
+ */
+export function doorsOpen(battle: Battle, room: string): number {
+  if (roomLocked(battle, room)) return 0;
+  const at = battle.opened[room];
+  if (at === undefined) return 1;
+  return Math.max(0, Math.min(1, (battle.clock - at) / DOOR_LIFT_MS));
+}
+
+/**
+ * The doors in the run's room that are the way onward: open, and leading to
+ * a room not yet cleared. None while the room is shut, and none in the last
+ * room (it has no door onward). Drawing only: the rules let him through any
+ * open door.
+ */
+export function wayOnward(dungeon: Dungeon, run: Run): Door[] {
+  const battle = run.battle;
+  if (!battle || run.finished || roomLocked(battle, run.room)) return [];
+  const room = dungeon.rooms[run.room];
+  if (!room) return [];
+  return room.doors.filter((d) => battle.opened[d.to] === undefined);
+}
+
+/** Which way is out through a door: -1 west, 1 east (0 for a door in the wall the viewer faces). */
+const outward = (door: Door): number => Math.sign(door.cell.col - door.inside.col);
+
+/** What a fight's frame is told beyond the run: what is on screen, and a tap on a barred door. */
+export interface FightExtraOptions {
+  /** What the camera showed last frame, in art pixels, less the edges kept for buttons. */
+  readonly view?: Box | null;
+  /** A barred door tapped, by letter, and when on the fight's clock. */
+  readonly barredTap?: { readonly letter: string; readonly at: number } | null;
+}
+
+/** A chevron pointing `dir` (-1 left, 1 right), `size` CSS pixels tall, centred on (x, y). */
+function chevron(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dir: number,
+  size: number,
+  k: number,
+): void {
+  const h = (size * k) / 2;
+  const w = h * 0.9;
+  ctx.beginPath();
+  ctx.moveTo(x - dir * w, y - h);
+  ctx.lineTo(x + dir * w, y);
+  ctx.lineTo(x - dir * w, y + h);
+  ctx.lineTo(x - dir * w * 0.15, y);
+  ctx.closePath();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3 * k;
+  ctx.strokeStyle = C.ink;
+  ctx.stroke();
+  ctx.fillStyle = C.gold;
+  ctx.fill();
+}
+
+/** How far above a door's middle its arrow is drawn: over its opening, clear of the floor. */
+const WAY_RISE = 30;
+
+/**
+ * The way onward marked at the screen's resolution: over each door onward a
+ * gold arrow bobbing out through it, rings spreading from it for the first
+ * moments after it opens, and, while it is off the screen, an arrow at the
+ * screen's edge pointing to it. Gives the boxes it draws in (art pixels).
+ */
+export function wayMarks(
+  dungeon: Dungeon,
+  run: Run,
+  view?: Box | null,
+): { boxes: Box[]; edges: Point[]; draw: (ctx: CanvasRenderingContext2D, k: number) => void } {
+  const battle = run.battle;
+  const doors = battle && !run.doorway ? wayOnward(dungeon, run) : [];
+  if (!battle || doors.length === 0) return { boxes: [], edges: [], draw: () => {} };
+  const clock = battle.clock;
+  const since = clock - (battle.opened[run.room] ?? -Infinity);
+  const boxes: Box[] = [];
+  const edges: Point[] = [];
+  const marks = doors.map((door) => {
+    const cx = door.cell.col * T + T / 2;
+    const cy = door.cell.row * T + T / 2;
+    const dir = outward(door) || 1;
+    const onScreen =
+      !view || (cx >= view.x && cx <= view.x + view.w && cy >= view.y && cy <= view.y + view.h);
+    boxes.push({ x: cx - 60, y: cy - WAY_RISE - 60, w: 120, h: 120 });
+    let edge: Point | null = null;
+    if (!onScreen && view) {
+      const m = 14;
+      edge = {
+        x: Math.max(view.x + m, Math.min(view.x + view.w - m, cx)),
+        y: Math.max(view.y + m, Math.min(view.y + view.h - m, cy - WAY_RISE)),
+      };
+      edges.push(edge);
+      boxes.push({ x: edge.x - 30, y: edge.y - 30, w: 60, h: 60 });
+    }
+    return { cx, cy, dir, edge, toward: Math.sign(cx - (edge?.x ?? cx)) || dir };
+  });
+  return {
+    boxes,
+    edges,
+    draw(ctx, k) {
+      // A bob out through the door, once every 900 ms.
+      const bob = Math.sin((clock / 900) * 2 * Math.PI) * 0.5 + 0.5;
+      const fresh = since < WAY_PULSE_MS;
+      for (const m of marks) {
+        if (fresh) {
+          // Rings spreading from the door as it opens, two at a time.
+          for (const phase of [0, 0.5]) {
+            const p = (((since / 1200 + phase) % 1) + 1) % 1;
+            const r = 10 + p * 40;
+            ctx.globalAlpha = (1 - p) * 0.9;
+            ctx.strokeStyle = C.gold;
+            ctx.lineWidth = 2 * k;
+            ctx.beginPath();
+            ctx.ellipse(m.cx, m.cy - 6, r, r * 0.8, 0, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+        }
+        chevron(ctx, m.cx + m.dir * bob * 4 * k, m.cy - WAY_RISE, m.dir, fresh ? 24 : 18, k);
+        if (m.edge) chevron(ctx, m.edge.x + m.toward * bob * 5 * k, m.edge.y, m.toward, 28, k);
+      }
+    },
+  };
 }
 
 /** The ground's state of the tide in a run, as the room's look keys it. */
@@ -1119,7 +1235,13 @@ export function fightApart(dungeon: Dungeon, run: Run): Map<string, number> {
  * their shadows, what lies on the ground, what is over them in art pixels,
  * and the words and lines at the screen's resolution.
  */
-export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: FightArt): StageExtra {
+export function fightExtra(
+  dungeon: Dungeon,
+  run: Run,
+  look: RoomLook,
+  art: FightArt,
+  options: FightExtraOptions = {},
+): StageExtra {
   const battle = run.battle;
   if (!battle) return { actors: [], boxes: [] };
   const clock = battle.clock;
@@ -1127,7 +1249,10 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
   const room = dungeon.rooms[run.room]!;
   const place = placeOf(dungeon, run);
   const state = tideStateOf(dungeon, run);
-  const cells = look.cellsAt(state.level, state.warn);
+  // The doors: barred while anything in the room stands, then open, fading in with the light beyond.
+  const opening = doorsOpen(battle, run.room);
+  const doors = look.doorsAt(state.level, state.warn);
+  const cells = look.cellsAt(state.level, state.warn, opening > 0);
   const kinds = look.kindsAt(state.level, state.warn);
   const here = battle.foes.filter(
     (f) => f.room === run.room && !f.fled && (alive(f) || clock - f.diedAt! < FALL_MS),
@@ -1264,12 +1389,8 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
         boxes.push({ x, y: foot - barsArt.base, w: barsImage.width, h: barsImage.height });
     }
   });
-  // Barred doors, lifting once the room is clear.
-  const locked = roomLocked(battle, run.room);
-  const openedAt = battle.opened[run.room];
-  const lifted = locked ? 0 : openedAt === undefined ? 1 : (clock - openedAt) / DOOR_LIFT_MS;
-  if (lifted < 1)
-    for (const d of room.doors) boxes.push({ x: d.cell.col * T, y: d.cell.row * T, w: T, h: T });
+  // The doors are drawn again only while they fade open.
+  if (opening > 0 && opening < 1) for (const d of doors) boxes.push(d.box);
   const tide: TideNow = tideOf(battle, place);
   const ripples = rising(tide, clock) ? aboutToFlood(room, tide.level) : [];
   for (const c of ripples) boxes.push({ x: c.col * T, y: c.row * T, w: T, h: T });
@@ -1301,6 +1422,19 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
       }
     }
   }
+  // The way onward, once the doors open; and a barred door that was tapped, saying so.
+  const way = wayMarks(dungeon, run, options.view);
+  over.push(...way.boxes);
+  const tapped = options.barredTap;
+  const barredSay =
+    tapped && opening === 0 && clock - tapped.at >= 0 && clock - tapped.at < BARRED_SAY_MS
+      ? room.doors.find((d) => d.letter === tapped.letter)
+      : undefined;
+  if (barredSay) {
+    const x = barredSay.cell.col * T + T / 2;
+    const y = barredSay.cell.row * T;
+    over.push({ x: x - 60, y: y - 50, w: 120, h: 60 });
+  }
   let overlayBox: Box | null = null;
   for (const b of over) {
     if (!overlayBox) overlayBox = b;
@@ -1329,20 +1463,21 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
       return image;
     },
     ground(ctx) {
+      // Each door's piece with the ground it lights, past the room's edge too: barred, or open fading in.
+      for (const d of doors) {
+        if (opening < 1 && d.barred) ctx.drawImage(d.barred, d.box.x, d.box.y);
+        if (opening > 0 && d.open) {
+          ctx.globalAlpha = opening;
+          ctx.drawImage(d.open, d.box.x, d.box.y);
+          ctx.globalAlpha = 1;
+        }
+      }
       for (const s of shadows) ctx.drawImage(s.image, s.x, s.y);
       fuses.forEach((at, i) => {
         const glow = fuseGlow(flicker2({ ...FUSE_LIGHT2, x: 0, y: 0 }, clock, i).strength);
         if (glow) ctx.drawImage(glow, Math.round(at.x) - FUSE_R, Math.round(at.y) - FUSE_R);
       });
       if (ripples.length > 0) drawRipples(ctx, ripples, clock);
-      if (lifted < 1) {
-        for (const d of room.doors) {
-          const barred = barredDoor(art, look, room, d.cell, d.letter);
-          if (!barred) continue;
-          const h = Math.round(T * (1 - Math.max(0, lifted)));
-          if (h > 0) ctx.drawImage(barred, 0, T - h, T, h, d.cell.col * T, d.cell.row * T, T, h);
-        }
-      }
       for (const p of battle.piles) {
         if (p.room !== run.room || !art.loot) continue;
         const bobbed = Math.floor(clock / 400) % 2;
@@ -1439,6 +1574,12 @@ export function fightExtra(dungeon: Dungeon, run: Run, look: RoomLook, art: Figh
       }
     },
     overlay(ctx, k) {
+      way.draw(ctx, k);
+      if (barredSay) {
+        const x = barredSay.cell.col * T + T / 2 - outward(barredSay) * 6;
+        const shake = Math.round(Math.sin(((clock - tapped!.at) / 60) * Math.PI) * 2 * k * 0.5);
+        label(ctx, 'Barred', x + shake, barredSay.cell.row * T - 14, 15, C.white, k, WORDS);
+      }
       for (const foe of here)
         if (alive(foe) && !held(battle, place, foe))
           drawFoeOver(

@@ -14,13 +14,16 @@
  */
 import {
   CAVE_DUSK,
+  DUNGEON2_LIGHT,
   GROUND2_SHADOW,
   aroundOf,
+  dungeonDoor2,
   dungeonProp2,
   dungeonTile2,
   flicker2,
   lightAt,
   lightGround2,
+  type DoorPiece2Picture,
   type Light2,
   type PropPicture2,
   type Tile2Kind,
@@ -35,7 +38,7 @@ import { tileAt, type RoomTile } from './ground';
 import type { Life, StillPicture } from './stage';
 import type { Box, Scene } from './things';
 import { HIGH_WATER } from './tide';
-import { cellAt, type Point, type TileMap } from './tileMap';
+import { cellAt, type Cell, type Point, type TileMap } from './tileMap';
 import { WALK_SPEED } from './walker';
 
 /** A tile's side, in art pixels. */
@@ -219,6 +222,208 @@ export function glowsOf(room: Room): Glow[] {
   );
 }
 
+/* ----- Doors ----- */
+
+/**
+ * A door as the art lane draws it (B13, `dungeonDoor2`): a piece three tiles
+ * tall over its cell and the rock either side, and for a side door a column
+ * beyond the room's edge as well, where the passage runs on out of the map.
+ * The door is still one walkable cell (`Door.cell`); the piece is only
+ * drawn, and is where a thumb may tap to go through it.
+ */
+export interface DoorAt {
+  readonly letter: string;
+  readonly cell: Cell;
+  /** The open piece, lit from beyond with its lantern burning; and the barred one, dark behind iron. */
+  readonly open: DoorPiece2Picture;
+  readonly barred: DoorPiece2Picture;
+  /** The piece's box in the room, in art pixels: it may reach a column past the room's edge. */
+  readonly box: Box;
+  /** The open door's light from beyond, laid on the floor as a lantern's, placed in the room. */
+  readonly light: Light2 | null;
+  /** The open door's glows (its lantern, the light beyond), placed in the room. */
+  readonly glows: readonly Glow[];
+}
+
+const doorPlacings = new WeakMap<Room, DoorAt[]>();
+
+/** Every door in a room as its piece, placed: told its neighbours so a side door turns to the room. */
+export function doorPieces(room: Room): DoorAt[] {
+  const known = doorPlacings.get(room);
+  if (known) return known;
+  const kinds = tileKindsAt(room, 0, false);
+  const made: DoorAt[] = [];
+  for (const d of room.doors) {
+    const { col, row } = d.cell;
+    const around = aroundOf(kinds, col, row);
+    const open = dungeonDoor2(doorTile(room, col, false), around, { col, row });
+    const barred = dungeonDoor2(doorTile(room, col, true), around, { col, row });
+    if (!open || !barred) continue;
+    const x = col * T + open.dx;
+    const y = row * T + open.dy;
+    made.push({
+      letter: d.letter,
+      cell: d.cell,
+      open,
+      barred,
+      box: { x, y, w: open.picture.grid.w, h: open.picture.grid.h },
+      light: open.light ? lightAt(open.light, x, y) : null,
+      glows: open.picture.glows.map((g) => ({ ...g, x: g.x + x, y: g.y + y })),
+    });
+  }
+  doorPlacings.set(room, made);
+  return made;
+}
+
+/**
+ * The door whose piece is under `point` (art pixels in the room), its box
+ * grown to `min` across and tall where it is smaller and by a few pixels
+ * all round, or null: the whole piece is the door's tap target, though only
+ * its one cell is walked through.
+ */
+export function doorUnder(room: Room, point: Point, min = 0): DoorAt | null {
+  for (const d of doorPieces(room)) {
+    const padX = Math.max(4, (min - d.box.w) / 2);
+    const padY = Math.max(4, (min - d.box.h) / 2);
+    if (
+      point.x >= d.box.x - padX &&
+      point.x < d.box.x + d.box.w + padX &&
+      point.y >= d.box.y - padY &&
+      point.y < d.box.y + d.box.h + padY
+    )
+      return d;
+  }
+  return null;
+}
+
+/** Every glow in a room with its doors open: what lights whoever stands near one once it is. */
+const openGlowLists = new WeakMap<Room, Glow[]>();
+export function openGlowsOf(room: Room): Glow[] {
+  let list = openGlowLists.get(room);
+  if (!list) {
+    list = [...glowsOf(room), ...doorPieces(room).flatMap((d) => d.glows)];
+    openGlowLists.set(room, list);
+  }
+  return list;
+}
+
+/**
+ * What a door changes on the ground when it opens, at a state of the tide:
+ * the cells over `box` (in the room's art pixels, reaching past its edge where
+ * the passage runs on) barred and open, each lit as the room is. The ground
+ * itself is painted with its doors barred; the open cells are laid over it,
+ * fading in, as the room is cleared.
+ */
+export interface DoorPaint {
+  readonly letter: string;
+  readonly box: Box;
+  readonly barred: TGrid;
+  readonly open: TGrid;
+}
+
+/**
+ * How many steps a cell past the room's edge is lit or darkened by `lights`,
+ * by the art lane's rule (`lightGround2`) less its ragged edge: there is no
+ * neighbour out there for a seam to show against.
+ */
+function litOffMap(c: number, x: number, y: number, lights: readonly Light2[]): number {
+  if (!c || (c & 7) === 6) return c;
+  const L = DUNGEON2_LIGHT;
+  let t = Infinity;
+  for (const l of lights) {
+    const dx = (x + 0.5 - l.x) / l.pool;
+    const dy = (y + 0.5 - (l.y + l.drop)) / (l.pool * L.squash);
+    t = Math.min(t, Math.hypot(dx, dy));
+  }
+  if (t < L.heart) return (c & ~7) | Math.max(0, (c & 7) - L.heartSteps);
+  if (t < 1) return c;
+  return darker(c, t > L.deep ? L.darkSteps + 1 : L.darkSteps);
+}
+
+/**
+ * Each door's cells barred and open, from the room's ground lit both ways:
+ * the box is the piece and every cell of the room the open door changes
+ * (its light's pool on the floor), with its glows' reach. Pure.
+ */
+export function doorPaints(room: Room, barredLit: TGrid, openLit: TGrid): DoorPaint[] {
+  const W = barredLit.w;
+  const H = barredLit.h;
+  const doors = doorPieces(room);
+  const lights = lightsOf(room);
+  const openLights = [...lights, ...doors.flatMap((d) => (d.light ? [d.light] : []))];
+  return doors.map((d) => {
+    // Grown to every cell the open door changes near it (never across to the far door).
+    let x0 = d.box.x;
+    let y0 = d.box.y;
+    let x1 = d.box.x + d.box.w;
+    let y1 = d.box.y + d.box.h;
+    const cx = d.cell.col * T + T / 2;
+    const cy = d.cell.row * T + T / 2;
+    const reachX = 4 * T;
+    const reachY = 3 * T;
+    for (let y = Math.max(0, cy - reachY); y < Math.min(H, cy + reachY); y++)
+      for (let x = Math.max(0, cx - reachX); x < Math.min(W, cx + reachX); x++) {
+        const i = y * W + x;
+        if (barredLit.d[i] === openLit.d[i]) continue;
+        x0 = Math.min(x0, x);
+        y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x + 1);
+        y1 = Math.max(y1, y + 1);
+      }
+    for (const g of d.glows) {
+      x0 = Math.min(x0, Math.floor(g.x - g.radius));
+      y0 = Math.min(y0, Math.floor(g.y - g.radius));
+      x1 = Math.max(x1, Math.ceil(g.x + g.radius));
+      y1 = Math.max(y1, Math.ceil(g.y + g.radius));
+    }
+    x0 = Math.max(-T, x0);
+    x1 = Math.min(W + T, x1);
+    y0 = Math.max(0, y0);
+    y1 = Math.min(H, y1);
+    const box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    // Past the room's edge only the passage shows, with its jambs: where the two pieces differ
+    // (the way through), and a few pixels above and below. The rock round it would stand out
+    // of the room's edge into the dark like a block.
+    const og = d.open.picture.grid;
+    const bg = d.barred.picture.grid;
+    const passage = new Uint8Array(og.w * og.h);
+    const JAMB = 4;
+    for (let py = 0; py < og.h; py++)
+      for (let px = 0; px < og.w; px++) {
+        if (og.d[py * og.w + px] === bg.d[py * og.w + px]) continue;
+        for (let j = Math.max(0, py - JAMB); j <= Math.min(og.h - 1, py + JAMB); j++)
+          passage[j * og.w + px] = 1;
+      }
+    const crop = (lit: TGrid, piece: DoorPiece2Picture, ls: readonly Light2[]): TGrid => {
+      const out = tgrid(box.w, box.h);
+      const pg = piece.picture.grid;
+      for (let j = 0; j < box.h; j++)
+        for (let i = 0; i < box.w; i++) {
+          const x = box.x + i;
+          const y = box.y + j;
+          let c: number;
+          if (x >= 0 && x < W) c = lit.d[y * W + x]!;
+          else {
+            // Past the room's edge: the piece alone, where the passage runs on into the rock.
+            const px = x - d.box.x;
+            const py = y - d.box.y;
+            const inPiece =
+              px >= 0 && py >= 0 && px < pg.w && py < pg.h && passage[py * pg.w + px] === 1;
+            c = inPiece ? litOffMap(pg.d[py * pg.w + px]!, x, y, ls) : 0;
+          }
+          out.d[j * box.w + i] = c;
+        }
+      return out;
+    };
+    return {
+      letter: d.letter,
+      box,
+      barred: crop(barredLit, d.barred, lights),
+      open: crop(openLit, d.open, openLights),
+    };
+  });
+}
+
 /* ----- The ground's cells ----- */
 
 /** How many steps a contact shadow darkens the ground under `feet` by: its kind's, none on the deep or rock. */
@@ -286,7 +491,12 @@ function overlays(room: Room, g: TGrid, level: number, warn: boolean): void {
  * lane joined to its neighbours, this scene's overlays, the contact shadows
  * of what stands on it, then lit by the lanterns' pools. Pure.
  */
-export function groundCells(room: Room, level: number, warn: boolean): TGrid {
+export function groundCells(room: Room, level: number, warn: boolean, open = false): TGrid {
+  return litCells(room, tileCells(room, level, warn), level, warn, open);
+}
+
+/** The room's tiles at a state of the tide, each joined to its neighbours: before doors, overlays and light. */
+function tileCells(room: Room, level: number, warn: boolean): { g: TGrid; kinds: Tile2Kind[][] } {
   const kinds = tileKindsAt(room, level, warn);
   const g = tgrid(room.ground.cols * T, room.ground.rows * T);
   kinds.forEach((line, row) =>
@@ -300,9 +510,47 @@ export function groundCells(room: Room, level: number, warn: boolean): TGrid {
       if (tile) stamp(g, tile.grid, col * T, row * T);
     }),
   );
+  return { g, kinds };
+}
+
+/**
+ * The tiles with the doors' pieces laid over them (after the tiles and before
+ * anything standing, as the art lane says), barred or open, this scene's
+ * overlays and contact shadows, then lit: by the lanterns, and with the
+ * doors open by the light from beyond them too.
+ */
+function litCells(
+  room: Room,
+  tiles: { g: TGrid; kinds: Tile2Kind[][] },
+  level: number,
+  warn: boolean,
+  open: boolean,
+): TGrid {
+  const g: TGrid = { w: tiles.g.w, h: tiles.g.h, d: tiles.g.d.slice() };
+  const doors = doorPieces(room);
+  for (const d of doors) stamp(g, (open ? d.open : d.barred).picture.grid, d.box.x, d.box.y);
   overlays(room, g, level, warn);
-  for (const p of propsOf(room)) castShadow(g, p.feet, p.shadow, shadowSteps(kinds, p.feet));
-  return lightGround2(g, lightsOf(room));
+  for (const p of propsOf(room))
+    castShadow(g, p.feet, p.shadow, shadowSteps(tiles.kinds, p.feet));
+  const lights = lightsOf(room);
+  return lightGround2(
+    g,
+    open ? [...lights, ...doors.flatMap((d) => (d.light ? [d.light] : []))] : lights,
+  );
+}
+
+/** The ground's cells with its doors barred (as it is painted), and each door's cells barred and open. */
+export function groundWithDoors(
+  room: Room,
+  level: number,
+  warn: boolean,
+): { cells: TGrid; doors: DoorPaint[] } {
+  const tiles = tileCells(room, level, warn);
+  const cells = litCells(room, tiles, level, warn, false);
+  const doors = room.doors.length
+    ? doorPaints(room, cells, litCells(room, tiles, level, warn, true))
+    : [];
+  return { cells, doors };
 }
 
 /* ----- Painting ----- */
@@ -361,9 +609,13 @@ export function groundPixels(
   room: Room,
   level: number,
   warn: boolean,
-): { cells: TGrid; data: Uint8ClampedArray } {
-  const cells = groundCells(room, level, warn);
-  return { cells, data: rasterize2({ grid: cells, glows: steadyGlows(room) }, CAVE_DUSK, 1).data };
+): { cells: TGrid; data: Uint8ClampedArray; doors: DoorPaint[] } {
+  const { cells, doors } = groundWithDoors(room, level, warn);
+  return {
+    cells,
+    data: rasterize2({ grid: cells, glows: steadyGlows(room) }, CAVE_DUSK, 1).data,
+    doors,
+  };
 }
 
 /** The lanterns' glows on the ground at their weakest; the rest flickers over it (`flicker`). */
@@ -379,24 +631,38 @@ export interface GroundPainter {
    * when it is shown.
    */
   readonly offThread?: boolean;
+  /**
+   * `doors`, each door's cells barred and open (`DoorPaint`), may be left
+   * out: they are then worked out from the room when first shown.
+   */
   paint(
     room: Room,
     state: TideState,
     urgent: boolean,
-    done: (cells: TGrid, data: Uint8ClampedArray | null) => void,
+    done: (cells: TGrid, data: Uint8ClampedArray | null, doors?: readonly DoorPaint[]) => void,
   ): void;
 }
 
 /** On the spot, before returning: no worker (tests). No pixels where nothing can be painted. */
 export const groundOnTheSpot: GroundPainter = {
   paint(room, state, _urgent, done) {
-    if (!canPaint()) done(groundCells(room, state.level, state.warn), null);
-    else {
-      const { cells, data } = groundPixels(room, state.level, state.warn);
-      done(cells, data);
+    if (!canPaint()) {
+      const { cells, doors } = groundWithDoors(room, state.level, state.warn);
+      done(cells, null, doors);
+    } else {
+      const { cells, data, doors } = groundPixels(room, state.level, state.warn);
+      done(cells, data, doors);
     }
   },
 };
+
+/** A door as a room shows it at a state of the tide: its box, and its pictures barred and open. */
+export interface DoorShown {
+  readonly letter: string;
+  readonly box: Box;
+  readonly barred: HTMLCanvasElement | null;
+  readonly open: HTMLCanvasElement | null;
+}
 
 /** What a dungeon room needs to be shown on the stage, made once a page and kept. */
 export interface RoomLook {
@@ -421,8 +687,20 @@ export interface RoomLook {
    * for a moment when a pause cannot be seen (the dark of a door).
    */
   paintNow(level: number, warn: boolean): void;
-  /** The cells of the ground at a state of the tide, lit; null until worked out. */
-  cellsAt(level: number, warn: boolean): TGrid | null;
+  /**
+   * The cells of the ground at a state of the tide, lit; null until worked
+   * out. `open`: with the doors open (their cells laid over), as they are
+   * once the room is cleared.
+   */
+  cellsAt(level: number, warn: boolean, open?: boolean): TGrid | null;
+  /**
+   * The doors at a state of the tide (or the nearest state that is in), each
+   * barred and open, to lay over the ground: barred while the room is shut,
+   * open fading in over it as it is cleared. Empty until any ground is in.
+   */
+  doorsAt(level: number, warn: boolean): readonly DoorShown[];
+  /** The glows with the doors open: the lanterns' and the doors'. */
+  readonly openGlows: readonly Glow[];
   /** The tile kinds at a state of the tide. */
   kindsAt(level: number, warn: boolean): Tile2Kind[][];
   /** Every state this room can show. */
@@ -458,8 +736,28 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
   const glows = glowsOf(room);
   const props = propsOf(room);
   let painterNow = painter;
-  /** What has come back for each state: its cells, and the still once painted. */
-  const done = new Map<string, { cells: TGrid; still: StillPicture | null }>();
+  /**
+   * What has come back for each state: its cells, the still once painted,
+   * its doors' cells (worked out here if the painter left them out), and,
+   * once asked for, the doors painted and the cells with the doors open.
+   */
+  const done = new Map<
+    string,
+    {
+      cells: TGrid;
+      still: StillPicture | null;
+      doors: readonly DoorPaint[] | null;
+      shown?: readonly DoorShown[];
+      openCells?: TGrid;
+    }
+  >();
+  const openGlows = openGlowsOf(room);
+  const doorPaintsOf = (s: TideState, d: { cells: TGrid; doors: readonly DoorPaint[] | null }) => {
+    d.doors ??= room.doors.length
+      ? doorPaints(room, d.cells, groundCells(room, s.level, s.warn, true))
+      : [];
+    return d.doors;
+  };
   const asked = new Set<string>();
   const kinds = new Map<string, Tile2Kind[][]>();
   const key = (s: TideState): string => `${s.level} ${s.warn}`;
@@ -481,7 +779,12 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     }
     return standing;
   };
-  const arrive = (s: TideState, cells: TGrid, data: Uint8ClampedArray | null): void => {
+  const arrive = (
+    s: TideState,
+    cells: TGrid,
+    data: Uint8ClampedArray | null,
+    doors?: readonly DoorPaint[],
+  ): void => {
     let still: StillPicture | null = null;
     if (data && canPaint()) {
       const canvas = document.createElement('canvas');
@@ -499,15 +802,64 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
         still = { still: canvas, standing: list };
       }
     }
-    done.set(key(s), { cells, still });
+    done.set(key(s), { cells, still, doors: doors ?? null });
   };
   const ask = (s: TideState, urgent: boolean): void => {
     const k = key(s);
     if (asked.has(k)) return;
     asked.add(k);
-    painterNow.paint(room, s, urgent, (cells, data) => {
-      if (asked.has(k)) arrive(s, cells, data);
+    painterNow.paint(room, s, urgent, (cells, data, doors) => {
+      if (asked.has(k)) arrive(s, cells, data, doors);
     });
+  };
+  /** The nearest state to `s` that is in, or null: what is shown while `s` is still coming. */
+  const nearest = (s: TideState): TideState | null => {
+    if (done.has(key(s))) return s;
+    let best: TideState | null = null;
+    let far = Infinity;
+    for (const o of states) {
+      if (!done.has(key(o))) continue;
+      // The nearest water first; a warning's darkened sand only breaks a tie.
+      const d = Math.abs(o.level - s.level) * 2 + (o.warn === s.warn ? 0 : 1);
+      if (d < far) {
+        far = d;
+        best = o;
+      }
+    }
+    return best;
+  };
+  // A door's pictures are lit as the ground under them is: the lanterns at their weakest, and the doors' own glows.
+  const steady = steadyGlows(room);
+  const openSteady = [...steady, ...doorPieces(room).flatMap((d) => d.glows)];
+  const shownDoors = (d: {
+    cells: TGrid;
+    doors: readonly DoorPaint[] | null;
+    shown?: readonly DoorShown[];
+  }, s: TideState): readonly DoorShown[] => {
+    d.shown ??= doorPaintsOf(s, d).map((p) => ({
+      letter: p.letter,
+      box: p.box,
+      barred: paintCells({ grid: p.barred, glows: glowsIn(steady, p.box) }),
+      open: paintCells({ grid: p.open, glows: glowsIn(openSteady, p.box) }),
+    }));
+    return d.shown;
+  };
+  /** The cells with each door's open cells laid over its box: for contact shadows once it is open. */
+  const openCellsOf = (
+    d: { cells: TGrid; doors: readonly DoorPaint[] | null; openCells?: TGrid },
+    s: TideState,
+  ): TGrid => {
+    if (d.openCells) return d.openCells;
+    const g: TGrid = { w: d.cells.w, h: d.cells.h, d: d.cells.d.slice() };
+    for (const p of doorPaintsOf(s, d))
+      for (let j = 0; j < p.box.h; j++)
+        for (let i = 0; i < p.box.w; i++) {
+          const x = p.box.x + i;
+          const y = p.box.y + j;
+          if (x >= 0 && x < g.w && y >= 0 && y < g.h) g.d[y * g.w + x] = p.open.d[j * p.box.w + i]!;
+        }
+    d.openCells = g;
+    return g;
   };
   const tidal = room.ground.tidal || room.ground.ownTide;
   const states: TideState[] = [];
@@ -530,31 +882,27 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       return done.get(key(s))?.still ?? null;
     },
     nearestIn(level, warn) {
-      const s = stateOf(room, level, warn);
-      if (done.has(key(s))) return s;
-      let best: TideState | null = null;
-      let far = Infinity;
-      for (const o of states) {
-        if (!done.has(key(o))) continue;
-        // The nearest water first; a warning's darkened sand only breaks a tie.
-        const d = Math.abs(o.level - s.level) * 2 + (o.warn === s.warn ? 0 : 1);
-        if (d < far) {
-          far = d;
-          best = o;
-        }
-      }
-      return best;
+      return nearest(stateOf(room, level, warn));
     },
     paintNow(level, warn) {
       const s = stateOf(room, level, warn);
       const k = key(s);
       if (done.has(k)) return;
       asked.add(k);
-      groundOnTheSpot.paint(room, s, true, (cells, data) => arrive(s, cells, data));
+      groundOnTheSpot.paint(room, s, true, (cells, data, doors) => arrive(s, cells, data, doors));
     },
-    cellsAt(level, warn) {
-      return done.get(key(stateOf(room, level, warn)))?.cells ?? null;
+    cellsAt(level, warn, open = false) {
+      const s = stateOf(room, level, warn);
+      const d = done.get(key(s));
+      if (!d) return null;
+      return open && room.doors.length ? openCellsOf(d, s) : d.cells;
     },
+    doorsAt(level, warn) {
+      const s = nearest(stateOf(room, level, warn));
+      const d = s && done.get(key(s));
+      return d && s ? shownDoors(d, s) : [];
+    },
+    openGlows,
     kindsAt(level, warn) {
       const s = stateOf(room, level, warn);
       let k = kinds.get(key(s));
@@ -572,7 +920,10 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     glows,
     flicker: flickering(room, glows),
     forget() {
-      for (const d of done.values()) if (d.still) release(d.still.still);
+      for (const d of done.values()) {
+        if (d.still) release(d.still.still);
+        for (const s of d.shown ?? []) for (const c of [s.barred, s.open]) if (c) release(c);
+      }
       done.clear();
       asked.clear();
     },
