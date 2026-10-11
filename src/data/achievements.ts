@@ -162,10 +162,67 @@ const ROWS: Record<string, Row> = {
     text: 'Clear the Tidepool Cave in under a minute and a half.',
     rule: { kind: 'cleared', dungeon: 'tidepool_cave', withinMs: 90_000 },
   },
+  // S16: going back. Clears by hand, the "no damage" clear (now that a run
+  // reports what it took), every challenge, every kind of day, and runs idle.
+  cave_10: {
+    name: 'Regular',
+    text: 'Clear the Tidepool Cave ten times.',
+    rule: { kind: 'cleared', dungeon: 'tidepool_cave', count: 10 },
+  },
+  cave_50: {
+    name: 'Part of the Furniture',
+    text: 'Clear the Tidepool Cave fifty times.',
+    rule: { kind: 'cleared', dungeon: 'tidepool_cave', count: 50 },
+  },
+  cave_untouched: {
+    name: 'Not a Scratch',
+    text: 'Clear the Tidepool Cave without taking a single point of damage.',
+    rule: { kind: 'cleared', dungeon: 'tidepool_cave', damageAtMost: 0 },
+  },
+  cave_challenges: {
+    name: 'Top of the Class',
+    text: 'Meet every one of the Tidepool Cave’s challenges.',
+    rule: { kind: 'challenges', dungeon: 'tidepool_cave' },
+  },
+  cave_weathers: {
+    name: 'Fair Weather Sailor',
+    text: 'Clear the Tidepool Cave on each of its kinds of day.',
+    rule: { kind: 'underModifiers', dungeon: 'tidepool_cave' },
+  },
   grotto_cleared: {
     name: 'Low Tide',
     text: 'Clear Brinebeard’s Grotto.',
     rule: { kind: 'cleared', dungeon: 'brinebeards_grotto' },
+  },
+  grotto_10: {
+    name: 'Old Salt',
+    text: 'Clear Brinebeard’s Grotto ten times.',
+    rule: { kind: 'cleared', dungeon: 'brinebeards_grotto', count: 10 },
+  },
+  grotto_50: {
+    name: 'Scourge of the Grotto',
+    text: 'Clear Brinebeard’s Grotto fifty times.',
+    rule: { kind: 'cleared', dungeon: 'brinebeards_grotto', count: 50 },
+  },
+  grotto_challenges: {
+    name: 'Shipshape',
+    text: 'Meet every one of Brinebeard’s Grotto’s challenges.',
+    rule: { kind: 'challenges', dungeon: 'brinebeards_grotto' },
+  },
+  grotto_weathers: {
+    name: 'All Weathers',
+    text: 'Clear Brinebeard’s Grotto on each of its six kinds of day.',
+    rule: { kind: 'underModifiers', dungeon: 'brinebeards_grotto' },
+  },
+  idle_1: {
+    name: 'Sent Ahead',
+    text: 'Finish a dungeon run idle.',
+    rule: { kind: 'idleRuns', count: 1 },
+  },
+  idle_100: {
+    name: 'Knows the Way Blindfold',
+    text: 'Finish a hundred dungeon runs idle.',
+    rule: { kind: 'idleRuns', count: 100 },
   },
   doubloon: {
     name: 'Pieces of Eight',

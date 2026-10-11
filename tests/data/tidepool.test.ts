@@ -34,8 +34,9 @@ describe('the Tidepool Cave, for a brand-new character with nothing brought to e
   it('hurts: the eat lesson comes when it matters, and the fish are needed', () => {
     // The usual run falls under half health, where the scene's eat lesson shows.
     expect(many(newcomer(), reasonable).lowMedian).toBeLessThan(0.5);
-    // The same play without the landing's fish is mostly a knock-out.
-    expect(many(newcomer(), { ...reasonable, food: 0 }).rate).toBeLessThan(0.1);
+    // The same play without the landing's fish is mostly a knock-out (wave 17, with the
+    // scene's three rats under the pool rather than four: three times in four; it was 95%).
+    expect(many(newcomer(), { ...reasonable, food: 0 }).rate).toBeLessThan(0.3);
   });
 
   it('still asks for something: never stepping out of a heavy blow is a knock-out', () => {
