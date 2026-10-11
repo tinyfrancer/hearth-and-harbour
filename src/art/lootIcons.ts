@@ -1,6 +1,6 @@
 /**
  * Icons for what monsters drop and what is made of it (S8's items, drawn in
- * B5): a hide, feathers, a pearl, a tin of tea and a trollstone; leather and
+ * B5): a hide, feathers, a pearl, a chest of tea and a trollstone; leather and
  * the hunter's leather set; the footpad's cudgel and the smuggler's cutlass.
  * Drawn by hand as rows of characters, like the other icons.
  *
@@ -51,26 +51,28 @@ const L: Legend = {
   L: 'linen2',
 };
 
-// A raw pelt, stretched: four legs and a tail, fur in strokes, the militia's
-// cool hide before it is tanned.
+// A raw pelt, stretched: B17, drawn as a pelt laid out, its head with two
+// ears at the top, four legs out at the corners and a short tail, the fur
+// lit down its middle and dark at its edges (B5's was a dark splat with
+// strokes, which read as a squashed beetle at true size).
 const HIDE: readonly string[] = [
-  '..X#............X#',
-  '.XFX#..........XX#',
-  '.XFFXX#XXXXXXXXXX#',
-  '..XFFXXXXXFXXXXX#',
-  '...XFXFXXXXFXXX#',
-  '...XFXXFXXXXXXX#',
-  '..XFXXXXXXFXXX#X#',
-  '.XFXFXXXXXXFXXXXX#',
-  '.XFXXFXXX#XXXXX#X#',
-  '.XFXXXXXXX#XXXXXX#',
-  '..XFXXFXXXXXXX#X#',
-  '...XFXXFXXXX#XX#',
-  '...XFXXXXXXXXXX#',
-  '..XFFXXXXX#XXXX##',
-  '.XFFXX#XXXXX##XX#',
-  '.XFX#.....#....X#',
-  '..X#...........##',
+  '.....#X....X#.....',
+  '....#XFX##XFX#....',
+  '....#XFFFFFFX#....',
+  '.....#XFFFFX#.....',
+  '..##..#XFFX#..##..',
+  '.#XX##XFFFFX##XX#.',
+  '..#XXFFFFFXFFXX#..',
+  '...#XFFXFFFFFX#...',
+  '...#XFFFFFFXFX#...',
+  '...#XFXFFFFFFX#...',
+  '...#XFFFFFXFFX#...',
+  '..#XXFFFFFFFFXX#..',
+  '.#XX##XFFFFX##XX#.',
+  '..##..#XFFX#..##..',
+  '.......#XX#.......',
+  '.......#XX#.......',
+  '........##........',
 ];
 
 // A gull's white feather with a grey one behind, quills down and to the left.
@@ -116,24 +118,25 @@ const PEARL: readonly string[] = [
   '...ttttttttttttttt',
 ];
 
-// A tea tin with no duty paid: a red label with a leaf, a lid sealed with tar.
+// A chest of tea with no duty paid (B17; B5's tin with a red label read as a
+// tin of soup): a wooden chest, its lid lit, battens at the corners, a leaf
+// stencilled on its front and a seal of red wax across the lid's seam.
 const SMUGGLED_TEA: readonly string[] = [
-  '....xxxxxxxx',
-  '..xsssssSSSSx',
-  '.xsMMMMmmmmSnx',
-  '.ssssSSSSSSStt',
-  '.xmmmmmmmmnnnx',
-  '..smmmmmmmnnn',
-  '..rrrrRRRRRZZ',
-  '..rrggrRRRRZZ',
-  '..rgGGrRRRRZZ',
-  '..rrgGRRRRRZZ',
-  '..rrrrRRRRRZZ',
-  '..smmmmmmmnnn',
-  '..smmmmmmmnnn',
-  '..smmmmmmmnnn',
-  '..smmmmmmmnnn',
-  '..ttttttttttt',
+  '....jjjjjjjjjjjjj',
+  '...jWWWWWWWWWWWjo',
+  '..jWWWWWWWWWWWjoO',
+  '.jjjjjjjjjjjjjooO',
+  '.jWWWWWWWWWWWjooO',
+  '.jWWWgWWWWWWWjooO',
+  '.jWWgGgWWrRWWjooO',
+  '.jooogGoooRZooooO',
+  '.jWWgGgWWWWWWjooO',
+  '.jWWWgWWWWWWWjooO',
+  '.jWWWWWWWWWWWjooO',
+  '.jooooooooooooooO',
+  '.jWWWWWWWWWWWjooO',
+  '.jWWWWWWWWWWWjoO',
+  '.OOOOOOOOOOOOOOO',
 ];
 
 // A smooth grey pebble on a thong, a pale mark scratched in it.
@@ -156,23 +159,25 @@ const TROLLSTONE: readonly string[] = [
   '.....tttttttt',
 ];
 
-// Tanned leather, rolled and tied with a thong: the hide's tan, finished.
+// Tanned leather (B17; B5's roll read as a log): a sheet of it, smooth and
+// tan, laced along its edges with linen, a corner turned over to show its
+// darker flesh side.
 const LEATHER: readonly string[] = [
-  '...........aaab',
-  '.........aaaabbbc',
-  '.......aaaaaabbbbc',
-  '.....aaaaaaa#bbbbc',
-  '...aaaaaaaa#Xbbbbc',
-  '..aaaaaaaa#Xbbbbc',
-  '.abbaaaaa#Xbbbbc',
-  'abaababa#Xbbbbc',
-  'abcbabb#Xbbbbc',
-  'abccaa#Xbbbbc',
-  'abbaa#Xbbbbc',
-  '.abb#Xbbbbc',
-  '..a#Xbbbbc',
-  '...#bbbbc',
-  '....cccc',
+  '...aaaa..aaab...',
+  '.aaaaaaaaaaaabb.',
+  'aalaalaalaalabbc',
+  'aaaaaaaaaaaaabbc',
+  '.laaaaaaaaaaablc',
+  '.aaaaaaaaaaabbbc',
+  'alaaaaaaaaabbblc',
+  'aaaaaaaaaaabbbbc',
+  '.laaaaaaaabbbblc',
+  '.aaaaaaaabbb#XXc',
+  'alaaaaaabbb#XXc.',
+  'aaaaaaabbb#XXc..',
+  '.laalabbb#Xc....',
+  '..aaabbb#c......',
+  '...cccc.........',
 ];
 
 // A snug hunter's cap with ear flaps and a stitched seam over the crown.
