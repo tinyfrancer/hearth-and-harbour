@@ -750,6 +750,27 @@
   opacity: 0.4;
 }
 
+/* A day of no food (the modifier): struck through, saying why, and taking no press. */
+.fight-button[data-state='banned'] {
+  border-color: var(--line);
+  opacity: 0.55;
+}
+
+.fight-button[data-state='banned'] .fight-name {
+  color: var(--danger);
+}
+
+.fight-button[data-state='banned']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 3px;
+  background: var(--danger);
+  transform: rotate(-24deg);
+}
+
 .fight-shade {
   position: absolute;
   inset: 0;
@@ -841,6 +862,148 @@
 
 .run-head > .btn {
   margin-top: auto;
+}
+
+/* ----- S16: the challenges' tracker in a run, and the results card's parts ----- */
+
+/* Quiet, in the lesson's corner (never both): a line a challenge, or folded to one button. */
+.run-tracker {
+  position: absolute;
+  right: calc(8px + env(safe-area-inset-right));
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  width: 220px;
+  height: 64px;
+  padding: 4px 4px 4px 8px;
+  background: var(--scrim);
+  border: var(--px) solid var(--line);
+  pointer-events: auto;
+}
+
+.run-tracker[hidden] {
+  display: none;
+}
+
+/* Folded: only its button, at the corner. */
+.run-tracker[data-folded='true'] {
+  width: 64px !important;
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  justify-content: flex-end;
+}
+
+.run-tracker[data-folded='true'] .run-tracker-list {
+  display: none;
+}
+
+.run-tracker-list {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text);
+}
+
+.run-tracker-list li {
+  display: flex;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.run-tracker-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.run-tracker-clock {
+  flex: none;
+  color: var(--gold-bright);
+}
+
+.run-tracker-list li[data-state='met'] .run-tracker-name {
+  color: var(--green);
+}
+
+.run-tracker-list li[data-state='lost'] {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.run-tracker-list li[data-state='lost'] .run-tracker-clock {
+  color: var(--text-muted);
+}
+
+.run-tracker-toggle {
+  flex: none;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 6px;
+  background: var(--panel);
+  border: var(--px) solid var(--line);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.run-stats,
+.run-challenges {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+}
+
+.run-challenges li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.run-challenges li[data-new='true'] .run-what {
+  color: var(--gold-bright);
+}
+
+.run-medal {
+  display: flex;
+  flex: none;
+}
+
+.run-medal > canvas,
+.run-icon > canvas {
+  image-rendering: pixelated;
+}
+
+.run-modifier {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.run-modifier-name {
+  color: var(--gold-bright);
+}
+
+.run-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.run-buttons > .btn {
+  flex: 1;
 }
 
 /* ----- The grotto: the captain's health, the tide, each room's name. ----- */

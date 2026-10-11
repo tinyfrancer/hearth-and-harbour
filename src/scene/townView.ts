@@ -232,6 +232,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 
   const host = h('div', { class: 'scene-host' });
   let current: View;
+  /** Whether the town is what shows (else a run, or its results while the boat rows out again). */
+  let inTown = true;
   /** Over the town until its first picture is in. */
   let loading: ReturnType<typeof loadingCard> | null = null;
 
@@ -253,6 +255,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   };
 
   const showTown = (): void => {
+    inTown = true;
     if (!townReady()) {
       showComing();
       return;
@@ -518,7 +521,16 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   };
 
   const showDungeon = (dungeon: Dungeon, resume = false): void => {
+    inTown = false;
     current = dungeonView({
+      // The character before the run is settled: what its results and tracker read as done before.
+      state: () => latest,
+      // Row out again from the results: the run is settled, and the boat goes straight back.
+      again: () => {
+        settle();
+        run = null;
+        enter(dungeon.id);
+      },
       dungeon,
       content,
       run: () => run!,
@@ -660,6 +672,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   const leave = (): void => {
     // What was picked up comes home with you, before the clock starts again.
     settle();
+    // Back to town from the results while the boat was rowing out again: it stays moored.
+    rowing = null;
+    rowingCard?.remove();
+    rowingCard = null;
     // The shell first: starting the clock again draws a frame, and that frame is still the run's.
     tell(false, false);
     run = null;
@@ -733,7 +749,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         // The facts came in: the town can be walked, under the loading card until its picture comes.
         if (!run && loading && !current.update && townReady()) showTown();
         current.update?.(next, now);
-        if (!run) {
+        if (!run && !inTown) {
+          // Rowing out again from a run's results: nothing of the town's until the town shows.
+          rowOn();
+        } else if (!run) {
           // The menus asked for the chart: to the quay by the boat with it open, once the town is up.
           if (takeRequest(shell) === 'chart') wantChart = true;
           if (wantChart && townReady() && current.update) {

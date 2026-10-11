@@ -87,6 +87,9 @@ import type { Size } from './camera';
 import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { roomScale } from './scale';
+import { resultsCard, trackerView } from './runCard';
+import { KEYS, remember, remembered } from './remember';
+import { newGame } from '../core/state';
 import {
   hudBands,
   hudBoxes,
@@ -190,6 +193,13 @@ export interface DungeonViewOptions {
    * button, so nothing hits the hero while the player finds where they were.
    */
   readonly resume?: boolean;
+  /**
+   * The character as of the last frame, before the run is settled: what the
+   * results card and the challenges' tracker read as done before (S16).
+   */
+  readonly state?: () => GameState;
+  /** Row out again to the same dungeon, from the results card; none offers no such button. */
+  readonly again?: () => void;
 }
 
 /** Whole seconds left on a cooldown, as the button shows it. */
@@ -352,6 +362,7 @@ interface FightButton {
   readonly el: HTMLButtonElement;
   readonly shade: HTMLElement;
   readonly count: HTMLElement;
+  readonly name: HTMLElement;
 }
 
 function fightButton(
@@ -376,7 +387,7 @@ function fightButton(
     // A keyboard's press (no pointer) arrives only as a click.
     if (event.detail === 0) act();
   });
-  return { el, shade, count };
+  return { el, shade, count, name: el.querySelector<HTMLElement>('.fight-name')! };
 }
 
 /** What the tide gauge says the water is doing. */
@@ -453,6 +464,25 @@ export function withRing(extra: StageExtra, ring: LessonRing, now: number): Stag
 /** The lesson ring's colours: the fight's own gold, edged in its ink. */
 const LESSON_GOLD = FIGHT_COLOURS.gold;
 const LESSON_INK = FIGHT_COLOURS.ink;
+
+/** A character with nothing done: what a run reads as done before when no state is given (tests). */
+const EMPTY_STATE: GameState = newGame('', 0);
+
+/** The challenges' tracker unfolded again this page, after it was folded for good. */
+let trackerOpen = false;
+
+/** Whether the tracker starts folded: once folded, on later runs too (remembered), unless reopened. */
+function trackerFolded(): boolean {
+  return remembered(KEYS.trackerOff) && !trackerOpen;
+}
+
+/** The tracker folded, or unfolded: folding is remembered for good; unfolding for the page. */
+function foldTracker(folded: boolean): void {
+  if (folded) {
+    trackerOpen = false;
+    remember(KEYS.trackerOff);
+  } else trackerOpen = true;
+}
 
 export function dungeonView(options: DungeonViewOptions): View {
   const { dungeon, hero, content } = options;
@@ -631,6 +661,15 @@ export function dungeonView(options: DungeonViewOptions): View {
     ...abilityButtons.map((b) => b.el),
     foodButton?.el ?? null,
   ]);
+  /* ----- The challenges still to be had, quietly in the corner (S16) ----- */
+
+  const tracker = battleOf()
+    ? trackerView(content, dungeon.id, options.state?.() ?? EMPTY_STATE, {
+        folded: trackerFolded(),
+        fold: (folded) => foldTracker(folded),
+      })
+    : null;
+
   const hud = h('div', { class: 'fight-hud' }, [
     heroPanel,
     targetPanel,
@@ -639,6 +678,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     title,
     bar,
     lessonCard,
+    tracker?.el ?? null,
   ]);
   if (!battleOf()) hud.hidden = true;
 
@@ -717,6 +757,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     if (layout.tide) placeAt(tidePanel, layout.tide);
     placeAt(bar, layout.bar);
     if (layout.lesson) placeAt(lessonCard, layout.lesson, true);
+    if (layout.tracker && tracker) placeAt(tracker.el, layout.tracker, true);
     const right = `${size.width - layout.leave.x - layout.leave.w}px`;
     if (way.style.right !== right) way.style.right = right;
     if (way.style.top !== `${layout.leave.y}px`) way.style.top = `${layout.leave.y}px`;
@@ -1032,13 +1073,35 @@ export function dungeonView(options: DungeonViewOptions): View {
     title.classList.contains('shown') && title.dataset.slot === 'strip';
 
   let results: HTMLElement | null = null;
+  /** The S16 results card while it shows, and when on the page's clock it came up. */
+  let card: { step(ms: number): void; from: number | null } | null = null;
   const showResults = (): void => {
     if (results) return;
     leaveButton.hidden = true;
     confirm.replaceChildren();
     hud.hidden = true;
     const run = options.run();
-    const tally: Tally | null = run.battle?.tally ?? null;
+    if (run.battle) {
+      const fell = run.ending === 'fell';
+      const said = fell ? words?.fell : words?.cleared;
+      const made = resultsCard({
+        content,
+        run,
+        state: options.state?.() ?? EMPTY_STATE,
+        title: said?.title ?? (fell ? 'Back in town' : 'Cleared'),
+        line: said?.line ?? 'Everything you picked up came with you.',
+        again: options.again ?? null,
+        home: () => options.leave(),
+      });
+      card = { step: made.step, from: null };
+      results = h('section', { class: 'dungeon-results', attrs: { 'aria-label': 'Results' } }, [
+        made.el,
+      ]);
+      root.append(results);
+      return;
+    }
+    // A walk through a dungeon with nothing to fight: the plain card.
+    const tally = null as Tally | null;
     const fell = run.ending === 'fell';
     const said = fell ? words?.fell : words?.cleared;
     const title = !run.battle
@@ -1172,8 +1235,21 @@ export function dungeonView(options: DungeonViewOptions): View {
     if (foodButton) {
       const left = cooldownLeft(battle, 'food');
       const problem = foodProblem(battle);
-      foodButton.el.dataset.state =
-        problem === 'none' ? 'empty' : left > 0 ? 'cooling' : problem ? 'idle' : 'ready';
+      // A day of no food (the modifier): the button says so, and does nothing.
+      const banned = problem === 'banned';
+      foodButton.el.dataset.state = banned
+        ? 'banned'
+        : problem === 'none'
+          ? 'empty'
+          : left > 0
+            ? 'cooling'
+            : problem
+              ? 'idle'
+              : 'ready';
+      setText(foodButton.name, banned ? 'No food' : 'Eat');
+      const label = banned ? 'Eat: nothing may be eaten today' : 'Eat';
+      if (foodButton.el.getAttribute('aria-label') !== label)
+        foodButton.el.setAttribute('aria-label', label);
       fill(foodButton.shade, 'Y', fraction(left, FOOD_MS));
       setText(foodButton.count, String(foodLeft(battle)));
     }
@@ -1252,6 +1328,17 @@ export function dungeonView(options: DungeonViewOptions): View {
       }
       showLesson(ms);
       showFight(options.run());
+      // The tracker, while the run is played and no lesson has its corner.
+      const live = options.run();
+      tracker?.update(
+        live,
+        !live.finished && sideways(size) && !waiting && lessonCard.hidden === true,
+      );
+      // A new medal's glint on the results card, by the page's clock.
+      if (card && now !== undefined) {
+        card.from ??= now;
+        card.step(now - card.from);
+      }
       showTitle(after, playing() && !after.doorway);
       placeTitle(after);
       // Dark through a door, and until the room's ground is in.
