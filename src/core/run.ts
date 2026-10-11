@@ -1,3 +1,4 @@
+import { autoHandIn } from './bounty';
 import { comeRound, hurt, maxHp } from './combat';
 import type { Content, DungeonFoe, MonsterDef } from './content';
 import type { GameState, MonsterRecord } from './state';
@@ -181,5 +182,8 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
     const hp = Math.min(Math.floor(spoils.hp), most);
     settled.health = hp > 0 ? hurt(hp, most) : comeRound(most);
   }
-  return settled;
+  // A settled run is over: nothing of it is kept to take up again. A bounty it
+  // finished is handed in by itself if auto bounty is on, as a fight's would be.
+  settled.run = null;
+  return content ? autoHandIn(settled, content) : settled;
 }

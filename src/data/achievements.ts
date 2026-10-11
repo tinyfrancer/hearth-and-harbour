@@ -12,39 +12,40 @@ const BARS = ['bronze_bar', 'iron_bar'];
 const PRIZES = ['smugglers_cutlass', 'trollstone', 'poachers_longbow', 'wyrmscale_shield'];
 
 // The first set, across everything that exists: the first of each kind of
-// thing, levels, mastery, fighting, thieving, bounties, potions, gear, the
+// thing (a skill's firsts are for doing the skill, `made`, never for owning
+// what it gives: a sand crab's shells are not foraging), levels, mastery, fighting, thieving, bounties, potions, gear, the
 // store, the collection log and the grotto. In the order the page lists them.
 // Nothing is given for them yet; the house (S18) will give them a wall.
 const ROWS: Record<string, Row> = {
   first_log: {
     name: 'Timber!',
     text: 'Cut your first log.',
-    rule: { kind: 'found', items: LOGS, count: 1 },
+    rule: { kind: 'made', items: LOGS },
   },
   first_catch: {
     name: 'A Bite',
     text: 'Catch your first fish.',
-    rule: { kind: 'found', items: FISH, count: 1 },
+    rule: { kind: 'made', items: FISH },
   },
   first_ore: {
     name: 'Rock Bottom',
     text: 'Mine your first ore.',
-    rule: { kind: 'found', items: ORES, count: 1 },
+    rule: { kind: 'made', items: ORES },
   },
   first_find: {
     name: 'Beachcomber',
     text: 'Forage your first find.',
-    rule: { kind: 'found', items: FINDS, count: 1 },
+    rule: { kind: 'made', items: FINDS },
   },
   first_meal: {
     name: 'Hot Dinner',
     text: 'Cook your first fish.',
-    rule: { kind: 'found', items: MEALS, count: 1 },
+    rule: { kind: 'made', items: MEALS },
   },
   first_bar: {
     name: 'Smelted',
     text: 'Smelt your first bar.',
-    rule: { kind: 'found', items: BARS, count: 1 },
+    rule: { kind: 'made', items: BARS },
   },
   first_kill: {
     name: 'Pest Control',
@@ -91,6 +92,11 @@ const ROWS: Record<string, Row> = {
     text: 'Reach a total level of 100.',
     rule: { kind: 'total', level: 100 },
   },
+  total_200: {
+    name: 'Pillar of the Community',
+    text: 'Reach a total level of 200.',
+    rule: { kind: 'total', level: 200 },
+  },
   mastery_10: {
     name: 'Practice Makes Perfect',
     text: 'Reach mastery 10 at anything.',
@@ -123,7 +129,7 @@ const ROWS: Record<string, Row> = {
   },
   bounty_streak: {
     name: 'On a Roll',
-    text: 'Hand in five bounties in a row without a swap.',
+    text: 'Hand in five bounties in a row without giving one up.',
     rule: { kind: 'stat', stat: 'bestStreak', count: 5 },
   },
   caught_50: {

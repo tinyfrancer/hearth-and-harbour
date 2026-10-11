@@ -18,11 +18,13 @@ import {
 import { MAX_LEVEL, levelProgress, xpForLevel } from '../core/xp';
 import { itemIcon, skillIcon } from '../art/icons';
 import { bar } from './bar';
-import { button, h, titled } from './dom';
+import { button, h, setText, titled } from './dom';
 import { formatNumber, formatSeconds } from './format';
 import { bountyEntry } from './bountyScreen';
 import { markCard } from './markCard';
 import { potionPanel } from './potionPanel';
+import { totalLevel } from '../core/achievements';
+import { combatLevel } from '../core/bounty';
 import type { View } from './view';
 
 /** What the character is doing in this skill right now, or nothing. */
@@ -38,27 +40,31 @@ function doing(state: GameState, skill: SkillDef, content: Content): string {
   return `${skill.verb} ${action.name}`;
 }
 
-/** The way into combat, at the head of the Combat skills: what is being fought, if anything. */
-function combatEntry(state: GameState, content: Content, open: () => void): HTMLElement {
-  const fighting = state.fight && monsterDef(content, state.fight.monster);
-  return h(
+/**
+ * The way into combat, at the head of the Combat skills: what is being
+ * fought, if anything, kept current in place (a fight ends, or a bounty
+ * hunted by itself moves on to the next monster).
+ */
+function combatEntry(
+  content: Content,
+  open: () => void,
+  updates: ((state: GameState) => void)[],
+): HTMLElement {
+  const hint = h('span', { class: 'hint' });
+  const line = h('span');
+  const el = h(
     'button',
-    {
-      class: `panel card${fighting ? ' active' : ''}`,
-      attrs: { type: 'button', 'data-combat': '' },
-      on: { click: open },
-    },
-    [
-      h('div', { class: 'card-head' }, [
-        h('h2', { text: 'Fight' }),
-        h('span', { class: 'hint', text: fighting ? 'Watch' : 'Choose' }),
-      ]),
-      h('span', {
-        class: fighting ? 'doing' : 'muted small',
-        text: fighting ? `Fighting the ${fighting.name}` : 'Pick an area and a monster.',
-      }),
-    ],
+    { class: 'panel card', attrs: { type: 'button', 'data-combat': '' }, on: { click: open } },
+    [h('div', { class: 'card-head' }, [h('h2', { text: 'Fight' }), hint]), line],
   );
+  updates.push((now) => {
+    const fighting = now.fight && monsterDef(content, now.fight.monster);
+    el.classList.toggle('active', Boolean(fighting));
+    setText(hint, fighting ? 'Watch' : 'Choose');
+    line.className = fighting ? 'doing' : 'muted small';
+    setText(line, fighting ? `Fighting the ${fighting.name}` : 'Pick an area and a monster.');
+  });
+  return el;
 }
 
 /** The Skills tab: every skill with its level, to tap into, under its group's heading. */
@@ -73,9 +79,12 @@ export function skillListView(
   const row = (skill: SkillDef): HTMLElement => {
     const xp = bar('xp', `${skill.name} experience`);
     const status = h('span', { class: 'doing' });
+    const level = h('span', { class: 'level' });
     updates.push((now) => {
       xp.set(levelProgress(skillXp(now, skill.id)));
-      status.textContent = doing(now, skill, content);
+      setText(status, doing(now, skill, content));
+      // A level gained (a kill can bring three) changes the words, never the list.
+      setText(level, `Level ${skillLevel(now, skill.id)}`);
     });
     return h(
       'button',
@@ -85,10 +94,7 @@ export function skillListView(
         on: { click: () => open(skill.id) },
       },
       [
-        h('div', { class: 'card-head' }, [
-          titled(skillIcon(skill.id), skill.name),
-          h('span', { class: 'level', text: `Level ${skillLevel(state, skill.id)}` }),
-        ]),
+        h('div', { class: 'card-head' }, [titled(skillIcon(skill.id), skill.name), level]),
         xp.el,
         status,
       ],
@@ -103,16 +109,32 @@ export function skillListView(
   const sections = [...groups].map(([group, skills]) =>
     h('section', { class: 'stack', attrs: { 'data-group': group } }, [
       h('h2', { class: 'group-heading', text: group }),
-      group === 'Combat' && combatEntry(state, content, openCombat),
+      group === 'Combat' && combatEntry(content, openCombat, updates),
       group === 'Combat' && bounties.el,
       ...skills.map(row),
     ]),
   );
+  // Every skill's level added up, at the head of the list (Cody asked for it).
+  const total = h('span', { class: 'level', attrs: { 'data-total-level': '' } });
+  const combat = h('span', { class: 'small muted', attrs: { 'data-combat-level': '' } });
+  updates.push((now) => {
+    setText(total, formatNumber(totalLevel(now, content)));
+    setText(combat, `Combat level ${combatLevel(now)}`);
+  });
+  const head = h('section', { class: 'panel card-head total-level' }, [
+    h('div', { class: 'stack tight' }, [h('h2', { text: 'Total level' }), combat]),
+    total,
+  ]);
   const potion = potionPanel(state, content);
   if (potion?.update) updates.push(potion.update);
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
-  return { el: h('div', { class: 'stack groups' }, [potion?.el, ...sections]), update };
+  return {
+    el: h('div', { class: 'stack groups' }, [head, potion?.el, ...sections]),
+    update,
+    // Only a potion coming or going changes what the list is built of.
+    stale: (before, after) => before.potion?.item !== after.potion?.item,
+  };
 }
 
 /**
@@ -358,6 +380,10 @@ export function skillPageView(
 
   const potion = potionPanel(state, content, skill.id);
   if (potion?.update) updates.push(potion.update);
+  const helps = (now: GameState): string | null => {
+    const item = now.potion && content.items[now.potion.item];
+    return item?.potion?.skills.includes(skill.id) ? item.id : null;
+  };
   const update = (now: GameState): void => updates.forEach((apply) => apply(now));
   update(state);
   return {
@@ -375,5 +401,12 @@ export function skillPageView(
       ...cards,
     ]),
     update,
+    // This skill's level unlocks cards, the running action is the card lit,
+    // and a potion for it has a panel: those are what the page is built of.
+    // A kill, a level in another skill or a find changes none of them.
+    stale: (before, after) =>
+      skillLevel(before, skill.id) !== skillLevel(after, skill.id) ||
+      before.action?.id !== after.action?.id ||
+      helps(before) !== helps(after),
   };
 }

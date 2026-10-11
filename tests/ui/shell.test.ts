@@ -196,3 +196,65 @@ describe('the shell a scene is given', () => {
     expect(root.textContent).toContain('Bounty points');
   });
 });
+
+describe('a dungeon run kept through a reload', () => {
+  const run = {
+    dungeon: 'brinebeards_grotto',
+    scene: 1,
+    spoils: { loot: { doubloon: 4 }, coins: 30, xp: { melee: 50 }, kills: { deckhand: 2 } },
+    data: { room: 'tide_pools', battle: { seed: 9, clock: 1200 } },
+  };
+  /** In a run: the scene has stopped the idle clock and handed over its snapshot. */
+  const inRun = () => {
+    const app = inTown();
+    shell!.pauseIdle(true);
+    shell!.keepRun!(run);
+    clock += 10_000;
+    app.tick();
+    return app;
+  };
+  const reload = (after: number) => {
+    root.replaceChildren();
+    clock += after;
+    shell = undefined;
+    mountApp(root, { saves: new LocalStorageSaveService(), content: CONTENT, now: () => clock });
+    click('.tab[data-tab="town"]');
+  };
+
+  it('is written with the save and handed back to the scene after a quick reload', () => {
+    const app = inRun();
+    app.save();
+    expect(saved()!.run).toEqual(run);
+    const logs = saved()!.bank.pine_logs ?? 0;
+    reload(20_000);
+    expect(shell!.savedRun!()).toEqual(run);
+    // Nothing settled yet, and no idle time paid for the reload: the run had the clock.
+    expect(saved()!.bank.doubloon).toBeUndefined();
+    expect(saved()!.bank.pine_logs ?? 0).toBe(logs);
+    expect(root.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('comes home from its spoils, as rowed back early, when left for longer, then pays the time away', () => {
+    const app = inRun();
+    app.save();
+    reload(2 * 60 * 60 * 1000);
+    const after = saved()!;
+    expect(after.run).toBeNull();
+    expect(after.bank.doubloon).toBe(4);
+    expect(after.bestiary.deckhand?.kills).toBe(2);
+    expect(after.dungeons).toEqual({});
+    expect(shell!.savedRun!()).toBeNull();
+    expect(root.textContent).toContain('Your dungeon run was cut short.');
+    // The idle task was paid for the night as for any closed game.
+    expect(after.bank.pine_logs).toBeGreaterThan(1000);
+  });
+
+  it('is let go once the run is settled', () => {
+    inRun();
+    shell!.settleRun({ loot: { doubloon: 1 } });
+    expect(saved()!.run).toBeNull();
+    shell!.keepRun!(run);
+    shell!.keepRun!(null);
+    expect(saved()!.run).toBeNull();
+  });
+});

@@ -48,15 +48,33 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     stats: {},
     perks: [],
   }),
+  // Wave 13, one step for all of it: the notice board shows offers to choose
+  // from (none posted yet: the board is read afresh), remembers the last
+  // target so it is not offered straight back, and can hand bounties in by
+  // itself (off). A bounty already held keeps its old pay: it has no `points`,
+  // and pays its monster's old row. A run under way can be kept through a
+  // reload (none is). Beards: a look made before them has none, which is the
+  // art's own id for a bare chin.
+  8: (state) => ({
+    ...state,
+    bountyBoard: [],
+    lastBounty: null,
+    autoBounty: false,
+    run: null,
+    look: { beard: 'none', ...record(state.look) },
+  }),
 };
+
+/** A save's field as a plain object, or an empty one if it is not one. */
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
 /** Item ids a version 7 save shows the character has held, each once, in a fixed order. */
 function provenFinds(state: Record<string, unknown>): string[] {
   const found = new Set<string>();
-  const record = (value: unknown): Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : {};
   const note = (id: unknown): void => {
     if (typeof id === 'string') found.add(id);
   };

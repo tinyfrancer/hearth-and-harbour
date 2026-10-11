@@ -2,7 +2,7 @@ import { itemIcon } from '../art/icons';
 import { collectable, collectionSources } from '../core/collection';
 import type { AchievementDef, Content } from '../core/content';
 import type { GameState } from '../core/state';
-import { button, h } from './dom';
+import { button, h, setText } from './dom';
 import { formatNumber } from './format';
 import type { View } from './view';
 
@@ -148,31 +148,41 @@ export function collectionView(state: GameState, content: Content, back: () => v
   };
 }
 
-/** One achievement's row: what it is called and asks, or a hidden one's veil. */
-function achievementRow(def: AchievementDef, earned: boolean): HTMLElement {
-  const veiled = def.hidden && !earned;
-  return h(
-    'li',
-    {
-      class: `achievement${earned ? ' earned' : ''}`,
-      attrs: { 'data-achievement': def.id },
-    },
-    [
-      h('span', { class: 'mark', text: earned ? '★' : '·', attrs: { 'aria-hidden': 'true' } }),
-      h('div', { class: 'stack tight' }, [
-        h('h2', { text: veiled ? '???' : def.name }),
-        h('p', { class: 'small muted', text: veiled ? 'A hidden achievement.' : def.text }),
-      ]),
-      earned && h('span', { class: 'small doing', text: 'Earned' }),
-    ],
-  );
+/**
+ * One achievement's row: what it is called and asks, or a hidden one's veil.
+ * Earning it while the page is open turns it over in place.
+ */
+function achievementRow(def: AchievementDef): { el: HTMLElement; set(earned: boolean): void } {
+  const mark = h('span', { class: 'mark', attrs: { 'aria-hidden': 'true' } });
+  const name = h('h2');
+  const text = h('p', { class: 'small muted' });
+  const badge = h('span', { class: 'small doing', text: 'Earned' });
+  const el = h('li', { class: 'achievement', attrs: { 'data-achievement': def.id } }, [
+    mark,
+    h('div', { class: 'stack tight' }, [name, text]),
+    badge,
+  ]);
+  const set = (earned: boolean): void => {
+    const veiled = def.hidden && !earned;
+    el.classList.toggle('earned', earned);
+    setText(mark, earned ? '★' : '·');
+    setText(name, veiled ? '???' : def.name);
+    setText(text, veiled ? 'A hidden achievement.' : def.text);
+    badge.hidden = !earned;
+  };
+  return { el, set };
 }
 
 /** The achievements: earned and not, in table order, hidden ones veiled until earned. */
 export function achievementsView(state: GameState, content: Content, back: () => void): View {
   const all = Object.values(content.achievements ?? {});
   const total = h('span', { class: 'qty', attrs: { 'data-earned': '' } });
-  const list = h('ul', { class: 'achievements' });
+  const rows = all.map(achievementRow);
+  const list = h(
+    'ul',
+    { class: 'achievements' },
+    rows.map((row) => row.el),
+  );
   let seen = -1;
   const update = (now: GameState): void => {
     if (now.achievements.length === seen) return;
@@ -180,7 +190,7 @@ export function achievementsView(state: GameState, content: Content, back: () =>
     const earned = new Set(now.achievements);
     const { earned: count, of } = earnedCount(now, content);
     total.textContent = outOf(count, of);
-    list.replaceChildren(...all.map((def) => achievementRow(def, earned.has(def.id))));
+    rows.forEach((row, at) => row.set(earned.has(all[at]!.id)));
   };
   update(state);
   return {

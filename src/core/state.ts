@@ -1,4 +1,5 @@
 import type { Slot } from './content';
+import type { RunSpoils } from './run';
 import { seedFrom } from './rng';
 import { levelForXp } from './xp';
 
@@ -9,7 +10,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 8;
+export const GAME_STATE_VERSION = 9;
 
 export interface ActiveAction {
   /** An ActionDef id. */
@@ -42,6 +43,8 @@ export interface Look {
   skin?: string;
   hair?: string;
   hairColour?: string;
+  /** `'none'` for a bare chin, the art's own default; a character made before beards has it. */
+  beard?: string;
 }
 
 /** What is in one equipment slot: one of a thing, or a whole stack of ammunition. */
@@ -107,6 +110,33 @@ export interface Bounty {
   count: number;
   /** Kills made since it was taken, never more than `count`. Equal: ready to hand in. */
   done: number;
+  /**
+   * Bounty points handing it in pays, fixed when it was offered. Left out
+   * only on a bounty taken before offers carried points (save version 8),
+   * which pays its monster's old row instead.
+   */
+  points?: number;
+}
+
+/** A notice on the board: a bounty on offer, to be taken as it stands. */
+export interface BountyOffer {
+  monster: string;
+  count: number;
+  points: number;
+}
+
+/**
+ * A dungeon run under way, kept so a reload or a dropped page takes it up
+ * again (design in docs/status/lane-a.md, "A run that survives a reload").
+ * `data` is the scene's own snapshot, opaque to the rules and to the save:
+ * `scene` is its version, and a snapshot the scene cannot read is settled
+ * from `spoils`, which are in core's own shape, so nothing picked up is lost.
+ */
+export interface SavedRun {
+  dungeon: string;
+  scene: number;
+  spoils: RunSpoils;
+  data: unknown;
 }
 
 /**
@@ -184,6 +214,15 @@ export interface GameState {
   /** Earned by handing bounties in, spent in the bounty shop. */
   bountyPoints: number;
   /**
+   * The notice board's offers, while no bounty is held: up to three, each a
+   * different monster. Empty while one is held, and before the board is read.
+   */
+  bountyBoard: BountyOffer[];
+  /** The monster of the bounty last handed in or given up, which the next board avoids. */
+  lastBounty: string | null;
+  /** Hand a bounty in and take the next by itself, the moment a fight finishes it. */
+  autoBounty: boolean;
+  /**
    * Hit points out of a fight while hurt; null when at full health. In a
    * fight the fight's own `hp` is the truth and this is always null.
    */
@@ -200,6 +239,8 @@ export interface GameState {
   stats: Partial<Record<StatId, number>>;
   /** The general store's lasting things bought (StoreEntry ids with a `perk`), in order bought. */
   perks: string[];
+  /** A dungeon run under way, as the scene last handed it over; null when none is. */
+  run: SavedRun | null;
 }
 
 /** Eat below half health, unless the player says otherwise. */
@@ -246,12 +287,16 @@ export function newGame(name: string, now: number, look: Look = {}): GameState {
     marks: {},
     bounty: null,
     bountyPoints: 0,
+    bountyBoard: [],
+    lastBounty: null,
+    autoBounty: false,
     health: null,
     collection: [],
     achievements: [],
     dungeons: {},
     stats: {},
     perks: [],
+    run: null,
   };
 }
 

@@ -16,7 +16,14 @@ import {
   usedWorth,
   madeWorth,
 } from './economy';
-import { hoursToLevel as hoursOfFighting } from './fighting';
+import { characterAt, hourOf, hoursToLevel as hoursOfFighting } from './fighting';
+import {
+  bountyChoices,
+  bountyPoints,
+  handInBounty,
+  readBoard,
+  takeBounty,
+} from '../../src/core/bounty';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -318,3 +325,67 @@ describe('what an hour earns', () => {
     expect(fightHour(10).coins).toBe(0);
   });
 });
+
+// Bounties (wave 13). Cody's review: "I only got marsh trolls over and over".
+// The board used to post only what was within six levels, and past level 26
+// only the troll; and each monster paid fixed points, so a rat's bounty paid
+// a quarter of a troll's for the same time (14 and 60 points an hour at level
+// 30). Now it posts everything open, and an offer pays for the time it should
+// take (src/core/bounty.ts): whatever is hunted, an hour pays about the same,
+// rising a little with the level. Each case is the real fight, in that level's
+// gear, an hour long, against every monster the board may post: the points an
+// hour of an average-sized bounty on it pays.
+describe('what an hour of bounties pays', () => {
+  const perHour = (level: number): Record<string, number> =>
+    Object.fromEntries(
+      bountyChoices(characterAt(level), CONTENT).map((monster) => {
+        const [least, most] = monster.bounty!.kills;
+        const count = Math.round((least + most) / 2);
+        const { kills } = hourOf(level, monster.id);
+        return [monster.id, (bountyPoints(level, monster, count) * kills) / count];
+      }),
+    );
+
+  it.each([
+    // Combat level, how many monsters are open, and the least and most an hour pays.
+    [5, 3, 22, 25],
+    [10, 5, 31, 36],
+    [20, 10, 42, 50],
+    [30, 10, 53, 57],
+  ])(
+    'pays about the same an hour for everything open at level %i (%i open): %i to %i points',
+    (level, open, least, most) => {
+      const hours = Object.values(perHour(level));
+      expect(hours).toHaveLength(open);
+      expect(Math.floor(Math.min(...hours))).toBe(least);
+      expect(Math.floor(Math.max(...hours))).toBe(most);
+      // The easiest is never the poor relation of the hardest.
+      expect(Math.min(...hours) / Math.max(...hours)).toBeGreaterThan(0.8);
+    },
+  );
+
+  it('offers a different monster bounty after bounty at level 30, every one of them in time', () => {
+    let state = ok(readBoard(characterAt(30), CONTENT));
+    const hunted: string[] = [];
+    for (let round = 0; round < 80; round += 1) {
+      state = ok(takeBounty(state, CONTENT));
+      hunted.push(state.bounty!.monster);
+      state = ok(
+        handInBounty(
+          { ...state, bounty: { ...state.bounty!, done: state.bounty!.count } },
+          CONTENT,
+        ),
+      );
+    }
+    expect(hunted.every((monster, at) => monster !== hunted[at - 1])).toBe(true);
+    expect(new Set(hunted).size).toBe(10);
+    // Leaning to a fair fight: the troll comes up far more than the rat.
+    const times = (id: string) => hunted.filter((monster) => monster === id).length;
+    expect(times('marsh_troll')).toBeGreaterThan(times('dock_rat'));
+  });
+});
+
+function ok(result: { ok: true; state: GameState } | { ok: false; reason: string }): GameState {
+  if (!result.ok) throw new Error(result.reason);
+  return result.state;
+}

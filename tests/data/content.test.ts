@@ -8,7 +8,6 @@ import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { PORTRAIT2_IDS } from '../../src/art/portraits2';
-import { GROTTO_CAST } from '../../src/scene/cast';
 
 // Fixed in docs/lanes.md (wave 6): the dungeon drops them, and art draws them, by these ids.
 const GROTTO_LOOT = [
@@ -112,6 +111,8 @@ describe('the content tables', () => {
       'iron_shield',
       'bronze_breastplate',
       'iron_breastplate',
+      'bronze_greaves',
+      'iron_greaves',
       'linen_hood',
       'linen_tunic',
       'linen_trousers',
@@ -145,12 +146,13 @@ describe('the content tables', () => {
       const def = CONTENT.items[id]!.equip!;
       return (def.attack ?? 0) + (def.strength ?? 0) + (def.armour ?? 0);
     };
-    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate', 'arrows']) {
+    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate', 'greaves', 'arrows']) {
       expect(sum(`iron_${piece}`), piece).toBeGreaterThanOrEqual(sum(`bronze_${piece}`) * 1.5);
     }
     for (const [cloth, metal] of [
       ['linen_hood', 'bronze_helmet'],
       ['linen_tunic', 'bronze_breastplate'],
+      ['linen_trousers', 'bronze_greaves'],
     ] as const) {
       expect(sum(cloth) * 3, cloth).toBeLessThanOrEqual(sum(metal));
     }
@@ -403,23 +405,12 @@ describe('the content tables', () => {
     expect(CONTENT.dungeons!.brinebeards_grotto!.loot).toEqual(GROTTO_LOOT);
   });
 
-  it("knows the grotto's cast by the ids and names its scene fights them by, none a table monster", () => {
-    const cast = CONTENT.dungeons!.brinebeards_grotto!.cast!;
-    expect(cast.map((foe) => foe.id).sort()).toEqual(Object.keys(GROTTO_CAST).sort());
-    for (const foe of cast) {
-      expect(foe.name, foe.id).toBe(GROTTO_CAST[foe.id]!.name);
+  // The scene reads its cast from src/data/dungeons.ts (lane C, wave 12), so
+  // there is one set of numbers and nothing to keep in step with it.
+  it("holds the grotto's cast: none a table monster, each with a face and real drops, weakest first", () => {
+    for (const foe of CONTENT.dungeons!.brinebeards_grotto!.cast!) {
       expect(CONTENT.monsters![foe.id], foe.id).toBeUndefined();
       expect(PORTRAIT2_IDS, foe.id).toContain(foe.id);
-    }
-  });
-
-  // The rows are in two places until the scene reads them from src/data/dungeons.ts:
-  // this keeps the bestiary's numbers the ones the grotto is fought by.
-  it("holds the grotto's cast at the very numbers its scene fights them by", () => {
-    for (const foe of CONTENT.dungeons!.brinebeards_grotto!.cast!) {
-      const { area, ...scene } = GROTTO_CAST[foe.id]!;
-      expect(area, foe.id).toBe('brinebeards_grotto');
-      expect(foe, foe.id).toEqual(scene);
       for (const id of [
         ...foe.always.map((drop) => drop.item),
         ...foe.rare.map((drop) => drop.item),
@@ -447,6 +438,16 @@ describe('the content tables', () => {
       expect(Number.isInteger(entry.price) && entry.price > 0, entry.id).toBe(true);
       if (entry.perk) {
         expect(entry.perk.description.length, entry.id).toBeGreaterThan(10);
+        // What it does is said in numbers, and they are its own (Cody found the
+        // case's old words confusing): a potion perk names its percent.
+        expect(entry.perk.effect, entry.id).toMatch(/\d/);
+        if (entry.perk.potionCharges) {
+          expect(entry.perk.effect, entry.id).toContain(`${entry.perk.potionCharges}%`);
+          const base = 150;
+          const stretched = Math.floor((base * (100 + entry.perk.potionCharges)) / 100);
+          expect(entry.perk.effect, entry.id).toContain(`${base} actions helps ${stretched}`);
+          expect(entry.perk.shows, entry.id).toContain('potions');
+        }
         continue;
       }
       const item = CONTENT.items[entry.item];
@@ -500,6 +501,16 @@ describe('the content tables', () => {
         for (const item of rule.items)
           expect(CONTENT.items[item], `${def.id}: ${item}`).toBeDefined();
       }
+      if (rule.kind === 'made') {
+        for (const item of rule.items) {
+          expect(
+            Object.values(CONTENT.actions).some(
+              (action) => !action.steal && action.gives.some((g) => g.item === item),
+            ),
+            `${def.id}: nothing makes ${item}`,
+          ).toBe(true);
+        }
+      }
       if (rule.kind === 'level') {
         if (rule.skill) expect(CONTENT.skills[rule.skill], def.id).toBeDefined();
         if (rule.group) {
@@ -519,6 +530,31 @@ describe('the content tables', () => {
       // Nobody has one at the start.
       expect(meets(newGame('Cody', 0), rule, CONTENT), def.id).toBe(false);
     }
+  });
+
+  // Cody's Milestone A review: the first foraging achievement came from a sand
+  // crab's shells. A skill's achievements are for doing it; one that reads
+  // the collection log is about owning a thing, so it may name only what no
+  // skill makes (a monster's prize, the grotto's loot).
+  it('earns a skill’s achievements by doing it, never by owning what it makes', () => {
+    const made = new Set(
+      Object.values(CONTENT.actions)
+        .filter((action) => !action.steal)
+        .flatMap((action) => action.gives.map(({ item }) => item)),
+    );
+    for (const def of Object.values(CONTENT.achievements!)) {
+      if (def.rule.kind !== 'found') continue;
+      for (const item of def.rule.items) expect(made.has(item), `${def.id}: ${item}`).toBe(false);
+    }
+    const firsts = [
+      'first_log',
+      'first_catch',
+      'first_ore',
+      'first_find',
+      'first_meal',
+      'first_bar',
+    ];
+    for (const id of firsts) expect(CONTENT.achievements![id]!.rule.kind, id).toBe('made');
   });
 
   it('feeds Crafting with hides, and gives leather a small set of armour', () => {
@@ -548,7 +584,7 @@ describe('the content tables', () => {
 
   it('asks levels to wear things: bronze at 1, iron at 10, bows by Ranged', () => {
     const needs = (id: string) => CONTENT.items[id]!.equip!.requires;
-    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate']) {
+    for (const piece of ['sword', 'axe', 'helmet', 'shield', 'breastplate', 'greaves']) {
       expect(needs(`bronze_${piece}`), piece).toBeUndefined();
       expect(needs(`iron_${piece}`)?.level, piece).toBe(10);
     }

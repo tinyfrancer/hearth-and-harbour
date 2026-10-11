@@ -2,18 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { advance } from '../../src/core/actions';
 import { catchUp } from '../../src/core/away';
 import {
-  BOUNTY_BELOW,
+  BOARD_SIZE,
   COINS_PER_POINT,
-  SWAP_COST,
+  GIVE_UP_COST,
+  REROLL_COST,
+  WEIGHT_SPAN,
+  autoHandIn,
   bountyChoices,
+  bountyPoints,
   bountyReady,
+  bountyWeight,
   buyFromShop,
   combatLevel,
+  expectedKillMs,
+  giveUpBounty,
+  giveUpCost,
   handInBounty,
-  swapBounty,
-  swapCost,
+  pointsAnHour,
+  readBoard,
+  rerollBoard,
+  setAutoBounty,
   takeBounty,
 } from '../../src/core/bounty';
+import { settleRun } from '../../src/core/run';
 import { startFight } from '../../src/core/combat';
 import type { Content, MonsterDef } from '../../src/core/content';
 import { newGame, type GameState } from '../../src/core/state';
@@ -88,9 +99,13 @@ function hunter(level = 1, seed = 1, extra: Partial<GameState> = {}): GameState 
   };
 }
 
-/** Holding a bounty on `monster` with `done` of `count` kills made. */
+/** Holding a bounty on `monster` with `done` of `count` kills made, paying 3 points. */
 const holding = (monster: string, count = 6, done = 0, extra: Partial<GameState> = {}) =>
-  hunter(5, 1, { bounty: { monster, count, done }, ...extra });
+  hunter(5, 1, { bounty: { monster, count, done, points: 3 }, ...extra });
+
+/** The board read for a hunter: its offers' monsters, in the order posted. */
+const read = (state: GameState): GameState => ok(readBoard(state, content));
+const posted = (state: GameState): string[] => state.bountyBoard.map((offer) => offer.monster);
 
 const ids = (monsters: MonsterDef[]): string[] => monsters.map((m) => m.id);
 
@@ -109,73 +124,132 @@ describe('who the board posts for', () => {
     expect(combatLevel(mixed)).toBe(8);
   });
 
-  it(`posts monsters from ${BOUNTY_BELOW} levels below the character up to their level`, () => {
+  it('posts anything with a bounty row at or below the character, bounty-only ones too', () => {
     expect(ids(bountyChoices(hunter(1), content))).toEqual(['rat']);
     expect(ids(bountyChoices(hunter(5), content))).toEqual(['rat', 'mole', 'bogle']);
     // Nothing without a bounty row, and nothing above the character.
     expect(ids(bountyChoices(hunter(6), content))).toEqual(['rat', 'mole', 'bogle', 'hog']);
-    expect(ids(bountyChoices(hunter(9), content))).toEqual(['bogle', 'hog']);
-  });
-
-  it('posts the strongest below when nothing is near enough, never one above', () => {
-    expect(ids(bountyChoices(hunter(14), content))).toEqual(['hog']);
-    expect(ids(bountyChoices(hunter(40), content))).toEqual(['ogre']);
+    // Far past them all, still all of them: never one monster over and over.
+    expect(ids(bountyChoices(hunter(40), content))).toEqual([
+      'rat',
+      'mole',
+      'bogle',
+      'hog',
+      'ogre',
+    ]);
+    // Before the weakest is reached, the weakest.
     const late = { ...content, monsters: { hog: content.monsters!.hog! } };
     expect(ids(bountyChoices(hunter(1), late))).toEqual(['hog']);
   });
-});
 
-describe('taking a bounty', () => {
-  it('posts one of the choices with a count from its row, by the save dice', () => {
-    const start = hunter(6);
-    const taken = ok(takeBounty(start, content));
-    const { monster, count, done } = taken.bounty!;
-    expect(ids(bountyChoices(start, content))).toContain(monster);
-    expect(count).toBeGreaterThanOrEqual(5);
-    expect(count).toBeLessThanOrEqual(8);
-    expect(done).toBe(0);
-    expect(taken.rng).not.toBe(start.rng);
-    // The same save posts the same bounty.
-    expect(ok(takeBounty(JSON.parse(JSON.stringify(start)) as GameState, content))).toEqual(taken);
+  it('leans towards the strongest open, each level below a little less likely, never impossible', () => {
+    const at = (id: string) => content.monsters![id]!;
+    expect(bountyWeight(at('ogre'), 20)).toBe(WEIGHT_SPAN);
+    expect(bountyWeight(at('hog'), 20)).toBe(1);
+    expect(bountyWeight(at('hog'), 6)).toBe(WEIGHT_SPAN);
+    expect(bountyWeight(at('bogle'), 6)).toBe(WEIGHT_SPAN - 1);
+    expect(bountyWeight(at('rat'), 6)).toBe(WEIGHT_SPAN - 5);
   });
 
-  it('gives every choice and every count its turn, with different dice', () => {
-    const posted = new Set<string>();
-    const counts = new Set<number>();
-    for (let seed = 1; seed <= 200; seed += 1) {
-      const bounty = ok(takeBounty(hunter(6, seed), content)).bounty!;
-      posted.add(bounty.monster);
-      counts.add(bounty.count);
+  it('pays for the time an offer should take, judged by the combat level alone', () => {
+    const ogre = content.monsters!.ogre!;
+    const rat = content.monsters!.rat!;
+    // The harder thing takes longer a kill, and a stronger character less.
+    expect(expectedKillMs(20, ogre)).toBeGreaterThan(expectedKillMs(20, rat));
+    expect(expectedKillMs(30, ogre)).toBeLessThan(expectedKillMs(20, ogre));
+    // A rat dies to a blow or two from anyone strong: the wait, and a swing or a little more.
+    expect(expectedKillMs(40, rat)).toBeGreaterThan(3000 + 2400);
+    expect(expectedKillMs(40, rat)).toBeLessThan(3000 + 2400 * 1.5);
+    expect(pointsAnHour(20)).toBe(45);
+    expect(bountyPoints(20, ogre, 10)).toBe(
+      Math.round(((10 * expectedKillMs(20, ogre)) / 3_600_000) * 45),
+    );
+    // Never nothing.
+    expect(bountyPoints(40, rat, 1)).toBe(1);
+  });
+});
+
+describe('the notice board', () => {
+  it('posts three different offers when read, each a count from its row and its pay, by the save dice', () => {
+    const start = hunter(6);
+    const board = read(start);
+    expect(board.bountyBoard).toHaveLength(BOARD_SIZE);
+    expect(new Set(posted(board)).size).toBe(BOARD_SIZE);
+    for (const offer of board.bountyBoard) {
+      expect(ids(bountyChoices(start, content))).toContain(offer.monster);
+      expect(offer.count).toBeGreaterThanOrEqual(5);
+      expect(offer.count).toBeLessThanOrEqual(8);
+      expect(offer.points).toBe(
+        bountyPoints(combatLevel(start), content.monsters![offer.monster]!, offer.count),
+      );
     }
-    expect([...posted].sort()).toEqual(['bogle', 'hog', 'mole', 'rat']);
+    expect(board.rng).not.toBe(start.rng);
+    // The same save posts the same board; a board already up is left as it is.
+    expect(read(JSON.parse(JSON.stringify(start)) as GameState)).toEqual(board);
+    expect(read(board)).toBe(board);
+  });
+
+  it('gives every monster open and every count its turn, the strongest most often', () => {
+    const seen = new Map<string, number>();
+    const counts = new Set<number>();
+    for (let seed = 1; seed <= 300; seed += 1) {
+      const first = read(hunter(6, seed)).bountyBoard[0]!;
+      seen.set(first.monster, (seen.get(first.monster) ?? 0) + 1);
+      counts.add(first.count);
+    }
+    expect([...seen.keys()].sort()).toEqual(['bogle', 'hog', 'mole', 'rat']);
+    expect(seen.get('hog')!).toBeGreaterThan(seen.get('rat')!);
     expect([...counts].sort()).toEqual([5, 6, 7, 8]);
   });
 
-  it('holds one at a time', () => {
-    expect(takeBounty(holding('rat'), content)).toEqual({
+  it('takes the offer chosen, and clears the board', () => {
+    const board = read(hunter(6));
+    const offer = board.bountyBoard[2]!;
+    const taken = ok(takeBounty(board, content, 2));
+    expect(taken.bounty).toEqual({ ...offer, done: 0 });
+    expect(taken.bountyBoard).toEqual([]);
+    expect(takeBounty(board, content, 5)).toEqual({
       ok: false,
-      reason: 'One bounty at a time. Finish or swap the one you hold.',
+      reason: 'That notice is not on the board.',
     });
+  });
+
+  it('holds one at a time', () => {
+    const reason = 'One bounty at a time. Finish or give up the one you hold.';
+    expect(takeBounty(holding('rat'), content)).toEqual({ ok: false, reason });
+    expect(readBoard(holding('rat'), content)).toEqual({ ok: false, reason });
   });
 
   it('finds the board bare when nothing has a bounty row', () => {
     const bare = { ...content, monsters: { newt: content.monsters!.newt! } };
-    expect(takeBounty(hunter(1), bare)).toEqual({ ok: false, reason: 'The notice board is bare.' });
+    expect(readBoard(hunter(1), bare)).toEqual({ ok: false, reason: 'The notice board is bare.' });
+  });
+
+  it(`puts up three fresh offers for ${REROLL_COST} point, none of those it replaces where it can`, () => {
+    const board = read(hunter(40, 3, { bountyPoints: 2 }));
+    const fresh = ok(rerollBoard(board, content));
+    expect(fresh.bountyPoints).toBe(2 - REROLL_COST);
+    // Five open, three shown: the two not shown, and then one of the three again.
+    expect(fresh.bountyBoard).toHaveLength(2);
+    for (const monster of posted(fresh)) expect(posted(board)).not.toContain(monster);
+    expect(rerollBoard({ ...board, bountyPoints: 0 }, content)).toEqual({
+      ok: false,
+      reason: `Fresh notices cost ${REROLL_COST} bounty point.`,
+    });
   });
 });
-
 describe('kills towards a bounty', () => {
   it('count the named monster while the bounty is held, up to the count and no further', () => {
     const start = ok(startFight(holding('rat', 6), 'rat', content));
     const hour = advance(start, HOUR, content);
     expect(hour.bestiary.rat!.kills).toBeGreaterThan(6);
-    expect(hour.bounty).toEqual({ monster: 'rat', count: 6, done: 6 });
+    expect(hour.bounty).toEqual({ monster: 'rat', count: 6, done: 6, points: 3 });
     expect(bountyReady(hour)).toBe(true);
   });
 
   it('do not count another monster, nor anything without a bounty held', () => {
     const other = advance(ok(startFight(holding('mole'), 'rat', content)), HOUR, content);
-    expect(other.bounty).toEqual({ monster: 'mole', count: 6, done: 0 });
+    expect(other.bounty).toEqual({ monster: 'mole', count: 6, done: 0, points: 3 });
     const none = advance(ok(startFight(hunter(5), 'rat', content)), HOUR, content);
     expect(none.bounty).toBeNull();
   });
@@ -216,65 +290,84 @@ describe('handing in', () => {
     expect(handInBounty(hunter(5), content)).toEqual({ ok: false, reason: 'You hold no bounty.' });
   });
 
-  it('pays the points and coins, and posts the next, on another monster', () => {
+  it('pays the points it was offered at and coins, then shows a board without that monster', () => {
     const done = holding('rat', 6, 6, { bountyPoints: 4, coins: 10 });
     const paid = ok(handInBounty(done, content));
-    // The rat's row pays 2 points.
-    expect(paid.bountyPoints).toBe(6);
-    expect(paid.coins).toBe(10 + 2 * COINS_PER_POINT);
-    expect(paid.bounty).toMatchObject({ done: 0 });
-    expect(['mole', 'bogle']).toContain(paid.bounty!.monster);
+    expect(paid.bountyPoints).toBe(4 + 3);
+    expect(paid.coins).toBe(10 + 3 * COINS_PER_POINT);
+    expect(paid.bounty).toBeNull();
+    expect(paid.lastBounty).toBe('rat');
+    expect(posted(paid).sort()).toEqual(['bogle', 'mole']);
   });
 
-  it('counts bounties handed in, and the run of them since the last swap', () => {
-    const first = ok(handInBounty(holding('rat', 6, 6), content));
-    expect(first.stats).toEqual({ bounties: 1, streak: 1, bestStreak: 1 });
+  it('pays a bounty from before offers carried their pay what its monster’s row did', () => {
+    const old = hunter(5, 1, { bounty: { monster: 'mole', count: 6, done: 6 } });
+    // The test's mole row pays its level and one.
+    expect(ok(handInBounty(old, content)).bountyPoints).toBe(3);
+  });
+
+  it('never offers the same monster twice running while anything else is open', () => {
+    let state = read(hunter(40, 9));
+    let last = '';
+    for (let round = 0; round < 60; round += 1) {
+      state = ok(takeBounty(state, content));
+      expect(state.bounty!.monster).not.toBe(last);
+      last = state.bounty!.monster;
+      state = ok(handInBounty({ ...state, bounty: { ...state.bounty!, done: 1e6 } }, content));
+    }
+  });
+
+  it('counts bounties handed in, and the run of them since the last one given up', () => {
     const done = (state: GameState): GameState => ({
       ...state,
       bounty: { ...state.bounty!, done: state.bounty!.count },
     });
-    const second = ok(handInBounty(done(first), content));
+    const first = ok(handInBounty(holding('rat', 6, 6), content));
+    expect(first.stats).toEqual({ bounties: 1, streak: 1, bestStreak: 1 });
+    const second = ok(handInBounty(done(ok(takeBounty(first, content))), content));
     expect(second.stats).toEqual({ bounties: 2, streak: 2, bestStreak: 2 });
-    const swapped = ok(swapBounty({ ...second, bountyPoints: 10 }, content));
-    expect(swapped.stats).toEqual({ bounties: 2, streak: 0, bestStreak: 2 });
-    const third = ok(handInBounty(done(swapped), content));
+    const given = ok(
+      giveUpBounty({ ...ok(takeBounty(second, content)), bountyPoints: 10 }, content),
+    );
+    expect(given.stats).toEqual({ bounties: 2, streak: 0, bestStreak: 2 });
+    const third = ok(handInBounty(done(ok(takeBounty(given, content))), content));
     expect(third.stats).toEqual({ bounties: 3, streak: 1, bestStreak: 2 });
   });
 
-  it('ends a fight with a bounty-only monster the next bounty does not name', () => {
+  it('ends a fight with a bounty-only monster once its bounty is handed in', () => {
     const fighting = advance(ok(startFight(holding('bogle', 5), 'bogle', content)), HOUR, content);
     expect(fighting.fight?.monster).toBe('bogle');
     expect(bountyReady(fighting)).toBe(true);
     const paid = ok(handInBounty(fighting, content));
-    expect(paid.bounty!.monster).not.toBe('bogle');
     expect(paid.fight).toBeNull();
   });
 });
 
-describe('swapping', () => {
-  it('costs three points for another monster, or what there is', () => {
+describe('giving up', () => {
+  it('costs three points, or what there is, and shows a board without that monster', () => {
     const rich = holding('rat', 6, 3, { bountyPoints: 10 });
-    expect(swapCost(rich)).toBe(SWAP_COST);
-    const swapped = ok(swapBounty(rich, content));
-    expect(swapped.bountyPoints).toBe(7);
-    expect(swapped.bounty!.monster).not.toBe('rat');
-    expect(swapped.bounty!.done).toBe(0);
+    expect(giveUpCost(rich)).toBe(GIVE_UP_COST);
+    const given = ok(giveUpBounty(rich, content));
+    expect(given.bountyPoints).toBe(7);
+    expect(given.bounty).toBeNull();
+    expect(given.lastBounty).toBe('rat');
+    expect(posted(given)).not.toContain('rat');
     const poor = holding('rat', 6, 0, { bountyPoints: 1 });
-    expect(swapCost(poor)).toBe(1);
-    expect(ok(swapBounty(poor, content)).bountyPoints).toBe(0);
-    expect(ok(swapBounty(holding('rat'), content)).bountyPoints).toBe(0);
+    expect(giveUpCost(poor)).toBe(1);
+    expect(ok(giveUpBounty(poor, content)).bountyPoints).toBe(0);
+    expect(ok(giveUpBounty(holding('rat'), content)).bountyPoints).toBe(0);
   });
 
-  it('will not swap when there is nothing else to swap to', () => {
-    expect(
-      swapBounty(hunter(1, 1, { bounty: { monster: 'rat', count: 5, done: 0 } }), content),
-    ).toEqual({ ok: false, reason: 'There is nothing else on the board for you yet.' });
+  it('offers the same again only when nothing else is open', () => {
+    const alone = ok(
+      giveUpBounty(hunter(1, 1, { bounty: { monster: 'rat', count: 5, done: 0 } }), content),
+    );
+    expect(posted(alone)).toEqual(['rat']);
   });
 
-  it('ends a fight with a bounty-only monster swapped away from', () => {
+  it('ends a fight with a bounty-only monster given up on', () => {
     const fighting = ok(startFight(holding('bogle'), 'bogle', content));
-    const swapped = ok(swapBounty(fighting, content));
-    expect(swapped.fight).toBeNull();
+    expect(ok(giveUpBounty(fighting, content)).fight).toBeNull();
   });
 });
 
@@ -324,12 +417,111 @@ describe('the away report for a bounty', () => {
     const short = catchUp(start, 1000, content).report!;
     expect(short.bounty).toBeNull();
     const { state, report } = catchUp(start, 2 * HOUR, content);
-    expect(state.bounty).toEqual({ monster: 'rat', count: 8, done: 8 });
+    expect(state.bounty).toEqual({ monster: 'rat', count: 8, done: 8, points: 3 });
     expect(report!.bounty).toEqual({ monster: 'rat', gained: 7, done: 8, count: 8, ready: true });
   });
 
   it('says nothing of a bounty on something else', () => {
     const start = ok(startFight(holding('mole'), 'rat', content));
     expect(catchUp(start, HOUR, content).report!.bounty).toBeNull();
+  });
+});
+
+describe('auto bounty', () => {
+  // The test's ogre made harmless, so a long hunt across everything is not cut short by it.
+  const tame: Content = {
+    ...content,
+    monsters: { ...content.monsters!, ogre: { ...content.monsters!.ogre!, attack: 1, maxHit: 1 } },
+  };
+  /** Fighting rats with a bounty on them and auto bounty on, at combat level 40: everything is open. */
+  const auto = (count = 3, extra: Partial<GameState> = {}): GameState =>
+    ok(
+      startFight(
+        hunter(40, 4, {
+          bounty: { monster: 'rat', count, done: 0, points: 2 },
+          autoBounty: true,
+          ...extra,
+        }),
+        'rat',
+        tame,
+      ),
+    );
+
+  it('hands in on the kill that finishes it, takes the next and fights that monster on', () => {
+    const start = auto();
+    const test = (state: GameState): boolean => (state.stats.bounties ?? 0) > 0;
+    let lo = 0;
+    let hi = HOUR;
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (test(advance(start, mid, tame))) hi = mid;
+      else lo = mid;
+    }
+    const before = advance(start, hi - 1, tame);
+    const after = advance(start, hi, tame);
+    expect(before.bounty).toMatchObject({ monster: 'rat', done: 2 });
+    expect(after.bestiary.rat!.kills).toBe(3);
+    expect(after.bountyPoints).toBe(2);
+    expect(after.coins - before.coins).toBeGreaterThanOrEqual(2 * COINS_PER_POINT);
+    expect(after.stats).toMatchObject({ bounties: 1, streak: 1 });
+    expect(after.lastBounty).toBe('rat');
+    // The next is taken straight away, on another monster, and the fight is now on it.
+    expect(after.bounty!.monster).not.toBe('rat');
+    expect(after.bounty!.done).toBe(0);
+    expect(after.bountyBoard).toEqual([]);
+    expect(after.fight!.monster).toBe(after.bounty!.monster);
+    expect(after.fight!.foeHp).toBe(0);
+  });
+
+  it('chains bounty after bounty, never the same twice running', () => {
+    const day = advance(auto(), 24 * HOUR, tame);
+    expect(day.stats.bounties ?? 0).toBeGreaterThan(20);
+    expect(day.fight).not.toBeNull();
+  });
+
+  it('lands in the same place however the time is cut, live or away', () => {
+    const start = auto(4);
+    const total = 3 * HOUR;
+    const whole = advance(start, total, tame);
+    expect(whole.stats.bounties ?? 0).toBeGreaterThan(3);
+    for (const cut of [1, 777, 20 * 60 * 1000, HOUR + 12_345, total - 1]) {
+      expect(advance(advance(start, cut, tame), total - cut, tame), `cut at ${cut}`).toEqual(whole);
+    }
+    let live = start;
+    for (let spent = 0; spent < HOUR; spent += 16) live = advance(live, 16, tame);
+    const away = catchUp(start, HOUR, tame);
+    expect(away.state).toEqual(live);
+    // The away report says what it handed in.
+    expect(away.report!.claimed).toEqual({
+      bounties: live.stats.bounties,
+      points: live.bountyPoints,
+    });
+    expect(away.report!.bounty).toMatchObject({
+      monster: live.bounty!.monster,
+      done: live.bounty!.done,
+    });
+  });
+
+  it('does nothing while switched off, and claims one already done when switched on', () => {
+    const off = advance(auto(3, { autoBounty: false }), HOUR, tame);
+    expect(off.bounty).toMatchObject({ monster: 'rat', done: 3 });
+    expect(off.stats.bounties).toBeUndefined();
+    const on = setAutoBounty(off, true, tame);
+    expect(on.autoBounty).toBe(true);
+    expect(on.stats.bounties).toBe(1);
+    expect(on.fight!.monster).toBe(on.bounty!.monster);
+    expect(setAutoBounty(on, false, tame).autoBounty).toBe(false);
+    // Off, a done bounty waits to be handed in by hand.
+    expect(autoHandIn({ ...off, autoBounty: false }, tame)).toEqual({ ...off, autoBounty: false });
+  });
+
+  it('hands in a bounty a dungeon run finishes', () => {
+    const held = hunter(40, 2, {
+      bounty: { monster: 'rat', count: 3, done: 1, points: 2 },
+      autoBounty: true,
+    });
+    const settled = settleRun(held, { kills: { rat: 5 } }, tame);
+    expect(settled.stats.bounties).toBe(1);
+    expect(settled.bounty!.monster).not.toBe('rat');
   });
 });

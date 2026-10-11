@@ -51,6 +51,7 @@ describe('catchUp', () => {
       mastery: { chop_pine: { from: 1, to: 22 } },
       theft: null,
       bounty: null,
+      claimed: null,
       stopped: null,
       potion: null,
     });

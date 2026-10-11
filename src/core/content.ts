@@ -220,10 +220,25 @@ export type StoreEntry = { id: string; price: number } & (
   | { perk: PerkDef; item?: undefined; qty?: undefined; once?: undefined }
 );
 
+/**
+ * The screens that show the lasting things owned that change them, by name:
+ * the potion panel and a potion's card in the bank are `potions`. A new place
+ * is a screen calling `perksFor` (src/core/store.ts) with its name.
+ */
+export type PerkPlace = 'potions';
+
 /** A lasting thing from the store: no item, just a difference the rules make from then on. */
 export interface PerkDef {
   name: string;
+  /** What it is, in a line of flavour. */
   description: string;
+  /**
+   * What owning it does, plainly and in numbers, for the store and for every
+   * place it shows: "Every potion you drink helps 50% more actions".
+   */
+  effect: string;
+  /** Where it is shown once owned, beside what it changes. */
+  shows: readonly PerkPlace[];
   /** Every potion drunk gives this many percent more charges, rounded down. */
   potionCharges?: number;
 }
@@ -285,8 +300,18 @@ export type AchievementRule =
   | { kind: 'total'; level: number }
   /** Mastery of any one action at a level. */
   | { kind: 'mastery'; level: number }
-  /** `count` of these items in the collection log (all of them if left out). */
+  /**
+   * `count` of these items in the collection log (all of them if left out):
+   * for owning a thing, however it came. A skill's own firsts are `made`.
+   */
   | { kind: 'found'; items: readonly string[]; count?: number }
+  /**
+   * Done, by the character's own hand, an action that gives one of these
+   * items: read from mastery, which only doing an action earns, so a sand
+   * crab's shells or a fish bought from the store do not count as foraging
+   * or cooking. A theft is never one (its loot is chance, not what it gives).
+   */
+  | { kind: 'made'; items: readonly string[] }
   /** So many different things in the collection log, of those the tables hold. */
   | { kind: 'collected'; count: number }
   /** Kills of a monster, or of any monster at all, in the bestiary. */

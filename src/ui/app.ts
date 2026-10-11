@@ -7,8 +7,11 @@ import {
   bountyReady,
   bountyReward,
   buyFromShop,
+  giveUpBounty,
   handInBounty,
-  swapBounty,
+  readBoard,
+  rerollBoard,
+  setAutoBounty,
   takeBounty,
 } from '../core/bounty';
 import {
@@ -29,7 +32,7 @@ import { drinkPotion } from '../core/potions';
 import { settleRun } from '../core/run';
 import { buyFromStore } from '../core/store';
 import { SLOTS, type AchievementDef, type Content } from '../core/content';
-import { newGame, skillLevel, type Fight, type GameState } from '../core/state';
+import { newGame, skillLevel, stat, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
 import { awayReportOverlay } from './awayReport';
 import { artGallery } from '../art/gallery';
@@ -190,6 +193,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   /** The away report on screen, until it is dismissed, and the achievements it earned. */
   let away: AwayReport | null = null;
   let awayEarned: string[] = [];
+  /** The away report's overlay while it is up: laid over the screen, which is left alone. */
+  let awayEl: HTMLElement | null = null;
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
@@ -403,25 +408,39 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       combatPage = null;
       turnTo();
     },
-    take: () =>
+    read: () => bountyAct(readBoard(state ?? game, content)),
+    take: (index) =>
       bountyAct(
-        takeBounty(state ?? game, content),
+        takeBounty(state ?? game, content, index),
         (next) => `Wanted: ${counted(next.bounty!.count, monsterName(next.bounty!.monster))}.`,
       ),
+    reroll: () =>
+      bountyAct(rerollBoard(state ?? game, content), () => 'Fresh notices on the board.'),
     handIn: () => {
       const before = state ?? game;
       const { points, coins } = bountyReward(before, content);
       bountyAct(handInBounty(before, content), (next) => {
         const stopped = before.fight && !next.fight ? ' The hunt is over.' : '';
-        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Next: ${counted(next.bounty?.count ?? 0, monsterName(next.bounty?.monster))}.`;
+        return `Bounty paid: ${points} points and ${coins} coins.${stopped} Pick the next from the board.`;
       });
     },
-    swap: () =>
+    giveUp: () =>
       bountyAct(
-        swapBounty(state ?? game, content),
-        (next) =>
-          `Swapped. Wanted now: ${counted(next.bounty!.count, monsterName(next.bounty!.monster))}.`,
+        giveUpBounty(state ?? game, content),
+        () => 'Given up. Pick another from the board.',
       ),
+    auto: (on) => {
+      const before = state ?? game;
+      const next = setAutoBounty(before, on, content);
+      toast(
+        on
+          ? stat(next, 'bounties') > stat(before, 'bounties')
+            ? `Auto bounty on. Paid, and next: ${counted(next.bounty?.count ?? 0, monsterName(next.bounty?.monster))}.`
+            : 'Auto bounty on: a finished bounty hands itself in.'
+          : 'Auto bounty off.',
+      );
+      act(next);
+    },
     hunt: (monsterId) => {
       const current = state ?? game;
       if (current.fight?.monster === monsterId) {
@@ -553,9 +572,10 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
           openItem = null;
           turnTo();
         },
+        // The bank opens and closes a card in place, where the thumb is: only
+        // which one is open is kept here, for coming back to the tab.
         open: (itemId) => {
           openItem = itemId;
-          render();
         },
         sell: (itemId, qty) => {
           const sold = sell(state ?? game, itemId, qty, content);
@@ -670,7 +690,65 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         fightOver = null;
         turnTo();
       },
+      keepRun: (run) => {
+        if (!state) return;
+        // Kept with the next save (every few seconds while a run pauses the
+        // idle clock, and when the page is hidden); a run over is saved at once.
+        state = { ...state, run };
+        if (!run) save();
+      },
+      savedRun: () => state?.run ?? null,
     });
+  };
+
+  /** The away report, laid over whatever screen is showing; gone with a tap, screen untouched. */
+  const awayOverlay = (): HTMLElement => {
+    awayEl = awayReportOverlay(
+      away!,
+      content,
+      () => {
+        away = null;
+        awayEarned = [];
+        awayEl?.remove();
+        awayEl = null;
+      },
+      awayEarned,
+    );
+    return awayEl;
+  };
+
+  /**
+   * Builds the screen's view again in place, kept scrolled where it was, with
+   * the header, tabs, notes and any report around it left as they are.
+   */
+  const rebuildView = (): void => {
+    const screen = root.querySelector<HTMLElement>('#screen');
+    if (!screen || !state) {
+      render();
+      return;
+    }
+    const top = screen.scrollTop;
+    view = buildView(state);
+    screen.replaceChildren(view.el);
+    screen.scrollTop = top;
+  };
+
+  /** The header's face follows the outfit (the last arrow shot changes it) without a rebuild. */
+  const syncHeader = (game: GameState): void => {
+    const holder = root.querySelector('.who-face');
+    const el = headerFace(game);
+    if (holder && holder.firstElementChild !== el) holder.replaceChildren(el);
+  };
+
+  /**
+   * Shows what time alone changed: in place, unless the screen says what it
+   * is built of changed (`View.stale`), and then rebuilt in place.
+   */
+  const refresh = (before: GameState, time: number): void => {
+    if (!state) return;
+    syncHeader(state);
+    if (view?.stale?.(before, state)) rebuildView();
+    view?.update?.(state, time);
   };
 
   const render = (): void => {
@@ -717,20 +795,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       h('main', { class: 'screen', attrs: { id: 'screen', 'data-tab': tab } }, [view.el]),
       awards,
       toasts,
-      ...(away
-        ? [
-            awayReportOverlay(
-              away,
-              content,
-              () => {
-                away = null;
-                awayEarned = [];
-                render();
-              },
-              awayEarned,
-            ),
-          ]
-        : []),
+      ...(away ? [awayOverlay()] : []),
       h(
         'nav',
         { class: 'tabbar', attrs: { 'aria-label': 'Sections' } },
@@ -796,33 +861,42 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       return;
     }
     if (elapsed >= AWAY_MS) {
+      const was = state;
+      const reported = away;
       returnFrom(elapsed);
-      render();
+      // The report goes over the screen; the screen itself changes only as a
+      // frame would change it, so a page left open is as it was left.
+      if (away && away !== reported) {
+        awayEl?.remove();
+        root.querySelector('nav.tabbar')?.before(awayOverlay());
+      }
+      if (was.fight && !state.fight) {
+        const reason = fightEnded(was, state, content) ?? 'gone';
+        fightOver = { monster: was.fight.monster, reason, tally: finalTally(was, state) };
+      }
+      refresh(was, time);
       return;
     }
 
     const before = state;
     state = takeStockOf(advance(state, elapsed, content));
-    let redraw = false;
+    // What changed is said in a toast; which screens it changes is theirs to
+    // say (`View.stale`), so a kill or a level never rebuilds a screen it
+    // does not touch.
     for (const skill of Object.values(content.skills)) {
       const level = skillLevel(state, skill.id);
       if (level > skillLevel(before, skill.id)) {
         toast(`${skill.name} level ${level}!`);
-        // A level can unlock an action, and what is on screen was built for the old one.
-        redraw = true;
       }
     }
     if (before.potion && !state.potion) {
       const name = content.items[before.potion.item]?.name ?? 'potion';
       toast(`Your ${name} has worn off.`);
-      // Its panel goes, and the action's numbers go back to plain.
-      redraw = true;
     }
     if (before.action && !state.action) {
       const short = missingInput(state, content.actions[before.action.id]!);
       toast(short ? `Out of ${content.items[short.item]?.name ?? short.item}.` : 'Stopped.');
       save();
-      redraw = true;
     }
     if (before.fight && !state.fight) {
       const reason = fightEnded(before, state, content) ?? 'gone';
@@ -836,29 +910,47 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             : 'That fight is over.',
       );
       save();
-      redraw = true;
     } else if (before.food && !state.food) {
       toast(
         `Out of ${content.items[before.food.item]?.name ?? 'food'}. Fighting on without eating.`,
       );
-      redraw = true;
     }
-    if (bountyReady(state) && !bountyReady(before)) {
+    const handed = stat(state, 'bounties') - stat(before, 'bounties');
+    if (handed > 0) {
+      // Auto bounty handed it in and took the next, mid-fight.
+      const paid = state.bountyPoints - before.bountyPoints;
+      toast(
+        `Bounty paid: ${counted(paid, 'point')}. Next: ${counted(state.bounty?.count ?? 0, monsterName(state.bounty?.monster))}.`,
+      );
+      save();
+    } else if (bountyReady(state) && !bountyReady(before)) {
       toast(
         `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
       );
-      // Its page and cards change from hunting to handing in.
-      redraw = true;
     }
-    // The bank lists only what is held, so a first log needs its row built.
-    const firstOfSomething = Object.keys(state.bank).length !== Object.keys(before.bank).length;
     if (time - lastSave >= AUTOSAVE_MS) save();
-    if (redraw || (tab === 'bank' && firstOfSomething)) render();
-    else view?.update?.(state, time);
+    refresh(before, time);
   };
 
-  // A game that was closed: everything since its last save is time away.
-  if (state) returnFrom(now() - state.savedAt);
+  // A game that was closed: everything since its last save is time away. A
+  // dungeon run it was left in is taken up again after a quick reload (the
+  // scene asks for it, `savedRun`), and no idle time is owed for the gap, as
+  // the run had the idle clock stopped. Left longer, the run is over: what was
+  // picked up comes home as from a run rowed back early, and then the time
+  // away is paid to the idle task like any other.
+  if (state) {
+    const gap = now() - state.savedAt;
+    if (state.run && gap < AWAY_MS) {
+      lastTick = now();
+    } else {
+      if (state.run) {
+        // Rowed home early: no clear, whatever the snapshot says.
+        state = settleRun(state, { ...state.run.spoils, cleared: undefined }, content);
+        toast('Your dungeon run was cut short. What you carried came home with you.');
+      }
+      returnFrom(gap);
+    }
+  }
   render();
   return { save, tick };
 }

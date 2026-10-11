@@ -15,6 +15,18 @@ const logged = (collection: string[]) => ({
   perks: [],
 });
 
+/**
+ * What version 9 adds (wave 13): an unread notice board, no last target,
+ * auto bounty off, no run kept, and a bare chin on whatever look there was.
+ */
+const boarded = (look: Record<string, string> = {}) => ({
+  bountyBoard: [],
+  lastBounty: null,
+  autoBounty: false,
+  run: null,
+  look: { beard: 'none', ...look },
+});
+
 /** What versions 6 and 7 add to a save made at `createdAt`: no fight, no food, dice of its own. */
 const unfought = (createdAt: number) => ({
   fight: null,
@@ -41,7 +53,7 @@ describe('migrateGameState', () => {
 
   it('brings a version 1 save (S1: a name and nothing else) up to date', () => {
     const v1 = { version: 1, name: 'Cody', createdAt: 5, savedAt: 9 };
-    expect(migrateGameState(v1)).toEqual({ ...newGame('Cody', 5), savedAt: 9 });
+    expect(migrateGameState(v1)).toEqual({ ...newGame('Cody', 5), savedAt: 9, ...boarded() });
   });
 
   it('brings a version 2 save (S2 and S3) up to date without touching what it holds', () => {
@@ -60,10 +72,10 @@ describe('migrateGameState', () => {
       coins: 0,
       mastery: {},
       potion: null,
-      look: {},
       equipment: {},
       ...unfought(5),
       ...logged(['pine_logs']),
+      ...boarded(),
     });
   });
 
@@ -83,11 +95,11 @@ describe('migrateGameState', () => {
       ...v3,
       version: GAME_STATE_VERSION,
       potion: null,
-      look: {},
       equipment: {},
       ...unfought(5),
       ...logged(['raw_shrimp', 'sageleaf']),
       coins: 400,
+      ...boarded(),
     });
   });
 
@@ -108,11 +120,11 @@ describe('migrateGameState', () => {
     expect(migrateGameState(v4)).toEqual({
       ...v4,
       version: GAME_STATE_VERSION,
-      look: {},
       equipment: {},
       ...unfought(5),
       ...logged(['bronze_sword', 'bronze_shield', 'bronze_arrows', 'steady_draught']),
       coins: 120,
+      ...boarded(),
     });
   });
 
@@ -139,6 +151,7 @@ describe('migrateGameState', () => {
       ...unfought(v5.createdAt),
       ...logged(['cooked_shrimp', 'bronze_sword']),
       coins: 120,
+      ...boarded({ hair: 'long' }),
     });
     expect(Number.isInteger(v6!.rng) && v6!.rng >= 0 && v6!.rng < 2 ** 32).toBe(true);
     // Two characters made at different times roll different dice.
@@ -166,13 +179,15 @@ describe('migrateGameState', () => {
       },
       bestiary: { dock_rat: { kills: 3, seen: ['hide'] } },
     } as Record<string, unknown>;
-    for (const key of Object.keys({ ...unrobbed, ...logged([]) })) delete v6[key];
+    for (const key of Object.keys({ ...unrobbed, ...logged([]), ...boarded() })) delete v6[key];
+    v6.look = {};
     // The fight keeps its own hit points: health out of a fight is for after it.
     expect(migrateGameState(v6)).toEqual({
       ...v6,
       version: GAME_STATE_VERSION,
       ...unrobbed,
       ...logged(['hide', 'bronze_sword', 'cooked_shrimp']),
+      ...boarded(),
     });
   });
 
@@ -196,7 +211,8 @@ describe('migrateGameState', () => {
       bountyPoints: 4,
       coins: 123,
     } as Record<string, unknown>;
-    for (const key of Object.keys(logged([]))) delete v7[key];
+    for (const key of Object.keys({ ...logged([]), ...boarded() })) delete v7[key];
+    v7.look = { skin: 'tan' };
     // Sold or eaten long ago leaves no trace, so is not in it; everything shown
     // is, once. Prices went up tenfold, and the purse with them.
     expect(migrateGameState(structuredClone(v7))).toEqual({
@@ -214,7 +230,30 @@ describe('migrateGameState', () => {
         'smuggled_tea',
         'pearl',
       ]),
+      ...boarded({ skin: 'tan' }),
     });
+  });
+
+  it('brings a version 8 save (S10 to wave 12) up to date: the board unread, the bounty held at its old pay, a bare chin', () => {
+    const v8 = {
+      ...newGame('Cody', 5),
+      version: 8,
+      look: { skin: 'tan', hair: 'long', hairColour: 'red' },
+      bounty: { monster: 'marsh_troll', count: 18, done: 7 },
+      bountyPoints: 40,
+      stats: { bounties: 9, streak: 3, bestStreak: 5 },
+      coins: 5000,
+    } as Record<string, unknown>;
+    for (const key of ['bountyBoard', 'lastBounty', 'autoBounty', 'run']) delete v8[key];
+    const v9 = migrateGameState(structuredClone(v8))!;
+    expect(v9).toEqual({
+      ...v8,
+      version: GAME_STATE_VERSION,
+      ...boarded({ skin: 'tan', hair: 'long', hairColour: 'red' }),
+    });
+    // The bounty held keeps no offered pay: it pays its monster's old row, as it was taken.
+    expect(v9.bounty).toEqual({ monster: 'marsh_troll', count: 18, done: 7 });
+    expect(GAME_STATE_VERSION).toBe(9);
   });
 
   it('walks every step in order and stamps the version as it goes', () => {

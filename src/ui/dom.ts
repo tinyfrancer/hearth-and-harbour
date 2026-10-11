@@ -41,3 +41,11 @@ export function button(label: string, onClick: () => void, variant = ''): HTMLBu
 export function titled(icon: Element | null, text: string): HTMLElement {
   return h('h2', { class: icon ? 'titled' : '' }, [icon, text]);
 }
+
+/**
+ * Sets an element's text only when it differs, so a frame that changes
+ * nothing touches nothing (and a screen reader is not told it again).
+ */
+export function setText(el: Element, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}

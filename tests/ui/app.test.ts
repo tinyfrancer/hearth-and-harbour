@@ -9,6 +9,11 @@ import { xpForLevel } from '../../src/core/xp';
 import { mountApp } from '../../src/ui/app';
 import { CONTENT } from '../../src/data';
 import { LOOK_CHOICES2 } from '../../src/art/character2';
+import { lookParts } from '../../src/ui/look';
+
+/** The art's choices for any part it offers, read as plain data. */
+const choicesOf = (part: string) =>
+  (LOOK_CHOICES2 as unknown as Record<string, readonly { id: string; name: string }[]>)[part]!;
 
 // The whole shell, driven the way a thumb would, against real storage.
 let root: HTMLElement;
@@ -714,11 +719,8 @@ describe('the app shell', () => {
   describe('the look', () => {
     // The art lane adds choices over time, so these read them rather than name them.
     const parts = ['skin', 'hair', 'hairColour'] as const;
-    const first = {
-      skin: LOOK_CHOICES2.skin[0]!.id,
-      hair: LOOK_CHOICES2.hair[0]!.id,
-      hairColour: LOOK_CHOICES2.hairColour[0]!.id,
-    };
+    // Every part the art offers at run time (lane B's beard row among them), each at its first.
+    const first = Object.fromEntries(lookParts().map(({ part }) => [part, choicesOf(part)[0]!.id]));
 
     it('draws the character on the creation screen and makes them with the first choices', () => {
       mount();
@@ -764,7 +766,7 @@ describe('the app shell', () => {
       create('Cody');
       tab('character');
       press('Change look');
-      expect(root.querySelectorAll('.sheet [data-part]')).toHaveLength(3);
+      expect(root.querySelectorAll('.sheet [data-part]')).toHaveLength(lookParts().length);
       press('Done');
       expect(root.querySelector('.sheet [data-part]')).toBeNull();
       expect(new LocalStorageSaveService().load()?.look).toEqual(first);

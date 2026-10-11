@@ -44,6 +44,10 @@ describe('newGame', () => {
       dungeons: {},
       stats: {},
       perks: [],
+      bountyBoard: [],
+      lastBounty: null,
+      autoBounty: false,
+      run: null,
     });
   });
 

@@ -1,6 +1,7 @@
 import { itemIcon } from '../art/icons';
 import type { Content, StoreEntry } from '../core/content';
-import { storeProblem } from '../core/store';
+import { perksFor, storeProblem } from '../core/store';
+import type { PerkPlace } from '../core/content';
 import type { GameState } from '../core/state';
 import { wornLines } from './bountyScreen';
 import { button, h, titled } from './dom';
@@ -27,6 +28,33 @@ export function entryName(entry: StoreEntry, content: Content): string {
   return entry.qty > 1 ? `${name} ×${formatNumber(entry.qty)}` : name;
 }
 
+/** "Used in Alchemy.": the skills whose actions take an item, so a vial says what it is for. */
+export function usedInLine(itemId: string, content: Content): string | null {
+  const skills = [
+    ...new Set(
+      Object.values(content.actions)
+        .filter((action) => action.uses?.some(({ item }) => item === itemId))
+        .map((action) => content.skills[action.skill]?.name ?? action.skill),
+    ),
+  ];
+  return skills.length > 0 ? `Used in ${skills.join(', ')}.` : null;
+}
+
+/**
+ * The lasting things owned that a screen shows (`PerkDef.shows`), a line
+ * each: the name and what it does, in numbers. Nothing when none is owned,
+ * so a screen can always ask. A new upgrade with a place in `shows` appears
+ * on that place's screen with no code of its own.
+ */
+export function perkNotes(state: GameState, content: Content, place: PerkPlace): HTMLElement[] {
+  return perksFor(state, content, place).map(({ id, perk }) =>
+    h('p', { class: 'small perk-note', attrs: { 'data-perk': id } }, [
+      h('span', { class: 'perk-name', text: `${perk.name}: ` }),
+      perk.effect,
+    ]),
+  );
+}
+
 /**
  * One thing the store sells: what it is, what it gives, its price and Buy.
  * Whether it can be bought moves with the purse, in place.
@@ -38,6 +66,7 @@ function storeRow(
   updates: ((state: GameState) => void)[],
 ): HTMLElement {
   const item = entry.item ? content.items[entry.item] : undefined;
+  const usedIn = entry.item ? usedInLine(entry.item, content) : null;
   const why = h('p', { class: 'small muted' });
   const buyButton = button(`Buy for ${coinsText(entry.price)}`, buy);
   buyButton.setAttribute('data-buy', entry.id);
@@ -61,6 +90,9 @@ function storeRow(
         class: 'small muted',
         text: entry.perk ? entry.perk.description : (item?.description ?? ''),
       }),
+      // What buying it does, plainly and in numbers, before anything else.
+      entry.perk && h('p', { class: 'small perk-effect', text: entry.perk.effect }),
+      usedIn && h('p', { class: 'small', text: usedIn }),
       ...(entry.item
         ? wornLines(entry.item, content).map((line) => h('p', { class: 'small', text: line }))
         : []),
@@ -86,7 +118,11 @@ export function storeView(state: GameState, content: Content, actions: StoreActi
   });
   const entries = Object.values(content.store ?? {});
   const tools = entries.filter((entry) => !entry.perk && !entry.once);
-  const dear = entries.filter((entry) => entry.perk || entry.once);
+  // A lasting thing bought moves out of the stock into "Yours", where it stays.
+  const owned = perksFor(state, content);
+  const dear = entries.filter(
+    (entry) => (entry.perk && !state.perks.includes(entry.id)) || entry.once,
+  );
   const rows = (list: StoreEntry[]) =>
     list.map((entry) => storeRow(entry, content, () => actions.buy(entry.id), updates));
   // Built before the first update, so each row is set for the purse it opens on.
@@ -115,6 +151,17 @@ export function storeView(state: GameState, content: Content, actions: StoreActi
           text: 'Buys anything at what it is worth: sell from the bank. Sells what a beginner needs, dear, and a few things worth saving for.',
         }),
       ]),
+      owned.length > 0 && h('h2', { class: 'group-heading', text: 'Yours' }),
+      ...owned.map(({ id, perk }) =>
+        h('section', { class: 'panel stack tight owned', attrs: { 'data-owned': id } }, [
+          h('div', { class: 'card-head' }, [
+            h('h2', { text: perk.name }),
+            h('span', { class: 'level owned-mark', text: 'Owned' }),
+          ]),
+          h('p', { class: 'small perk-effect', text: perk.effect }),
+          h('p', { class: 'small muted', text: 'Bought once, kept for good. Working now.' }),
+        ]),
+      ),
       tools.length > 0 && h('h2', { class: 'group-heading', text: 'To get you started' }),
       ...toolRows,
       dear.length > 0 && h('h2', { class: 'group-heading', text: 'Worth saving for' }),

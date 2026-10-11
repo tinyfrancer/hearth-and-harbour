@@ -1,8 +1,10 @@
 import type { Content, ItemDef, PotionDef } from '../core/content';
 import { bankCount, skillLevel, type GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
-import { button, h, titled } from './dom';
+import { button, h, setText, titled } from './dom';
+import { keyedList } from './keyed';
 import { activePotion, chargesFor } from '../core/potions';
+import { perksFor } from '../core/store';
 import { formatNumber } from './format';
 import { gearText, slotText } from './gear';
 import { potionEffectText, potionSkillsText } from './potionPanel';
@@ -66,7 +68,19 @@ function potionFacts(potion: PotionDef, content: Content, state: GameState): HTM
     h('dt', { text: 'For' }),
     h('dd', { text: potionSkillsText(potion, content) }),
     h('dt', { text: 'Lasts' }),
-    h('dd', { text: `${formatNumber(chargesFor(state, potion, content))} actions` }),
+    h('dd', { attrs: { 'data-lasts': '' } }, [
+      `${formatNumber(chargesFor(state, potion, content))} actions`,
+      // Said where it shows: the potion's own number, and what owning the case adds.
+      ...perksFor(state, content, 'potions')
+        .filter(({ perk }) => perk.potionCharges)
+        .map(({ id, perk }) =>
+          h('span', {
+            class: 'perk-note',
+            attrs: { 'data-perk': id },
+            text: ` (${formatNumber(potion.charges)}, and ${perk.potionCharges ?? 0}% more from your ${perk.name})`,
+          }),
+        ),
+    ]),
   ];
 }
 
@@ -104,6 +118,19 @@ function drinkButton(
     'primary',
   );
   return h('div', { class: 'stack tight' }, [drink, confirm]);
+}
+
+/** What wearing a thing needs, marked short until the level is reached, in place. */
+function needsLine(
+  needs: { skill: string; level: number },
+  content: Content,
+  updates: ((state: GameState) => void)[],
+): HTMLElement {
+  const el = h('dd', {
+    text: `${content.skills[needs.skill]?.name ?? needs.skill} level ${needs.level}`,
+  });
+  updates.push((now) => el.classList.toggle('problem', skillLevel(now, needs.skill) < needs.level));
+  return el;
 }
 
 /** The item card: what a thing is, where it comes from, what it is for, and selling it. */
@@ -162,15 +189,7 @@ function itemCard(
             h('dd', { text: slotText(item.equip) }),
             h('dt', { text: 'Gives' }),
             h('dd', { text: gearText(item.equip) }),
-            ...(needs
-              ? [
-                  h('dt', { text: 'Needs' }),
-                  h('dd', {
-                    class: skillLevel(state, needs.skill) < needs.level ? 'problem' : '',
-                    text: `${content.skills[needs.skill]?.name ?? needs.skill} level ${needs.level}`,
-                  }),
-                ]
-              : []),
+            ...(needs ? [h('dt', { text: 'Needs' }), needsLine(needs, content, updates)] : []),
           ]
         : []),
       ...(item.heals
@@ -192,7 +211,15 @@ function itemCard(
   ]);
 }
 
-/** The Bank tab: coins, every stack held, and a card for the one that is open. */
+/**
+ * The Bank tab: coins, every stack held, and a card for the one that is open.
+ *
+ * Built once. A stack that arrives (a first log, a drop from a kill) gets its
+ * row where the table puts it, and one that runs out loses its row, in place;
+ * opening a card swaps it for its row where it stands, and closing it swaps
+ * it back. Nothing else on the page is rebuilt, so the page never jumps back
+ * to the top (Cody: "selecting an item ... always scrolls you back to the top").
+ */
 export function bankView(
   state: GameState,
   content: Content,
@@ -229,40 +256,73 @@ export function bankView(
       ],
     );
 
-  // Table order, not arrival order, so a stack never jumps about.
-  const held = Object.values(content.items).filter((item) => bankCount(state, item.id) > 0);
-  const rows = held.map((item) => {
-    const open = item.id === openItem;
-    if (open) {
-      return itemCard(state, item, content, actions, updates);
+  let open = openItem;
+  let latest = state;
+  const list = h('div', { class: 'stack', attrs: { 'data-bank-list': '' } });
+  const empty = h('section', { class: 'panel empty' }, [
+    h('p', { class: 'muted', text: 'Your bank is empty. Go and gather something.' }),
+  ]);
+
+  /**
+   * Open a card (or close it, with null) where it stands. The thing tapped
+   * keeps its place on the screen: a card closing above it would otherwise
+   * pull it up by the card's height.
+   */
+  const show = (itemId: string | null): void => {
+    const was = open;
+    const anchor = itemId ?? was;
+    const top = anchor ? rows.get(anchor)?.getBoundingClientRect().top : undefined;
+    open = itemId;
+    actions.open(itemId);
+    if (was) rows.rebuild(was, latest);
+    if (itemId) rows.rebuild(itemId, latest);
+    // A stack that ran out while its card was open has no row to go back to.
+    if (was && bankCount(latest, was) === 0) rows.sync(keysOf(latest), latest);
+    const screen = list.closest<HTMLElement>('#screen');
+    const moved = anchor ? rows.get(anchor)?.getBoundingClientRect().top : undefined;
+    if (screen && top !== undefined && moved !== undefined && moved !== top) {
+      screen.scrollTop += moved - top;
+    }
+  };
+  const shown: BankActions = { ...actions, open: show };
+
+  const rows = keyedList<GameState>(list, (id, now) => {
+    const item = content.items[id]!;
+    const own: ((state: GameState) => void)[] = [];
+    if (id === open) {
+      const el = itemCard(now, item, content, shown, own);
+      return { el, update: (next) => own.forEach((apply) => apply(next)) };
     }
     const qty = h('span', { class: 'qty' });
-    updates.push((now) => {
-      qty.textContent = formatNumber(bankCount(now, item.id));
-    });
-    return h(
+    const el = h(
       'button',
       {
         class: 'panel card stack-row',
         attrs: { type: 'button', 'data-item': item.id },
-        on: { click: () => actions.open(item.id) },
+        on: { click: () => show(item.id) },
       },
       [h('div', { class: 'card-head' }, [titled(itemIcon(item.id), item.name), qty])],
     );
+    return { el, update: (next) => setText(qty, formatNumber(bankCount(next, item.id))) };
   });
 
-  const update = (now: GameState): void => updates.forEach((apply) => apply(now));
+  // Table order, not arrival order, so a stack never jumps about. The open
+  // card stays while it is open, even if the last of its stack goes by itself.
+  const keysOf = (now: GameState): string[] =>
+    Object.values(content.items)
+      .filter((item) => bankCount(now, item.id) > 0 || item.id === open)
+      .map((item) => item.id);
+
+  const update = (now: GameState): void => {
+    latest = now;
+    updates.forEach((apply) => apply(now));
+    const keys = keysOf(now);
+    rows.sync(keys, now);
+    empty.hidden = keys.length > 0;
+  };
   update(state);
   return {
-    el: h('div', { class: 'stack' }, [
-      head,
-      store,
-      ...rows,
-      held.length === 0 &&
-        h('section', { class: 'panel empty' }, [
-          h('p', { class: 'muted', text: 'Your bank is empty. Go and gather something.' }),
-        ]),
-    ]),
+    el: h('div', { class: 'stack' }, [head, store, list, empty]),
     update,
   };
 }

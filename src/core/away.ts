@@ -2,7 +2,7 @@ import { advance, missingInput } from './actions';
 import { busy } from './combat';
 import type { Content } from './content';
 import { fightEnded } from './fight';
-import { masteryLevel, skillLevel, type GameState } from './state';
+import { masteryLevel, skillLevel, stat, type GameState } from './state';
 
 /** The most time away that is ever paid for. */
 export const OFFLINE_CAP_MS = 24 * 60 * 60 * 1000;
@@ -53,6 +53,11 @@ export interface AwayReport {
    * held, or it gained nothing and was not already done.
    */
   bounty: null | { monster: string; gained: number; done: number; count: number; ready: boolean };
+  /**
+   * What auto bounty handed in while away: how many bounties, and the points
+   * they paid (their coins are in `coins`). Null when it handed in none.
+   */
+  claimed: null | { bounties: number; points: number };
   /** Why the action or fight is no longer running, or null if it still is. */
   stopped:
     | null
@@ -118,9 +123,12 @@ export function catchUp(
     if (ended) stopped = { reason: ended };
     const left = (worn: { item: string; qty: number } | null | undefined, item: string): number =>
       worn?.item === item ? worn.qty : 0;
+    // Every kill counts, whoever it was: auto bounty may have moved the fight on.
+    const killed = (at: GameState): number =>
+      Object.values(at.bestiary).reduce((sum, record) => sum + record.kills, 0);
     fight = {
       monster,
-      kills: (after.bestiary[monster]?.kills ?? 0) - (state.bestiary[monster]?.kills ?? 0),
+      kills: killed(after) - killed(state),
       eaten: state.food ? state.food.qty - left(after.food, state.food.item) : 0,
       food: state.food?.item ?? null,
       arrows: state.equipment.ammo
@@ -143,12 +151,17 @@ export function catchUp(
     theft = { mark: mark.id, attempts: picked + caught, picked, caught };
   }
 
-  // Only a fight changes a bounty while time passes, and only by counting kills.
+  // Only a fight changes a bounty while time passes: by counting kills, and
+  // with auto bounty by handing one in and taking the next.
+  const handed = stat(after, 'bounties') - stat(state, 'bounties');
+  const claimed: AwayReport['claimed'] =
+    handed > 0 ? { bounties: handed, points: after.bountyPoints - state.bountyPoints } : null;
   let bounty: AwayReport['bounty'] = null;
-  if (state.bounty && after.bounty) {
+  if (after.bounty && (state.bounty || claimed)) {
     const { monster, done, count } = after.bounty;
-    const gained = done - state.bounty.done;
-    if (gained > 0 || done >= count) {
+    const same = !claimed && state.bounty?.monster === monster;
+    const gained = same ? done - state.bounty!.done : done;
+    if (gained > 0 || done >= count || claimed) {
       bounty = { monster, gained, done, count, ready: done >= count };
     }
   }
@@ -173,6 +186,7 @@ export function catchUp(
       mastery,
       theft,
       bounty,
+      claimed,
       stopped,
       potion,
     },

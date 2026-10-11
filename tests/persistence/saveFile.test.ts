@@ -49,10 +49,14 @@ const unfought = {
 const tenfold = { coins: 770 };
 /** What version 8 adds to a save from before it, but for the log of what it proves was held. */
 const V8_FIELDS = ['collection', 'achievements', 'dungeons', 'stats', 'perks'];
+/** What version 9 adds to a save from before it, but for a bare chin on the look. */
+const V9_FIELDS = ['bountyBoard', 'lastBounty', 'autoBounty', 'run'];
+/** The look an older save comes in with: as it was, with the art's bare chin. */
+const bearded = { look: { ...state.look, beard: 'none' } };
 /** A save as a version before 6 wrote it. */
 const before6 = (version: number): Record<string, unknown> => {
   const old: Record<string, unknown> = { ...state, version };
-  for (const field of ['fight', 'food', 'eatAt', 'rng', 'bestiary', ...V8_FIELDS]) {
+  for (const field of ['fight', 'food', 'eatAt', 'rng', 'bestiary', ...V8_FIELDS, ...V9_FIELDS]) {
     delete old[field];
   }
   return old;
@@ -84,7 +88,7 @@ describe('save export and import', () => {
     };
     expect(readSave(JSON.stringify(v1))).toEqual({
       ok: true,
-      state: { ...newGame('Cody', 5), savedAt: 9 },
+      state: { ...newGame('Cody', 5), savedAt: 9, look: { beard: 'none' } },
     });
   });
 
@@ -98,7 +102,7 @@ describe('save export and import', () => {
       state: {
         ...state,
         potion: null,
-        look: {},
+        look: { beard: 'none' },
         equipment: {},
         ...unfought,
         ...tenfold,
@@ -115,7 +119,7 @@ describe('save export and import', () => {
       ok: true,
       state: {
         ...state,
-        look: {},
+        look: { beard: 'none' },
         equipment: {},
         ...unfought,
         ...tenfold,
@@ -131,6 +135,7 @@ describe('save export and import', () => {
         ...state,
         ...unfought,
         ...tenfold,
+        ...bearded,
         collection: ['pine_logs', 'pine_shortbow', 'bronze_arrows', 'sage_tonic'],
       },
     });
@@ -138,7 +143,7 @@ describe('save export and import', () => {
 
   it('loads a version 6 save, from before thieving, unrobbed, with no bounty and at full health', () => {
     const v6: Record<string, unknown> = { ...fighting, version: 6 };
-    for (const field of ['marks', 'bounty', 'bountyPoints', 'health', ...V8_FIELDS]) {
+    for (const field of ['marks', 'bounty', 'bountyPoints', 'health', ...V8_FIELDS, ...V9_FIELDS]) {
       delete v6[field];
     }
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v6 }))).toEqual({
@@ -150,6 +155,7 @@ describe('save export and import', () => {
         bountyPoints: 0,
         health: null,
         ...tenfold,
+        ...bearded,
         collection: [
           'pine_logs',
           'pine_shortbow',
@@ -164,12 +170,13 @@ describe('save export and import', () => {
 
   it('loads a version 7 save, from before the log, with what it proves was held found', () => {
     const v7: Record<string, unknown> = { ...state, version: 7 };
-    for (const field of V8_FIELDS) delete v7[field];
+    for (const field of [...V8_FIELDS, ...V9_FIELDS]) delete v7[field];
     expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v7 }))).toEqual({
       ok: true,
       state: {
         ...state,
         ...tenfold,
+        ...bearded,
         collection: [
           'pine_logs',
           'pine_shortbow',
@@ -180,6 +187,45 @@ describe('save export and import', () => {
         ],
       },
     });
+  });
+
+  it('loads a version 8 save with the board unread, auto bounty off, no run, and a bare chin', () => {
+    const v8: Record<string, unknown> = {
+      ...state,
+      version: 8,
+      bounty: { monster: 'marsh_troll', count: 18, done: 4 },
+    };
+    for (const field of V9_FIELDS) delete v8[field];
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v8 }))).toEqual({
+      ok: true,
+      state: { ...state, bounty: { monster: 'marsh_troll', count: 18, done: 4 }, ...bearded },
+    });
+  });
+
+  it('round-trips the notice board, auto bounty, a bounty’s pay, a beard and a run under way', () => {
+    const board: GameState = {
+      ...state,
+      look: { ...state.look, beard: 'a-beard', ...{ eyeColour: 'a-part-the-art-added' } },
+      bountyBoard: [
+        { monster: 'dock_rat', count: 60, points: 4 },
+        { monster: 'footpad', count: 22, points: 6 },
+      ],
+      lastBounty: 'marsh_troll',
+      autoBounty: true,
+    };
+    expect(readSave(writeSaveExport('code', board).text)).toEqual({ ok: true, state: board });
+    const hunting: GameState = {
+      ...board,
+      bountyBoard: [],
+      bounty: { monster: 'footpad', count: 22, done: 3, points: 6 },
+      run: {
+        dungeon: 'brinebeards_grotto',
+        scene: 1,
+        spoils: { xp: { melee: 120.5 }, loot: { doubloon: 3 }, coins: 40, kills: { deckhand: 2 } },
+        data: { room: 'tide_pools', battle: { seed: 77, clock: 1200 } },
+      },
+    };
+    expect(readSave(writeSaveExport('file', hunting).text)).toEqual({ ok: true, state: hunting });
   });
 
   it('round-trips a log, achievements, clears, counts and perks', () => {
@@ -239,7 +285,9 @@ describe('save export and import', () => {
       { ...state, look: undefined },
       { ...state, look: 'handsome' },
       { ...state, look: { skin: 3 } },
-      { ...state, look: { nose: 'long' } },
+      // A part must be a plain name (any the art may add); its value a string.
+      { ...state, look: { 'a nose': 'long' } },
+      { ...state, look: { nose: 3 } },
       { ...state, equipment: undefined },
       { ...state, equipment: [] },
       { ...state, equipment: { pocket: { item: 'seashells', qty: 1 } } },
@@ -309,6 +357,62 @@ describe('save export and import', () => {
       { ...state, stats: { streak: 4, bestStreak: 3 } },
       { ...state, perks: undefined },
       { ...state, perks: [null] },
+      { ...state, look: { beard: 7 } },
+      { ...state, bounty: { monster: 'dock_rat', count: 10, done: 1, points: -1 } },
+      { ...state, bounty: { monster: 'dock_rat', count: 10, done: 1, points: 1.5 } },
+      { ...state, bountyBoard: undefined },
+      { ...state, bountyBoard: 'dock_rat' },
+      { ...state, bountyBoard: [{ monster: 'dock_rat', count: 0, points: 2 }] },
+      { ...state, bountyBoard: [{ monster: 'dock_rat', count: 5, points: 0 }] },
+      { ...state, bountyBoard: [{ monster: 4, count: 5, points: 2 }] },
+      // The same monster twice on the board, and more offers than it holds.
+      {
+        ...state,
+        bountyBoard: [
+          { monster: 'dock_rat', count: 5, points: 2 },
+          { monster: 'dock_rat', count: 6, points: 2 },
+        ],
+      },
+      {
+        ...state,
+        bountyBoard: ['a', 'b', 'c', 'd'].map((monster) => ({ monster, count: 5, points: 2 })),
+      },
+      // Offers still up while a bounty is held.
+      {
+        ...state,
+        bounty: { monster: 'footpad', count: 10, done: 1, points: 3 },
+        bountyBoard: [{ monster: 'dock_rat', count: 5, points: 2 }],
+      },
+      { ...state, lastBounty: 4 },
+      { ...state, lastBounty: undefined },
+      { ...state, autoBounty: 'yes' },
+      { ...state, autoBounty: undefined },
+      { ...state, run: undefined },
+      { ...state, run: 'grotto' },
+      { ...state, run: { dungeon: 'brinebeards_grotto', scene: 0, spoils: {}, data: {} } },
+      { ...state, run: { dungeon: 'brinebeards_grotto', scene: 1, spoils: {}, data: 'run' } },
+      {
+        ...state,
+        run: { dungeon: 'brinebeards_grotto', scene: 1, spoils: { coins: -3 }, data: {} },
+      },
+      {
+        ...state,
+        run: {
+          dungeon: 'brinebeards_grotto',
+          scene: 1,
+          spoils: { loot: { doubloon: 'lots' } },
+          data: {},
+        },
+      },
+      {
+        ...state,
+        run: {
+          dungeon: 'brinebeards_grotto',
+          scene: 1,
+          spoils: {},
+          data: { junk: 'x'.repeat(300 * 1024) },
+        },
+      },
     ]) {
       expect(readSave(wrap(broken))).toMatchObject({
         ok: false,
