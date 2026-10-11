@@ -105,9 +105,19 @@ export function rowboat(): Drawn {
       if (py < 0.2) t -= 1;
       if (py > 0.8) t += 1;
       const turn = x > cx + L * 0.3 ? 0.5 : 0;
-      // B15: the top strake painted blue, cared for, so the boat reads as somebody's and ready.
-      if (strake === 0 && j > 0)
-        put(g, x, yTop + j, C('blue', clamp((py < 0.35 ? 1 : 2) + turn, 1, 4)));
+      // B15: the top strake painted, cared for, so the boat reads as somebody's and ready. B16: white
+      // with a red line under it (it was blue, and the blue was lost against the sea from across the
+      // square): the brightest thing on the water, the boat's shape drawn by it.
+      const band = j / depth;
+      if (j > 0 && band < 0.5)
+        put(
+          g,
+          x,
+          yTop + j,
+          band >= 0.38
+            ? C('crimson', clamp(2 + turn, 1, 4))
+            : C('sail', clamp((j === 1 ? 0 : 1) + turn * 2, 0, 3)),
+        );
       else put(g, x, yTop + j, C('wood', clamp(t + turn, 1, 5)));
     }
   }
@@ -166,8 +176,15 @@ export function rowboat(): Drawn {
     while (y > 0 && !at(g, x, y)) y--;
     if (y > 0 && y < H - 1) put(g, x, y + 1, C('sea', (x * 7) % 5 === 0 ? 1 : 0));
   }
-  // The painter, up from the bow ring to the top edge (a ring on the quay above).
-  for (let y = 0; y < top + 2; y++) put(g, Math.round(cx + L * 0.4), y, C('linen', 3));
+  // The painter (B16: a mooring line that can be seen, not a thread): out of the coil in the bows,
+  // over the far gunwale and up to the top edge toward the quay, lit along one side.
+  const bowX = Math.round(cx + L * 0.4);
+  for (let y = 0; y <= Math.round(cy - 2); y++) {
+    const s = y / (cy - 2);
+    const x = Math.round(bowX + 5 - 5 * s * s);
+    put(g, x, y, C('linen', 1));
+    put(g, x + 1, y, C('linen', 4));
+  }
   return { grid: g, glows: [] };
 }
 

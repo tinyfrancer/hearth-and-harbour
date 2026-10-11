@@ -1,7 +1,67 @@
 # Lane B: art
 
-**Next session:** B16 is in progress (the large travel marker and edge pointer shipped first; its
-second PR polishes the markers, the boat, and B15's weak spots). Then Cody's review of B15 and B16.
+**Next session:** Cody's review of B15 and B16 (the tide-pool cave, Old Snapper, the harbour
+chart, the ferryman, the boat, its sign and lantern, the town's markers large and small, the edge
+pointer) and whatever it asks for.
+
+## Markers, the ring, the boat, B15's weak spots, for lane C (B16, second PR)
+
+No export renamed or re-signed; no id, footprint, base or layout position moved. Drawing changes,
+two added data fields, one moved chart coordinate:
+
+```ts
+// raster.ts: a glow may carry its own colour (left out: the lamp's GLOW_RGB, as before)
+interface Glow { …; readonly rgb?: readonly [number, number, number] }
+// dungeon2/light.ts
+DAYLIGHT2_RGB = [222, 242, 255]   // the tide-pool cave's daylight; on SHAFT_LIGHT2 and every
+                                  // tide-pool glow and light; flicker2 passes `rgb` through
+// dungeon2/sizes.ts
+interface Foe2Size { …; readonly mid?: number }   // the body's middle, ahead of the anchor
+FOE2_SIZES.old_snapper: box { w: 84, h: 43 } (was 67), mid: -14 (new); reach unchanged
+// chart.ts
+CHART2_LANDINGS.unknown_2 = { x: 42, y: 154 }   // was (52, 133); keys unchanged
+// town2/facts.ts
+boat_lantern: 26 x 64, base 62 (was 14 x 50, base 48), foot 6; ROWBOAT_LANTERN_AT unchanged
+```
+
+- **Markers**: the small `gather` is a green leaf with a gold glint, drawn by hand at 10 x 8 (the
+  hand axe read worst at true size); the other small markers are byte for byte B15's (tested). Each
+  marker was checked at true size over cobbles, grass, sand, planks and water, by day and at dusk
+  (`markers-before-after.png`).
+- **The ring** (`townHighlight2`, same signature, same anchor rule): a thin unbroken gold ellipse
+  held between two dark keylines, a brighter glint creeping round it by frame, so it reads on
+  every ground and is never taken for foam on the sea. The grid is now `w + 4` across (was `w + 2`)
+  and its anchor is still its middle.
+- **The boat** (`rowboat`, same id, size 135 x 58, base 54, foot 68): the top strake white over a
+  red line (the blue was lost against the sea), the mooring line two pixels thick from the coil in
+  the bows up over the far gunwale. **Its lantern** (`boat_lantern`): the pole a staff's length
+  taller (14 pixels) with a long red pennant at its head, so something of the boat stands up past
+  the quay's edge. Its foot, and where it stands in the boat, are unchanged; `BOAT_LANTERN` in
+  lane C's `fromLaneB.ts` reads the new size and base from `town2Facts`, so nothing to change.
+- **The sign** (`boat_sign`, same size): its picture bold: a dark hull filling the board, the boat's
+  white and red strake, thick raised oars, two rows of sea.
+- **Old Snapper**: his body's middle is 14 behind his feet, so `FOE2_SIZES.old_snapper.mid` is `-14`
+  and his box is his whole drawn body, 84 wide, which reaches from his tail to his head when
+  centred there. Every other foe stands over its middle and has no `mid` (`measureFoe2` adds it
+  only when the middle is 8 or more off the feet). Front, back and strike are unchanged.
+- **The tide-pool cave**: the walls' beds dip gently and wander, no upright joints, weed lodged in
+  the deeper joins with strands, barnacles freckling the beds (`tidepool.ts`); `light_shaft` has a
+  dithered body of its own as well as its glows (same size, foot and base); every daylight glow and
+  light in the theme carries `DAYLIGHT2_RGB`, a cool near-white, so the shafts, the mouth and the
+  open doors no longer look like late-afternoon lamplight. The grotto is untouched (its hash test
+  holds).
+- **The ferryman from behind**: the sou'wester is a rounded crown with its brim's long back flap
+  over his nape (it read as a cone, and his bare head showed under it).
+- **The chart**: home drawn half as big again (34 x 18 before its outline), outlined as a town
+  piece, with the tavern, the smithy and its chimney, and the thatched house; `unknown_2` moved to
+  open water south of the western islets, clear of the first islet.
+- **Gallery**: the markers plate shows both sizes and the pointers (first PR); the ferry plate shows
+  the new boat, lantern and sign.
+- **Review sheets** in `/home/claude/lane-shots/w16-b/`: `markers-before-after.png`,
+  `boat-before-after.png` (the real quay at true phone size, day and dusk, portrait and sideways,
+  with the large marker pasted where lane C would float it), `pointer.png` (with mock-ups at the
+  screen's edge), `snapper-box.png`, `tidepool-before-after.png`, `chart-before-after.png`,
+  `ferryman-back.png`.
 
 ## The large travel marker and the edge pointer, for lane C (B16, first PR)
 
@@ -45,7 +105,7 @@ portrait2('ferryman'), PORTRAIT2_SAFE.ferryman   // { x: 3, y: 0, w: 64, h: 56 }
 
 // town2/pieces.ts: two new piece ids (town2Piece, town2Facts, TOWN2_IDS)
 'boat_sign'     // 44 x 72, base 70, foot 16, ground 15 x 15 (one tile), its lamp lights at dusk
-'boat_lantern'  // 14 x 50, base 48, foot 6, no ground: rides in the boat, lights at dusk
+'boat_lantern'  // 26 x 64, base 62 (B16; was 14 x 50, base 48), foot 6, no ground: rides in the boat
 ROWBOAT_LANTERN_AT = { x: 114, y: 23 }  // where the lantern's foot goes, from the boat's top-left
 
 // town2/markers.ts (new)
@@ -157,7 +217,7 @@ activityHitFrame2(activity: string): number | null   // where each loop's work l
 - **The chart** is 340 x 300 art pixels, one art pixel a CSS pixel on a 390-wide phone (3 device
   pixels), day only: rasterize with `DAY2`. Landings: `tidepool_cave` (239, 116) off the headland
   just east of the bay, `brinebeards_grotto` (106, 170) by the island to the south-west,
-  `unknown_1` (250, 178) a south-eastern islet, `unknown_2` (52, 133) the western islets,
+  `unknown_1` (250, 178) a south-eastern islet, `unknown_2` (42, 154) south of the western islets (B16; was (52, 133)),
   `unknown_3` (196, 262) the far shore; `home` (128, 100), the quay. A marker's anchor is the pole's
   foot (on the landing); `selected` is a ring whose anchor is its middle (lay it round the chosen
   marker, centred about 6 above the landing); an emblem's anchor is its middle (beside the marker).
@@ -1680,6 +1740,27 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 
 ## Needs from another lane
 
+- **Lane C, for B16** (nothing breaks if you wait; all drawing):
+  - Float the boat's marker large: `townMarker2('travel', frame, 'large')` (29 x 30, anchor
+    `{ x: 14, y: 29 }`, the keyline under its tip) with its anchor 2 to 6 pixels over the boat's far
+    gunwale (about y 1474 at x 520 with the boat at its placement; `BOAT_MARK` (520, 1486) puts it
+    down inside the boat), at least while the hero is more than about four tiles off; your
+    `MARK_BOX` (14 x 16) is the small's, so the hero-overlap test wants the large's box for it.
+    The sparkle beside it (`new`) can go large too, about 18 to the right.
+  - While the boat is off the screen, `townPointer2(direction, frame)` at the screen's edge on the
+    line toward it: `'left' | 'right' | 'up' | 'down'`, 16 x 17 (17 x 16 up and down), anchor the
+    point just past its tip at its furthest frame, so put the anchor a few pixels inside the edge.
+    Frames and timing as the markers'.
+  - **Old Snapper's box and shadow**: centre his tap box and contact shadow on
+    `feet.x + mid * (facing === 'right' ? 1 : -1)` when `size.mid` is set (only he has it). His box
+    is now 84 wide (was 67): centred on his feet, as now, it would reach 42 ahead of them, over a
+    hero at the stand, so please wire `mid` with it. In `fightFigures` (`fightArt.ts`) `half` comes
+    from `box.w`; with 84 his `back` there is `min(56, 50)` = 50 (was 41.5): drawing-only spacing,
+    but you may prefer `half = box.w / 2 - |mid|` to keep it as it was.
+  - The ring's picture is two pixels wider and taller than before (keylines); its anchor is still
+    its middle, so `ringOf` and the drawing need no change.
+  - Nothing to do for the boat, lantern, sign, ferryman, tide-pool glows (they carry their colour
+    as `glow.rgb`, which lane B's `addGlow` honours) or the chart (`unknown_2` moved; keys kept).
 - **Lane C, for B15's second PR** (Cody's point about the boat; nothing breaks if you wait):
   - Place the ferryman (`'ferryman'`, a standing townsperson; suggested tile (17, 59), facing down),
     `boat_sign` (suggested foot (444, 1413), one tile solid) and `boat_lantern` (in the boat, at
@@ -1870,6 +1951,27 @@ worn, 'dusk')` is identical under it.
 
 ## Notes for this lane's next session
 
+- **Weak list (B16), honestly**, weakest first:
+  - The large marker and the edge pointer are not in the game until lane C wires them; they were
+    judged on mock-ups pasted into real-game screenshots at true size, not in motion in the scene.
+  - Old Snapper's box is 84 wide from this PR, but lane C still centres it on his feet until it
+    reads `mid`: until then it reaches 42 ahead of his feet, over a hero at the stand (a tap there
+    targets him). The shadow likewise stays forward until wired.
+  - The boat's mooring line ends at the top of the boat's canvas: the quay's ring is above the
+    piece, so the line reads as going up to the quay, not tied to a ring you can see. The pennant
+    does not stir (no wind frames); the boat still does not bob (lane C's).
+  - The tide-pool walls are better than coursed stone close up but still mostly horizontal; the
+    worn lumps within a bed are slab-like at 5x; weed strands can read as drips.
+  - The light shaft's dither reads as a screen door when enlarged; at true size it reads as a beam.
+  - The small markers are still 14 x 16: the leaf's glint is three pixels at true size.
+  - From behind, the ferryman's sou'wester now reads as a rounded rain hat rather than a cone, but
+    plainly; walking across, his oar still passes in front of his chin (he is meant to stand).
+  - On the chart, the thatched house's chimney is a blob of outline; the sea serpent is still small.
+- **How B16 was iterated**: `.shots/` vitests (node config) rendering composites over the town
+  picture and the tide-pool room, `before/` from `git archive origin/main src/art`; real-game
+  screenshots from a production build of a hooks page under `.shots/` (`import '../src/main'` first,
+  then the scene hooks: imported the other way round, the dev server hits a module cycle) served
+  statically, the boat's screen position read from `hh.toScreen` to paste mock-ups; Pillow sheets.
 - **Weak list (B15), honestly**, weakest first:
   - Old Snapper's contact shadow is centred on his feet point, which is ahead of his shell's middle
     (placed so a hero at the stand is not drawn over him), so a scene's shadow sits a little forward

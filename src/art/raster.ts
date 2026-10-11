@@ -23,6 +23,8 @@ export interface Glow {
    * glow, which its larger evening glow replaces at dusk.
    */
   readonly byDay?: boolean;
+  /** Its colour (B16), for a light that is not a flame: daylight in a sea cave. A lamp's if left out. */
+  readonly rgb?: readonly [number, number, number];
 }
 
 /** A drawing and the lights in it. */
@@ -80,6 +82,7 @@ export function addGlow(px: Float64Array, w: number, h: number, glow: Glow): voi
   const x1 = Math.min(w - 1, Math.ceil(glow.x + glow.radius));
   const y0 = Math.max(0, Math.floor(glow.y - glow.radius));
   const y1 = Math.min(h - 1, Math.ceil(glow.y + glow.radius));
+  const rgb = glow.rgb ?? GLOW_RGB;
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
       const dist = Math.hypot(x + 0.5 - glow.x, y + 0.5 - glow.y);
@@ -90,7 +93,7 @@ export function addGlow(px: Float64Array, w: number, h: number, glow: Glow): voi
       // Premultiply, add, and divide back out, so light on an empty pixel is a halo.
       const outA = Math.min(1, a + alpha);
       for (let c = 0; c < 3; c++) {
-        const sum = Math.min(255, (px[i + c] as number) * a + (GLOW_RGB[c] as number) * alpha);
+        const sum = Math.min(255, (px[i + c] as number) * a + (rgb[c] as number) * alpha);
         px[i + c] = outA > 0 ? sum / outA : 0;
       }
       px[i + 3] = outA * 255;

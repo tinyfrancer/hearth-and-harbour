@@ -17,7 +17,7 @@ import {
   TOWN_MARKER2_FRAME_MS,
   TOWN_MARKER2_KINDS,
 } from '../../src/art/town2/markers';
-import { matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
+import { isMat, matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
 import { DAY2, DUSK2 } from '../../src/art/town2/ramps';
 import { shines } from '../../src/art/raster';
 
@@ -73,7 +73,9 @@ describe('the ferry’s pieces on the quay (B15)', () => {
     expect([f.w, f.h, f.base, f.foot]).toEqual([135, 58, 54, 68]);
     const g = town2Piece('rowboat').picture.grid;
     expect(count(g, 'pinewood')).toBeGreaterThan(100);
-    expect(count(g, 'blue')).toBeGreaterThan(100);
+    // B16: the strake painted white over a red line (it was blue, lost against the sea).
+    expect(count(g, 'sail')).toBeGreaterThan(150);
+    expect(count(g, 'crimson')).toBeGreaterThan(80);
     // The lantern's place is inside the boat.
     expect(ROWBOAT_LANTERN_AT.x).toBeGreaterThan(f.w / 2);
     expect(ROWBOAT_LANTERN_AT.x).toBeLessThan(f.w);
@@ -114,12 +116,29 @@ describe('interaction markers (B15)', () => {
     }
   });
 
-  it('rings the nearest thing softly: light on the ground, no outline, its anchor its middle', () => {
+  it('rings the nearest thing: an unbroken gold line between dark keylines, its anchor its middle', () => {
     const r = townHighlight2(60);
     const g = r.picture.grid;
     expect(g.w).toBeGreaterThanOrEqual(60);
     expect(Array.from(g.d).filter(Boolean).length).toBeGreaterThan(40);
-    expect(Array.from(g.d).some((c) => c && stepOf(c) === 6)).toBe(false);
+    // B16: gold, kept between keylines a step off the line so it never reads as foam on the sea.
+    const gold = Array.from(g.d).filter((c) => c && isMat(c, 'gold')).length;
+    const keys = Array.from(g.d).filter((c) => c && isMat(c, 'tar')).length;
+    expect(gold).toBeGreaterThan(120);
+    expect(keys).toBeGreaterThan(gold);
+    // Unbroken: every gold pixel has a gold neighbour on each side along the ring (8-connected).
+    for (let y = 0; y < g.h; y++)
+      for (let x = 0; x < g.w; x++) {
+        if (!isMat(g.d[y * g.w + x]!, 'gold')) continue;
+        let near = 0;
+        for (let j = -1; j <= 1; j++)
+          for (let i = -1; i <= 1; i++) {
+            if (!i && !j) continue;
+            const c = g.d[(y + j) * g.w + x + i];
+            if (c && isMat(c, 'gold')) near++;
+          }
+        expect(near, `${x},${y}`).toBeGreaterThanOrEqual(2);
+      }
     expect(Math.abs(r.anchor.x - g.w / 2)).toBeLessThanOrEqual(1);
     expect(Math.abs(r.anchor.y - g.h / 2)).toBeLessThanOrEqual(1);
     expect(Array.from(townHighlight2(60, 1).picture.grid.d)).not.toEqual(Array.from(g.d));

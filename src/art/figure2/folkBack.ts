@@ -203,24 +203,30 @@ const HEADS: Readonly<Record<string, readonly Part2[]>> = {
       63,
     ),
   ],
-  // B15: the sou'wester from behind, its brim long over his neck; his beard either side of his jaw.
+  // B15: the sou'wester from behind; his beard either side of his jaw. B16: a rounded crown with
+  // its seam, not a peak (it read as a cone), and the brim's long back flap hanging over his nape,
+  // so no bare head shows under it.
   ferryman: [
     SKULL,
-    hd(0, 10, ['2.............3', '22...........33', '.2...........3.'], 'hair'),
+    hd(-2, 10, ['2................3', '22..............33', '.2..............3.'], 'hair'),
     hd(
       -3,
       -1,
       [
-        '........hiijk........',
-        '......hiiijjkkl......',
-        '.....hiiijjjjkkl.....',
-        '....hiiiijjjjjkkl....',
-        '...hiijjjjjjjjjkkl...',
+        '.......hiiijjk.......',
+        '.....hiiiijjjjkl.....',
+        '....hiiiiijjjjkkl....',
+        '....iiiiijjjjjkkl....',
+        '....iiiijjjjjjkkl....',
+        '....kjjjjjjjjjkll....',
         '..hiiiiiiiiiiiijjkl..',
-        '.ijjjjjjjjjjjjjkkkll.',
-        'ijjjjjjjjjjjjjjkkkllm',
-        'jkkkkkkkkkkkkkkkklllm',
-        '.kk.............llm..',
+        '.ijjjjjjjjjjjjjjkkll.',
+        'ijjjjjjjjjjjjjjjkkllm',
+        '.kjjjjjjjjjjjjjjkkll.',
+        '..jjjjjjjjjjjjjjkkl..',
+        '..jjjjjjjjjjjjjkkkl..',
+        '..kjjjjjjjjjjjjkkll..',
+        '...kkkkkkkkkkkkklll..',
       ],
       undefined,
       {

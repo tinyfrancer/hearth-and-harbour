@@ -797,8 +797,12 @@ not only their colour.
   use red or orange; its floor starfish are purple.
 - **Rock in beds, not lumps.** The walls' faces are strata: beds of their own thickness and tone,
   some pale and hard standing proud, some dark and worn back under them, a broken shadow at each
-  join, wide worn lumps within a bed, an upright joint now and then, sea-worn pockets; at the tide's
-  mark a band of green weed and a crust of blue-black mussels with barnacles, then a wet dark foot.
+  join, wide worn lumps within a bed, sea-worn pockets; at the tide's mark a band of green weed and
+  a crust of blue-black mussels with barnacles, then a wet dark foot. B16: the beds dip gently
+  across a room and wander along it, so no join runs level for long; no upright joints (with level
+  joins they cut the face into blocks and read as coursed masonry); weed lodged in the deeper joins
+  in broken lines, strands hanging over the bed below; barnacles freckling the beds, thicker toward
+  the tide's mark.
   The rock's top is broad quiet masses in two tones with weed in its cracks. The floor's rock is
   broad smooth slabs, each with a lit rounded lip, green film in its hollows, barnacles in crusts.
 - **Sand and water.** Sand is a beach's: bright, ripples only in patches and wavy, a little shell
@@ -806,10 +810,14 @@ not only their colour.
   bright lines where two wandering waves meet), the sea a slow blue-green swell.
 - **Light by day.** Nothing is darkened near a light (one step only past 3.2 pools, the far corners);
   each light lifts its heart a step. Its lights are shafts of sun through cracks above
-  (`light_shaft`: a slit of sky at the top, motes, a chain of warm glows falling down and to the
-  right, a pool on the floor), the cave's mouth (`cave_mouth`: a ragged opening three tiles tall
-  in the back wall with the sky, a far headland and the bright sea, its rim lit on the sunward
-  side, kelp hanging from its crown) and each open door. Its glows shine by day (`always`).
+  (`light_shaft`: a slit of sky at the top, motes, a chain of glows falling down and to the right, a
+  pool on the floor, and from B16 a body of its own, a band widening as it falls, dithered in two
+  densities so the rock shows through, so it reads where no glows are drawn), the cave's mouth
+  (`cave_mouth`: a ragged opening three tiles tall in the back wall with the sky, a far headland
+  and the bright sea, its rim lit on the sunward side, kelp hanging from its crown) and each open
+  door. Its glows shine by day (`always`) and, from B16, in daylight's own cool near-white
+  (`DAYLIGHT2_RGB`, carried on each glow and light as `rgb`), not the lamp's warm orange, which
+  read as late-afternoon sun.
 - **Doors by daylight.** An open way is lit from beyond by the day (bright sand and the sea's edge
   down a side passage; the sky and the sea through a natural arch in the face), a glass float in its
   net hanging by it; a barred way is driftwood stakes lashed with rope (and a net in the arch), dark
@@ -833,7 +841,8 @@ slow, plainer to read than the grotto's giant crab.
   snapped line.
 - **He stands tight to his feet**: his feet point is a little behind his front feet, his shell and
   tail behind it, so his head is all that is ahead of it (27 columns) and a hero at the 36-pixel
-  stand is never drawn over him.
+  stand is never drawn over him. His body's middle is therefore 14 behind his feet: his sizes say
+  so (`mid`, B16), and his tap box (head to tail) and contact shadow centre there.
 - **The telegraph is the plainest in the game** (the fight teaches dodging and bracing): rearing,
   the front of the shell tipped up (the body layer sheared up at the front), front feet off the
   ground, the head drawn high and back, the jaws gaping pink. The snap is the neck out low, the beak
@@ -858,7 +867,10 @@ The chart the rowing boat opens: a hand-drawn sea chart in the game's pixels, da
   rhumb lines dotted faint from the compass rose (an eight-pointed star in a ring, each point split
   lit and dark, the north point red with a fleur over it, a gold hub), a sea serpent in the margin.
 - **Home is drawn**: the town on its bay (red tile and slate roofs, the quay, the pier), a little
-  lighthouse on the headland east of the bay.
+  lighthouse on the headland east of the bay. B16: home is half as big again and outlined like a
+  town piece (the tavern, the smithy and its chimney, the thatched house up behind, windows and
+  doors), so its pale walls hold on the paper. A landing never stands on land: each sits in open
+  water by the shore it belongs to, clear of the islet's ink.
 - **State goes on top, never in the picture**: markers (a red pennant open, gold with a seal
   cleared, furled grey with a padlock locked, a dotted ring of mist round a question unknown, a gold
   ring with ticks selected), each dungeon's emblem (or its ink silhouette while locked), the red
@@ -870,16 +882,26 @@ Cody: "make it more apparent we need to click the boat". The town must say what 
 without looking like a menu.
 
 - **Make the thing inviting first**: the rowing boat has its oars shipped (pale ash, red-tipped
-  blades), a painted blue top strake, a coil of rope, and a lantern on a pole at its bow that lights
-  at dusk; a painted sign on a post by the mooring (a rowing boat on blue water, a red border, its
-  own lantern); and the ferryman in a yellow oilskin and sou'wester, his oar upright beside him,
-  standing by the boat: the one person plainly waiting to take you somewhere.
+  blades), a painted top strake, a coil of rope, and a lantern on a pole at its bow that lights at
+  dusk; a painted sign on a post by the mooring (a rowing boat on blue water, a red border, its own
+  lantern); and the ferryman in a yellow oilskin and sou'wester, his oar upright beside him,
+  standing by the boat: the one person plainly waiting to take you somewhere. B16, for reading it
+  from across the square: the strake white over a red line (blue was lost against the sea; white is
+  the brightest thing on the water and draws the hull's shape), the lantern's pole a staff taller
+  with a long red pennant at its head (the one thing standing up past the quay's edge), the
+  mooring line two pixels thick, and the sign's boat bold (a dark hull filling the board, the
+  boat's own white and red strake, thick raised oars, two rows of sea). From behind, the
+  sou'wester is a rounded crown with its long back flap over the nape, never a peak (a peak reads
+  as a cone).
 - **Markers are few and quiet**: a small cream badge on a pointer with a dark keyline (so it reads
-  over cobbles and over the sea), one pictogram in it (speech dots, a doorway, a hand axe, an
-  anchor; a gold sparkle with no badge for something new), bobbing a pixel or two on a slow loop.
-  One over each thing worth tapping near the hero, never one over everything at once.
-- **The nearest thing gets a ring**: a thin dashed ellipse of pale light on the ground (or the water)
-  round its foot, the dashes creeping round; light, not a thing, so no outline.
+  over cobbles and over the sea), one pictogram in it (speech dots, a doorway, a leaf with a gold
+  glint (B16; a hand axe was the least clear at true size), an anchor; a gold sparkle with no badge
+  for something new), bobbing a pixel or two on a slow loop. One over each thing worth tapping near
+  the hero, never one over everything at once.
+- **The nearest thing gets a ring**: B16, a thin unbroken ellipse of gold held between two dark
+  keylines, a brighter glint creeping round it by frame, so it reads on cobbles, grass, sand,
+  planks and water alike. (B15's was a dashed ellipse of pale light with no outline; on the sea its
+  dashes were taken for foam.)
 - **The boat is seen from across the square (B16)**: a large marker, about twice the small (27 x 28
   before its keyline), a cream plaque in a two-step gold rim (lit above, shaded below) on a gold
   pointer, one bold pictogram filling it: for the boat a little sailing boat on a line of water (dark

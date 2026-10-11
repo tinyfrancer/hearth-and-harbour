@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stepOf } from '../../src/art/town2/cells';
+import { isMat, stepOf } from '../../src/art/town2/cells';
 import {
   townMarker2,
   townPointer2,
@@ -21,11 +21,15 @@ function fingerprint(g: { w: number; h: number; d: Int16Array }): string {
   return `${g.w}x${g.h} ${h.toString(16).padStart(8, '0')}`;
 }
 
-/** B15's small markers, frame by frame, as `main` drew them before the size argument. */
-const B15_SMALL: Record<string, readonly string[]> = {
+/**
+ * The small markers, frame by frame: B15's as `main` drew them before the size
+ * argument, but for `gather`, redrawn on purpose in B16 (a leaf with a glint;
+ * B15's hand axe was `99ae982a 3034ebaa 8731052a 3034ebaa`).
+ */
+const SMALL: Record<string, readonly string[]> = {
   talk: ['7cd701d7', 'f5fa1ad7', '511d63d7', 'f5fa1ad7'],
   enter: ['c3d968e0', 'ef8ff460', 'f3de7be0', 'ef8ff460'],
-  gather: ['99ae982a', '3034ebaa', '8731052a', '3034ebaa'],
+  gather: ['9d9f185a', '7a6f79da', '6cf5355a', '7a6f79da'],
   travel: ['c2589b27', '55158027', '0b40cd27', '55158027'],
   new: ['9f911dd7', '0e78101d', 'f64bb14c', '0e78101d'],
 };
@@ -34,12 +38,12 @@ const hasKeyline = (g: { d: Int16Array }): boolean =>
   Array.from(g.d).some((c) => c !== 0 && stepOf(c) === 6);
 
 describe('the marker’s size (B16)', () => {
-  it('leaves every existing call as it was: no size is small, byte for byte', () => {
+  it('leaves every existing call as it was: no size is small, byte for byte (gather redrawn)', () => {
     expect(TOWN_MARKER2_SIZES).toEqual(['small', 'large']);
     for (const kind of TOWN_MARKER2_KINDS)
       for (let f = 0; f < TOWN_MARKER2_FRAMES; f++) {
         const m = townMarker2(kind, f);
-        expect(fingerprint(m.picture.grid), `${kind} ${f}`).toBe(`16x18 ${B15_SMALL[kind]![f]}`);
+        expect(fingerprint(m.picture.grid), `${kind} ${f}`).toBe(`16x18 ${SMALL[kind]![f]}`);
         expect(m.anchor, kind).toEqual({ x: 7, y: 16 });
         expect(townMarker2(kind, f, 'small'), `${kind} ${f}`).toBe(m);
       }
@@ -83,6 +87,33 @@ describe('the marker’s size (B16)', () => {
       expect(stepOf(g.d[(m.anchor.y - 1) * g.w + m.anchor.x]!), kind).toBeLessThan(6);
       expect(m.anchor.x, kind).toBe((g.w - 1) / 2);
     }
+  });
+});
+
+describe('the markers’ legibility (B16)', () => {
+  it('draws gather as a green leaf with a gold glint, small and large', () => {
+    for (const size of ['small', 'large'] as const) {
+      const g = townMarker2('gather', 0, size).picture.grid;
+      const leaf = Array.from(g.d).filter((c) => c && isMat(c, 'leaf')).length;
+      const glint = Array.from(g.d).filter((c) => c && isMat(c, 'gold') && stepOf(c) <= 1).length;
+      expect(leaf, size).toBeGreaterThan(size === 'small' ? 25 : 70);
+      expect(glint, size).toBeGreaterThan(0);
+      // No iron left: the hand axe is gone.
+      expect(
+        Array.from(g.d).some((c) => c && isMat(c, 'iron')),
+        size,
+      ).toBe(false);
+    }
+  });
+
+  it('gives the large travel marker a boat on the water, a red pennant, in a gold rim', () => {
+    const g = townMarker2('travel', 0, 'large').picture.grid;
+    const n = (m: Parameters<typeof isMat>[1]) =>
+      Array.from(g.d).filter((c) => c && isMat(c, m)).length;
+    expect(n('gold')).toBeGreaterThan(80);
+    expect(n('crimson')).toBeGreaterThan(3);
+    expect(n('sea')).toBeGreaterThan(6);
+    expect(n('tar')).toBeGreaterThan(60);
   });
 });
 

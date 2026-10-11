@@ -12,7 +12,7 @@
 import { hash, outlined, put, tgrid, type Cell, type TGrid } from '../town2/cells';
 import { cell } from './cave';
 import type { Glow } from '../raster';
-import { SHAFT_LIGHT2, type Light2 } from './light';
+import { DAYLIGHT2_RGB, SHAFT_LIGHT2, type Light2 } from './light';
 import { paint, poly, rod, shaped, sprite } from './kit';
 
 export interface TideProp {
@@ -403,8 +403,8 @@ function caveMouth(): TideProp {
     grid: outlined(g),
     base: H,
     glows: [
-      { x: cx, y: 40, radius: 34, strength: 0.42, always: true },
-      { x: cx, y: 66, radius: 26, strength: 0.3, always: true },
+      { x: cx, y: 40, radius: 34, strength: 0.42, always: true, rgb: DAYLIGHT2_RGB },
+      { x: cx, y: 66, radius: 26, strength: 0.3, always: true, rgb: DAYLIGHT2_RGB },
     ],
     light: {
       x: cx,
@@ -415,6 +415,7 @@ function caveMouth(): TideProp {
       pool: 46,
       flicker: 0,
       always: true,
+      rgb: DAYLIGHT2_RGB,
     },
   };
 }
@@ -441,6 +442,22 @@ function lightShaft(): TideProp {
     ['..aaaa.....', '.abbbba....', 'abcccbbaa..', '.abccccbba.', '..aabbbcca.', '.....aaba..'],
     { a: ['tiderock', 6], b: ['tiderock', 5], c: ['glass', 0] },
   );
+  // B16: the beam's body, so it shows on a scene that adds no glows: a band of sunlight widening
+  // as it falls, dithered (a checker in its heart, a sparser one at its edges) so the rock and the
+  // floor show through it, thinning out near the slit and where it lands.
+  const [dx, dy] = [floor[0] - top[0], floor[1] - top[1]];
+  const len = Math.hypot(dx, dy);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const t = ((x - top[0]) * dx + (y - top[1]) * dy) / (len * len);
+      if (t < 0.06 || t > 1) continue;
+      const across = Math.abs((x - top[0]) * dy - (y - top[1]) * dx) / len;
+      const half = 2.5 + t * 9;
+      if (across > half) continue;
+      const heart = across < half * 0.55 && t > 0.14 && t < 0.92;
+      const on = heart ? (x + y) % 2 === 0 : x % 2 === 0 && y % 2 === 0 && (x + y) % 4 === 0;
+      if (on && !g.d[y * W + x]) put(g, x, y, cell(heart ? 'lamp' : 'sail', 0));
+    }
   // Motes in the beam, placed along it.
   for (let i = 0; i < 18; i++) {
     const t = 0.12 + hash(i, 1, 709) * 0.8;
@@ -457,10 +474,18 @@ function lightShaft(): TideProp {
       radius: 8 + t * 12,
       strength: 0.2 + t * 0.12,
       always: true,
+      rgb: DAYLIGHT2_RGB,
     });
   }
   // Where it lands, a bright haze on the floor.
-  glows.push({ x: floor[0], y: floor[1] - 2, radius: 26, strength: 0.3, always: true });
+  glows.push({
+    x: floor[0],
+    y: floor[1] - 2,
+    radius: 26,
+    strength: 0.3,
+    always: true,
+    rgb: DAYLIGHT2_RGB,
+  });
   // Padded a pixel each side, as an outlined picture would be, so the door's offsets hold.
   const pad = tgrid(W + 2, H + 2);
   for (let y = 0; y < H; y++)

@@ -140,7 +140,16 @@ function wallTopAt(x: number, y: number): Cell {
 
 /** Which bed of the rock a row of the room is in, wandering a pixel or two along it. */
 function bedAt(x: number, wy: number): { bed: number; at: number; size: number } {
-  const w = wy + Math.round((noise(x, 0, 23, 361) - 0.5) * 4 + (noise(x, 0, 7, 367) - 0.5) * 1.6);
+  // B16: the beds dip gently across the room and wander more along it, so no join runs level
+  // for long (straight level joins read as coursed masonry from close up).
+  const w =
+    wy +
+    Math.round(
+      x * 0.07 +
+        (noise(x, 0, 41, 360) - 0.5) * 9 +
+        (noise(x, 0, 23, 361) - 0.5) * 5 +
+        (noise(x, 0, 7, 367) - 0.5) * 1.6,
+    );
   // Beds of their own thickness, 4 to 7 rows.
   let top = 0;
   let bed = 0;
@@ -160,24 +169,32 @@ function bedAt(x: number, wy: number): { bed: number; at: number; size: number }
 
 /**
  * A bed of the cliff: its top edge lit, its underside shadowed, its own tone,
- * worn into shallow pockets here and there.
+ * worn into shallow pockets here and there. B16: no upright joints (they cut
+ * the beds into blocks, like coursed stone); weed lodged along some joins in
+ * lines with strands hanging from them; barnacles freckling the beds, more
+ * of them lower down (`wet`, 0 high on the face to 1 at the tide's mark).
  */
-function strata(x: number, wy: number, base: number): Cell {
+function strata(x: number, wy: number, base: number, wet = 0): Cell {
   const { bed, at, size } = bedAt(x, wy);
   const h = hash(bed, 1, 363);
   // Beds of their own tone: some pale and hard, standing proud; some dark and soft, worn back.
   const tone = h < 0.3 ? -0.8 : h > 0.72 ? 0.9 : 0;
-  // The join under a bed: a shadow where a soft bed is worn back under a hard one, broken along it.
+  // The join under a bed: a shadow where a soft bed is worn back under a hard one, broken along it;
+  // where the join is deep enough, weed has lodged in it.
   const joint = noise(x, wy, 9, 368 + (bed % 5));
-  if (at === size - 1 && joint > 0.3) return cell('tiderock', lim(base + 1.6 + tone * 0.5, 2, 6));
+  const weed = noise(x, bed, 13, 375);
+  if (at === size - 1 && joint > 0.3) {
+    if (weed > 0.64) return cell('moss', weed > 0.76 ? 4 : 5);
+    return cell('tiderock', lim(base + 1.6 + tone * 0.5, 2, 6));
+  }
+  // Strands of that weed hanging over the top of the bed below.
+  if (at <= 2 && weed > 0.7 && hash(x, bed, 376) < 0.45 && at < 1 + hash(x, bed, 377) * 3)
+    return cell('moss', at === 0 ? 4 : 5);
   if (at === 0 && tone <= 0 && joint > 0.45) return cell('tiderock', lim(base - 1.2, 0, 5));
-  // Upright joints across a bed now and then, lit on their left.
-  const jx = Math.floor((x + hash(bed, 2, 369) * 40) / (14 + Math.floor(hash(bed, 3, 369) * 16)));
-  const jEdge = Math.floor(
-    (x + 1 + hash(bed, 2, 369) * 40) / (14 + Math.floor(hash(bed, 3, 369) * 16)),
-  );
-  if (jx !== jEdge && at < size - 1 && at > 0 && hash(bed, jx, 370) < 0.16)
-    return cell('tiderock', lim(base + 1.4, 2, 5));
+  // Barnacles: pale specks in loose clusters, thicker toward the tide's mark.
+  const crust = noise(x, wy, 8, 378);
+  if (crust > 0.62 - wet * 0.14 && hash(x, wy, 379) < 0.05 + wet * 0.07)
+    return cell('cream', hash(x, wy, 380) < 0.6 ? 1 : 3);
   // Within a bed, wide worn lumps (rock splits along its beds), each lit on its upper left.
   const l = lumpAt(x, wy * 2.2, 16, 371 + (bed % 9));
   let t =
@@ -226,7 +243,7 @@ function faceAt(x: number, y: number, wy: number): Cell {
     // Strands hang below the band's foot.
     return cell('moss', t);
   }
-  return strata(x, wy, 2.6 + (y / 12) * 0.3);
+  return strata(x, wy, 2.6 + (y / 12) * 0.3, Math.min(1, y / 11));
 }
 
 /** Now and then a detail: shells, pebbles, a purple starfish, a razor shell, weed, a pool, limpets, mussels. */

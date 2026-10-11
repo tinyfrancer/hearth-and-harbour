@@ -17,6 +17,7 @@ import { cell } from './cave';
 import { TILE2 as P } from './tiles';
 import { tideFaceAt, tideFaceHighAt, tideRockAt, tideWallTopAt } from './tidepool';
 import { cheeks, type DoorPiece2 } from './doors';
+import { DAYLIGHT2_RGB } from './light';
 
 const flip = (g: TGrid): TGrid => {
   const out = tgrid(g.w, g.h);
@@ -137,8 +138,15 @@ export function tideSideDoorPiece(
     glows: barred
       ? []
       : [
-          { x: mx(41), y: O0 - 14, radius: 12, strength: 0.35, always: true },
-          { x: mx(24), y: (O0 + O1) / 2, radius: 26, strength: 0.45, always: true },
+          { x: mx(41), y: O0 - 14, radius: 12, strength: 0.35, always: true, rgb: DAYLIGHT2_RGB },
+          {
+            x: mx(24),
+            y: (O0 + O1) / 2,
+            radius: 26,
+            strength: 0.45,
+            always: true,
+            rgb: DAYLIGHT2_RGB,
+          },
         ],
     ...(barred
       ? {}
@@ -151,6 +159,7 @@ export function tideSideDoorPiece(
             drop: 20,
             pool: 26,
             flicker: 0,
+            rgb: DAYLIGHT2_RGB,
           },
         }),
   };
@@ -242,7 +251,9 @@ export function tideFaceDoorPiece(barred: boolean, x0: number, y0: number): Door
   float(g, 59, 30, !barred);
   return {
     grid: g,
-    glows: barred ? [] : [{ x: Math.round(cx), y: 40, radius: 28, strength: 0.4, always: true }],
+    glows: barred
+      ? []
+      : [{ x: Math.round(cx), y: 40, radius: 28, strength: 0.4, always: true, rgb: DAYLIGHT2_RGB }],
     ...(barred
       ? {}
       : {
@@ -254,6 +265,7 @@ export function tideFaceDoorPiece(barred: boolean, x0: number, y0: number): Door
             drop: 22,
             pool: 26,
             flicker: 0,
+            rgb: DAYLIGHT2_RGB,
           },
         }),
   };
