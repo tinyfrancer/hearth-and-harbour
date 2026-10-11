@@ -34,10 +34,11 @@ import { buyFromStore } from '../core/store';
 import { SLOTS, type AchievementDef, type Content } from '../core/content';
 import { newGame, skillLevel, stat, type Fight, type GameState } from '../core/state';
 import type { SaveService } from '../persistence/SaveService';
+import { memoryPrefs, type Prefs } from '../persistence/Prefs';
 import { awayReportOverlay } from './awayReport';
-import { artGallery } from '../art/gallery';
 import { townView } from '../scene/townView';
 import { bankView } from './bankScreen';
+import { isBankSort, type BankView } from './bankOrder';
 import { bountiesView, type BountyActions } from './bountyScreen';
 import { characterView, type SheetPanel } from './characterScreen';
 import { areasView, fightView, type CombatActions, type FightOver } from './combatScreen';
@@ -48,6 +49,8 @@ import { heroFace } from './face';
 import { fullLook } from './look';
 import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
+import { titleScreen, type TitleScreen } from './titleScreen';
+import { nowDoing, type NowTarget } from './nowDoing';
 import { skillListView, skillPageView } from './skillsScreen';
 import { entryName, storeView } from './storeScreen';
 import { TABS, type TabId } from './tabs';
@@ -57,7 +60,17 @@ export interface AppDeps {
   saves: SaveService;
   content: Content;
   now(): number;
+  /** How the menus are arranged on this device; kept for the page's life alone if left out. */
+  prefs?: Prefs;
+  /**
+   * Open on the title screen, as every cold start of the real game does
+   * (src/main.ts). Left out (the tests), the app opens straight on the game.
+   */
+  title?: boolean;
 }
+
+/** The bank's sort, kept on this device across sessions (a preference, never the save). */
+const BANK_SORT_PREF = 'bank-sort';
 
 export interface App {
   /** Write the game to storage, stamped with the time. False if it failed or there is no game. */
@@ -153,7 +166,10 @@ function bringIntoView(screen: HTMLElement, el: HTMLElement, under?: HTMLElement
 }
 
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
-export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): App {
+export function mountApp(
+  root: HTMLElement,
+  { saves, content, now, prefs = memoryPrefs(), title = false }: AppDeps,
+): App {
   let state: GameState | null = saves.load();
   let tab: TabId = 'skills';
   /** The skill whose page is open on the Skills tab, or null for the list. */
@@ -166,6 +182,13 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   let openItem: string | null = null;
   /** Whether the Bank tab is showing the general store. */
   let storeOpen = false;
+  /** How the bank is sorted and filtered: the sort from the last session, the rest from this one. */
+  const savedSort = prefs.get(BANK_SORT_PREF);
+  let bankArranged: BankView = {
+    sort: isBankSort(savedSort) ? savedSort : 'type',
+    filter: 'all',
+    search: '',
+  };
   /** Which of the records is open on the Character tab, if one is. */
   let records: 'log' | 'achievements' | null = null;
   /** A scene has stopped the idle clock (a dungeon run is on). */
@@ -196,6 +219,16 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   /** The away report's overlay while it is up: laid over the screen, which is left alone. */
   let awayEl: HTMLElement | null = null;
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
+  /** The "now doing" strip above the tabs: made once, kept across every screen. */
+  const doing = nowDoing(content, (target: NowTarget) => {
+    tab = 'skills';
+    combatPage = null;
+    fightOver = null;
+    openSkill = null;
+    if (target.kind === 'skill') openSkill = content.skills[target.skill] ? target.skill : null;
+    if (target.kind === 'fight') combatPage = 'fight';
+    turnTo();
+  });
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
   const awards = h('div', { class: 'awards', attrs: { role: 'status' } });
@@ -227,8 +260,14 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
     return stocked.state;
   };
 
+  /** The title screen while it is up: the game waits behind it, unpaid and unsaved. */
+  let titleUp: TitleScreen | null = null;
+
   const save = (): boolean => {
-    if (!state) return false;
+    // `savedAt` means "paid up to here"; on the title nothing has been paid
+    // since it was last written, so nothing is written (a phone hiding the
+    // page now must not turn the time away into time already paid).
+    if (!state || titleUp) return false;
     state = takeStockOf(state);
     lastSave = now();
     state = { ...state, savedAt: lastSave };
@@ -463,6 +502,12 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
 
   const buildView = (game: GameState): View => {
     if (tab === 'menu' && galleryOpen) {
+      // Loaded when opened: it holds every picture art has, the title's among
+      // them, which would otherwise ride in with the game's first load.
+      const holder = h('div', { class: 'stack' }, [
+        h('p', { class: 'muted', text: 'Fetching the pictures…' }),
+      ]);
+      void import('../art/gallery').then(({ artGallery }) => holder.replaceChildren(artGallery()));
       return {
         el: h('div', { class: 'stack' }, [
           button(
@@ -473,7 +518,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             },
             'back',
           ),
-          artGallery(),
+          holder,
         ]),
       };
     }
@@ -490,6 +535,11 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
             saves.clear();
             state = null;
             render();
+          },
+          showTitle: () => {
+            // Paid and saved up to now; from here the title is time away like a closed game.
+            save();
+            showTitle();
           },
         }),
       };
@@ -566,47 +616,57 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       });
     }
     if (tab === 'bank') {
-      return bankView(game, content, openItem, {
-        store: () => {
-          storeOpen = true;
-          openItem = null;
-          turnTo();
+      return bankView(
+        game,
+        content,
+        openItem,
+        {
+          store: () => {
+            storeOpen = true;
+            openItem = null;
+            turnTo();
+          },
+          // The bank opens and closes a card in place, where the thumb is: only
+          // which one is open is kept here, for coming back to the tab.
+          open: (itemId) => {
+            openItem = itemId;
+          },
+          sell: (itemId, qty) => {
+            const sold = sell(state ?? game, itemId, qty, content);
+            // A card for a stack that is gone would reopen by itself the next time one is gathered.
+            if (!sold.bank[itemId]) openItem = null;
+            act(sold);
+          },
+          drink: (itemId) => {
+            const result = drinkPotion(state ?? game, itemId, content);
+            if (!result.ok) {
+              toast(result.reason);
+              return;
+            }
+            if (!result.state.bank[itemId]) openItem = null;
+            toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
+            act(result.state);
+          },
+          equip: wear,
+          feed: (itemId) => {
+            const result = loadFood(state ?? game, itemId, content);
+            if (!result.ok) {
+              toast(result.reason);
+              return;
+            }
+            openItem = null;
+            toast(
+              `Your food slot holds ${result.state.food!.qty} ${content.items[itemId]?.name ?? itemId}.`,
+            );
+            act(result.state);
+          },
+          arrange: (next) => {
+            if (next.sort !== bankArranged.sort) prefs.set(BANK_SORT_PREF, next.sort);
+            bankArranged = next;
+          },
         },
-        // The bank opens and closes a card in place, where the thumb is: only
-        // which one is open is kept here, for coming back to the tab.
-        open: (itemId) => {
-          openItem = itemId;
-        },
-        sell: (itemId, qty) => {
-          const sold = sell(state ?? game, itemId, qty, content);
-          // A card for a stack that is gone would reopen by itself the next time one is gathered.
-          if (!sold.bank[itemId]) openItem = null;
-          act(sold);
-        },
-        drink: (itemId) => {
-          const result = drinkPotion(state ?? game, itemId, content);
-          if (!result.ok) {
-            toast(result.reason);
-            return;
-          }
-          if (!result.state.bank[itemId]) openItem = null;
-          toast(`You drink the ${content.items[itemId]?.name ?? itemId}.`);
-          act(result.state);
-        },
-        equip: wear,
-        feed: (itemId) => {
-          const result = loadFood(state ?? game, itemId, content);
-          if (!result.ok) {
-            toast(result.reason);
-            return;
-          }
-          openItem = null;
-          toast(
-            `Your food slot holds ${result.state.food!.qty} ${content.items[itemId]?.name ?? itemId}.`,
-          );
-          act(result.state);
-        },
-      });
+        bankArranged,
+      );
     }
     if (tab === 'character' && records) {
       const back = (): void => {
@@ -752,6 +812,8 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   };
 
   const render = (): void => {
+    // The title stays until it is left by its own button.
+    if (titleUp) return;
     if (tab !== 'town' || !state) {
       // Only a scene on the Town tab may hold the clock or the whole screen.
       idlePaused = false;
@@ -796,6 +858,7 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
       awards,
       toasts,
       ...(away ? [awayOverlay()] : []),
+      doing.el,
       h(
         'nav',
         { class: 'tabbar', attrs: { 'aria-label': 'Sections' } },
@@ -836,10 +899,23 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
         ),
       ),
     );
+    doing.update(state, now());
   };
 
+  /** Every frame: the game's step, then the strip, which shows wherever the game is. */
   const tick = (): void => {
     const time = now();
+    step(time);
+    if (state && doing.el.isConnected) doing.update(state, time);
+  };
+
+  const step = (time: number): void => {
+    if (titleUp) {
+      // Nothing passes in the game while the title is up; it is paid on Continue.
+      titleUp.tick(time);
+      lastTick = time;
+      return;
+    }
     const elapsed = Math.max(time - lastTick, 0);
     lastTick = time;
     if (!state) {
@@ -937,20 +1013,50 @@ export function mountApp(root: HTMLElement, { saves, content, now }: AppDeps): A
   // scene asks for it, `savedRun`), and no idle time is owed for the gap, as
   // the run had the idle clock stopped. Left longer, the run is over: what was
   // picked up comes home as from a run rowed back early, and then the time
-  // away is paid to the idle task like any other.
-  if (state) {
-    const gap = now() - state.savedAt;
-    if (state.run && gap < AWAY_MS) {
+  // away is paid to the idle task like any other. Whether the run is kept is
+  // judged by the gap at opening; the time is paid when the game is entered
+  // (on Continue, behind the title), measured from `savedAt` then.
+  const runKept = Boolean(state?.run && now() - state.savedAt < AWAY_MS);
+  const welcomeBack = (): void => {
+    if (!state) return;
+    if (state.run && runKept) {
       lastTick = now();
-    } else {
-      if (state.run) {
-        // Rowed home early: no clear, whatever the snapshot says.
-        state = settleRun(state, { ...state.run.spoils, cleared: undefined }, content);
-        toast('Your dungeon run was cut short. What you carried came home with you.');
-      }
-      returnFrom(gap);
+      return;
     }
+    if (state.run) {
+      // Rowed home early: no clear, whatever the snapshot says.
+      state = settleRun(state, { ...state.run.spoils, cleared: undefined }, content);
+      toast('Your dungeon run was cut short. What you carried came home with you.');
+    }
+    returnFrom(now() - state.savedAt);
+    lastTick = now();
+  };
+
+  /** The title screen over everything: Continue (or begin) takes the player in. */
+  function showTitle(): void {
+    titleUp?.dispose();
+    view = null;
+    creator = null;
+    root.classList.remove('fullscreen');
+    titleUp = titleScreen({
+      name: state?.name ?? null,
+      awayMs: state ? Math.max(0, now() - state.savedAt) : null,
+      now: now(),
+      go: () => {
+        titleUp?.dispose();
+        titleUp = null;
+        welcomeBack();
+        render();
+      },
+    });
+    root.replaceChildren(titleUp.el);
   }
-  render();
+
+  if (title) {
+    showTitle();
+  } else {
+    welcomeBack();
+    render();
+  }
   return { save, tick };
 }

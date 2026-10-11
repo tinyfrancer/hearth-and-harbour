@@ -13,6 +13,9 @@
   --danger: #d85a50;
   --line: #3b3350;
   --scrim: rgb(21 17 31 / 85%);
+  /* The title's dusk: the deepest of the harbour's evening water, behind the picture while it loads. */
+  --dusk: #2e2450;
+  --dusk-glow: #f6c47a;
   --px: 2px;
   --tabbar-height: 60px;
   color-scheme: dark;
@@ -1275,10 +1278,13 @@ button.card:active {
   color: var(--line);
 }
 
-/* The collection log: a chip for each thing, named once found, a "?" until then. */
+/*
+ * The collection log: a cell for each thing, as the bank's (wave 14), its
+ * picture once found and a "?" until then; a tap on one names it beneath.
+ */
 .log-items {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -1288,28 +1294,51 @@ button.card:active {
 .log-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 4px 10px 4px 6px;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 48px;
   border: var(--px) solid var(--line);
   background: var(--panel);
-  font-size: 15px;
 }
 
 .log-item.found {
   border-color: var(--gold);
 }
 
+.log-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.log-cell:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
 .log-item .unknown {
-  min-width: 24px;
-  text-align: center;
   color: var(--text-muted);
+}
+
+.log-caption {
+  color: var(--gold-bright);
+  min-height: 1.3em;
+}
+
+.log-caption:empty {
+  display: none;
 }
 
 /* Where an icon will go once art has drawn the thing. */
 .log-blank {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   flex: none;
   border: var(--px) dashed var(--line);
 }
@@ -1370,4 +1399,518 @@ button.card:active {
   border-color: var(--gold);
   color: var(--panel);
   font-weight: 700;
+}
+
+/* Words for a screen reader only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The bank as a grid (wave 14): the purse and the store's door side by side,
+ * a search and a sort, the kinds as chips, and every stack a small square
+ * cell: its picture, its count in the corner. Five across at 360, six at 390
+ * and up, each cell at least the 48-pixel target.
+ */
+.bank {
+  gap: 10px;
+}
+
+.bank-head {
+  display: flex;
+  gap: 8px;
+}
+
+.bank-purse {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 12px;
+}
+
+.bank-purse .qty {
+  font-size: 20px;
+}
+
+.store-door {
+  flex: 0 1 auto;
+  min-width: 0;
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 12px;
+}
+
+.bank-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bank-tools[hidden] {
+  display: none;
+}
+
+.bank-tools-row {
+  display: flex;
+  gap: 8px;
+}
+
+.bank-search {
+  flex: 1;
+  min-width: 0;
+  /* Never under 16px, or iPhones zoom the page when it is tapped. */
+  font-size: 18px;
+}
+
+.bank-search::placeholder {
+  color: var(--text-muted);
+}
+
+.bank-sort {
+  flex: none;
+  width: auto;
+  max-width: 50%;
+  padding-right: 8px;
+  font-size: 16px;
+}
+
+/* The kinds: a row of chips that scrolls sideways on its own, never the page. */
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  min-height: 40px;
+  padding: 4px 12px;
+  background: var(--panel);
+  color: var(--text-muted);
+  border: var(--px) solid var(--line);
+  border-radius: 0;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--panel);
+  background: var(--gold);
+  border-color: var(--gold);
+  font-weight: 700;
+}
+
+.chip:focus-visible,
+.bank-cell:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 6px;
+}
+
+.grid-heading {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+}
+
+.grid-heading:first-child {
+  margin-top: 0;
+}
+
+.bank-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 48px;
+  padding: 0;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--line);
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bank-cell:active {
+  background: var(--panel);
+}
+
+.bank-cell[aria-pressed='true'] {
+  border-color: var(--gold-bright);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 var(--px) var(--gold-bright);
+}
+
+.bank-cell.gone {
+  opacity: 0.5;
+}
+
+/* The count sits in the cell's lower right, outlined so it reads over any picture. */
+.cell-qty {
+  position: absolute;
+  right: 3px;
+  bottom: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text);
+  text-shadow:
+    1px 0 var(--backdrop),
+    -1px 0 var(--backdrop),
+    0 1px var(--backdrop),
+    0 -1px var(--backdrop);
+  pointer-events: none;
+}
+
+.grid-icon {
+  flex: none;
+}
+
+/* A thing not drawn yet: its initials in a dashed square the size of a picture. */
+.grid-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: var(--px) dashed var(--line);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.none-match[hidden],
+.bank-sheet[hidden] {
+  display: none;
+}
+
+/*
+ * The open card, pinned at the foot of the screen above the bars, so opening
+ * one never scrolls the grid; the screen's side padding is taken back so it
+ * runs edge to edge. Tall content scrolls inside it.
+ */
+.bank-sheet {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
+  margin: 0 -16px -16px;
+  max-height: 58dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-raised);
+  border-top: var(--px) solid var(--gold-bright);
+  box-shadow: 0 -8px 16px rgb(0 0 0 / 35%);
+}
+
+.bank-sheet .item-card {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sheet-head {
+  flex: none;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 12px 8px 16px;
+  border-bottom: var(--px) solid var(--line);
+}
+
+.sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-title h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-title .qty {
+  color: var(--text);
+}
+
+.btn.sheet-close {
+  flex: none;
+  width: auto;
+  min-width: 48px;
+  padding: 8px 10px;
+  border-color: var(--line);
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 16px calc(16px + 4px);
+}
+
+.sell-line {
+  display: flex;
+  gap: 8px;
+}
+
+.sell-choices {
+  display: flex;
+  gap: 4px;
+}
+
+.sell-choices .btn.choice {
+  width: 44px;
+  min-height: 48px;
+  padding: 4px;
+}
+
+.sell-line .btn.sell {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  font-size: 16px;
+}
+
+/* The store's beginner things: a cell each, its price always under its picture. */
+.stock-cell {
+  aspect-ratio: auto;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0 4px;
+}
+
+.cell-price {
+  color: var(--gold-bright);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.stock-cell.dear-now .cell-price {
+  color: var(--text-muted);
+}
+
+.cell-lot {
+  top: 3px;
+  bottom: auto;
+}
+
+.stock-card {
+  overflow-y: auto;
+  padding: 12px 16px 20px;
+}
+
+/*
+ * The "now doing" strip above the tabs (wave 14): the hero at the work under
+ * way beside what it is and how it goes, on every tab, a tap from its page.
+ */
+.now-doing {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px 0 8px;
+  background: var(--backdrop);
+  border: 0;
+  border-top: var(--px) solid var(--line);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.now-doing:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: -4px;
+}
+
+.now-stage {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  height: 52px;
+  overflow: hidden;
+}
+
+.now-stage .work-stage {
+  align-self: flex-end;
+}
+
+.now-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.now-line {
+  color: var(--green);
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now-doing.resting .now-line {
+  color: var(--text-muted);
+}
+
+.now-text .bar {
+  height: 8px;
+}
+
+.now-text .bar[hidden] {
+  display: none;
+}
+
+.now-detail {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app.fullscreen .now-doing {
+  display: none;
+}
+
+/* The hero at work on the running action's card, standing on a line of ground. */
+.work-row {
+  display: flex;
+  justify-content: center;
+  margin: -4px -14px 0;
+  padding-top: 4px;
+  border-bottom: var(--px) solid var(--line);
+  background: var(--panel);
+}
+
+.work-row .work-stage {
+  display: block;
+}
+
+/* The fight face to face: the hero striking on the left, the foe's portrait on the right. */
+.duel {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px 0;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+  border-bottom-width: 6px;
+  border-bottom-color: var(--line);
+}
+
+.duel-hero {
+  display: flex;
+  align-items: flex-end;
+}
+
+.duel .portrait {
+  margin-bottom: 8px;
+}
+
+.door-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The title screen (wave 14): lane B's harbour at dusk covering the app, the
+ * button and the version line inside the picture's safe box over the calm
+ * water. Before the picture loads, the dusk colour, the name in words and the
+ * button already in place, so the screen is never blank.
+ */
+.title-screen {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--dusk);
+  margin-top: calc(-1 * env(safe-area-inset-top));
+}
+
+.title-picture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  image-rendering: pixelated;
+}
+
+.title-words {
+  position: absolute;
+  top: 26%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 34px;
+  color: var(--gold-bright);
+}
+
+.title-screen.drawn .title-words {
+  display: none;
+}
+
+.title-menu {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.btn.title-go {
+  width: min(100%, 280px);
+  min-height: 52px;
+  font-size: 20px;
+  box-shadow: 0 4px 0 var(--backdrop);
+}
+
+.title-who {
+  color: var(--text);
+  text-shadow:
+    1px 1px 0 var(--backdrop),
+    -1px -1px 0 var(--backdrop),
+    1px -1px 0 var(--backdrop),
+    -1px 1px 0 var(--backdrop);
+  text-align: center;
+}
+
+.title-version {
+  color: var(--dusk-glow);
+  font-size: 14px;
+  opacity: 0.8;
 }

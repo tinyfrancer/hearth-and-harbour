@@ -385,6 +385,41 @@ describe('what an hour of bounties pays', () => {
   });
 });
 
+// Wave 14: the simulations' melee ladder still wears linen trousers, as it
+// did before the smithy made greaves (wave 13), and every pin above is held
+// in it. These cases are the same fights in bronze greaves from level 5 and
+// iron from 10, as a player would wear them, pinned so what greaves move is
+// on the record. Whether the pins above follow (and the bounty counts and the
+// troll's pay with them) is Cody's decision, not a test to make pass.
+describe('in the smithy’s greaves (for a decision)', () => {
+  it.each([
+    // Fish an hour in greaves, and in linen (duels.test.ts) beside it.
+    ['thieving_gull', 139, 135],
+    ['footpad', 168, 189],
+    ['grey_wolf', 216, 250],
+    ['smuggler', 174, 187],
+    ['marsh_troll', 206, 190],
+    ['goblin_poacher', 145, 165],
+    ['bramble_wyrm', 169, 182],
+  ] as const)('costs %s fish an hour in greaves: %i (in linen %i)', (id, fish, _linen) => {
+    const hour = hourOf(CONTENT.monsters![id]!.level, id, { greaves: true });
+    expect(hour.deaths).toBe(0);
+    expect(hour.eaten).toBe(fish);
+  });
+
+  it('asks a little over twenty minutes of a bounty’s most kills of three of them, in greaves', () => {
+    const slow = Object.values(CONTENT.monsters!)
+      .filter((monster) => monster.bounty)
+      .filter((monster) => {
+        const { kills } = hourOf(monster.level, monster.id, { greaves: true });
+        return (monster.bounty!.kills[1] * 60) / kills > 20;
+      })
+      .map((monster) => monster.id)
+      .sort();
+    expect(slow).toEqual(['bramble_wyrm', 'marsh_troll', 'smuggler']);
+  });
+});
+
 function ok(result: { ok: true; state: GameState } | { ok: false; reason: string }): GameState {
   if (!result.ok) throw new Error(result.reason);
   return result.state;

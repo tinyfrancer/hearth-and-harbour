@@ -5,12 +5,15 @@ import './art/art.css';
 import './scene/scene.css';
 import { CONTENT } from './data';
 import { LocalStorageSaveService } from './persistence/LocalStorageSaveService';
+import { LocalStoragePrefs } from './persistence/Prefs';
 import { mountApp } from './ui/app';
 
 const app = mountApp(document.getElementById('app')!, {
   saves: new LocalStorageSaveService(),
   content: CONTENT,
   now: () => Date.now(),
+  prefs: new LocalStoragePrefs(),
+  title: true,
 });
 
 // The game moves once a frame. A hidden page gets no frames; the first one

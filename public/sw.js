@@ -1,6 +1,7 @@
 // Makes the game open with no signal. Network first, so a deploy is picked up
 // the next time the game is opened online; the cache is only the fallback.
-const CACHE = 'hearth-and-harbour-v1';
+// v2: the ship-at-sunset icons (wave 14); a new name drops the old cache on activate.
+const CACHE = 'hearth-and-harbour-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 

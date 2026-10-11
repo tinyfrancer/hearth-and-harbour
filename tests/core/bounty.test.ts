@@ -488,14 +488,22 @@ describe('auto bounty', () => {
       expect(advance(advance(start, cut, tame), total - cut, tame), `cut at ${cut}`).toEqual(whole);
     }
     let live = start;
-    for (let spent = 0; spent < HOUR; spent += 16) live = advance(live, 16, tame);
+    // Which monsters' bounties were handed in, watched frame by frame.
+    const paidOn = new Set<string>();
+    for (let spent = 0; spent < HOUR; spent += 16) {
+      const was = live;
+      live = advance(live, 16, tame);
+      if ((live.stats.bounties ?? 0) > (was.stats.bounties ?? 0)) paidOn.add(was.bounty!.monster);
+    }
     const away = catchUp(start, HOUR, tame);
     expect(away.state).toEqual(live);
-    // The away report says what it handed in.
+    // The away report says what it handed in, and on which monsters.
     expect(away.report!.claimed).toEqual({
       bounties: live.stats.bounties,
       points: live.bountyPoints,
+      monsters: Object.keys(tame.monsters!).filter((id) => paidOn.has(id)),
     });
+    expect(paidOn.size).toBeGreaterThan(1);
     expect(away.report!.bounty).toMatchObject({
       monster: live.bounty!.monster,
       done: live.bounty!.done,

@@ -244,7 +244,8 @@ describe('bounties', () => {
     // And away: the report says what it handed in.
     const report = away(app, 6 * HOUR);
     expect(report).toMatch(
-      /Auto bounty handed in [\d,a-z ]+ for [\d,]+ points? and [\d,]+ coins, and took the next\./,
+      // Wave 14: and on which monsters.
+      /Auto bounty handed in [\d,a-z ]+ \(on the [A-Za-z ,]+\) for [\d,]+ points? and [\d,]+ coins, and took the next\./,
     );
   });
 

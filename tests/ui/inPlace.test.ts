@@ -106,17 +106,19 @@ describe('the bank', () => {
     screen().scrollTop = 240;
     const above = q('[data-item="pine_logs"]');
     q<HTMLButtonElement>('[data-item="seashells"]').click();
-    // The same page, the same scroll, the card where the row was.
+    // The same page, the same scroll, the card open at the foot and its cell marked.
+    const shells = q('[data-item="seashells"]');
     expect(screen().firstElementChild).toBe(page);
     expect(screen().scrollTop).toBe(240);
     expect(q('[data-card="seashells"]')).toBeTruthy();
-    expect(root.querySelector('[data-item="seashells"]')).toBeNull();
+    expect(shells.getAttribute('aria-pressed')).toBe('true');
     expect(q('[data-item="pine_logs"]')).toBe(above);
-    // Another opens in its place; the first goes back to a row.
+    // Another opens in its place; the first cell is no longer marked, and is the same cell.
     q<HTMLButtonElement>('[data-item="tin_ore"]').click();
     expect(root.querySelector('[data-card="seashells"]')).toBeNull();
     expect(q('[data-card="tin_ore"]')).toBeTruthy();
-    expect(q('[data-item="seashells"]')).toBeTruthy();
+    expect(q('[data-item="seashells"]')).toBe(shells);
+    expect(shells.getAttribute('aria-pressed')).toBe('false');
     // Close puts it back, still nothing rebuilt above.
     [...q('[data-card="tin_ore"]').querySelectorAll('button')]
       .find((b) => b.textContent === 'Close')!

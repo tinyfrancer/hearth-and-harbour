@@ -18,11 +18,14 @@ import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
 import { button, h, setText, titled } from './dom';
-import { face, heroFace } from './face';
-import { fullLook } from './look';
-import { wornItemIds } from '../core/equipment';
+import { keyedList } from './keyed';
+import { face } from './face';
 import { formatNumber } from './format';
 import type { View } from './view';
+import { workStage } from './atWork';
+
+/** CSS pixels to an art pixel for the hero in the duel: as tall as the foe's large portrait. */
+const DUEL_SCALE = 2;
 
 /** How the last fight ended, kept by the app while the player has not moved on from it. */
 export interface FightOver {
@@ -144,26 +147,38 @@ function foodPanel(
       ? `Each heals ${content.items[food.item]?.heals ?? 0} hit points.`
       : 'With nothing here the character fights on without eating.';
   });
-  const fish = Object.values(content.items).filter(
-    (item) => item.heals && bankCount(state, item.id) > 0 && item.id !== state.food?.item,
-  );
-  const choices = fish.map((item) =>
-    h(
+  // The fish to choose from follow the bank in place: a kind cooked, bought
+  // or dropped while the page is open gets its row; one eaten up loses it.
+  const choices = h('div', { class: 'stack tight food-choices' });
+  const rows = keyedList<GameState>(choices, (id) => {
+    const item = content.items[id]!;
+    const held = h('span', { class: 'muted' });
+    const el = h(
       'button',
       {
         class: 'btn choice-row',
         attrs: { type: 'button', 'data-food-choice': item.id },
         on: { click: () => actions.loadFood(item.id) },
       },
-      [
-        h('span', { class: 'titled' }, [itemIcon(item.id), item.name]),
-        h('span', {
-          class: 'muted',
-          text: `×${formatNumber(bankCount(state, item.id))} · heals ${item.heals}`,
-        }),
-      ],
-    ),
-  );
+      [h('span', { class: 'titled' }, [itemIcon(item.id), item.name]), held],
+    );
+    return {
+      el,
+      update: (now) =>
+        setText(held, `×${formatNumber(bankCount(now, item.id))} · heals ${item.heals}`),
+    };
+  });
+  const none = h('p', {
+    class: 'small muted',
+    text: 'No cooked fish in the bank. Cooking makes some.',
+  });
+  updates.push((now) => {
+    const fish = Object.values(content.items)
+      .filter((item) => item.heals && bankCount(now, item.id) > 0 && item.id !== state.food?.item)
+      .map((item) => item.id);
+    rows.sync(fish, now);
+    none.hidden = fish.length > 0 || Boolean(state.food);
+  });
   const step = (by: number): HTMLButtonElement => {
     const next = state.eatAt + by;
     const el = button(by < 0 ? '−' : '+', () => actions.setEatAt(next), 'step');
@@ -175,10 +190,8 @@ function foodPanel(
   return h('section', { class: 'panel stack tight food', attrs: { 'data-food': '' } }, [
     h('div', { class: 'card-head' }, [titled(itemIcon(state.food?.item ?? ''), 'Food'), held]),
     note,
-    ...choices,
-    choices.length === 0 &&
-      !state.food &&
-      h('p', { class: 'small muted', text: 'No cooked fish in the bank. Cooking makes some.' }),
+    choices,
+    none,
     state.food && button('Take out', actions.unloadFood),
     h('div', { class: 'eat-line' }, [
       h('span', { attrs: { 'data-eat-at': '' }, text: `Eat below ${state.eatAt}% health` }),
@@ -491,12 +504,21 @@ export function fightView(
     });
     wanted = line;
   }
-  const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
+  // Face to face: the hero striking on the left, his blow landing as each one
+  // does (the wait for his next blow drives it), the foe's portrait opposite.
+  const hero = workStage(content, DUEL_SCALE, false, { left: 8 });
+  const update = (latest: GameState, time?: number): void => {
+    updates.forEach((apply) => apply(latest));
+    if (time !== undefined) hero.show(latest, time);
+  };
   const el = h('div', { class: 'stack' }, [
     back,
+    h('section', { class: 'duel', attrs: { 'data-duel': monster.id } }, [
+      h('div', { class: 'duel-hero' }, [hero.el]),
+      face(monster, 'large'),
+    ]),
     h('section', { class: 'panel stack tight foe', attrs: { 'data-foe': monster.id } }, [
       h('div', { class: 'foe-head' }, [
-        face(monster, 'large'),
         h('div', { class: 'stack tight' }, [
           h('h2', { text: monster.name }),
           h('p', {
@@ -515,7 +537,6 @@ export function fightView(
       // Face to face: the foe's on the left of its panel, the hero's on the right of theirs.
       h('div', { class: 'foe-head you-head' }, [
         h('div', { class: 'stack tight' }, [h('h2', { text: state.name }), styleLine]),
-        heroFace(fullLook(state.look), wornItemIds(state), 'small'),
       ]),
       h('div', { class: 'card-head small' }, [h('span', { text: 'Health' }), hp]),
       h('div', { class: 'health-wrap' }, [health.el, line]),
@@ -528,6 +549,7 @@ export function fightView(
     button('Stop fighting', actions.stop),
   ]);
   update(state);
+  hero.show(state, 0);
   return {
     el,
     update,

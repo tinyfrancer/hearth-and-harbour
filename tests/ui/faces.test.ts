@@ -87,20 +87,21 @@ describe('faces in the menus', () => {
     playing();
     q<HTMLButtonElement>('[data-combat]').click();
     q<HTMLButtonElement>('[data-monster="dock_rat"]').click();
-    expect(q('[data-foe] .portrait.large .portrait2-art').dataset.door).toBe('dock_rat');
-    const hero = q('[data-you] .portrait.small.hero-face .portrait2-art');
-    expect(hero.dataset.door).toBe('hero');
-    // In what is worn: the helmet is on the face too.
-    expect(hero.dataset.worn).toBe('bronze_sword iron_helmet');
-    // The foe's face first in its panel, the hero's last in theirs.
-    expect(q('[data-foe] .foe-head').firstElementChild!.matches('.portrait')).toBe(true);
-    expect(q('[data-you] .foe-head').lastElementChild!.matches('.portrait')).toBe(true);
+    // Wave 14: the hero striking on the left of the duel, the foe's portrait opposite.
+    const duel = q('[data-duel="dock_rat"]');
+    expect(
+      duel.firstElementChild!.querySelector<HTMLElement>('.work-stage')!.dataset.activity,
+    ).toBe('melee');
+    expect(duel.lastElementChild!.matches('.portrait.large')).toBe(true);
+    expect(q('[data-duel] .portrait.large .portrait2-art').dataset.door).toBe('dock_rat');
   });
 
   it('show the store keeper behind the counter', () => {
     playing();
     tab('bank');
-    [...root.querySelectorAll('button')].find((b) => /general store/.test(b.textContent!))!.click();
+    [...root.querySelectorAll('button')]
+      .find((b) => /general store/i.test(b.textContent!))!
+      .click();
     expect(q('[data-store] .portrait .portrait2-art').dataset.door).toBe('trader');
   });
 

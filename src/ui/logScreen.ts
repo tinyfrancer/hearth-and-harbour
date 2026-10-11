@@ -1,9 +1,10 @@
-import { itemIcon } from '../art/icons';
 import { collectable, collectionSources } from '../core/collection';
 import type { AchievementDef, Content } from '../core/content';
 import type { GameState } from '../core/state';
 import { button, h, setText } from './dom';
 import { formatNumber } from './format';
+import { dollIcon } from './figure';
+import { GRID_ICON_SCALE, spoken } from './grid';
 import type { View } from './view';
 
 const outOf = (have: number, of: number): string => `${formatNumber(have)} / ${formatNumber(of)}`;
@@ -84,7 +85,11 @@ export function collectionView(state: GameState, content: Content, back: () => v
   const total = h('span', { class: 'qty', attrs: { 'data-found': '' } });
   const sections = collectionSources(content).map((source) => {
     const count = h('span', { class: 'small muted' });
+    // A found thing's name, shown under its source's cells when one is tapped.
+    const caption = h('p', { class: 'small log-caption', attrs: { 'aria-live': 'polite' } });
     const chips = source.items.map((id) => {
+      const item = content.items[id];
+      const name = item?.name ?? id;
       const chip = h('li', { class: 'log-item', attrs: { 'data-log-item': id } });
       let shown: boolean | null = null;
       updates.push((found) => {
@@ -92,16 +97,28 @@ export function collectionView(state: GameState, content: Content, back: () => v
         if (has === shown) return;
         shown = has;
         chip.classList.toggle('found', has);
-        const item = content.items[id];
+        if (!has) {
+          chip.replaceChildren(h('span', { class: 'unknown', text: '?' }));
+          chip.setAttribute('aria-label', 'Not yet found');
+          return;
+        }
+        chip.removeAttribute('aria-label');
+        const icon = dollIcon(id, GRID_ICON_SCALE);
+        if (icon) delete icon.dataset.item;
         chip.replaceChildren(
-          ...(has
-            ? [
-                itemIcon(id) ?? h('span', { class: 'log-blank', attrs: { 'aria-hidden': 'true' } }),
-                h('span', { text: item?.name ?? id }),
-              ]
-            : [h('span', { class: 'unknown', text: '?' })]),
+          h(
+            'button',
+            {
+              class: 'log-cell',
+              attrs: { type: 'button' },
+              on: { click: () => setText(caption, caption.textContent === name ? '' : name) },
+            },
+            [
+              icon ?? h('span', { class: 'log-blank', attrs: { 'aria-hidden': 'true' } }),
+              spoken(name),
+            ],
+          ),
         );
-        chip.setAttribute('aria-label', has ? (item?.name ?? id) : 'Not yet found');
       });
       return chip;
     });
@@ -114,6 +131,7 @@ export function collectionView(state: GameState, content: Content, back: () => v
     return h('section', { class: 'panel stack tight', attrs: { 'data-source': source.id } }, [
       h('div', { class: 'card-head' }, [h('h2', { text: source.name }), count]),
       h('ul', { class: 'log-items' }, chips),
+      caption,
     ]);
   });
   updates.push(() => {
