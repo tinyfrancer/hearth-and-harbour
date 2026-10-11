@@ -18,11 +18,13 @@ import { bankCount, type Fight, type GameState } from '../core/state';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
 import { button, h, setText, titled } from './dom';
-import { face, heroFace } from './face';
-import { fullLook } from './look';
-import { wornItemIds } from '../core/equipment';
+import { face } from './face';
 import { formatNumber } from './format';
 import type { View } from './view';
+import { workStage } from './atWork';
+
+/** CSS pixels to an art pixel for the hero in the duel: as tall as the foe's large portrait. */
+const DUEL_SCALE = 2;
 
 /** How the last fight ended, kept by the app while the player has not moved on from it. */
 export interface FightOver {
@@ -491,12 +493,21 @@ export function fightView(
     });
     wanted = line;
   }
-  const update = (latest: GameState): void => updates.forEach((apply) => apply(latest));
+  // Face to face: the hero striking on the left, his blow landing as each one
+  // does (the wait for his next blow drives it), the foe's portrait opposite.
+  const hero = workStage(content, DUEL_SCALE, false, { left: 8 });
+  const update = (latest: GameState, time?: number): void => {
+    updates.forEach((apply) => apply(latest));
+    if (time !== undefined) hero.show(latest, time);
+  };
   const el = h('div', { class: 'stack' }, [
     back,
+    h('section', { class: 'duel', attrs: { 'data-duel': monster.id } }, [
+      h('div', { class: 'duel-hero' }, [hero.el]),
+      face(monster, 'large'),
+    ]),
     h('section', { class: 'panel stack tight foe', attrs: { 'data-foe': monster.id } }, [
       h('div', { class: 'foe-head' }, [
-        face(monster, 'large'),
         h('div', { class: 'stack tight' }, [
           h('h2', { text: monster.name }),
           h('p', {
@@ -515,7 +526,6 @@ export function fightView(
       // Face to face: the foe's on the left of its panel, the hero's on the right of theirs.
       h('div', { class: 'foe-head you-head' }, [
         h('div', { class: 'stack tight' }, [h('h2', { text: state.name }), styleLine]),
-        heroFace(fullLook(state.look), wornItemIds(state), 'small'),
       ]),
       h('div', { class: 'card-head small' }, [h('span', { text: 'Health' }), hp]),
       h('div', { class: 'health-wrap' }, [health.el, line]),
@@ -528,6 +538,7 @@ export function fightView(
     button('Stop fighting', actions.stop),
   ]);
   update(state);
+  hero.show(state, 0);
   return {
     el,
     update,

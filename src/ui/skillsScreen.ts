@@ -26,6 +26,10 @@ import { potionPanel } from './potionPanel';
 import { totalLevel } from '../core/achievements';
 import { combatLevel } from '../core/bounty';
 import type { View } from './view';
+import { workStage, type WorkStage } from './atWork';
+
+/** CSS pixels to an art pixel for the hero at work on the running action's card. */
+const CARD_STAGE_SCALE = 1.34;
 
 /** What the character is doing in this skill right now, or nothing. */
 function doing(state: GameState, skill: SkillDef, content: Content): string {
@@ -280,6 +284,8 @@ export function skillPageView(
 ): View {
   const level = skillLevel(state, skill.id);
   const updates: ((state: GameState) => void)[] = [];
+  /** The hero at work on the running action's card, if this page has it. */
+  let atWork = null as WorkStage | null;
 
   const xp = bar('xp', `${skill.name} experience`);
   const xpText = h('p', { class: 'muted small' });
@@ -294,7 +300,12 @@ export function skillPageView(
 
   const card = (action: ActionDef): HTMLElement => {
     if (level >= action.level && action.steal) {
-      return markCard(state, action, content, updates, actions);
+      const mark = markCard(state, action, content, updates, actions);
+      if (state.action?.id === action.id) {
+        atWork = workStage(content, CARD_STAGE_SCALE, true, { left: 8 });
+        mark.prepend(h('div', { class: 'work-row', attrs: { 'data-at-work': '' } }, [atWork.el]));
+      }
+      return mark;
     }
     if (level < action.level) {
       return h('div', { class: 'panel card locked', attrs: { 'data-action': action.id } }, [
@@ -314,6 +325,8 @@ export function skillPageView(
     const rate = h('span', { class: 'muted rate' }, [time, ' · ', xpEach]);
     const owned = h('p', { class: 'muted small' });
     const masteryText = h('span', { class: 'small mastery-level' });
+    // The running action's card shows the hero doing it, his blow landing as each one does.
+    if (active) atWork = workStage(content, CARD_STAGE_SCALE, true, { left: 8 });
     updates.push((now) => {
       const duration = actionDuration(now, action, content);
       const potion = potionFor(now, action, content);
@@ -344,6 +357,9 @@ export function skillPageView(
         on: { click: () => (active ? actions.stop() : actions.start(action.id)) },
       },
       [
+        active &&
+          atWork &&
+          h('div', { class: 'work-row', attrs: { 'data-at-work': '' } }, [atWork.el]),
         h('div', { class: 'card-head' }, [
           titled(itemIcon(action.gives[0]?.item ?? ''), makes(action)),
           rate,
@@ -384,8 +400,12 @@ export function skillPageView(
     const item = now.potion && content.items[now.potion.item];
     return item?.potion?.skills.includes(skill.id) ? item.id : null;
   };
-  const update = (now: GameState): void => updates.forEach((apply) => apply(now));
+  const update = (now: GameState, time?: number): void => {
+    updates.forEach((apply) => apply(now));
+    if (time !== undefined) atWork?.show(now, time);
+  };
   update(state);
+  atWork?.show(state, 0);
   return {
     el: h('div', { class: 'stack' }, [
       button('‹ All skills', actions.back, 'back'),

@@ -1796,3 +1796,39 @@ button.card:active {
 #app.fullscreen .now-doing {
   display: none;
 }
+
+/* The hero at work on the running action's card, standing on a line of ground. */
+.work-row {
+  display: flex;
+  justify-content: center;
+  margin: -4px -14px 0;
+  padding-top: 4px;
+  border-bottom: var(--px) solid var(--line);
+  background: var(--panel);
+}
+
+.work-row .work-stage {
+  display: block;
+}
+
+/* The fight face to face: the hero striking on the left, the foe's portrait on the right. */
+.duel {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px 0;
+  background: var(--panel-raised);
+  border: var(--px) solid var(--gold);
+  border-bottom-width: 6px;
+  border-bottom-color: var(--line);
+}
+
+.duel-hero {
+  display: flex;
+  align-items: flex-end;
+}
+
+.duel .portrait {
+  margin-bottom: 8px;
+}
