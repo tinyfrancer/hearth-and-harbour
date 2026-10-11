@@ -1,9 +1,8 @@
 # Lane C: scenes
 
-**Next session: Cody's review of wave 16** (going back in after a heavy blow, things remembered in
-the save, the cave's pacing and lessons that let go, the boat from across the square, the cave's
-rooms filling the screen), and whatever it asks for. The third dungeon is a plan module and a row
-("Adding a dungeon", below).
+**Next session: S16's second half, then Cody's review of wave 17** (the weak spots below; run
+statistics, the day's modifier, challenges and idle runs on lane A's contract). The third dungeon is
+a plan module and a row ("Adding a dungeon", below).
 
 ## The cave's map
 
@@ -91,6 +90,58 @@ target (`doorUnder`), and a tap or a held finger anywhere on it walks to that ce
   each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 17, first PR: wave 16's weak spots.** No grotto or cave rule, position, pace, event or
+  number moved: `scaleTimeline.test.ts`, `grottoRun.test.ts` (its three cases), `grottoRules.test.ts`
+  and `caveRun.test.ts` pass with their expectations untouched. Review sheets in
+  `/home/claude/lane-shots/w17-c/`.
+  - **Old Snapper round his body** (`bodyMid` in `foes.ts`): lane B's `mid` (B16), mirrored as he
+    turns, for any foe that declares one: his tap box (`foeAt`), contact shadow, target and rally
+    rings, health bar, the overlay's box, the room name's keep-clear box and the lessons' ring all
+    centre on the middle of his body; drawn apart with `half = box.w / 2 - |mid|` (ahead of him,
+    27, as before). A tap on a hero standing at his head no longer picks him
+    (`snapper-box-before-after.png`).
+  - **The controls laid out round the room** (`hud.ts`): `hudLayout` places every control
+    (health, target or boss, Leave, the tide, the bar laid out for three buttons, the lesson, a slot
+    for S16's tracker) inside the safe area, read from a probe padded by `env(safe-area-inset-*)`,
+    and the view puts each panel at its box (fixed heights in `scene.css`, `HUD_SIZES`). A dungeon
+    seen whole (the cave) is drawn at the largest whole scale at which no walkable cell, door or
+    foe's place is under a control or a notch, nudged off the middle by whole art pixels where it
+    must be (`roomFit`; the stage's `holdOffset`); one the camera travels (the grotto) takes the
+    controls' bands as its insets (`hudBands`; `DUNGEON_INSETS` top 64 to 72 for the target's 62-tall
+    panel). Where the top is too narrow for hero, target, tide and Leave in a row, the tide's gauge
+    goes under Leave. `hudFit.test.ts` walks every room of both dungeons at 844 x 390, 932 x 430,
+    852 x 393 (each with and without a notch's safe area) and 667 x 375. In the browser at 844 x 390
+    the cave's first room had 12 walkable cells under the lesson card and the snapper's 3; now none,
+    still at 4x (`hud-cave-landing-844-before-after.png`, `hud-three-sizes.png`). With a notch the
+    cave drops to 3x (the doors would be under it at 4x).
+  - **The boat**: the large marker floats at (520, 1474), clear over the gunwale (`BOAT_MARK_LARGE`;
+    `boat-far-before-after.png`). The label is placed by the thing as drawn (the boat's hull, a
+    footprint's middle across), over it; under it if over it would cover the hero; over his head
+    only if both would (`labelPlace`, `boat-label-before-after.png`: from the quay above the boat it
+    no longer floats over his head off to the right). The pointer picks the nearest of eight ways
+    when lane B's diagonal chevrons are in (`diagonalPointersIn`, read through a local signature),
+    else the nearest of four by angle (`pointerWay`).
+  - **Watched by script** (GIFs in the review folder): a lesson let go after 20 s (the rat walked
+    up, the hero fought it by himself, which ended the lesson): it was then remembered as learned
+    though the player never did it; now a lesson done only after it let go counts for the run but
+    is shown again next run. Stepping out of the captain's sweep and touching nothing: he went back
+    in on time, to the deckhand he had been fighting. Bracing the captain: half the blow, but
+    nothing showed that it was answered (and his swing timer, frozen full through his wind-up,
+    often hides the 2.4 s reel); a braced blow now says "Staggered!" over its maker (a `reel`
+    effect; drawing only). Seen and not changed: three figures (hero, a deckhand, the captain)
+    crowd into one knot at high tide.
+  - **Bracing every heavy blow does not trivialise the captain** (`grottoBot.ts`'s `brace`, a new
+    case in `grottoRun.test.ts`, the old three untouched): a prepared player who braces every heavy
+    blow he can and walks out of the cannon's lines clears 4 of 12 seeds (the careful player 10),
+    in a median 7.2 minutes (8.3), heavy blows costing 117 hit points a run on average (7); bracing
+    the lines as well, 2 of 12. At half strength, none either way. Nothing tuned.
+  - **Strollers pass deeper behind the hero** (`PASS_BEHIND` 46, `stroll.ts`): her feet at his
+    shoulders, so only his head is drawn over her; in front, and where there is no room behind, as
+    before (26). The strollers' places are now reckoned from where the hero is each step, drawn or
+    not (`town2Place.ts`), so a tap lands on her where she is.
+  - **The cave's lessons once over**: each fits three lines of its card on an SE (100 letters at
+    the most, plainest and let go: a test); the heavy blow's and the boss's said shorter.
 
 - **Wave 16: the weak spots of wave 15**, reported to Cody after wave 15. No grotto fight
   position, reach, pace, event or number changed: `scaleTimeline.test.ts`, `grottoRun.test.ts`,
@@ -1176,35 +1227,23 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 16)
+## Weak spots, honestly (wave 17)
 
-- **Going back in is a new rule for every dungeon**, and a person in the grotto now gets it too: a
-  player who steps out of the captain's volleys and waits is walked back to his target 0.7 s after
-  the last mark has landed. Proven not to move any scripted run, but how it feels with the
-  captain's overlapping marks is not checked by a person (it waits while any mark is left, so in a
-  volley storm it simply does not happen). Braced blows are answered in every dungeon too.
-- **Bracing is quicker but costs more health** in the cave (about 9 s, and about 3 hit points at
-  the lowest). That is a trade, not a clear win; if Cody wants bracing to be the better choice
-  outright, the lever is `BRACE_REEL_MS` or what the brace takes, both rules for every dungeon.
-- **The browser playthroughs of the cave** are by a tap-script player that does what the hints
-  say, not by a person: a person misses taps and reads more slowly, so a first clear will take
-  longer than its 2:23.
-- **The lesson that lets go**: after 20 s a held lesson lets the run go on with its words still up;
-  in the first room that means the rat walks up and the hero, in reach, starts fighting it by
-  himself, which ends the lesson. Not shown to a person yet.
-- **The cave's rooms at 4x** fill an 844 x 390 phone; the floor's last row (mostly sea, a few sand
-  tiles) and the room's top corners lie under the buttons and panels at the screen's edges, as the
-  camera no longer moves in the cave to keep the hero clear of them. The grotto keeps its old
-  scale and camera.
-- **The edge pointer** points along the line from the middle of the view to the boat and sits on
-  the edge it meets, in four directions only (lane B's chevrons); from up the road it is at the
-  bottom edge, a little left of the middle.
-- **The town's label** over the boat sits over the hero's head when he stands above the boat (as
-  before: the words never cover him), so from the quay it is centred over the boat's tap box, off
-  to the right of the hull.
-- From wave 14 and 15, still so: a tap on a barred door walks him to the cell inside it;
-  strollers overlap the hero passing behind; the 1x face is cut to its safe box; the town's ship,
-  boat and buoys do not bob; the chart is day only; what a reload takes back is up to a frame old.
+- **Three in a knot**: at high tide in the cove the hero, a deckhand and the captain can stand in
+  one knot, drawn over each other (`apart.ts` moves only the lower-ranked of each pair, by at most
+  14). Seen in the GIFs; not changed.
+- **The brace's reel is often small**: a foe's swing timer does not run during its wind-up, so
+  after a heavy blow it is often nearly full and the 2.4 s reel adds little. It now shows
+  ("Staggered!"); the rule and its number are as Cody was told.
+- **The cave with a notch** is drawn at 3x, not 4x (at 4x its doors would be under the notch). The
+  Leave button's confirm panel, when open, is not kept off the room (a choice is being made).
+- **The grotto's rooms travel**: a cell far from the hero can be under a control until he walks
+  toward it; he and the ground under him never are (`hudFit.test.ts`).
+- **Safe areas** are read from CSS (`env()`) and checked in Chromium with made-up numbers; not on a
+  notched iPhone.
+- From wave 14 to 16, still so: a tap on a barred door walks him to the cell inside it; the 1x face
+  is cut to its safe box; the town's ship, boat and buoys do not bob; the chart is day only; what a
+  reload takes back is up to a frame old; the browser playthroughs are by a tap-script player.
 - Frame rates and timings are headless Chromium in software on a shared sandbox, not a phone. Not
   checked in WebKit or Safari, nor on the live site (unreachable from here).
 
@@ -1262,6 +1301,18 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
    card, the chart and the boat take any dungeon the registry knows.
 
 ## Notes for this lane's next session
+
+- **Wave 17's pieces:** `hud.ts` (`hudLayout`, `hudBands`, `roomFit`, `mustSee`, `HUD_SIZES`: any
+  new control on a run's screen gets a box there and a case in `hudFit.test.ts`); the stage's
+  `stageCamera` (pure), `holdOffset` and insets as a getter; `bodyMid` (`foes.ts`); `BOAT_MARK_LARGE`,
+  `BOAT_HULL`, `pointerWay`, `labelPlace`'s `tall` (`townMarks.ts`); `diagonalPointersIn`
+  (`fromLaneB.ts`); `PASS_BEHIND` (`stroll.ts`); the `reel` effect (`battle.ts`); the grotto bot's
+  `brace` option.
+- **Measuring (wave 17):** `.shots/` as before (`hooks.ts` adds `roomBoxes`, `toScreen`); saves
+  with a kept run are written by a scratch vitest file and put in place by `addInitScript` with
+  `savedAt` set to now, so the app takes the run up paused behind Resume, already sideways: a
+  landscape `recordVideo` then makes a smooth sideways GIF. Get past the title with its Continue
+  button. Vitest shows a passing test's `console.log` nowhere: write measurements to a file.
 
 - **Wave 16's pieces:** `remember.ts` (one-off flags through the shell, `KEYS`); `RETURN_MS`,
   `BRACE_REEL_MS`, `Battle.back` and `Battle.walked`, `stepOut`, `goBack` (`battle.ts`);

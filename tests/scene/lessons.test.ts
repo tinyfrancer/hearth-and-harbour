@@ -163,9 +163,51 @@ describe('the cave’s lessons', () => {
     run = step({ ...run, battle: aimed.battle, play: aimed.play });
     expect(run.lessons!.done).toContain('attack');
     expect(run.lessons!.for ?? 0).toBe(0);
+    // Wave 17: done only after the run was let go on, it may have been the fight's doing (a rat
+    // walking into his reach becomes his target by itself): not learned, so shown again next run.
+    expect(startLessons(TIDEPOOL_ID, LESSONS, false).done).not.toContain('attack');
+  });
+
+  it('remembers a lesson done before the run was let go on as learned', () => {
+    let run = step(beginCave(novice(), 1));
+    const rat = run.battle!.foes.find((f) => f.room === 'landing')!;
+    run = {
+      ...run,
+      play: { ...run.play, walker: { at: { x: rat.at.x - 140, y: rat.at.y }, path: [] } },
+    };
+    run = step(step(run));
+    expect(shownLesson(run.lessons, LESSONS)!.id).toBe('attack');
+    const aimed = targetFoe(run.battle!, placeOf(CAVE, run), run.play, rat.key);
+    run = step({ ...run, battle: aimed.battle, play: aimed.play });
+    expect(startLessons(TIDEPOOL_ID, LESSONS, false).done).toContain('attack');
   });
 
   it('has plainer words for every lesson that holds the run', () => {
     for (const l of LESSONS.filter((x) => x.blocks)) expect(l.plain, l.id).toBeDefined();
+  });
+});
+
+describe('the cave’s lessons, as words', () => {
+  it('each fits the lesson card: three lines on an SE held sideways, at their plainest', () => {
+    // The card is 80 tall (`HUD_SIZES.lesson`): three lines of words beside Skip. On a 667-wide
+    // phone that is about 34 letters a line; every lesson, said plainly and let go, keeps to it.
+    const base = beginCave(novice(), 1);
+    for (const room of ['landing', 'pools', 'snapper']) {
+      // Everyone in the room aware, so a lesson that names a foe names one.
+      const b = base.battle!;
+      const run: Run = {
+        ...base,
+        room,
+        battle: { ...b, foes: b.foes.map((f) => (f.room === room ? { ...f, aware: true } : f)) },
+      };
+      for (const lesson of LESSONS) {
+        const said = [lesson.text(CAVE, run)];
+        if (lesson.plain) {
+          const late = { shown: lesson.id, done: [], off: false, for: LESSON_GO_ON_MS };
+          said.push(lessonText(late, lesson, CAVE, run));
+        }
+        for (const words of said) expect(words.length, words).toBeLessThanOrEqual(100);
+      }
+    }
   });
 });

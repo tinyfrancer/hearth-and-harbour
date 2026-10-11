@@ -4,7 +4,9 @@ import { startPlay, type Play } from '../../src/scene/play';
 import { centreOf, type Point } from '../../src/scene/tileMap';
 import { BOAT_LANDING2, TOWNSFOLK2_AT, town2Scene } from '../../src/scene/town2';
 import {
+  BOAT_HULL,
   BOAT_MARK,
+  BOAT_MARK_LARGE,
   EDGE_NEAR,
   MARK_NEAR,
   PAN_MS,
@@ -16,6 +18,7 @@ import {
   markerKind,
   marksNow,
   panFocus,
+  pointerWay,
   ringed,
   type MarkOptions,
 } from '../../src/scene/townMarks';
@@ -69,13 +72,19 @@ describe('the town’s markers', () => {
     // Far up the road, only the boat, always (the way out of town); as somewhere new while it is.
     const far = standing(at(30, 12));
     // Large, from that far: it reads across the square (lane B's B16 marker).
+    // Floated higher than the small one, clear over the gunwale (lane B: about y 1474 at x 520).
     expect(marksNow(scene, far, options(far))).toEqual([
-      { id: 'rowboat', kind: 'travel', at: BOAT_MARK, size: 'large' },
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK_LARGE, size: 'large' },
     ]);
+    expect(BOAT_MARK_LARGE).toEqual({ x: 520, y: 1474 });
     const fresh = marksNow(scene, far, options(far, { somewhereNew: true }));
     expect(fresh).toEqual([
-      { id: 'rowboat', kind: 'travel', at: BOAT_MARK, size: 'large' },
-      { id: 'rowboat', kind: 'new', at: { x: BOAT_MARK.x + 20, y: BOAT_MARK.y - 18 } },
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK_LARGE, size: 'large' },
+      {
+        id: 'rowboat',
+        kind: 'new',
+        at: { x: BOAT_MARK_LARGE.x + 20, y: BOAT_MARK_LARGE.y - 18 },
+      },
     ]);
     // Until lane B's large marker is in, the small one, and its sparkle beside it as before.
     expect(marksNow(scene, far, options(far, { somewhereNew: true, largeIn: false }))).toEqual([
@@ -180,6 +189,54 @@ describe('the ring and the label', () => {
     const offLeft = labelPlace(t, feet, { ...look, camera: { x: 900, y: 1200 } }, 80, 390)!;
     expect(offLeft.left).toBe(86);
     expect(labelPlace(t, feet, { ...look, camera: { x: 300, y: 1500 } }, 80, 390)!.top).toBe(70);
+  });
+
+  it("anchor the boat's label to the hull, and under it when he stands above it", () => {
+    const t = thing('rowboat');
+    const look = { camera: { x: 300, y: 1300 }, cssPerArt: 1 };
+    const hullMiddle = BOAT_HULL.x + BOAT_HULL.w / 2 - look.camera.x;
+    // From the quay beside it: over the hull, centred on it (not on its wide tap box).
+    const beside = labelPlace(t, centreOf(BOAT_LANDING2, TOWN2_TILE), look, 80, 390, 28)!;
+    expect(beside.left).toBe(hullMiddle);
+    expect(beside.top).toBe(BOAT_HULL.y - look.camera.y - 6);
+    // Standing right above the boat: over it would cover him, so under the hull, never off over
+    // his head to one side.
+    for (const col of [20, 21, 22]) {
+      const feet = at(col, 60);
+      const p = labelPlace(t, feet, look, 80, 390, 28)!;
+      expect(p.left).toBe(hullMiddle);
+      expect(p.top - 28).toBeGreaterThanOrEqual(BOAT_HULL.y + BOAT_HULL.h - look.camera.y);
+      // Clear of his figure.
+      const heroTop = feet.y - 66 - look.camera.y;
+      const heroLeft = feet.x - 14 - look.camera.x;
+      const clear =
+        p.top - 28 >= heroTop + 68 ||
+        p.top <= heroTop ||
+        p.left + 80 <= heroLeft ||
+        p.left - 80 >= heroLeft + 28;
+      expect(clear).toBe(true);
+    }
+  });
+
+  it('point eight ways once lane B draws the diagonals, else the nearest of four', () => {
+    expect(pointerWay(100, 10, false)).toBe('right');
+    expect(pointerWay(-10, 100, false)).toBe('down');
+    expect(pointerWay(-100, -90, false)).toBe('left');
+    expect(pointerWay(100, 100, true)).toBe('down-right');
+    expect(pointerWay(-100, -100, true)).toBe('up-left');
+    expect(pointerWay(100, -100, true)).toBe('up-right');
+    expect(pointerWay(-100, 100, true)).toBe('down-left');
+    expect(pointerWay(100, 30, true)).toBe('right');
+    expect(pointerWay(0, -100, true)).toBe('up');
+    // From up the road, the boat is down and a little left: down, either way.
+    const view = { x: 600, y: 300, w: 360, h: 640 };
+    const o = { somewhereNew: true, chartSeen: false, panelOpen: false };
+    expect(boatPointer(view, o)!.dir).toBe('down');
+    expect(boatPointer(view, o, undefined, true)!.dir).toBe('down');
+    // From the far east of the square it is down and to the left: a diagonal when there is one.
+    const east = { x: 1000, y: 1000, w: 360, h: 300 };
+    expect(boatPointer(east, o, undefined, true)!.dir).toBe('down-left');
+    expect(['left', 'down']).toContain(boatPointer(east, o)!.dir);
   });
 
   it('ring the boat from where it is boarded, and name it with what a tap does', () => {

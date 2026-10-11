@@ -133,6 +133,9 @@ function walkUpTo(view: View, id: string): HTMLElement | null {
     tap(view, { x: hero.x + dx / far, y: hero.y + dy / far });
     wait(view, 8000);
     view.el.querySelector<HTMLButtonElement>('.scene-panel-close')?.click();
+    // A frame after closing: someone strolling is drawn (and tapped) where she now is, stepping
+    // round him again, not where she stood while he talked to her.
+    wait(view, 50);
   }
   return null;
 }

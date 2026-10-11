@@ -38,7 +38,7 @@ import {
 } from './battle';
 import { placeOf, type Dungeon, type Run } from './dungeon';
 import { DUNGEON } from './dungeonMetrics';
-import { foeKind } from './foes';
+import { bodyMid, foeKind } from './foes';
 import { forgetRemembered, KEYS, remember, remembered } from './remember';
 import { centreOf, type Point } from './tileMap';
 
@@ -115,7 +115,11 @@ export function stepLessons(
   if (next.shown) {
     const lesson = lessons.find((l) => l.id === next.shown);
     if (!lesson || lesson.done(dungeon, run)) {
-      remember(learnedKey(run.dungeon, next.shown));
+      // Done after the run was let go on without it (`LESSON_GO_ON_MS`), it may have been done by
+      // the fight, not the player (a rat walking up into his reach makes itself his target): done
+      // for this run, but not learned, so a later run shows it again.
+      const letGo = !!lesson?.blocks && lessonStage(next) === 2;
+      if (!letGo) remember(learnedKey(run.dungeon, next.shown));
       next = { shown: null, done: [...next.done, next.shown], off: next.off };
     } else if (ms > 0) {
       next = { ...next, for: (next.for ?? 0) + ms };
@@ -152,7 +156,7 @@ export function lessonText(
   const stage = lessonStage(state);
   if (stage === 0 || !lesson.plain) return lesson.text(dungeon, run);
   const plain = lesson.plain(dungeon, run);
-  return stage === 2 && lesson.blocks ? `${plain} The fight goes on meanwhile.` : plain;
+  return stage === 2 && lesson.blocks ? `${plain} The fight goes on.` : plain;
 }
 
 /** The lesson showing, if any. */
@@ -215,7 +219,7 @@ function ringFoe(f: Foe): LessonRing {
   const box = foeKind(f.monster).box;
   return {
     kind: 'at',
-    at: { x: f.at.x, y: f.at.y - box.h / 2 },
+    at: { x: f.at.x + bodyMid(f.monster, f.facing), y: f.at.y - box.h / 2 },
     r: Math.max(box.w, box.h) / 2 + 10,
   };
 }
@@ -283,7 +287,7 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     text: (_dungeon, run) =>
       melee(run)
         ? 'Surrounded! Wide swing hits everything near you at once.'
-        : `Double shot looses two arrows at your target at once.`,
+        : 'Double shot looses two arrows at your target at once.',
     plain: (_dungeon, run) =>
       `Press the glowing ${BUTTON_NAMES.first(run.battle!.fighter.style)} button at the bottom of the screen.`,
     due: (dungeon, run) => {
@@ -303,12 +307,12 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     // Shown once, so it says once what happens after: he goes back in by himself.
     text: (_dungeon, run) =>
       melee(run)
-        ? 'The ground under you is marked: a heavy blow is coming. Brace to take half and keep swinging, or walk out of it. Once it lands you go back in by yourself.'
-        : 'The ground under you is marked: a heavy blow is coming. Walk out of it, or Step back. Once it lands you go back to your target by yourself.',
+        ? 'A heavy blow will land on the marked ground. Brace to take half, or walk out. You go back in after.'
+        : 'A heavy blow will land on the marked ground. Walk out, or Step back. You go back in after.',
     plain: (_dungeon, run) =>
       melee(run)
-        ? 'Press the glowing Brace button, or tap the ground well outside the marked circle.'
-        : 'Press the glowing Step back button, or tap the ground well outside the marked circle.',
+        ? 'Press the glowing Brace button, or tap the ground outside the circle.'
+        : 'Press the glowing Step back button, or tap the ground outside the circle.',
     due: (dungeon, run) => markOn(dungeon, run) !== null,
     done: (dungeon, run) => {
       const b = run.battle!;
@@ -324,7 +328,7 @@ export const CAVE_LESSONS: readonly Lesson[] = [
   {
     id: 'eat',
     blocks: true,
-    text: () => 'You are hurt. Tap Eat to have one of the fish from the crate.',
+    text: () => 'You are hurt. Tap Eat for one of the fish from the crate.',
     plain: () => 'Press the glowing Eat button at the bottom of the screen.',
     // Hurt, once the heavy blow has been shown (so the lessons come in their order); at once if
     // badly hurt; and at the latest at a boss's door, hurt at all, so it is learned before the boss.
@@ -345,7 +349,7 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     text: (_dungeon, run) => {
       const boss = bossOf(run.battle!, run.room);
       const name = boss ? run.battle!.monsters[boss.monster]?.name : null;
-      return `${name ?? 'The boss'}: slow, but it hits hard. Tap it to fight, and brace or step out when the ground round it is marked.`;
+      return `${name ?? 'The boss'}: slow, but it hits hard. Tap it to fight; brace or step out when the ground is marked.`;
     },
     plain: (_dungeon, run) => {
       const boss = bossOf(run.battle!, run.room);

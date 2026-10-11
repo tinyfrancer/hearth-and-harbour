@@ -59,7 +59,7 @@ import type { Placed, Standing } from './draw';
 import { placeOf, type Door, type Dungeon, type Room, type Run } from './dungeon';
 import { DUNGEON, far } from './dungeonMetrics';
 import { breathFrame, type Pose2 } from './figures2';
-import { foeKind, type FoeKind } from './foes';
+import { bodyMid, foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import { CaveShadow, glowsIn, paintCells, perchLift, type RoomLook } from './grottoArt';
 import { sayingOf } from './dungeons';
@@ -826,6 +826,9 @@ function drawEffectOver(
     case 'landed':
       if (e.doused) label(ctx, 'fizz', e.at.x, e.at.y - 26 - rise, 13, C.smoke, k, WORDS);
       break;
+    case 'reel':
+      label(ctx, 'Staggered!', e.at.x, e.at.y - 22 - rise, 14, C.gold, k, WORDS);
+      break;
     default:
       break;
   }
@@ -1208,7 +1211,8 @@ export function fightFigures(dungeon: Dungeon, run: Run): Figure[] {
     const weight = alive(foe) ? 1 : Math.max(0, 1 - (battle.clock - foe.diedAt!) / FALL_MS);
     if (weight <= 0) continue;
     const size = sizeOf(foe.monster);
-    const half = size.box.w / 2;
+    // A body centred off its feet (`mid`) has a box as wide as all of it: less that, as before.
+    const half = size.box.w / 2 - Math.abs(size.mid ?? 0);
     // The body ahead of the feet and behind them, less a weapon held clear of it.
     const front = Math.min(size.front, half + 8);
     const back = Math.min(size.back, half + 8);
@@ -1260,6 +1264,8 @@ export function fightExtra(
   // Drawn a little apart where two would be painted over each other; nobody's place in the fight moves.
   const apart = fightApart(dungeon, run);
   const shownX = (foe: Foe): number => foe.at.x + (apart.get(foe.key) ?? 0);
+  // The middle of its body as drawn: a long tail puts it behind the feet (`bodyMid`).
+  const midX = (foe: Foe): number => shownX(foe) + bodyMid(foe.monster, foe.facing);
   const actors: Standing[] = [];
   const shadows: Placed[] = [];
   const fuses: Point[] = [];
@@ -1304,7 +1310,9 @@ export function fightExtra(
         shadow = new CaveShadow();
         art.shadows.set(foe.key, shadow);
       }
-      const placed = shadow.at(cells, kinds, look.glows, feet, size.shadow, look.theme.palette);
+      // Under the middle of its body, not its front feet (`bodyMid`).
+      const under = { x: Math.round(midX(foe)), y: feet.y };
+      const placed = shadow.at(cells, kinds, look.glows, under, size.shadow, look.theme.palette);
       if (placed) {
         shadows.push(placed);
         boxes.push({
@@ -1317,7 +1325,7 @@ export function fightExtra(
     }
     // The rings at its feet.
     const rx = Math.round(kind.box.w / 2) + 6;
-    boxes.push(around({ x: shownX(foe), y: feet.y }, rx + 2));
+    boxes.push(around({ x: midX(foe), y: feet.y }, rx + 2));
     const t = foe.heavy;
     if (t) {
       boxes.push(markBox(t));
@@ -1332,7 +1340,7 @@ export function fightExtra(
         });
       }
     }
-    if (kind.rally) boxes.push(around({ x: shownX(foe), y: feet.y - 12 }, 54));
+    if (kind.rally) boxes.push(around({ x: midX(foe), y: feet.y - 12 }, 54));
   }
   for (const t of battle.volleys) boxes.push(markBox(t));
   for (const e of battle.effects) {
@@ -1406,7 +1414,7 @@ export function fightExtra(
   for (const foe of here) {
     if (!alive(foe) || held(battle, place, foe)) continue;
     const top = foe.at.y - liftOf(room, foe) - standsOf(foe.monster);
-    over.push({ x: foe.at.x - 44, y: top - 44, w: 92, h: 52 });
+    over.push({ x: midX(foe) - 44, y: top - 44, w: 92, h: 52 });
   }
   for (const e of battle.effects) {
     if (e.kind === 'hit' || e.kind === 'miss' || e.kind === 'heal' || e.kind === 'empty') {
@@ -1416,6 +1424,8 @@ export function fightExtra(
       over.push({ x: x - 70, y: y - 48, w: 140, h: 58 });
     } else if (e.kind === 'splash') {
       over.push({ x: e.at.x - 50, y: e.at.y - HERO_TALL - 60, w: 100, h: 56 });
+    } else if (e.kind === 'reel') {
+      over.push({ x: e.at.x - 60, y: e.at.y - 70, w: 120, h: 60 });
     } else if (e.kind === 'landed' && e.doused) {
       over.push({ x: e.at.x - 40, y: e.at.y - 70, w: 80, h: 56 });
     } else if (e.kind === 'say' && clock - e.from < SAY_MS) {
@@ -1499,11 +1509,11 @@ export function fightExtra(
         if (foe.rallied) {
           // The parrot's work, at his feet too: a green ring, pulsing.
           ctx.fillStyle = Math.floor(clock / 200) % 2 === 0 ? C.green : C.greenDark;
-          oval(ctx, shownX(foe), feet, rx + 4, 6);
+          oval(ctx, midX(foe), feet, rx + 4, 6);
         }
         if (foe.key === battle.target) {
           ctx.fillStyle = C.gold;
-          oval(ctx, shownX(foe), feet, rx + 2, 5);
+          oval(ctx, midX(foe), feet, rx + 2, 5);
         }
       }
       for (const foe of here)
@@ -1530,7 +1540,7 @@ export function fightExtra(
         const k = (clock % 500) / 500;
         ctx.globalAlpha = 0.9 * (1 - k);
         ctx.fillStyle = C.green;
-        ring(ctx, shownX(foe), foe.at.y - liftOf(room, foe) - 12, 9 + k * 36, 2);
+        ring(ctx, midX(foe), foe.at.y - liftOf(room, foe) - 12, 9 + k * 36, 2);
         ctx.globalAlpha = 1;
       }
     },
@@ -1586,15 +1596,7 @@ export function fightExtra(
       }
       for (const foe of here)
         if (alive(foe) && !held(battle, place, foe))
-          drawFoeOver(
-            ctx,
-            battle,
-            foe,
-            shownX(foe),
-            liftOf(room, foe),
-            foe.key === battle.target,
-            k,
-          );
+          drawFoeOver(ctx, battle, foe, midX(foe), liftOf(room, foe), foe.key === battle.target, k);
       // Numbers landing together on one spot (a double shot) stand side by side.
       const together = new Map<string, number>();
       for (const e of battle.effects) {

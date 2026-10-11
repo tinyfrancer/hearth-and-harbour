@@ -11,6 +11,7 @@ import {
 import { clearLine } from '../../src/scene/path';
 import { STAND_HALF, advancePlay, startPlay, tapAt, type Play } from '../../src/scene/play';
 import {
+  PASS_BEHIND,
   PASS_DEPTH,
   PASS_ROOM,
   PERSONAL,
@@ -233,6 +234,7 @@ describe('passing each other', () => {
     const seen: Point[] = [];
     let aside = 0;
     let widest = 0;
+    const level: number[] = [];
     for (let t = 0; t < 120_000; t += 50) {
       clocks = folkOn(clocks, 50, parked);
       const s = strolling(clocks, parked)[0]!;
@@ -245,16 +247,26 @@ describe('passing each other', () => {
       if (off > 0) {
         aside++;
         expect(Math.abs(route.at.x - parked.walker.at.x)).toBeLessThan(
-          2 * PERSONAL.rx + PASS_DEPTH / PASS_ROOM,
+          2 * PERSONAL.rx + PASS_BEHIND / PASS_ROOM,
         );
-        expect(off).toBeLessThanOrEqual(PASS_DEPTH + 1e-9);
+        // Wave 17: behind him she keeps further up (`PASS_BEHIND`), so only his head is over her.
+        expect(off).toBeLessThanOrEqual(PASS_BEHIND + 1e-9);
         widest = Math.max(widest, Math.abs(s.at.y - parked.walker.at.y));
+        // Level with him and behind: her feet at his shoulders or higher; in front, a tile and more.
+        if (Math.abs(s.at.x - parked.walker.at.x) < 8) {
+          const dy = s.at.y - parked.walker.at.y;
+          if (dy < 0) expect(-dy).toBeGreaterThanOrEqual(PASS_BEHIND - 1);
+          else expect(dy).toBeGreaterThanOrEqual(PASS_DEPTH - 1);
+          level.push(dy);
+        }
       }
       seen.push(s.at);
     }
     expect(aside).toBeGreaterThan(10);
     // Level with him she passes a tile and more behind or in front: their figures do not run together.
     expect(widest).toBeGreaterThanOrEqual(PASS_DEPTH - 1);
+    // Here she has room to go behind him, and does, deep.
+    expect(level.some((dy) => dy <= -(PASS_BEHIND - 1))).toBe(true);
     // She got past him to the far end of her way, and home again: no one stood stuck or turned back.
     const far = centreOf({ col: 2, row: 51 }, TOWN2_TILE);
     expect(seen.some((p) => p.x === far.x && p.y === far.y)).toBe(true);

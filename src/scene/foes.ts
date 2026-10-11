@@ -354,6 +354,19 @@ export function foeKind(monster: string): FoeKind {
   return FOE_KINDS[monster] ?? FOE_KINDS.dock_rat!;
 }
 
+/**
+ * How far across from its feet the middle of a foe's body is, as it faces
+ * now, in art pixels: lane B's `mid` (B16, a long-tailed beast standing on
+ * its front feet: Old Snapper's is 14 behind them), mirrored facing left; 0
+ * for a body over its feet. Its tap box, contact shadow, rings and health bar
+ * centre there. Drawing and tapping only: reach is still from the feet.
+ */
+export function bodyMid(monster: string, facing: 'left' | 'right'): number {
+  const mid = foeSize2(foeArtId(monster))?.mid ?? 0;
+  if (mid === 0) return 0;
+  return facing === 'right' ? mid : -mid;
+}
+
 /* ----- The ability buttons' pictures, 12 x 12 before the outline ----- */
 
 function sweepIcon(): Grid {
