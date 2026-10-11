@@ -250,6 +250,10 @@ export function sideDoorPiece(
  * the lit passage reads as cut through rock rather than floating in the dark.
  * Every pixel of that surround differs from the barred piece's.
  */
+/** The highest and lowest rows the open passage's surround reaches past the room's edge. */
+const CHEEK_TOP = 9;
+const CHEEK_BOTTOM = 62;
+
 export function cheeks(
   g: TGrid,
   barred: TGrid,
@@ -263,15 +267,19 @@ export function cheeks(
     const pinch = x < 24 ? Math.round((24 - x) / 8) : 0;
     const top = top0 + pinch;
     const bottom = bottom0 - pinch;
-    const reachUp = 7 + Math.round(Math.abs(Math.sin(x * 1.7)) * 2 + (x % 5 === 0 ? 1 : 0));
-    const reachDown = 7 + Math.round(Math.abs(Math.cos(x * 1.3)) * 2 + (x % 4 === 1 ? 1 : 0));
+    // A ragged edge, kept inside the rows a scene shows of the passage past the room's edge (it
+    // shows where the pieces differ and four rows round that, inside the piece's middle rows).
+    const raggedUp = 4 + Math.round(Math.abs(Math.sin(x * 1.7)) * 2 + (x % 5 === 0 ? 1 : 0));
+    const raggedDown = 4 + Math.round(Math.abs(Math.cos(x * 1.3)) * 2 + (x % 4 === 1 ? 1 : 0));
+    const reachUp = Math.min(raggedUp, top - CHEEK_TOP);
+    const reachDown = Math.min(raggedDown, CHEEK_BOTTOM - bottom);
     for (let y = top - reachUp; y <= bottom + reachDown; y++) {
       if (y >= top && y <= bottom) continue;
       if (y < 0 || y >= g.h) continue;
       const i = y * W + x;
       const near = y < top ? top - y : y - bottom;
       let c = g.d[i]!;
-      if (near > 3) {
+      if (near > 2) {
         // The rock beyond the jamb, lit from the passage and fading out.
         const lit = rockAt(x, y);
         c = (lit & ~7) | Math.max(1, Math.min(5, (lit & 7) - (near < 6 ? 2 : 1)));

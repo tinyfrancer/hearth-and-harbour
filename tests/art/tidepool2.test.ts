@@ -265,7 +265,7 @@ describe('dungeon themes (B15)', () => {
       // In the column beyond the room (x < 24), the rock just above and below the passage differs.
       for (let x = 2; x < 22; x++) {
         const pinch = Math.round((24 - x) / 8);
-        for (const y of [14 + pinch - 1, 14 + pinch - 5, 57 - pinch + 1, 57 - pinch + 5])
+        for (const y of [14 + pinch - 1, 14 + pinch - 4, 57 - pinch + 1, 57 - pinch + 4])
           expect(open.picture.grid.d[y * W + x], `${theme} (${x}, ${y})`).not.toBe(
             shut.picture.grid.d[y * W + x],
           );
