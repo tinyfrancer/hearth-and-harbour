@@ -19,7 +19,7 @@ import { chartPanel, type ChartPanel } from './chartPanel';
 import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './fromLaneA';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
-import { largeMarkersIn } from './fromLaneB';
+import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
 import { boatPointer, labelFor, labelPlace, panFocus, ringed } from './townMarks';
 import { SCENE_BUTTONS, type StageLook } from './stage';
 import { KEYS, remember, remembered, rememberWith } from './remember';
@@ -325,6 +325,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
                   w: sun.width / per + 16,
                   h: sun.height / per + 16,
                 },
+                diagonalPointersIn(),
               );
         return townExtra(
           {
@@ -389,8 +390,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   label.hidden = true;
   /** Where the town's camera was for the last frame, and an art pixel's size on screen. */
   let lookedAt: { camera: Point; cssPerArt: number } | null = null;
-  /** Half the label's width for its words, in CSS pixels. */
+  /** Half the label's width for its words, and its height, in CSS pixels. */
   let labelHalf = 0;
+  let labelTall = 0;
   /** The thing ringed and named this frame (`ringed`). */
   let ringedNow: string | null = null;
   /** Changes asked of the town's stage for its next frame. */
@@ -481,9 +483,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       label.hidden = false;
       // Measured once for its words, not every frame.
       labelHalf = label.offsetWidth / 2;
+      labelTall = label.offsetHeight;
     }
     const width = current.el.clientWidth || Infinity;
-    const at = labelPlace(thing, feet, look, labelHalf, width);
+    const at = labelPlace(thing, feet, look, labelHalf, width, labelTall || undefined);
     if (!at) return;
     const place = `translate(${at.left}px, ${at.top}px) translate(-50%, -100%)`;
     if (label.style.transform !== place) label.style.transform = place;

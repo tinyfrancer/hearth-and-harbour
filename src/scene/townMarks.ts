@@ -23,6 +23,16 @@ import { TOWN2_TILE } from '../art/town2/town';
 export const BOAT_MARK: Point = { x: 520, y: 1486 };
 
 /**
+ * Where the boat's large marker floats (lane B's B16: 29 x 30, its anchor at
+ * its foot): higher than the small one's, clear over the gunwale, not down
+ * inside the hull.
+ */
+export const BOAT_MARK_LARGE: Point = { x: 520, y: 1474 };
+
+/** The rowing boat's hull as drawn, art pixels: what its label is placed by (its tap box is wider). */
+export const BOAT_HULL = { x: 452, y: 1468, w: 136, h: 54 } as const;
+
+/**
  * The beacon on the water round the boat while somewhere new is open: a gold
  * ring spreading out from it every `BEACON_MS`, so a new player's eye goes
  * there from anywhere on the quay. Centre and radii in art pixels.
@@ -141,10 +151,14 @@ export function marksNow(scene: Scene, play: Play, o: MarkOptions): Mark[] {
     const near = (strolling ? nearestOf(strolling, feet) : distanceTo(thing, feet)) <= MARK_NEAR;
     // The boat's marker shows from anywhere, always: it is the way out of town (Cody's point).
     if (!near && !boat) continue;
-    // The boat's over the boat itself, not the top of its generous tap box (the quay's edge).
-    const at = boat ? BOAT_MARK : { x: Math.round(box.x + box.w / 2), y: Math.round(box.y) - 3 };
     const size: MarkerSize =
       boat && o.largeIn !== false ? boatMarkSize(feet, thing, o.view) : 'small';
+    // The boat's over the boat itself, not the top of its generous tap box (the quay's edge).
+    const at = boat
+      ? size === 'large'
+        ? BOAT_MARK_LARGE
+        : BOAT_MARK
+      : { x: Math.round(box.x + box.w / 2), y: Math.round(box.y) - 3 };
     const drawn = size === 'large' ? LARGE_MARK_BOX : MARK_BOX;
     const mark: Box = {
       x: at.x - drawn.w / 2,
@@ -233,12 +247,29 @@ export function labelFor(thing: Thing, people: ReadonlySet<string>): string | nu
   return `${name} — tap to look`;
 }
 
+/** What a thing's label is placed by, art pixels: the thing as drawn (the boat's hull), else its tap box. */
+function drawnBox(thing: Thing): Box | null {
+  if (thing.id === 'rowboat') return BOAT_HULL;
+  const box = thing.tap;
+  if (!box) return null;
+  const cols = thing.footprint.map((c) => c.col);
+  if (!cols.length) return box;
+  // Across, the middle of what it stands on (a tap box can reach past it, as a door's step).
+  const left = Math.min(...cols) * T;
+  const right = (Math.max(...cols) + 1) * T;
+  return { x: left, y: box.y, w: right - left, h: box.h };
+}
+
+/** How tall the label is, CSS pixels, before it is measured: one line of words in its frame. */
+export const LABEL_TALL = 28;
+
 /**
  * Where the label over a thing goes on the page, in CSS pixels from the
  * scene's top-left (its middle-bottom), by the camera of the frame it is
- * shown with: over the thing, or over the hero's head if that is higher (so
- * the words never cover him), kept on the scene by `half` (half the label's
- * width) and clear of the top's buttons.
+ * shown with: over the thing as drawn, centred on it; under it, if over it
+ * would cover the hero (he stands above it: the boat from the quay); and
+ * over his head only if both would. Kept on the scene by `half` (half the
+ * label's width) and clear of the top's buttons.
  */
 export function labelPlace(
   thing: Thing,
@@ -246,14 +277,29 @@ export function labelPlace(
   look: { readonly camera: Point; readonly cssPerArt: number },
   half: number,
   width: number,
+  tall = LABEL_TALL,
 ): { readonly left: number; readonly top: number } | null {
-  const box = thing.tap;
+  const box = drawnBox(thing);
   if (!box) return null;
-  const { camera, cssPerArt } = look;
-  const top = Math.min(box.y, feet.y - 70);
-  const x = Math.round((box.x + box.w / 2 - camera.x) * cssPerArt);
-  const y = Math.round((top - camera.y) * cssPerArt) - 6;
-  return { left: Math.max(half + 6, Math.min(width - half - 6, x)), top: Math.max(70, y) };
+  const { camera, cssPerArt: k } = look;
+  const left = Math.max(
+    half + 6,
+    Math.min(width - half - 6, Math.round((box.x + box.w / 2 - camera.x) * k)),
+  );
+  // The hero's figure on the page, and whether a label with its bottom at `top` would cover it.
+  const hero = {
+    x: (feet.x - 14 - camera.x) * k,
+    y: (feet.y - 66 - camera.y) * k,
+    w: 28 * k,
+    h: 68 * k,
+  };
+  const covers = (top: number): boolean =>
+    overlap({ x: left - half, y: top - tall, w: 2 * half, h: tall }, hero);
+  const over = Math.max(70, Math.round((box.y - camera.y) * k) - 6);
+  if (!covers(over)) return { left, top: over };
+  const under = Math.round((box.y + box.h - camera.y) * k) + 6 + tall;
+  if (!covers(under)) return { left, top: under };
+  return { left, top: Math.max(70, Math.round((feet.y - 70 - camera.y) * k) - 6) };
 }
 
 /* ----- The first visit: the camera shows the boat ----- */
@@ -287,6 +333,30 @@ export function panFocus(ms: number, from: Point, to: Point): Point | null {
 /** How far inside the screen's edge the pointer's tip stays, in art pixels. */
 export const POINTER_INSET = 8;
 
+/**
+ * Which way a pointer toward (`dx`, `dy`) points: the nearest of eight ways
+ * by its angle when lane B's diagonal chevrons are in (`eight`), else the
+ * nearest of four.
+ */
+export function pointerWay(dx: number, dy: number, eight: boolean): PointerDirection {
+  const turn = Math.atan2(dy, dx);
+  if (eight) {
+    const ways: PointerDirection[] = [
+      'right',
+      'down-right',
+      'down',
+      'down-left',
+      'left',
+      'up-left',
+      'up',
+      'up-right',
+    ];
+    const i = Math.round(turn / (Math.PI / 4));
+    return ways[((i % 8) + 8) % 8]!;
+  }
+  return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+}
+
 /** The pointer to the boat at the screen's edge: where its tip goes, and which way it points. */
 export interface BoatPointer {
   readonly at: Point;
@@ -304,6 +374,7 @@ export function boatPointer(
   view: Box,
   o: { readonly somewhereNew: boolean; readonly chartSeen: boolean; readonly panelOpen: boolean },
   keepOut?: Box,
+  eight = false,
 ): BoatPointer | null {
   if (!o.somewhereNew || o.chartSeen || o.panelOpen) return null;
   if (insideBy(view, BOAT_MARK, 0)) return null;
@@ -319,7 +390,7 @@ export function boatPointer(
   );
   let at = { x: Math.round(mid.x + dx * k), y: Math.round(mid.y + dy * k) };
   const sideways = Math.abs(dx) * halfH > Math.abs(dy) * halfW;
-  const dir: PointerDirection = sideways ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+  const dir = pointerWay(dx, dy, eight);
   if (
     keepOut &&
     at.x >= keepOut.x &&

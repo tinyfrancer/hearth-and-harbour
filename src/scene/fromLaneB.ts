@@ -173,7 +173,16 @@ export type MarkerSize = 'small' | 'large';
 const laneB = markers2 as unknown as {
   townMarker2(kind: TownMarker2Kind, frame?: number, size?: MarkerSize): TownMarker2;
   townPointer2?(direction: PointerDirection, frame?: number): TownMarker2;
+  TOWN_POINTER2_DIRECTIONS?: readonly string[];
 };
+
+/**
+ * Whether lane B's chevrons point eight ways (wave 17 adds the four
+ * diagonals to `townPointer2`); else the pointer picks the nearest of four.
+ */
+export function diagonalPointersIn(): boolean {
+  return laneB.TOWN_POINTER2_DIRECTIONS?.includes('up-left') === true;
+}
 
 /** Whether lane B's larger marker is in (else a `'large'` marker is the small one). */
 export function largeMarkersIn(): boolean {
@@ -193,8 +202,9 @@ export function townMarker(
     : townMark(`marker ${kind} ${f}`, () => laneB.townMarker2(kind, f), time);
 }
 
-/** Which way the edge-of-screen pointer points. */
-export type PointerDirection = 'left' | 'right' | 'up' | 'down';
+/** Which way the edge-of-screen pointer points: four ways, and the diagonals once lane B draws them. */
+export type PointerDirection =
+  'left' | 'right' | 'up' | 'down' | 'up-left' | 'up-right' | 'down-left' | 'down-right';
 
 /** Lane B's edge-of-screen chevron (B16), or null before it is in (the scene draws a plain one). */
 export function townPointer(
@@ -204,6 +214,8 @@ export function townPointer(
 ): TownMark | null {
   const make = laneB.townPointer2;
   if (!make) return null;
+  // A diagonal only where lane B draws one.
+  if (direction.includes('-') && !diagonalPointersIn()) return null;
   const f = ((frame % MARKER_FRAMES) + MARKER_FRAMES) % MARKER_FRAMES;
   return townMark(`pointer ${direction} ${f}`, () => make(direction, f), time);
 }
