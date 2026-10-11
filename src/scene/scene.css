@@ -180,6 +180,8 @@
 .scene-face {
   display: block;
   flex: none;
+  /* At 1x the face is cut top and bottom to its safe box (`faceFrame`). */
+  overflow: hidden;
 }
 
 .scene-face > canvas {

@@ -3,7 +3,7 @@ import { FOE2_SIZES } from '../../src/art/dungeonArt2';
 import { PORTRAIT2_SAFE, PORTRAIT2_SIZE } from '../../src/art/portraits2';
 import { MELEE_REACH, RANGED_REACH, STEP_BACK, SWEEP_REACH } from '../../src/scene/battle';
 import { GROTTO_CAST } from '../../src/scene/cast';
-import { FACE_MOST, faceScale } from '../../src/scene/face';
+import { FACE_MOST, faceFrame, faceScale } from '../../src/scene/face';
 import { C_SCALE, DUNGEON, FIRST_SCALE, far } from '../../src/scene/dungeonMetrics';
 import {
   STRIP_HEIGHT,
@@ -47,15 +47,25 @@ describe('the target’s face', () => {
         expect(canvas.width, id).toBeGreaterThanOrEqual(PORTRAIT2_SIZE * per);
         expect(canvas.width, id).toBeLessThan(PORTRAIT2_SIZE * per + Math.ceil(dpr) + 1);
         expect(canvas.height).toBe(canvas.width);
-        // Its frame is the canvas's own size, so nothing is cut.
-        expect(face.style.width).toBe(canvas.style.width);
-        expect(face.style.height).toBe(canvas.style.height);
-        expect(Math.abs(parseFloat(canvas.style.width) - sizes[dpr]!)).toBeLessThan(2);
-        // Inside the strip's room wherever a whole scale allows.
-        if (dpr > 1) expect(parseFloat(canvas.style.width)).toBeLessThanOrEqual(FACE_MOST + 1);
         const safe = PORTRAIT2_SAFE[id]!;
         expect(safe.x + safe.w, id).toBeLessThanOrEqual(PORTRAIT2_SIZE);
         expect(safe.y + safe.h, id).toBeLessThanOrEqual(PORTRAIT2_SIZE);
+        expect(face.style.width).toBe(canvas.style.width);
+        expect(Math.abs(parseFloat(canvas.style.width) - sizes[dpr]!)).toBeLessThan(2);
+        if (dpr > 1) {
+          // Its frame is the canvas's own size, so nothing is cut, inside the strip's room.
+          expect(face.style.height).toBe(canvas.style.height);
+          expect(parseFloat(canvas.style.width)).toBeLessThanOrEqual(FACE_MOST + 1);
+        } else {
+          // At 1x no whole scale is smaller: cut top and bottom to its safe box, no taller than
+          // the strip's room, so the panel keeps its height (wave 14), and nothing that names it lost.
+          const box = faceFrame(id, 1);
+          expect(parseFloat(face.style.height)).toBe(box.h);
+          expect(box.h).toBeLessThanOrEqual(Math.max(FACE_MOST, safe.h));
+          expect(box.top).toBeLessThanOrEqual(safe.y);
+          expect(box.top + box.h).toBeGreaterThanOrEqual(safe.y + safe.h);
+          expect(-parseFloat(canvas.style.top || '0')).toBeCloseTo(box.top, 6);
+        }
       }
       expect(framedFace('nobody')).toBeNull();
     });
