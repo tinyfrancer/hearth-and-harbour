@@ -990,24 +990,28 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     `damageTaken`, `foodEaten`, `braces`, `stepOuts`, `kills`. `challengeMet(rule, stats, {
 cleared, modifier })` (`src/core/progress.ts`): only a clear, never knocked out, never on a
     statistic not reported. Rewards (`ChallengeReward`): `coins`, `bountyPoints`, `items`.
-    Cave (gentle): `tidepool_cave.brace` (brace once; 100 coins, 5 cooked shrimp),
-    `tidepool_cave.step_out` (step out of three; 150), `tidepool_cave.whole` (10 damage or less;
-    250 and 2 points), `tidepool_cave.brisk` (2:00 or less; 250 and 2 points). Grotto (real):
-    `brinebeards_grotto.swift` (7:00 or less; 6,000 and 10), `brinebeards_grotto.hard_tack` (no
-    food; 8,000 and 10), `brinebeards_grotto.stand` (no step out; 6,000 and 10),
-    `brinebeards_grotto.spring_tide` (on a Spring Tide day; 4,000 and 5). The scripted grotto
-    player takes 7:35 to 9:00 and eats 13 to 20 cod, so none of these comes with a first clear.
+    Cave (gentle): `tidepool_cave.quick` (2:00 or less; 250 coins and 2 points),
+    `tidepool_cave.unhurt` (10 damage or less; 250 and 2), `tidepool_cave.no_food` (nothing
+    eaten; 100 and 5 cooked shrimp), `tidepool_cave.snapper_dodge` (step out of three heavy
+    blows; 150). Grotto (real): `brinebeards_grotto.swift` (7:00 or less; 6,000 and 10),
+    `brinebeards_grotto.no_food` (nothing eaten; 8,000 and 10), `brinebeards_grotto.nearly_unhurt`
+    (150 damage or less; 6,000 and 10), `brinebeards_grotto.spring_tide` (on a Spring Tide day;
+    4,000 and 5). The scripted grotto player takes 7:35 to 9:00, eats 13 to 20 cod and takes 290
+    to 480 damage, so none of these comes with a first clear. **The ids are chosen so lane B's
+    icon matcher (B17, `challengeKind`/`modifierKind`, which reads words in the id) draws the
+    right picture**: its test reads this table, so an id it cannot place fails CI.
   - **The day's modifier**: `DUNGEON_MODIFIERS` (`src/data/dungeons.ts`, `Content.modifiers`),
     `ModifierEffects` a closed set documented on the type: fight effects `foeHealth`,
     `foeDamage`, `foeSpeed`, `heroDamage`, `noFood` (scene and idle, through `foeUnder` and
     `heroMaxHitUnder`); scene-only `tideFaster`, `darker`; rewards `loot` (the dungeon's regular
     drops only: what some foe drops on every kill), `coins`, `xp`, **paid by `settleRun` from
     `spoils.modifier`, never by the scene** (`spoilsUnder` says what will be paid, for a results
-    card). Ids: kind, for the cave, `still_pools` (foes strike 20% less often) and `washed_up`
-    (50% more shells and coins); trades, for the grotto, `thick_skulls` (health 1.3, XP 1.3),
-    `old_grudges` (damage 1.3, loot 1.3), `double_rum` (speed 1.25, XP and loot 1.15),
-    `spring_tide` (tide 1.5, damage 1.1, loot 1.35), `bare_larder` (no food, XP 1.2, loot 1.25),
-    `lamps_out` (darker, hero damage 0.85, XP 1.25). Every trade has a catch the idle game feels.
+    card). Ids: kind, for the cave, `slack_tide` (foes strike 20% less often) and
+    `rich_pickings` (50% more shells and coins); trades, for the grotto, `thick_skulls` (health
+    1.3, XP 1.3), `angry_crew` (damage 1.3, loot 1.3), `quick_tempers` (speed 1.25, XP and loot
+    1.15), `spring_tide` (tide 1.5, damage 1.1, loot 1.35), `no_rations` (no food, XP 1.2, loot
+    1.25), `unlit_lamps` (darker, hero damage 0.85, XP 1.25). Every trade has a catch the idle
+    game feels.
     `dailyModifier(now, dungeonId, content, utcOffset)`: the day from `now` and the phone's
     offset (minutes ahead of UTC), turning at local midnight; a dungeon's pool comes round in
     turn, each once, shuffled afresh each time round by a hash of the turn and the dungeon's id

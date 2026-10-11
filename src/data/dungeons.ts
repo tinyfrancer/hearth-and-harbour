@@ -9,16 +9,16 @@ import type { DungeonDef, ModifierDef } from '../core/content';
 // to a hero sent through unattended. tests/data/content.test.ts holds both.
 export const DUNGEON_MODIFIERS = {
   // Kind: for the Tidepool Cave.
-  still_pools: {
-    id: 'still_pools',
-    name: 'Still Pools',
+  slack_tide: {
+    id: 'slack_tide',
+    name: 'Slack Tide',
     text: 'Not a ripple. Everything in the pools is half asleep.',
     effects: { foeSpeed: 0.8 },
     kind: true,
   },
-  washed_up: {
-    id: 'washed_up',
-    name: 'Washed Up',
+  rich_pickings: {
+    id: 'rich_pickings',
+    name: 'Rich Pickings',
     text: 'The night tide left more than usual lying about.',
     effects: { loot: 1.5, coins: 1.5 },
     kind: true,
@@ -30,16 +30,16 @@ export const DUNGEON_MODIFIERS = {
     text: 'The crew slept well for once, and it shows.',
     effects: { foeHealth: 1.3, xp: 1.3 },
   },
-  old_grudges: {
-    id: 'old_grudges',
-    name: 'Old Grudges',
+  angry_crew: {
+    id: 'angry_crew',
+    name: 'An Angry Crew',
     text: 'Somebody told the crew what you said about their boat.',
     effects: { foeDamage: 1.3, loot: 1.3 },
   },
-  double_rum: {
-    id: 'double_rum',
-    name: 'Double Rum',
-    text: 'A double ration went round at breakfast. Everyone is very quick and very loud.',
+  quick_tempers: {
+    id: 'quick_tempers',
+    name: 'Quick Tempers',
+    text: 'A double rum went round at breakfast. Everyone is very fast and very loud.',
     effects: { foeSpeed: 1.25, xp: 1.15, loot: 1.15 },
   },
   spring_tide: {
@@ -48,15 +48,15 @@ export const DUNGEON_MODIFIERS = {
     text: 'The moon is full and the sea is in a hurry.',
     effects: { tideFaster: 1.5, foeDamage: 1.1, loot: 1.35 },
   },
-  bare_larder: {
-    id: 'bare_larder',
-    name: 'Bare Larder',
+  no_rations: {
+    id: 'no_rations',
+    name: 'No Rations',
     text: 'Gulls got into your pack on the way over. Every last crumb.',
     effects: { noFood: true, xp: 1.2, loot: 1.25 },
   },
-  lamps_out: {
-    id: 'lamps_out',
-    name: 'Lamps Out',
+  unlit_lamps: {
+    id: 'unlit_lamps',
+    name: 'Unlit Lamps',
     text: 'Someone forgot the lamp oil. Mind your swing.',
     effects: { darker: true, heroDamage: 0.85, xp: 1.25 },
   },
@@ -143,36 +143,38 @@ export const DUNGEONS = {
       },
     ],
     // Its days are only ever kind to a newcomer.
-    modifiers: ['still_pools', 'washed_up'],
-    // Gentle goals that each practise one of the cave's lessons.
+    modifiers: ['slack_tide', 'rich_pickings'],
+    // Gentle goals for a return visit, each practising something the cave
+    // teaches. (Their ids name what lane B's icons draw: a clock, an unhurt
+    // hero, an empty plate, the boss.)
     challenges: [
       {
-        id: 'tidepool_cave.brace',
-        name: 'Stand Firm',
-        text: 'Clear the cave having braced against a heavy blow.',
-        rule: { kind: 'atLeast', stat: 'braces', n: 1 },
-        reward: { coins: 100, items: [{ item: 'cooked_shrimp', qty: 5 }] },
+        id: 'tidepool_cave.quick',
+        name: 'Brisk',
+        text: 'Clear the cave in two minutes or less.',
+        rule: { kind: 'atMost', stat: 'timeMs', n: 120_000 },
+        reward: { coins: 250, bountyPoints: 2 },
       },
       {
-        id: 'tidepool_cave.step_out',
-        name: 'Out of the Way',
-        text: 'Clear the cave having stepped out of three heavy blows.',
-        rule: { kind: 'atLeast', stat: 'stepOuts', n: 3 },
-        reward: { coins: 150 },
-      },
-      {
-        id: 'tidepool_cave.whole',
+        id: 'tidepool_cave.unhurt',
         name: 'Mostly in One Piece',
         text: 'Clear the cave taking no more than 10 damage.',
         rule: { kind: 'atMost', stat: 'damageTaken', n: 10 },
         reward: { coins: 250, bountyPoints: 2 },
       },
       {
-        id: 'tidepool_cave.brisk',
-        name: 'Brisk',
-        text: 'Clear the cave in two minutes or less.',
-        rule: { kind: 'atMost', stat: 'timeMs', n: 120_000 },
-        reward: { coins: 250, bountyPoints: 2 },
+        id: 'tidepool_cave.no_food',
+        name: 'Packed Lunch, Uneaten',
+        text: 'Clear the cave without eating a thing.',
+        rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
+        reward: { coins: 100, items: [{ item: 'cooked_shrimp', qty: 5 }] },
+      },
+      {
+        id: 'tidepool_cave.snapper_dodge',
+        name: 'Out of the Snapper’s Way',
+        text: 'Clear the cave having stepped out of three heavy blows.',
+        rule: { kind: 'atLeast', stat: 'stepOuts', n: 3 },
+        reward: { coins: 150 },
       },
     ],
   },
@@ -287,14 +289,15 @@ export const DUNGEONS = {
     },
     modifiers: [
       'thick_skulls',
-      'old_grudges',
-      'double_rum',
+      'angry_crew',
+      'quick_tempers',
       'spring_tide',
-      'bare_larder',
-      'lamps_out',
+      'no_rations',
+      'unlit_lamps',
     ],
     // Real goals: a careful player at the end of tier 1 clears it in seven to
-    // ten minutes, eating everything brought (tests/scene/grottoRun.test.ts).
+    // ten minutes, eating everything brought and taking 290 to 480 damage
+    // all told (tests/scene/grottoRun.test.ts), so none comes with a first clear.
     challenges: [
       {
         id: 'brinebeards_grotto.swift',
@@ -304,17 +307,17 @@ export const DUNGEONS = {
         reward: { coins: 6000, bountyPoints: 10 },
       },
       {
-        id: 'brinebeards_grotto.hard_tack',
+        id: 'brinebeards_grotto.no_food',
         name: 'Hard Tack',
         text: 'Clear the grotto without eating a thing.',
         rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
         reward: { coins: 8000, bountyPoints: 10 },
       },
       {
-        id: 'brinebeards_grotto.stand',
-        name: 'Stand and Deliver',
-        text: 'Clear the grotto without stepping out of a single heavy blow.',
-        rule: { kind: 'atMost', stat: 'stepOuts', n: 0 },
+        id: 'brinebeards_grotto.nearly_unhurt',
+        name: 'Barely a Scratch',
+        text: 'Clear the grotto taking no more than 150 damage.',
+        rule: { kind: 'atMost', stat: 'damageTaken', n: 150 },
         reward: { coins: 6000, bountyPoints: 10 },
       },
       {

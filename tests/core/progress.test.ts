@@ -151,10 +151,10 @@ describe('what a modifier does', () => {
       'The tide turns 50% faster',
       '35% more of the usual drops',
     ]);
-    expect(effectWords(CONTENT.modifiers!.still_pools!.effects)).toEqual([
+    expect(effectWords(CONTENT.modifiers!.slack_tide!.effects)).toEqual([
       'Foes strike 20% less often',
     ]);
-    expect(effectWords(CONTENT.modifiers!.bare_larder!.effects)).toEqual([
+    expect(effectWords(CONTENT.modifiers!.no_rations!.effects)).toEqual([
       'Nothing can be eaten',
       '25% more of the usual drops',
       '20% more XP',
@@ -197,7 +197,7 @@ describe('challenges', () => {
   it('reads the day’s modifier: any, or the one named', () => {
     const rule = { kind: 'withModifier', id: 'spring_tide' } as const;
     expect(challengeMet(rule, STATS, { cleared: true, modifier: 'spring_tide' })).toBe(true);
-    expect(challengeMet(rule, STATS, { cleared: true, modifier: 'lamps_out' })).toBe(false);
+    expect(challengeMet(rule, STATS, { cleared: true, modifier: 'unlit_lamps' })).toBe(false);
     expect(challengeMet({ kind: 'withModifier' }, STATS, { cleared: true, modifier: 'x' })).toBe(
       true,
     );
@@ -233,17 +233,22 @@ describe('settling a run that meets challenges', () => {
   it('pays each challenge met once, records it, and says which', () => {
     const first = settleRun(start, caveClear(STATS), CONTENT);
     expect(first.dungeons[CAVE]!.challenges).toEqual([
-      'tidepool_cave.brace',
-      'tidepool_cave.step_out',
-      'tidepool_cave.whole',
-      'tidepool_cave.brisk',
+      'tidepool_cave.quick',
+      'tidepool_cave.unhurt',
+      'tidepool_cave.snapper_dodge',
     ]);
-    // The first clear's reward, the run's coins and the four challenges' coins.
-    expect(first.coins).toBe(10 + 100 + 150 + 250 + 250);
+    // The run's coins and three challenges' (two shrimp eaten: not the uneaten lunch).
+    expect(first.coins).toBe(10 + 250 + 250 + 150);
     expect(first.bountyPoints).toBe(4);
-    // Five shrimp from the first clear, five from Stand Firm.
-    expect(first.bank.cooked_shrimp).toBe(10);
-    expect(newChallenges(start, first, CONTENT).map((c) => c.id)).toHaveLength(4);
+    // Five shrimp from the first clear.
+    expect(first.bank.cooked_shrimp).toBe(5);
+    expect(newChallenges(start, first, CONTENT).map((c) => c.id)).toHaveLength(3);
+    // The lunch left uneaten another time: that one alone is paid.
+    const third = settleRun(first, caveClear({ ...STATS, foodEaten: 0 }), CONTENT);
+    expect(newChallenges(first, third, CONTENT).map((c) => c.id)).toEqual([
+      'tidepool_cave.no_food',
+    ]);
+    expect(third.bank.cooked_shrimp).toBe(10);
     // Met again: nothing more.
     const second = settleRun(first, caveClear(STATS), CONTENT);
     expect(second.coins).toBe(first.coins + 10);
@@ -275,14 +280,14 @@ describe('settling a run that meets challenges', () => {
       coins: 10,
       loot: { seashells: 3, pearl: 1, hide: 1 },
       dungeon: CAVE,
-      modifier: 'washed_up',
+      modifier: 'rich_pickings',
     };
     // Shells drop on every kill in the cave; a pearl and a hide do not.
     expect(spoilsUnder(spoils, CONTENT)).toEqual({
       xp: { melee: 100 },
       coins: 15,
       loot: { seashells: 5, pearl: 1, hide: 1 },
-      modifier: 'washed_up',
+      modifier: 'rich_pickings',
     });
     const after = settleRun(start, spoils, CONTENT);
     expect(after.bank).toEqual({ seashells: 5, pearl: 1, hide: 1 });
@@ -290,15 +295,15 @@ describe('settling a run that meets challenges', () => {
     // A modifier the dungeon does not draw, or a run that says nothing of where, is paid plain.
     expect(spoilsUnder({ ...spoils, modifier: 'spring_tide' }, CONTENT).coins).toBe(10);
     expect(spoilsUnder({ ...spoils, dungeon: undefined }, CONTENT).coins).toBe(10);
-    expect(spoilsUnder({ ...spoils, modifier: 'washed_up' }).coins).toBe(10);
+    expect(spoilsUnder({ ...spoils, modifier: 'rich_pickings' }).coins).toBe(10);
   });
 
   it('records the modifiers cleared under, each once', () => {
-    const clear = caveClear(STATS, { modifier: 'still_pools' });
+    const clear = caveClear(STATS, { modifier: 'slack_tide' });
     let state = settleRun(start, clear, CONTENT);
     state = settleRun(state, clear, CONTENT);
-    state = settleRun(state, caveClear(STATS, { modifier: 'washed_up' }), CONTENT);
-    expect(state.dungeons[CAVE]!.modifiers).toEqual(['still_pools', 'washed_up']);
+    state = settleRun(state, caveClear(STATS, { modifier: 'rich_pickings' }), CONTENT);
+    expect(state.dungeons[CAVE]!.modifiers).toEqual(['slack_tide', 'rich_pickings']);
   });
 
   it('pays the grotto’s Spring Tide only on its day', () => {
@@ -306,9 +311,9 @@ describe('settling a run that meets challenges', () => {
       cleared: GROTTO,
       dungeon: GROTTO,
       modifier,
-      stats: { ...STATS, timeMs: 500_000, foodEaten: 20, stepOuts: 40 },
+      stats: { ...STATS, timeMs: 500_000, foodEaten: 20, damageTaken: 400 },
     });
-    const lamps = settleRun(start, grotto('lamps_out'), CONTENT);
+    const lamps = settleRun(start, grotto('unlit_lamps'), CONTENT);
     expect(lamps.dungeons[GROTTO]!.challenges).toBeUndefined();
     const spring = settleRun(lamps, grotto('spring_tide'), CONTENT);
     expect(spring.dungeons[GROTTO]!.challenges).toEqual(['brinebeards_grotto.spring_tide']);
@@ -381,13 +386,15 @@ describe('achievements of dungeons', () => {
       meets(record({ challenges: all.slice(1) }), { kind: 'challenges', dungeon: CAVE }, CONTENT),
     ).toBe(false);
     const under = { kind: 'underModifiers', dungeon: CAVE } as const;
-    expect(meets(record({ modifiers: ['still_pools'] }), under, CONTENT)).toBe(false);
-    expect(meets(record({ modifiers: ['still_pools'] }), { ...under, count: 1 }, CONTENT)).toBe(
+    expect(meets(record({ modifiers: ['slack_tide'] }), under, CONTENT)).toBe(false);
+    expect(meets(record({ modifiers: ['slack_tide'] }), { ...under, count: 1 }, CONTENT)).toBe(
       true,
     );
-    expect(meets(record({ modifiers: ['washed_up', 'still_pools'] }), under, CONTENT)).toBe(true);
+    expect(meets(record({ modifiers: ['rich_pickings', 'slack_tide'] }), under, CONTENT)).toBe(
+      true,
+    );
     // A modifier the cave no longer draws counts for nothing.
-    expect(meets(record({ modifiers: ['washed_up', 'gone'] }), under, CONTENT)).toBe(false);
+    expect(meets(record({ modifiers: ['rich_pickings', 'gone'] }), under, CONTENT)).toBe(false);
     expect(meets(record({ idleRuns: 9 }), { kind: 'idleRuns', count: 10 }, CONTENT)).toBe(false);
     expect(
       meets(record({ idleRuns: 10 }), { kind: 'idleRuns', count: 10, dungeon: CAVE }, CONTENT),

@@ -366,7 +366,7 @@ describe('the day’s modifier and challenges, for a scene (S16)', () => {
     const stats = {
       timeMs: 110_000,
       damageTaken: 14,
-      foodEaten: 1,
+      foodEaten: 0,
       braces: 2,
       stepOuts: 1,
       knockedOut: false,
@@ -375,13 +375,13 @@ describe('the day’s modifier and challenges, for a scene (S16)', () => {
     const run = { cleared: 'tidepool_cave', dungeon: 'tidepool_cave', timeMs: 110_000, stats };
     shell!.settleRun(run);
     expect(saved()!.dungeons.tidepool_cave!.challenges).toEqual([
-      'tidepool_cave.brace',
-      'tidepool_cave.brisk',
+      'tidepool_cave.quick',
+      'tidepool_cave.no_food',
     ]);
     expect(root.querySelector('.toast')!.textContent).toBe(
       'First clear of Tidepool Cave! Into the bank: a Bronze sword and 5 Cooked shrimp. ' +
-        'Challenge done: Stand Firm! 100 coins and 5 Cooked shrimp. ' +
-        'Challenge done: Brisk! 250 coins and 2 bounty points.',
+        'Challenge done: Brisk! 250 coins and 2 bounty points. ' +
+        'Challenge done: Packed Lunch, Uneaten! 100 coins and 5 Cooked shrimp.',
     );
     expect(saved()!.coins).toBe(350);
     root.querySelector('.toast')!.remove();
