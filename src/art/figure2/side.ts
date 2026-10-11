@@ -191,6 +191,8 @@ export interface SideDress {
   elbowCap?: readonly string[];
   kneeCap?: readonly string[];
   capMat?: Mat;
+  /** The knee cop's own metal, if not `capMat` (greaves under the knight's plate). */
+  kneeMat?: Mat;
   /** What the weapon hand holds (front-view parts, carried rigidly with the fist), and the shield. */
   held: Part2[];
   shield: Part2[];
@@ -365,7 +367,7 @@ export function sideFrame(
     });
     if (dress.kneeCap)
       placed(sheet, dress.kneeCap, [2, 2], leg.knee, {
-        mat: dress.capMat ?? 'plate',
+        mat: dress.kneeMat ?? dress.capMat ?? 'plate',
         depth: depth + 3,
         darken: dark,
       });

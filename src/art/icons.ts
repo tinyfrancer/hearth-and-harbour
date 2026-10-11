@@ -58,12 +58,26 @@ export const ICON_FAMILIES: readonly {
   {
     name: 'Bronze',
     kind: 'item',
-    ids: ['bronze_axe', 'bronze_sword', 'bronze_helmet', 'bronze_shield', 'bronze_breastplate'],
+    ids: [
+      'bronze_axe',
+      'bronze_sword',
+      'bronze_helmet',
+      'bronze_shield',
+      'bronze_breastplate',
+      'bronze_greaves',
+    ],
   },
   {
     name: 'Iron',
     kind: 'item',
-    ids: ['iron_axe', 'iron_sword', 'iron_helmet', 'iron_shield', 'iron_breastplate'],
+    ids: [
+      'iron_axe',
+      'iron_sword',
+      'iron_helmet',
+      'iron_shield',
+      'iron_breastplate',
+      'iron_greaves',
+    ],
   },
   {
     name: 'Linen and shell',

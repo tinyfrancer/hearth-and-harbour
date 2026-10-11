@@ -634,6 +634,52 @@ const liquid = (ramp: 'tonic' | 'draught' | 'tincture' | 'midnight'): Legend =>
   }) as Legend;
 
 // ---------------------------------------------------------------------------
+// Greaves (B13), a pair stood side by side, the far one a little lower: bronze
+// a shin plate under a domed knee cop with two hide straps; iron wider, its
+// cop in two lames, a ridge down the plate and leather straps at its edges.
+const BRONZE_GREAVES: readonly string[] = [
+  '...112',
+  '..11223',
+  '.1122233.....112',
+  '.1222334....11223',
+  '..55555....1122233',
+  '.11122334..1222334',
+  'FXXXXXXX#...55555',
+  '.11122334..11122334',
+  '.11122334.FXXXXXXX#',
+  '..112234...11122334',
+  '..112234...11122334',
+  '.FXXXXX#....112234',
+  '..11234.....112234',
+  '..11234....FXXXXX#',
+  '.1122334....11234',
+  '.5555555....11234',
+  '...........1122334',
+  '...........5555555',
+];
+
+const IRON_GREAVES: readonly string[] = [
+  '...MMm',
+  '..MMmmn',
+  '.ddddddd.....MMm',
+  '.MMmmnnd....MMmmn',
+  '..ddddd....ddddddd',
+  '.MMMmmnnd..MMmmnnd',
+  'fMMMmmnnf...ddddd',
+  '.MMMmmnnd..MMMmmnnd',
+  '.MMMmmnnd.fMMMmmnnf',
+  '..MMmnnd...MMMmmnnd',
+  '..MMmnnd...MMMmmnnd',
+  '.fMMmnnf....MMmnnd',
+  '..MMmnd.....MMmnnd',
+  '..MMmnd....fMMmnnf',
+  '.MMMmnnd....MMmnd',
+  '.ddddddd....MMmnd',
+  '...........MMMmnnd',
+  '...........ddddddd',
+];
+
+// ---------------------------------------------------------------------------
 
 export const GEAR_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   bronze_axe: { rows: BRONZE_AXE, legend: BRONZE },
@@ -646,6 +692,8 @@ export const GEAR_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   iron_helmet: { rows: IRON_HELMET, legend: IRON },
   iron_shield: { rows: IRON_SHIELD, legend: IRON },
   iron_breastplate: { rows: IRON_BODY, legend: IRON },
+  bronze_greaves: { rows: BRONZE_GREAVES, legend: BRONZE },
+  iron_greaves: { rows: IRON_GREAVES, legend: IRON },
   bronze_arrowheads: { rows: BRONZE_ARROWHEADS, legend: BRONZE },
   iron_arrowheads: { rows: IRON_ARROWHEADS, legend: IRON },
   shell_vial: potion(CORK, { a: 'white1', b: 'shell1', c: 'shelldark1', r: 'shelldark2' }),

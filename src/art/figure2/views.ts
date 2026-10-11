@@ -20,6 +20,8 @@ import type { Mat } from '../town2/ramps';
 import { FIST2, OPEN_HAND2 } from './body';
 import type { Bone, Part2, Pins } from './engine';
 import { HAIR_BACKS, HEAD_BACK, HEADGEAR_BACK } from './sideHeads';
+import { GREAVES_BACK } from './greaves';
+import { BEARD_BACK } from './beard';
 import type { Boned } from './walk';
 
 /** Every pixel of a part, by row, as (x, character). */
@@ -150,6 +152,7 @@ export function slotTag(part: Part2, bone: Bone, slot: string | null, gear: stri
     case 'knees':
       return 'leg';
     case 'hair':
+    case 'beard':
       return 'hair';
     case 'head':
       return 'hat';
@@ -341,6 +344,9 @@ const BACK_RULES: Readonly<Record<string, BackRule>> = {
   trollstone: () => null,
   hunters_charm: () => null,
   knight_knees: () => null,
+  // Greaves from behind: the plates' edges round the calf and the straps across it.
+  bronze_greaves: (_p, i) => GREAVES_BACK.bronze_greaves![i] ?? null,
+  iron_greaves: (_p, i) => GREAVES_BACK.iron_greaves![i] ?? null,
   teal_tunic: (p, i) => (i === 0 ? reshade(p) : p),
   linen_tunic: (p, i) => (i === 0 ? reshade(p) : p),
 };
@@ -377,6 +383,13 @@ export function backParts(
       else
         for (const p of (slot === 'hair' ? HAIR_BACKS : HEADGEAR_BACK)[gear!] ?? [])
           out.push({ part: p, bone: 'head', tag });
+      continue;
+    }
+    if (slot === 'beard') {
+      // From behind only what shows past the jaw and the neck.
+      if (done.has(gear!)) continue;
+      done.add(gear!);
+      for (const p of BEARD_BACK[gear!] ?? []) out.push({ part: p, bone: 'head', tag: 'hair' });
       continue;
     }
     if (slot === 'back') {

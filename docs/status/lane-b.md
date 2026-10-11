@@ -1,7 +1,26 @@
 # Lane B: art
 
-**Next session:** Cody's review of B12 (the back view, the layer order, the hero's blow, the marks'
-faces, the wide foes), and whatever it asks for.
+**Next session:** B13's second PR (Cody's feedback: hair in every facing, new hairstyles and
+beards, the cutlass's curve, the grotto's doors, activity poses), then Cody's review.
+
+## Greaves and the beard's key, for lanes A and C (B13, first PR)
+
+- **Greaves**: `bronze_greaves` and `iron_greaves` have item icons (`itemIcon`) and are in
+  `ITEM_LAYERS2` (gear ids the same), drawn in every facing and pose (standing, breathing, the
+  walk, the blow) and layered over trousers and boots, under skirts, coats and the cloak. Lane A
+  can merge the items. The art draws them in its `knees` slot, so the trousers worn (or the
+  everyday ones) stay on under them, whatever the game's slot is.
+- **The beard's key**: the art's `Look` has `beard?: string`; missing (or an id the art does not
+  know) is drawn as `none`. The choices are `BEARD_CHOICES` (`character.ts`) and
+  `BEARD_CHOICES2` (`character2.ts`), the same array that is in the table as
+  `LOOK_CHOICES.beard` / `LOOK_CHOICES2.beard` at run time, `none` first. **Not yet in
+  `LOOK_CHOICES`'s declared type**: today's `src/ui/look.ts` maps `DrawnLook` over that type's
+  keys and indexes the core `Look` with them, so a `beard` key there breaks main until lane A's
+  look holds a beard. When lane A's `look.ts` and core `Look` carry `beard`, the type widens to
+  `Record<keyof Look, …>` (one line in `character.ts`). `DEFAULT_LOOK` now has `beard: 'none'`.
+  Every picture door's cache key includes the beard.
+- **For lane C**: `dressKey` in `src/scene/hero.ts` should include `look.beard` (once the look has
+  one) so a change of beard redraws the hero in the scene.
 
 ## Faces, icons, wide foes, the first scale retired, for lanes A and C (B12, second PR)
 

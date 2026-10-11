@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOOK, LOOK_CHOICES } from '../../src/art/character';
+import { BEARD_CHOICES, DEFAULT_LOOK, LOOK_CHOICES } from '../../src/art/character';
 import {
   FIGURE2_ANCHOR_X,
   FIGURE2_H,
@@ -72,6 +72,9 @@ const WEARABLES = [
   'leather_bracers',
   'leather_cap',
   'leather_jerkin',
+  // B13: the smithy's leg armour (lane A adds the items this wave).
+  'bronze_greaves',
+  'iron_greaves',
 ];
 
 const at = (g: TGrid, x: number, y: number) => g.d[y * g.w + x]!;
@@ -130,7 +133,15 @@ describe('the door', () => {
   });
 
   it('keeps the look choices the game stores, in their order', () => {
-    expect(DEFAULT_LOOK).toEqual({ skin: 'fair', hair: 'short', hairColour: 'brown' });
+    expect(DEFAULT_LOOK).toEqual({
+      skin: 'fair',
+      hair: 'short',
+      hairColour: 'brown',
+      beard: 'none',
+    });
+    // The beard (B13): `none` first, the same array in the table as `BEARD_CHOICES`.
+    expect(BEARD_CHOICES[0]!.id).toBe('none');
+    expect((LOOK_CHOICES as unknown as Record<string, unknown>).beard).toBe(BEARD_CHOICES);
     expect(LOOK_CHOICES.hairColour.map((c) => c.id)).toEqual([
       'brown',
       'black',

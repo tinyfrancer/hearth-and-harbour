@@ -53,9 +53,18 @@ export const LADDER2: readonly {
   },
   {
     name: 'Bronze',
-    items: ['bronze_helmet', 'bronze_breastplate', 'bronze_shield', 'bronze_sword'],
+    items: [
+      'bronze_helmet',
+      'bronze_breastplate',
+      'bronze_greaves',
+      'bronze_shield',
+      'bronze_sword',
+    ],
   },
-  { name: 'Iron', items: ['iron_helmet', 'iron_breastplate', 'iron_shield', 'iron_sword'] },
+  {
+    name: 'Iron',
+    items: ['iron_helmet', 'iron_breastplate', 'iron_greaves', 'iron_shield', 'iron_sword'],
+  },
   { name: 'Tier 2 (the knight)', items: [], extra: KNIGHT_GEAR2 },
 ];
 
@@ -100,6 +109,8 @@ export const GEAR_GROUPS2: readonly { readonly name: string; readonly items: rea
         'bronze_breastplate',
         'iron_breastplate',
         'captains_coat',
+        'bronze_greaves',
+        'iron_greaves',
       ],
     },
     {
