@@ -1,7 +1,41 @@
 # Lane B: art
 
-**Next session:** Cody's review of B13 (hair in every facing, the new hairstyles and beards, the
-cutlass's curve, the grotto's doors, greaves, the activity poses), and whatever it asks for.
+**Next session:** Cody's review of B14 (the title screen) and B13 (hair in every facing, the new
+hairstyles and beards, the cutlass's curve, the grotto's doors, greaves, the activity poses), and
+whatever it asks for.
+
+## The title screen, for lane A (B14)
+
+```ts
+// src/art/title.ts
+titleScene(widthCss: number, heightCss: number, dpr: number): {
+  canvas: HTMLCanvasElement;          // one pixel per art pixel, CSS-sized to cover the screen
+  draw(ms: number): void;             // paints the frame for time ms; pure in ms
+  safe: { x: number; y: number; w: number; h: number }; // CSS px from the canvas's top-left
+  dispose(): void;
+}
+TITLE_FRAME_MS = 125                  // redraw interval while the title shows
+```
+
+- **Size**: pass the title's box in CSS pixels (the viewport, or the app's area) and
+  `devicePixelRatio`. The canvas's CSS size is the box or a hair larger (under one art pixel, so
+  each art pixel lands on whole device pixels at 2.625x too): put it at the box's top-left in a
+  container with `overflow: hidden`. On a 3x phone one art pixel is one CSS pixel (3 device
+  pixels); a phone on its side or a tablet gets a smaller whole scale and more scenery round the
+  same composition. Build a new scene on a resize or rotation (`dispose()` the old one).
+- **The menu**: put the button and version line inside `safe` (calm water at the foot, below the
+  town's reflection, a little narrower than the screen; it reaches the canvas's bottom, so add
+  the safe-area inset yourself). On a 390 x 844 phone it is 340 x 150 CSS pixels from y 694. The
+  logotype is part of the picture, above `safe` at every size (tested).
+- **Animating**: call `draw(ms)` with the time since the title appeared, every `TITLE_FRAME_MS`
+  (a `requestAnimationFrame` loop that skips frames until 125 ms have passed). The first `draw`
+  builds the still layers (see the performance notes in Done); later frames are cheap.
+  `draw(a)` then `draw(b)` paints exactly what a fresh scene's `draw(b)` does.
+- **Reduced motion**: `draw(0)` once and never again; frame 0 is a composed still.
+- **Stop** the loop and `dispose()` when the title is left; nothing else holds memory.
+- Without canvas pixels (jsdom), `draw` works the frame out and shows nothing; it never throws.
+- The art knows nothing about saves or players: "Continue", the hero's name and "away 3 hours"
+  are lane A's, drawn by the menu over `safe`.
 
 ## Hair, beards, the cutlass, doors, the hero at work, for lanes A and C (B13, second PR)
 

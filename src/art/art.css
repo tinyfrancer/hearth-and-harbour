@@ -159,3 +159,25 @@
   max-width: 100%;
   overflow-x: auto;
 }
+
+/* The title screen (B14): each phone-sized screen clips its canvas (a hair larger than the screen). */
+.gallery-title,
+.gallery-title-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gallery-title-screen {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  border: var(--px) solid var(--gold);
+}
+
+.gallery-title-safe {
+  position: absolute;
+  outline: 1px dashed var(--gold-bright);
+  outline-offset: -1px;
+  pointer-events: none;
+}

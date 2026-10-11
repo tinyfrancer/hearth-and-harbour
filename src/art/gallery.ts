@@ -22,6 +22,7 @@ import { TAB_MUTED } from './tabArt';
 import { figure2Gallery } from './figure2/gallery';
 import { town2Gallery } from './town2/gallery2';
 import { dungeon2Gallery } from './dungeon2/gallery';
+import { titleGallery } from './title/gallery';
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -47,9 +48,13 @@ export function artGallery(): HTMLElement {
     el(
       'p',
       'gallery-intro',
-      'The game’s art at the finer scale Cody chose: the town, the figures and the dungeon, each drawn when asked; then every icon and the palette.',
+      'The game’s art at the finer scale Cody chose: the title screen, the town, the figures and the dungeon, each drawn when asked; then every icon and the palette.',
     ),
   );
+
+  // The title screen first (B14): the first thing a player sees.
+  const title = titleGallery();
+  page.append(title.button);
 
   // Each C-scale section is heavy: a button goes straight to it and draws it.
   const town2 = town2Gallery();
@@ -119,7 +124,8 @@ export function artGallery(): HTMLElement {
 
   part(
     'At the finer scale',
-    'The town, the figures (walking, from behind, the blow) and the dungeon (rooms, tiles, props, foes, faces), each drawn on a tap from the buttons above.',
+    'The title screen, the town, the figures (walking, from behind, the blow) and the dungeon (rooms, tiles, props, foes, faces), each drawn on a tap from the buttons above.',
+    title.section,
     town2.section,
     figures2.section,
     dungeon2.section,
