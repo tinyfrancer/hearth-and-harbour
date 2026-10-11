@@ -318,9 +318,9 @@ function smoke(
     const age = t / T + i / n;
     const a = age % 1;
     const life = Math.floor(age);
-    const px = x + Math.pow(a, 1.3) * 15 + Math.sin(a * 5 + k) * 1.2;
-    const py = y - 1 - a * 30;
-    const r = 0.9 + a * 3;
+    const px = x + Math.pow(a, 1.25) * 19 + Math.sin(a * 5 + k) * 1.4;
+    const py = y - 1 - a * 34;
+    const r = 1.2 + a * 3.6;
     for (let yy = Math.floor(py - r); yy <= py + r; yy++)
       for (let xx = Math.floor(px - r); xx <= px + r; xx++) {
         if (xx < 0 || xx >= w || yy < 0 || yy >= wl) continue;
@@ -331,7 +331,8 @@ function smoke(
         const i2 = yy * w + xx;
         if (logo[i2]) continue;
         const lit = -dx * 0.7 - dy * 0.5;
-        const step = Math.max(1, Math.min(5, Math.round((dark ? 3.4 : 2.4) + a * 1.2 - lit * 1.1)));
+        // Lit by the afterglow on its lower left: pale at first, greying as it thins.
+        const step = Math.max(1, Math.min(5, Math.round((dark ? 2.9 : 1.9) + a * 1.4 - lit * 1.1)));
         F[i2] = TITLE_RGBA[SMOKE + step] as number;
       }
   }

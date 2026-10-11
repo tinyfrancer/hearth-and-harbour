@@ -155,11 +155,14 @@ export function hillTop(rx: number): number {
     return back + Math.round(u * u * 2);
   }
   const d = rx < l ? l - rx : rx - r;
-  const fall = rx < l ? 0.62 : 0.5;
-  // A round shoulder easing into a long slope, then a gentle roll to the edges.
-  const edge = back + 2;
-  const curve = d < 18 ? (d * d) / 36 : 9 + (d - 18) * fall;
-  return Math.min(-46 + Math.round(4 * Math.sin(rx / 23)), Math.round(edge + curve));
+  // The slope eases off the shoulder and onto the low ground (a cosine, not a
+  // ruled line), a little uneven on the way down, then rolls on to the edges.
+  const span = rx < l ? 96 : 84;
+  const low = -46 + 4 * Math.sin(rx / 23);
+  const f = Math.min(1, d / span);
+  const ease = (1 - Math.cos(f * Math.PI)) / 2;
+  const wobble = 2.2 * Math.sin(d / 11 + (rx < l ? 1 : 3)) * Math.sin(f * Math.PI);
+  return Math.round(back + 2 + (low - back - 2) * ease + wobble);
 }
 
 /**

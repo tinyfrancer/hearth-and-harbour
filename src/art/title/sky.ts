@@ -238,6 +238,8 @@ export function makeClouds(period: number, top: number, bottom: number): Cloud[]
     [0.72, 0.3, 80, 5],
     [0.86, 0.85, 118, 6],
     [0.2, 0.95, 66, 4],
+    [0.6, 0.12, 46, 3],
+    [0.12, 0.62, 52, 4],
   ];
   return specs.map(([fx, fy, len, th], k) => {
     const g: TGrid = { w: len, h: th + 2, d: new Int16Array(len * (th + 2)) };
