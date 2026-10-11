@@ -80,7 +80,13 @@ export function groundInAWorker(): WorkerPainter {
         return;
       }
       const job: Job = {
-        request: { id: next++, room: room.id, level: state.level, warn: state.warn },
+        request: {
+          id: next++,
+          ...(room.dungeon ? { dungeon: room.dungeon } : {}),
+          room: room.id,
+          level: state.level,
+          warn: state.warn,
+        },
         room,
         state,
         done,

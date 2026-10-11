@@ -61,7 +61,7 @@ import { breathFrame, type Pose2 } from './figures2';
 import { foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
 import { CaveShadow, glowsIn, paintCells, perchLift, type RoomLook } from './grottoArt';
-import { CAPTAIN_SAYS } from './grottoWords';
+import { sayingOf } from './dungeons';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';
 import type { Box } from './things';
@@ -1606,19 +1606,14 @@ export function fightExtra(
         }
         drawEffectOver(ctx, e, clock, hero, HERO_TALL, k, nudge * 14);
       }
-      // What the captain shouts, over his head.
+      // What a boss shouts, over its head: the dungeon's own words for it.
       for (const e of battle.effects) {
         if (e.kind !== 'say' || clock - e.from >= SAY_MS) continue;
         const who = battle.foes.find((f) => f.key === e.who);
         if (!who || who.room !== run.room) continue;
-        speech(
-          ctx,
-          CAPTAIN_SAYS[e.line],
-          who.at.x,
-          who.at.y - standsOf(who.monster) - 14,
-          viewWidth,
-          k,
-        );
+        const words = sayingOf(run.dungeon, who.monster, e.line);
+        if (!words) continue;
+        speech(ctx, words, who.at.x, who.at.y - standsOf(who.monster) - 14, viewWidth, k);
       }
     },
   };

@@ -53,7 +53,10 @@ export interface Volleys {
   readonly firstMs: number;
   /** Two lines in one volley are never nearer each other than this, so there is always a way between. */
   readonly gap: number;
-  /** By phase, from the first: how often, how many lines, and how long each is marked before it lands. */
+  /**
+   * By phase, from the first: how often, how many lines, and how long each is
+   * marked before it lands. None: no volleys at all.
+   */
   readonly phases: readonly {
     readonly everyMs: number;
     readonly lines: number;
@@ -252,6 +255,34 @@ export const FIRST_KINDS: Readonly<Record<string, FoeKind>> = {
         ],
       },
       calls: { monster: 'deckhand', count: 2 },
+    },
+  },
+
+  /* ----- The Tidepool Cave ----- */
+
+  // The cave's boss, built round one thing to learn: when the ground round it
+  // is marked, it is about to come down on it with all its shell. Slow to
+  // walk, slow to wind up, the mark wide and plain, and nothing else going on:
+  // no cannon behind it (no volleys) and nobody to call.
+  old_snapper: {
+    speed: 16,
+    notice: 150,
+    reach: 30,
+    keep: 28,
+    heavy: {
+      aim: 'self',
+      radius: 50,
+      warnMs: 2200,
+      everyMs: 7000,
+      firstMs: 3000,
+      range: 46,
+      times: 2,
+    },
+    box: { w: 48, h: 30 },
+    boss: {
+      phases: [],
+      volleys: { half: 0, damage: 0, firstMs: 0, gap: 0, phases: [] },
+      calls: { monster: 'dock_rat', count: 0 },
     },
   },
 };

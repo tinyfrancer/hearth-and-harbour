@@ -5,10 +5,10 @@ import type { Shell, View } from '../ui/view';
 import { other, timeOfDayAt, type TimeOfDay } from './daylight';
 import { seedFrom } from '../core/rng';
 import { fighterOf, spoilsOf } from './battle';
-import { GROTTO_CAST } from './cast';
-import { buildDungeon, startRun, type Dungeon, type Run } from './dungeon';
+import { startRun, type Dungeon, type Run } from './dungeon';
+import { builtDungeons, castOf, dungeonById, dungeonScene, healsOf } from './dungeons';
 import { dungeonView } from './dungeonView';
-import { GROTTO } from './grotto';
+import { startLessons } from './lessons';
 import { closePanel, startPlay, type Play } from './play';
 import { loadingScene } from './loadingScene';
 import { stage } from './stage';
@@ -107,12 +107,8 @@ const asked = { paused: false, full: false };
 /** Where the boat leaves from and lands: on the quay beside it, looking at it (24-pixel tiles). */
 export const BOAT_LANDING: Cell = BOAT_LANDING2;
 
-let grotto: Dungeon | null = null;
-const dungeons = (id: string): Dungeon | null => {
-  if (id !== GROTTO.id) return null;
-  grotto ??= buildDungeon(GROTTO);
-  return grotto;
-};
+/** A dungeon this scene can play, by id (`dungeons.ts`); null for one it does not know. */
+const dungeons = (id: string): Dungeon | null => dungeonById(id);
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
 
@@ -324,15 +320,25 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     const dungeon = dungeons(id);
     if (!dungeon || rowing) return;
     // A run reads the character as they row out, and rolls its own dice, never the save's.
-    const next = startRun(dungeon, {
+    const started = startRun(dungeon, {
       fighter: fighterOf(latest, content),
-      // The grotto's own cast fights by its rows here; the tables' monsters by theirs.
-      monsters: { ...(content.monsters ?? {}), ...GROTTO_CAST },
+      // A dungeon's own cast fights by its rows here; the tables' monsters by theirs.
+      monsters: castOf(content, id),
       // Seeded from the app's clock as passed in; a view updated without one (a test) reads the date.
       seed: seedFrom(clockNow ?? Date.now()),
       // Loot the game's tables do not know yet is not dropped.
       known: Object.keys(content.items),
+      // Food found in the run (a crate's fish) can be eaten there.
+      heals: healsOf(content),
     });
+    // A dungeon with lessons teaches a player who has never cleared it.
+    const taught = dungeonScene(id)?.lessons ?? [];
+    const next: Run = taught.length
+      ? {
+          ...started,
+          lessons: startLessons(id, taught, (latest.dungeons[id]?.clears ?? 0) > 0),
+        }
+      : started;
     paintAhead(dungeon);
     rowing = { run: next, dungeon, since: performance.now() };
     rowOn();
@@ -501,7 +507,8 @@ export function resetTown(): void {
 
 /** Lets every dungeon room's painted ground go, as a fresh page has none. For tests. */
 export function forgetRooms(): void {
-  if (grotto) for (const room of Object.values(grotto.rooms)) roomLook(room).forget();
+  for (const dungeon of builtDungeons())
+    for (const room of Object.values(dungeon.rooms)) roomLook(room).forget();
 }
 
 /** Where the hero is, whether he is on his way somewhere, and what is open. For tests. */

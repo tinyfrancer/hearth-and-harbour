@@ -277,6 +277,8 @@ export interface Tally {
   readonly kills: number;
   /** Kills by monster id. */
   readonly killed: Readonly<Record<string, number>>;
+  /** Food found in the run and eaten there, by item id: taken from `loot`, never from the food slot. */
+  readonly ateFound?: Readonly<Record<string, number>>;
   /** What each kind of foe was seen to drop, by monster id: each item id once. */
   readonly dropped: Readonly<Record<string, readonly string[]>>;
   readonly eaten: number;
@@ -323,6 +325,12 @@ export interface Battle {
   readonly volleys: readonly Telegraph[];
   readonly effects: readonly Effect[];
   readonly tally: Tally;
+  /**
+   * How much each kind of food heals, by item id, for food picked up in the
+   * run (a crate's fish): it can be eaten there. Absent in a battle with
+   * none to find (and in a snapshot from before there was any).
+   */
+  readonly larder?: Readonly<Record<string, number>>;
   /** How the fighting ended, and when: the room cleared, or the hero down. */
   readonly over: { readonly why: 'cleared' | 'fell'; readonly at: number } | null;
 }
@@ -343,6 +351,14 @@ type Writable<T> = { -readonly [K in keyof T]: T[K] };
 export interface BattleOptions {
   /** The item ids the game knows, so loot it does not know yet is skipped rather than paid in. */
   readonly known?: Iterable<string>;
+  /** What lies on the floor from the start (a crate's fish), picked up as anything that fell is. */
+  readonly finds?: readonly {
+    readonly room: string;
+    readonly at: Point;
+    readonly loot: Readonly<Record<string, number>>;
+  }[];
+  /** How much each kind of food heals, by item id: what of it is found can be eaten in the run. */
+  readonly heals?: Readonly<Record<string, number>>;
 }
 
 export function startBattle(
@@ -362,6 +378,16 @@ export function startBattle(
   const known = options.known
     ? (Object.fromEntries([...options.known].map((id) => [id, true])) as Record<string, true>)
     : null;
+  // Only what the game knows is found, as only what it knows is dropped.
+  const piles: Pile[] = (options.finds ?? []).flatMap((f) => {
+    const loot = Object.fromEntries(
+      Object.entries(f.loot).filter(([item, qty]) => qty > 0 && (!known || item in known)),
+    );
+    return Object.keys(loot).length ? [{ room: f.room, at: f.at, loot, coins: 0 }] : [];
+  });
+  const larder = options.heals
+    ? Object.fromEntries(Object.entries(options.heals).filter(([, heals]) => heals > 0))
+    : null;
   return {
     fighter,
     monsters,
@@ -375,7 +401,7 @@ export function startBattle(
     target: null,
     chase: false,
     foes,
-    piles: [],
+    piles,
     opened: {},
     released: {},
     ready: { first: 0, second: 0, food: 0 },
@@ -388,6 +414,7 @@ export function startBattle(
     volleys: [],
     effects: [],
     tally: { xp: {}, loot: {}, coins: 0, kills: 0, killed: {}, dropped: {}, eaten: 0, shot: 0 },
+    ...(larder && piles.length ? { larder } : {}),
     over: null,
   };
 }
@@ -516,8 +543,37 @@ export function arrowsLeft(battle: Battle): number {
   return Math.max(0, battle.fighter.arrows - battle.tally.shot);
 }
 
-export function foodLeft(battle: Battle): number {
+/** Food carried in the food slot, not yet eaten. */
+export function slotFoodLeft(battle: Battle): number {
   return Math.max(0, (battle.fighter.food?.qty ?? 0) - battle.tally.eaten);
+}
+
+/** Food found in the run and still held (picked up, not eaten): the best-healing kind first. */
+export function foundFood(battle: Battle): { item: string; qty: number; heals: number }[] {
+  const larder = battle.larder;
+  if (!larder) return [];
+  return Object.entries(battle.tally.loot)
+    .filter(([item, qty]) => qty > 0 && (larder[item] ?? 0) > 0)
+    .map(([item, qty]) => ({ item, qty, heals: larder[item]! }))
+    .sort((a, b) => a.heals - b.heals || (a.item < b.item ? -1 : 1));
+}
+
+/** Everything there is to eat: the food slot and anything found. */
+export function foodLeft(battle: Battle): number {
+  return slotFoodLeft(battle) + foundFood(battle).reduce((n, f) => n + f.qty, 0);
+}
+
+/**
+ * What the food button would eat next: something found first (it is the
+ * run's, not the bank's), the least filling first; then the food slot.
+ */
+export function nextFood(battle: Battle): { item: string; heals: number; found: boolean } | null {
+  const found = foundFood(battle)[0];
+  if (found) return { item: found.item, heals: found.heals, found: true };
+  const slot = battle.fighter.food;
+  return slot && slotFoodLeft(battle) > 0
+    ? { item: slot.item, heals: slot.heals, found: false }
+    : null;
 }
 
 /**
@@ -1230,7 +1286,10 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
       effect(w, { kind: 'say', who: foe.key, line: 'anchor', from: w.clock });
     }
   }
-  const volley = rules.volleys.phases[Math.min(foe.phase, rules.volleys.phases.length) - 1]!;
+  // A boss with no cannon behind it (the cave's snapper) has only its own heavy blow.
+  const volleys = rules.volleys;
+  if (volleys.phases.length === 0) return;
+  const volley = volleys.phases[Math.min(foe.phase, volleys.phases.length) - 1]!;
   if (foe.volleyMs > 0 || foe.heavy || w.volleys.length > 0) return;
   foe.volleyMs = volley.everyMs;
   // Lines straight down the room, the first through where the hero stands.
@@ -1239,7 +1298,7 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
   for (let i = 1; i < volley.lines; i++) {
     for (let tries = 0; tries < 6; tries++) {
       const x = left + dice.next() * (right - left);
-      if (xs.every((o) => !under(Math.abs(o - x), rules.volleys.gap))) {
+      if (xs.every((o) => !under(Math.abs(o - x), volleys.gap))) {
         // On a whole first-scale pixel, so the same dice put a line in the same place at any scale.
         xs.push(Math.round(x / far(1)) * far(1));
         break;
@@ -1249,13 +1308,13 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
   for (const x of xs) {
     w.volleys.push({
       at: { x, y: top },
-      radius: rules.volleys.half,
+      radius: volleys.half,
       shape: 'line',
       bottom,
       from: w.clock,
       lands: w.clock + volley.warnMs,
       origin: null,
-      damage: rules.volleys.damage,
+      damage: volleys.damage,
     });
   }
 }
@@ -1528,22 +1587,35 @@ export function useAbility(
 /** Why the food button does nothing just now, or null if it eats. */
 export function foodProblem(battle: Battle): 'none' | 'cooling' | 'full' | 'over' | null {
   if (battle.over) return 'over';
-  if (!battle.fighter.food || foodLeft(battle) === 0) return 'none';
+  if (!nextFood(battle)) return 'none';
   if (cooldownLeft(battle, 'food') > 0) return 'cooling';
   if (battle.hp >= battle.fighter.maxHp) return 'full';
   return null;
 }
 
-/** One from the food slot, if one can be eaten now. */
+/** One to eat (something found, else from the food slot), if one can be eaten now. */
 export function eat(battle: Battle, hero: Point): Battle {
   if (foodProblem(battle)) return battle;
-  const heals = battle.fighter.food!.heals;
-  const hp = Math.min(battle.fighter.maxHp, battle.hp + heals);
+  const food = nextFood(battle)!;
+  const hp = Math.min(battle.fighter.maxHp, battle.hp + food.heals);
+  const t = battle.tally;
+  // Found food leaves the loot it was picked up into; only the slot's counts as eaten from it.
+  const tally: Tally = food.found
+    ? {
+        ...t,
+        loot: Object.fromEntries(
+          Object.entries({ ...t.loot, [food.item]: t.loot[food.item]! - 1 }).filter(
+            ([, q]) => q > 0,
+          ),
+        ),
+        ateFound: { ...t.ateFound, [food.item]: (t.ateFound?.[food.item] ?? 0) + 1 },
+      }
+    : { ...t, eaten: t.eaten + 1 };
   return {
     ...battle,
     hp,
     ready: { ...battle.ready, food: battle.clock + FOOD_MS },
-    tally: { ...battle.tally, eaten: battle.tally.eaten + 1 },
+    tally,
     effects: [
       ...battle.effects,
       { kind: 'heal', at: hero, amount: hp - battle.hp, from: battle.clock },

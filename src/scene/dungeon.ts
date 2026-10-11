@@ -26,6 +26,7 @@ import {
   type Ground,
   type RoomTile,
 } from './ground';
+import type { LessonsState } from './lessons';
 import { advancePlay, startPlay, type Facing, type Play } from './play';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
 
@@ -50,6 +51,22 @@ export interface DungeonPlan {
   readonly stoneTide?: readonly string[];
   /** Each room's name, shown as the hero comes in. */
   readonly titles?: Readonly<Record<string, string>>;
+  /**
+   * Things lying in a room from the start, picked up as loot that fell is
+   * (`PICKUP`): a crate's fish. Food among them can be eaten in the run.
+   */
+  readonly finds?: Readonly<Record<string, readonly Find[]>>;
+  /**
+   * The art lane's set its rooms are drawn with (B15: `'tidepool'`); the
+   * grotto's when not given.
+   */
+  readonly theme?: string;
+}
+
+/** Something lying on a room's floor from the start: where, and what is in it. */
+export interface Find {
+  readonly at: Cell;
+  readonly loot: Readonly<Record<string, number>>;
 }
 
 /** A monster placed in a room as written, and the wave of cells it waits in (a brig's). */
@@ -70,6 +87,10 @@ export interface Door {
 
 export interface Room {
   readonly id: string;
+  /** The dungeon it is in (a worker paints it by both ids); absent in a room made by hand. */
+  readonly dungeon?: string;
+  /** The art lane's set it is drawn with; the grotto's when absent. */
+  readonly theme?: string;
   readonly ground: Ground;
   /** The ground at low water, doors open, every cell open: the room as drawn. */
   readonly map: TileMap<RoomTile>;
@@ -90,6 +111,12 @@ export interface Dungeon {
   readonly id: string;
   readonly first: string;
   readonly rooms: Readonly<Record<string, Room>>;
+  /** What lies in each room from the start, in art pixels. */
+  readonly finds?: readonly {
+    readonly room: string;
+    readonly at: Point;
+    readonly loot: Readonly<Record<string, number>>;
+  }[];
 }
 
 const SIDES: readonly [number, number][] = [
@@ -164,8 +191,15 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
       if (!standable(tile) || tile === 'door')
         throw new Error(`A ${foe.monster} in ${id} is not standing on floor.`);
     }
+    for (const find of plan.finds?.[id] ?? []) {
+      const tile = inMap(map, find.at) ? map.tiles[find.at.row]![find.at.col] : undefined;
+      if (!standable(tile) || tile === 'door')
+        throw new Error(`Something found in ${id} is not lying on floor.`);
+    }
     rooms[id] = {
       id,
+      dungeon: plan.id,
+      ...(plan.theme ? { theme: plan.theme } : {}),
       ground,
       map,
       shut: groundMap(ground, { level: 0, shut: true, released: 0 }),
@@ -178,13 +212,16 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
       title: plan.titles?.[id] ?? null,
     };
   }
-  for (const key of ['foes', 'perches', 'spawns', 'titles'] as const) {
+  for (const key of ['foes', 'perches', 'spawns', 'titles', 'finds'] as const) {
     for (const room of Object.keys(plan[key] ?? {})) {
       if (!rooms[room]) throw new Error(`${key} are given for ${room}, which is not a room.`);
     }
   }
   if (!rooms[plan.first]?.start) throw new Error(`The first room needs a start.`);
-  return { id: plan.id, first: plan.first, rooms };
+  const finds = Object.entries(plan.finds ?? {}).flatMap(([room, list]) =>
+    list.map((f) => ({ room, at: centreOf(f.at, T), loot: f.loot })),
+  );
+  return { id: plan.id, first: plan.first, rooms, ...(finds.length ? { finds } : {}) };
 }
 
 /** The door whose tile `point` is on, if any. */
@@ -231,6 +268,8 @@ export interface Run {
   readonly ending: RunEnding | null;
   /** The fighting, for a run with someone to fight it; null for a walk through. */
   readonly battle: Battle | null;
+  /** Where the dungeon's lessons stand for this run (`lessons.ts`); absent for one with none. */
+  readonly lessons?: LessonsState;
 }
 
 /** What a run fights with: the character as they rowed out, the monsters' rows, the dice's seed, and the items the game knows. */
@@ -239,6 +278,8 @@ export interface RunSetup {
   readonly monsters: Readonly<Record<string, MonsterDef>>;
   readonly seed: number;
   readonly known?: Iterable<string>;
+  /** How much each kind of food heals, by item id: food found in the run can be eaten. */
+  readonly heals?: Readonly<Record<string, number>>;
 }
 
 export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
@@ -256,7 +297,11 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
           })),
         ),
         setup.seed,
-        setup.known ? { known: setup.known } : {},
+        {
+          ...(setup.known ? { known: setup.known } : {}),
+          ...(dungeon.finds ? { finds: dungeon.finds } : {}),
+          ...(setup.heals ? { heals: setup.heals } : {}),
+        },
       )
     : null;
   return {
