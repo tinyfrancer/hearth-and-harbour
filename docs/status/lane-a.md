@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: wave 16, part 2** (the combat simulations rebalanced around greaves, `activityHitFrame2`,
-the strip's height, the Town dot at once), then Cody's review.
+**Next: Cody's review of wave 16** (the cave's new numbers, the combat balance in greaves, the
+strip at 2x), and whatever it asks for.
 
 ## Done
 
@@ -923,17 +923,63 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     if he wants it under: the cave's XP is its hit points, which are what make it two and a half
     minutes and worth eating in.
 
+- Wave 16, part 2: rebalanced around greaves, and small things (branch `lane-a/w16-greaves`).
+  **Save version unchanged (10).**
+  - **Greaves are the assumed leg armour** (Cody: "We can rebalance around the greaves"): the
+    simulations' melee ladder (`gearAt`, `tests/data/fighting.ts`) wears bronze greaves from
+    level 5 and iron from 10, with the plate, as a player who smithed them would (was linen
+    trousers). **The archer's ladder keeps linen trousers**: it dresses a hunter in leather and
+    no metal (no bronze helmet or breastplate either, though they would be more armour), and
+    there are no leather trousers. Measured, greaves on the archer would break a limit the other
+    way (a bounty on the footpad could be done in 9.8 minutes with a bow).
+  - **Numbers moved to restore the limits** (no greaves weakened; nothing else in the tables):
+
+    | What                  | Before    | After     | Why                                                                                                                                        |
+    | --------------------- | --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+    | Smuggler bounty kills | 16-27     | 16-26     | most kills, melee in greaves: 20.25 → 19.50 min (bow's fewest: 10.00)                                                                      |
+    | Marsh troll bounty    | 14-21     | 14-20     | most kills, melee in greaves: 21.00 → 20.00 min (bow's fewest: 10.63)                                                                      |
+    | Bramble wyrm bounty   | 15-24     | 15-23     | most kills, melee in greaves: 20.57 → 19.71 min (bow's fewest: 10.59)                                                                      |
+    | Marsh troll coins     | 600-1,500 | 600-1,600 | the strongest fight at level 20 pays its way: 0.978 → 1.042 of an hour's gathering (52,807 → 56,258 against 54,000; in linen it was 1.043) |
+
+    The troll's shortfall in greaves was mostly the dice (the same hour in greaves rolled five
+    fewer kills and less ore), but the limit is the limit; the coins change no dice, only the
+    purse.
+
+  - **Pins moved because they encoded linen** (the wave-14 "for a decision" cases, now the pins
+    themselves, and that block deleted): fish an hour (`duels.test.ts`) gull 135 → 139, footpad
+    189 → 168, grey wolf 250 → 216, smuggler 187 → 174, marsh troll 190 → 206, goblin poacher
+    165 → 145, bramble wyrm 182 → 169 (rat 0, crab 54 and boar 117 as they were); the best fight
+    for money (`pacing.test.ts`) at level 10 (gull) 47,020 → 48,060 and at 20 (footpad) 67,024 →
+    66,979; bounty points an hour at level 10 31-36 → 31-38, at 20 42-50 → 42-49, at 30 53-57 →
+    53-58. Combat pacing in greaves: Melee 3.13 → 3.15 h, Defence 2.78 and Vitality 2.95 as they
+    were (bounds only; ranged unchanged).
+  - **Limits holding, all in greaves**: every monster a fair fight at its level with either
+    weapon (70%+ of duels won, a third of health or more lost but for the rat) and hopeless ten
+    levels early (under 5%); every bounty 10 to 20 minutes with either weapon, no deaths; the
+    board posts nothing hopeless at combat levels 1 to 22; combat skills 2.5 to 3.5 h to level 20
+    with no deaths; fighting for money between gathering and Thieving; the strongest fight at
+    levels 1 and 20 pays its way (the animals aside); bounty points an hour even across monsters
+    (least over most above 0.8). The grotto's balance tests (`tests/scene`, which read the
+    tables) pass unchanged; no grotto number moved.
+  - **`activityHitFrame2`** (lane B's, B15) replaces the copied `LANDS` table in
+    `src/ui/atWork.ts`; a test holds every loop landing on the art's frame.
+  - **Every dungeon's cast has a face**: a content test over every `cast` (so `old_snapper` too).
+  - **The strip is capped** (`stripScale`, `src/ui/nowDoing.ts`): the hero never stands taller
+    than 56 CSS pixels (`STRIP_TALLEST`) on a phone. At 2x the only whole sizes are 36 and 72 CSS,
+    and 72 made the strip 75 tall; he is 36 again there, the strip its 52 minimum, as at 3x (48,
+    unchanged) and 2.625x (55, unchanged); 3.5x two device pixels (41, was three); 1x one (72).
+  - **The Town dot at once**: a level gained by time (live or away) that changes the combat
+    level re-reads the dot in place (`refresh` in `app.ts`), so a landing opened by combat level
+    alone is marked straight away, without a rebuild. A test with a landing at combat level 2.
+  - **Changed expectations**: the fish, money and points pins above; the strip scale test
+    (`harbour.test.ts`: 1, 1, 2, 2, 2 at 1x, 2x, 2.625x, 3x, 3.5x; was 1, 2, 2, 2, 3); the
+    greaves "for a decision" block removed from `pacing.test.ts`. New: the strip cap, the dot on
+    a level, the landing frames, the cast's faces.
+
 ## Deferred
 
-- Wave 14: **greaves and the combat pins, a decision for Cody.** In greaves (bronze from 5, iron
-  from 10) the simulations move: fish an hour against the gull 135 → 139, footpad 189 → 168,
-  grey wolf 250 → 216, smuggler 187 → 174, marsh troll 190 → 206, goblin poacher 165 → 145,
-  bramble wyrm 182 → 169; an hour's coins at level 10 (gull) 47,020 → 48,060 and at 20 (footpad)
-  67,024 → 66,979; bounty points an hour, level 10 top 36 → 38, level 20 top 50 → 49; the marsh
-  troll no longer pays its way (0.98 of its fish); the most kills a bounty on the smuggler, the
-  troll or the wyrm asks take a little over twenty minutes (20.25 to 21). Nothing retuned: the
-  pins stay in linen until Cody says whether they follow (and if so, the bounty counts and the
-  troll's coins with them).
+- Wave 14: greaves and the combat pins. **Done in wave 16** (Cody: "We can rebalance around the
+  greaves"; above).
 
 - Wave 13: nothing from the brief. Not done: greaves in the simulations' gear ladder
   (`tests/data/fighting.ts` still wears linen trousers, so fights are a little easier in play
@@ -974,15 +1020,11 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   of reach with a bronze sword. (5) The Town tab's dot clears on `takeRequest` giving `'chart'`,
   on `chartOpened`, and on rowing out; calling `chartOpened` from the boat is what clears it
   for a player who walks there.
-- **For lane B (wave 15)**: `old_snapper`'s face (`portrait2`) and picture; the Combat page shows
-  a framed initial until then. Landing ids for the chart: `tidepool_cave`, `brinebeards_grotto`,
+- **For lane B (wave 15)**: `old_snapper`'s face: done (a content test now holds every cast's
+  face). Landing ids for the chart: `tidepool_cave`, `brinebeards_grotto`,
   and the three to come, `unknown_1` to `unknown_3` (matching B15's `harbourChart2`).
 
-- **For lane B (wave 14)**: export where each loop's work lands, e.g. `activityHitFrame2(activity)`
-  (the axe in the log, the pick on the rock; the blow's `STRIKE2_HIT_FRAME` for combat). Until
-  then `LANDS` in `src/ui/atWork.ts` copies lane B's contact frames from
-  `tests/art/activity2.test.ts` (woodcutting 2, fishing 0, mining 3, foraging 1, cooking 1,
-  smithing 2, crafting 0, alchemy 3, thieving 1) and fletching 2 read off its beats.
+- **For lane B (wave 14)**: `activityHitFrame2`: done (B15), and used since wave 16.
 
 - **For lane C (wave 13), the run's save**: call `shell.keepRun?.(savedRunOf(run))` on entering a
   room, every few seconds and on `pagehide`, and take `shell.savedRun?.()` back when `townView`
