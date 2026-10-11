@@ -3,8 +3,9 @@ import '@fontsource/pixelify-sans/latin-700.css';
 import { logosPage } from './pages';
 import { screenEl, type Title } from './screen';
 import { TITLE_A } from './titleA';
+import { TITLE_B } from './titleB';
 
-const TITLES: Record<string, Title> = { A: TITLE_A };
+const TITLES: Record<string, Title> = { A: TITLE_A, B: TITLE_B };
 
 const q = new URLSearchParams(location.search);
 const v = q.get('v') ?? 'logos';
