@@ -401,8 +401,70 @@ describe('the content tables', () => {
   });
 
   it('lists the grotto as a dungeon whose loot is the grotto’s eight items', () => {
-    expect(Object.keys(CONTENT.dungeons!)).toEqual(['brinebeards_grotto']);
     expect(CONTENT.dungeons!.brinebeards_grotto!.loot).toEqual(GROTTO_LOOT);
+  });
+
+  // The harbour chart (wave 15): the lesson first, the grotto, then landings to come.
+  it('charts every dungeon in order, each with a level, a rule and the words for it', () => {
+    const rows = Object.values(CONTENT.dungeons!);
+    expect(rows.map((row) => row.id)).toEqual([
+      'tidepool_cave',
+      'brinebeards_grotto',
+      'uncharted_1',
+      'uncharted_2',
+    ]);
+    expect(rows.map((row) => row.order)).toEqual([1, 2, 3, 4]);
+    for (const row of rows) {
+      expect(row.description.length, row.id).toBeGreaterThan(5);
+      expect(row.unlockText, row.id).toMatch(/^[A-Z].*\.$/);
+      expect(Number.isInteger(row.recommended) && row.recommended >= 1, row.id).toBe(true);
+      if (row.unlock.kind === 'cleared')
+        expect(CONTENT.dungeons![row.unlock.dungeon], row.id).toBeDefined();
+      for (const { item } of row.firstClear ?? []) {
+        expect(CONTENT.items[item], `${row.id} first clear ${item}`).toBeDefined();
+        expect(row.loot, `${row.id} lists ${item} in its loot`).toContain(item);
+      }
+      if (row.comingSoon) {
+        // Nothing to give away: no name, loot, cast or reward.
+        expect(row.name, row.id).toBe('Uncharted');
+        expect([row.loot.length, row.cast, row.firstClear], row.id).toEqual([
+          0,
+          undefined,
+          undefined,
+        ]);
+      }
+    }
+    // Recommended levels climb along the chart.
+    const levels = rows.map((row) => row.recommended);
+    expect(levels).toEqual([...levels].sort((a, b) => a - b));
+  });
+
+  it('opens the cave from the start at level 1, and the grotto by advice alone', () => {
+    const cave = CONTENT.dungeons!.tidepool_cave!;
+    expect([cave.recommended, cave.unlock]).toEqual([1, { kind: 'none' }]);
+    const grotto = CONTENT.dungeons!.brinebeards_grotto!;
+    expect([grotto.recommended, grotto.unlock]).toEqual([20, { kind: 'none' }]);
+  });
+
+  // The cave's dock rats and sand crabs are the shore's own creatures (one
+  // bestiary entry each), so what they drop there must be among what the
+  // tables' rows say they drop, or it would never show as seen.
+  it("holds the cave's cast: the shore's rat and crab, weaker, and a boss of its own", () => {
+    const cast = CONTENT.dungeons!.tidepool_cave!.cast!;
+    expect(cast.map((foe) => foe.id)).toEqual(['dock_rat', 'sand_crab', 'old_snapper']);
+    for (const foe of cast) {
+      const table = CONTENT.monsters![foe.id];
+      const drops = [...foe.always, ...foe.rare].map((drop) => drop.item);
+      for (const id of drops) expect(CONTENT.items[id], `${foe.id} drops ${id}`).toBeDefined();
+      if (!table) continue;
+      const theirs = [...table.always, ...table.rare].map((drop) => drop.item);
+      for (const id of drops) expect(theirs, `${foe.id} drops ${id}`).toContain(id);
+      for (const key of ['hp', 'attack', 'defence', 'maxHit'] as const)
+        expect(foe[key], `${foe.id} ${key}`).toBeLessThan(table[key]);
+    }
+    expect(CONTENT.monsters!.old_snapper).toBeUndefined();
+    const levels = cast.map((foe) => foe.level);
+    expect(levels).toEqual([...levels].sort((a, b) => a - b));
   });
 
   // The scene reads its cast from src/data/dungeons.ts (lane C, wave 12), so

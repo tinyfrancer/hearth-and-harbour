@@ -11,6 +11,7 @@ const actions: CombatActions = {
   areas: idle,
   showFight: idle,
   bounties: idle,
+  harbour: idle,
   fight: idle,
   stop: idle,
   loadFood: idle,

@@ -80,4 +80,22 @@ export interface Shell {
    * it can read its `scene` version, and settles its spoils if it cannot.
    */
   savedRun?(): SavedRun | null;
+  /**
+   * What the menus have asked the town to open, taken once: `'chart'` when a
+   * menu's "To the harbour" wants the harbour chart open (the Town tab is
+   * opened with it), and null otherwise. The scene asks when it is built and
+   * on each update; the first call after a request returns it and clears it,
+   * so it is acted on once. A request not taken before the Town tab is left
+   * is dropped. Optional, like `openBounties`.
+   */
+  takeRequest?(): ShellRequest | null;
+  /**
+   * The scene opened the harbour chart (by the boat, or for a request): the
+   * menus stop pointing the player at it (the Town tab's marker). Call it
+   * each time the chart opens; it is cheap. Optional, like `openBounties`.
+   */
+  chartOpened?(): void;
 }
+
+/** What the menus may ask the town to open (`Shell.takeRequest`). */
+export type ShellRequest = 'chart';

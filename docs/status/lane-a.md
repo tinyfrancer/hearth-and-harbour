@@ -1,8 +1,8 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 14** (the bank as a grid, the hero at work, the new icon, the title
-screen), and whatever it asks for. Waiting on Cody: whether
-the combat pins move to greaves (below).
+**Next: wave 15's second half** (the menus: the first-steps card, the Town tab's marker,
+achievements for the cave, the strip and the bank panel), then Cody's review. Waiting on Cody:
+whether the combat pins move to greaves (below).
 
 ## Done
 
@@ -768,6 +768,75 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
     combat list's test has 20 s (it draws every face, about 3.5 s in jsdom on main too). `tests/data/pacing.test.ts`: cases added, none changed.
   - **Checked** at 390 x 844, 360 x 740 and 430 x 932 at 3x: `/home/claude/lane-shots/w14-a/`.
 
+- Wave 15, part 1: the harbour chart's rules and the Tidepool Cave (branch
+  `lane-a/w15-dungeons`). **Save version unchanged (9)**: a first clear is the save's
+  `dungeons[id].clears` reaching 1, which wave 10 already keeps.
+  - **The dungeon table is a chart** (`DungeonDef`, `src/core/content.ts`): every row has a
+    `description` (a line), an `order` on the chart, a `recommended` combat level (advice, never
+    a gate), an `unlock` rule as data (`{ kind: 'none' }`, `{ kind: 'combat', level }` or
+    `{ kind: 'cleared', dungeon }`) with `unlockText` (a line for the player), and optionally
+    `firstClear` (items paid once by the first clear) and `comingSoon` (a landing with nothing
+    there yet). Rows: `tidepool_cave` (order 1, level 1, open from the start),
+    `brinebeards_grotto` (order 2, level 20, open from the start: nothing gated it, so advice
+    only), and two landings to come, `uncharted_1` (opens on clearing the grotto) and
+    `uncharted_2` (on clearing the first), placeholder ids with the name "Uncharted", no loot,
+    cast or reward, renamed when each is designed (no save can hold a clear of one).
+  - **`dungeonStatus(state, id, content)`** (`src/core/dungeons.ts`): `soon`, `locked`, `open`
+    or `cleared`, with the unlock text, the recommended level, clears and best time; null for an
+    id the tables do not hold. Also `unlocked`, `mayEnter` (open or cleared), `dungeonDef` and
+    `dungeonsInOrder` (by `order`). A landing to come is always `soon` and never counts a clear.
+  - **First clears pay**: `settleRun` puts a dungeon's `firstClear` in the bank once, on the run
+    that takes its clears from 0 to 1, beside what the run picked up (`firstClearOf`). The shell
+    says so in a toast ("First clear of Tidepool Cave! Into the bank: …").
+  - **The Tidepool Cave's numbers** (its own cast rows; hit points are blows needed, since a
+    brand-new character's landed blow does exactly 1):
+
+    | Id            | Lvl |  HP | Atk | Def | Max hit | Speed | Coins | Drops                     |
+    | ------------- | --: | --: | --: | --: | ------: | ----: | ----- | ------------------------- |
+    | `dock_rat`    |   1 |   4 |   1 |   1 |       1 |  3.0s | 1-2   | hide 1/4                  |
+    | `sand_crab`   |   1 |   4 |   1 |   2 |       1 |  3.6s | 1-2   | seashells 1               |
+    | `old_snapper` |   2 |  12 |   2 |   2 |       1 |  3.6s | 4-8   | seashells 1-2, pearl 1/40 |
+
+    First clear: a bronze sword and five cooked shrimp. **Held by** `tests/data/tidepool.test.ts`
+    (the model in `tests/data/cave.ts`: two rats, two crabs, the boss, everyone in a room at the
+    hero at once from the first moment, health carried, no food, no breather; the crab's slam as
+    the scene has it, twice its max hit every 6 s; the boss's heavy at most three times its max
+    hit every 7 s; 400 dice each): a brand-new character standing still in the first room is
+    never knocked out (96% of health left on average, 80% at worst); dodging two heavy blows in
+    three clears it 99% of the time with 47% left; dodging nine in ten, every time (74% left);
+    dodging none, never. In linen with the bronze sword, every time with 81% left. **No farm**
+    (`tests/data/pacing.test.ts`, a case added): about 75 coins' worth and 140 XP a run; run as
+    fast as the model's quickest fight, plus 12 s of walking and 15 s of round trip (39 s), that
+    is about 6,900 coins an hour (under half of level-1 Woodcutting's 23,050) and 12,900 XP (under
+    dock rats idle at level 1, 14,130). With no round trip at all its XP would be about 1.5 times
+    the rats'.
+
+  - **The bestiary: one creature, one entry.** The cave's `dock_rat` and `sand_crab` share the
+    tables' ids: their kills, drops seen and a bounty held on them count to the one entry, as any
+    dungeon kill has since wave 10 (bounties: yes; achievements reading kills, such as a hundred
+    dock rats: yes). The bestiary shows the tables' row (`foeRow`); the cave's drops are among the
+    tables' rows' own, so they are seen. The Combat page lists only the cave's own boss under it
+    and says its rats and crabs are counted with those above.
+  - **The Shell** (`src/ui/view.ts`): `takeRequest?(): ShellRequest | null` (`ShellRequest` is
+    `'chart'`), taken once, dropped if the Town tab is left before it is taken; `chartOpened?()`
+    for the scene to call whenever the chart opens. Starting any dungeon by id and settling it
+    were already generic (`settleRun(spoils)`, `cleared` by id, `keepRun`/`savedRun` carry the
+    dungeon's id); nothing in core or the shell named the grotto.
+  - **A kept run opens the Town tab**: after a quick reload (the run under a minute old) the app
+    opens on Town, where the scene takes it up (lane C's need). After a long gap it opens where it
+    always did, the run come home.
+  - **The Dungeons card** (Combat page, above the you-line): every landing in chart order with
+    Open / Cleared / Locked / Not yet charted, the description, the recommended level, clears and
+    best time (`formatClock`, 1:24), a locked one's unlock text; a landing to come as "?" with
+    what will open it; and "To the harbour", which opens Town with the chart asked for.
+  - **Tests changed**: `content.test.ts` no longer expects the grotto to be the only dungeon (it
+    checks the chart's rows instead); `combat.test.ts`'s grotto section follows the cave's;
+    `title.test.ts`'s kept run now opens on Town, where the real scene takes it up (and, unable
+    to read the test's empty snapshot, settles it itself), so it checks the tab and that the app
+    did not cut it short; tables in `run.test.ts` and `collection.test.ts` gained the chart's
+    fields. New: `tests/core/dungeons.test.ts`, `tests/data/tidepool.test.ts`, the cave's pacing
+    case, shell and Dungeons card tests.
+
 ## Deferred
 
 - Wave 14: **greaves and the combat pins, a decision for Cody.** In greaves (bronze from 5, iron
@@ -800,6 +869,21 @@ false`, `run: null`, `look.beard: 'none'`; a bounty already held keeps no `point
   notes).
 
 ## Needs from another lane
+
+- **For lane C (wave 15)**: (1) poll `shell.takeRequest?.()` when `townView` mounts and on each
+  update, and open the chart on `'chart'`; call `shell.chartOpened?.()` whenever the chart opens
+  (by the boat or a request). (2) The chart's landings: `dungeonsInOrder(content)` and
+  `dungeonStatus(state, id, content)` from `src/core/dungeons.ts` (`soon` shows a silhouette and
+  `unlock`; never the name); the boat goes only where `mayEnter` says. (3) The cave's cast:
+  `DUNGEONS.tidepool_cave.cast` (rats and crabs share the tables' ids but fight by the cave's
+  rows, as the grotto's cast does). Budget the cave was tuned to: two rats, two crabs, then the
+  boss; the boss's heavy at most three times its max hit (3), no oftener than every 7 s, first
+  after 4 s or more; no tide. A clear reports `cleared: 'tidepool_cave'`. (4) Under-a-minute-
+  and-a-half is an achievement (part 2) read from the best time: say if the rooms make that
+  out of reach.
+- **For lane B (wave 15)**: `old_snapper`'s face (`portrait2`) and picture; the Combat page shows
+  a framed initial until then. Landing ids for the chart: `tidepool_cave`, `brinebeards_grotto`,
+  and the two to come, `uncharted_1`, `uncharted_2` (placeholders, silhouettes).
 
 - **For lane B (wave 14)**: export where each loop's work lands, e.g. `activityHitFrame2(activity)`
   (the axe in the log, the pick on the rock; the blow's `STRIKE2_HIT_FRAME` for combat). Until
@@ -856,7 +940,7 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 
 ## Notes for this lane's next session
 
-- Save is version 9. The next shape change is 10.
+- Save is version 9 (wave 15 changed nothing in it). The next shape change is 10.
 - **Menu preferences are not the save**: `Prefs` (`src/persistence/Prefs.ts`) keeps how the menus
   are arranged on a device (today `bank-sort`). A new preference is a key there, never a save
   field.

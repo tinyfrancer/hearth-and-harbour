@@ -30,3 +30,12 @@ export function listed(words: readonly string[]): string {
     ? (words[0] ?? '')
     : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
 }
+
+/** "0:48", "2:14", "1:02:09": a run's length to the second, as a stopwatch shows it. */
+export function formatClock(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const s = String(seconds % 60).padStart(2, '0');
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}:${s}`;
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${s}`;
+}

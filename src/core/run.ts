@@ -1,6 +1,7 @@
 import { autoHandIn } from './bounty';
 import { comeRound, hurt, maxHp } from './combat';
-import type { Content, DungeonFoe, MonsterDef } from './content';
+import type { Content, DungeonDef, DungeonFoe, MonsterDef } from './content';
+import { dungeonDef } from './dungeons';
 import type { GameState, MonsterRecord } from './state';
 
 /**
@@ -40,8 +41,9 @@ export interface RunSpoils {
   dropped?: Readonly<Record<string, readonly string[]>>;
   /**
    * The dungeon's id, if the run cleared it (reached the end with the boss
-   * down). Kept in the save as a clear (S16 unlocks by them). An id the
-   * dungeon tables do not hold counts for nothing.
+   * down). Kept in the save as a clear (the next landing on the chart may
+   * unlock by it), and the first one pays the dungeon's `firstClear`. An id
+   * the dungeon tables do not hold, or a landing to come, counts for nothing.
    */
   cleared?: string;
   /** How long the run took, in milliseconds: the dungeon's best time, if it was cleared. */
@@ -73,6 +75,20 @@ export function foeDrops(foe: MonsterDef | DungeonFoe): string[] {
     ...foe.rare.map((drop) => drop.item),
     ...(('pick' in foe && foe.pick?.items) || []),
   ];
+}
+
+/**
+ * What a dungeon's first clear pays (`DungeonDef.firstClear`): only items the
+ * tables hold, in whole positive amounts. Nothing for a landing to come.
+ */
+export function firstClearOf(
+  dungeon: DungeonDef,
+  content: Content,
+): { item: string; qty: number }[] {
+  if (dungeon.comingSoon) return [];
+  return (dungeon.firstClear ?? []).flatMap(({ item, qty }) =>
+    Object.hasOwn(content.items, item) && whole(qty) > 0 ? [{ item, qty: whole(qty) }] : [],
+  );
 }
 
 const whole = (value: number | undefined): number =>
@@ -161,12 +177,10 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
   if (bestiary !== state.bestiary) settled.bestiary = bestiary;
   if (bounty !== state.bounty) settled.bounty = bounty;
 
-  const cleared = spoils.cleared;
-  if (
-    typeof cleared === 'string' &&
-    content?.dungeons &&
-    Object.hasOwn(content.dungeons, cleared)
-  ) {
+  const cleared = typeof spoils.cleared === 'string' ? spoils.cleared : undefined;
+  const dungeon = content && cleared !== undefined ? dungeonDef(content, cleared) : undefined;
+  // A landing with nothing there yet cannot have been cleared.
+  if (cleared !== undefined && dungeon && !dungeon.comingSoon) {
     const record = state.dungeons[cleared] ?? { clears: 0 };
     const time = whole(spoils.timeMs);
     const best = time > 0 ? Math.min(record.bestMs ?? time, time) : record.bestMs;
@@ -174,6 +188,12 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
       ...state.dungeons,
       [cleared]: { clears: record.clears + 1, ...(best !== undefined ? { bestMs: best } : {}) },
     };
+    // The first clear's reward, once: on top of what the run picked up.
+    if (record.clears === 0) {
+      for (const { item, qty } of firstClearOf(dungeon, content!)) {
+        bank[item] = (bank[item] ?? 0) + qty;
+      }
+    }
   }
 
   // Read after the XP is in: a Vitality level from the run raises the most there can be.

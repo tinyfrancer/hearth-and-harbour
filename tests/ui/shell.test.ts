@@ -221,6 +221,29 @@ describe('a dungeon run kept through a reload', () => {
     click('.tab[data-tab="town"]');
   };
 
+  it('opens on the Town tab after a quick reload, where the scene takes it up', () => {
+    const app = inRun();
+    app.save();
+    root.replaceChildren();
+    clock += 20_000;
+    shell = undefined;
+    mountApp(root, { saves: new LocalStorageSaveService(), content: CONTENT, now: () => clock });
+    expect(root.querySelector('.tab[data-tab="town"]')!.getAttribute('aria-current')).toBe('page');
+    // The scene was built at once, and given the run.
+    expect(shell!.savedRun!()).toEqual(run);
+  });
+
+  it('opens where it always does after a long gap, the run come home', () => {
+    const app = inRun();
+    app.save();
+    root.replaceChildren();
+    clock += 2 * 60 * 60 * 1000;
+    mountApp(root, { saves: new LocalStorageSaveService(), content: CONTENT, now: () => clock });
+    expect(root.querySelector('.tab[data-tab="skills"]')!.getAttribute('aria-current')).toBe(
+      'page',
+    );
+  });
+
   it('is written with the save and handed back to the scene after a quick reload', () => {
     const app = inRun();
     app.save();
@@ -256,5 +279,50 @@ describe('a dungeon run kept through a reload', () => {
     shell!.keepRun!(run);
     shell!.keepRun!(null);
     expect(saved()!.run).toBeNull();
+  });
+});
+
+describe('the harbour chart, asked for from the menus', () => {
+  it('opens the Town tab with the chart asked for, taken once', () => {
+    inTown();
+    click('.tab[data-tab="skills"]');
+    // Twice: the first comes back to the woodcutting page, the second to the list.
+    click('.tab[data-tab="skills"]');
+    click('[data-combat]');
+    click('[data-dungeons] button.primary');
+    expect(root.querySelector('.tab[data-tab="town"]')!.getAttribute('aria-current')).toBe('page');
+    expect(shell!.takeRequest!()).toBe('chart');
+    expect(shell!.takeRequest!()).toBeNull();
+  });
+
+  it('asks nothing of a town opened by its tab', () => {
+    inTown();
+    expect(shell!.takeRequest!()).toBeNull();
+  });
+
+  it('drops a request the town did not take before the tab was left', () => {
+    inTown();
+    click('.tab[data-tab="skills"]');
+    // Twice: the first comes back to the woodcutting page, the second to the list.
+    click('.tab[data-tab="skills"]');
+    click('[data-combat]');
+    click('[data-dungeons] button.primary');
+    const asked = shell!;
+    click('.tab[data-tab="bank"]');
+    click('.tab[data-tab="town"]');
+    expect(asked.takeRequest!()).toBeNull();
+    expect(shell!.takeRequest!()).toBeNull();
+  });
+
+  it("pays a dungeon's first clear once, and says so", () => {
+    inTown();
+    shell!.settleRun({ cleared: 'tidepool_cave', coins: 7, timeMs: 100_000 });
+    expect(saved()!.bank).toMatchObject({ bronze_sword: 1, cooked_shrimp: 5 });
+    expect(root.querySelector('.toast')!.textContent).toBe(
+      'First clear of Tidepool Cave! Into the bank: a Bronze sword and 5 Cooked shrimp.',
+    );
+    shell!.settleRun({ cleared: 'tidepool_cave' });
+    expect(saved()!.bank).toMatchObject({ bronze_sword: 1, cooked_shrimp: 5 });
+    expect(saved()!.dungeons.tidepool_cave).toEqual({ clears: 2, bestMs: 100_000 });
   });
 });
