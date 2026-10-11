@@ -416,8 +416,18 @@
 }
 
 .dungeon-leave {
-  width: auto;
-  min-width: 96px;
+  width: 96px;
+  height: 48px;
+}
+
+/* Padded by the safe area and never seen: the run reads the notches' sizes from it. */
+.dungeon-safe {
+  position: absolute;
+  inset: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .dungeon-leave[hidden] {
@@ -513,6 +523,8 @@
   align-items: center;
   gap: 8px;
   width: 200px;
+  /* Fixed, as `HUD_SIZES` (hud.ts) has them: the room is placed clear of these boxes. */
+  height: 42px;
   padding: 5px 8px;
   background: var(--panel);
   border: var(--px) solid var(--gold);
@@ -524,10 +536,10 @@
   row-gap: 3px;
 }
 
-/* In the middle of the top edge, between the hero's health and Leave. */
+/* In the middle of the top edge, between the hero's health and Leave (placed by `hudLayout`). */
 .fight-target {
-  left: 50%;
-  transform: translateX(-50%);
+  left: calc(50% - 100px);
+  height: 62px;
   border-color: var(--danger);
 }
 
@@ -1024,14 +1036,14 @@
 
 .lesson {
   position: absolute;
-  left: calc(266px + env(safe-area-inset-left));
   right: calc(8px + env(safe-area-inset-right));
   bottom: calc(8px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: 460px;
-  margin-left: auto;
+  /* Its box is `hudLayout`'s: three lines of words at the most, beside Skip. */
+  width: min(460px, calc(100% - 276px));
+  height: 80px;
   padding: 8px 8px 8px 12px;
   background: var(--panel-raised);
   border: var(--px) solid var(--gold-bright);
@@ -1044,8 +1056,13 @@
 
 .lesson-words {
   flex: 1;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   font-size: 16px;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--text);
 }
 

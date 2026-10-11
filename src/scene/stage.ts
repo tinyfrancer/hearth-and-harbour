@@ -351,7 +351,7 @@ export interface StageOptions {
    * walker is centred in what is left, and a map smaller than that is centred
    * in it. Nothing by default.
    */
-  readonly insets?: Insets;
+  readonly insets?: Insets | (() => Insets);
   /**
    * Hold the camera still, the whole map centred, whenever the whole map fits
    * the view (edges and all): a room meant to be seen whole (the tide-pool
@@ -359,6 +359,12 @@ export interface StageOptions {
    * the edges. The insets apply only to a map bigger than the view.
    */
   readonly holdWhenFits?: boolean;
+  /**
+   * Where a held room sits off the middle, in art pixels, for a canvas of
+   * `device` pixels at `scale`: nudged clear of the controls laid over it
+   * (`roomFit`, `hud.ts`). None by default.
+   */
+  readonly holdOffset?: (device: Size, scale: number) => Point;
   /** While true, time does not move the walker: a run paused, a door being gone through. */
   readonly frozen?: () => boolean;
   /**
@@ -425,6 +431,32 @@ export interface StageLook {
 const round = (p: Point): Point => ({ x: Math.round(p.x), y: Math.round(p.y) });
 
 /**
+ * Where a stage's camera is (its top-left, art pixels) for a view and a map
+ * of these sizes: held still with the whole map centred (and nudged by
+ * `offset`) when `hold` and it fits; otherwise on `focus`, kept inside the
+ * insets `room` (art pixels) and above a panel's `lift`, never past the
+ * map's edges. Pure, for the tests to place things as the stage does.
+ */
+export function stageCamera(
+  view: Size,
+  world: Size,
+  focus: Point,
+  room: Insets,
+  o: { readonly hold?: boolean; readonly offset?: Point; readonly lift?: number } = {},
+): Point {
+  if (o.hold && world.width <= view.width && world.height <= view.height) {
+    const c = cameraFor({ x: 0, y: 0 }, view, world);
+    return { x: c.x + (o.offset?.x ?? 0), y: c.y + (o.offset?.y ?? 0) };
+  }
+  const inner = {
+    width: Math.max(1, view.width - room.left - room.right),
+    height: Math.max(1, view.height - room.top - room.bottom - (o.lift ?? 0)),
+  };
+  const cam = cameraFor(focus, inner, world);
+  return { x: cam.x - room.left, y: cam.y - room.top };
+}
+
+/**
  * A scene on a canvas that fills its container: the ground, things standing
  * on it in depth order, a walker who goes where the player taps, a camera
  * that follows them, and a panel for whatever they walk up to.
@@ -438,7 +470,8 @@ export function stage(options: StageOptions): View {
   const fixed = options.time ?? 'day';
   const light: Light = options.light ?? { current: () => fixed, flip: () => {} };
   const scaleOf = options.scaleOf ?? sceneScale;
-  const insets = options.insets ?? NO_INSETS;
+  const insetsNow = (): Insets =>
+    typeof options.insets === 'function' ? options.insets() : (options.insets ?? NO_INSETS);
   const world = mapSize(scene.map);
   const tile = tileOf(scene.map);
   const rise = options.focusRise ?? FOCUS_RISE;
@@ -542,6 +575,7 @@ export function stage(options: StageOptions): View {
 
   /** The insets in whole art pixels at this scale. */
   const inset = (scale: number): Insets => {
+    const insets = insetsNow();
     const art = (cssPixels: number): number => Math.round(cssToArt(cssPixels, css, device, scale));
     return {
       top: art(insets.top),
@@ -553,17 +587,13 @@ export function stage(options: StageOptions): View {
 
   const camera = (scale: number): Point => {
     const view = viewSize(device, scale);
-    if (options.holdWhenFits && world.width <= view.width && world.height <= view.height)
-      return cameraFor({ x: 0, y: 0 }, view, world);
-    const room = inset(scale);
     const looked = options.lookAt?.() ?? null;
     const focus = looked ?? { x: play.walker.at.x, y: play.walker.at.y - rise };
-    const inner = {
-      width: Math.max(1, view.width - room.left - room.right),
-      height: Math.max(1, view.height - room.top - room.bottom - lift),
-    };
-    const cam = cameraFor(focus, inner, world);
-    return { x: cam.x - room.left, y: cam.y - room.top };
+    return stageCamera(view, world, focus, inset(scale), {
+      hold: options.holdWhenFits,
+      offset: options.holdOffset?.(device, scale),
+      lift,
+    });
   };
 
   /** The canvas's own size when it is drawn at one pixel per art pixel (`pixelated`). */

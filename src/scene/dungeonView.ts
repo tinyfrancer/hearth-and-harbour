@@ -87,18 +87,66 @@ import type { Size } from './camera';
 import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { roomScale } from './scale';
+import {
+  hudBands,
+  hudBoxes,
+  hudLayout,
+  notchBoxes,
+  NO_EDGES,
+  roomFit,
+  type Edges,
+  type HudBox,
+  type HudNeeds,
+  type RoomFit,
+} from './hud';
 import { DUNGEON } from './dungeonMetrics';
 import { stage, type Insets, type StageExtra, type StageLook, type StillPicture } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
 
 /**
- * Room kept at the screen's edges, in CSS pixels: the health bars and the
- * Leave button at the top, the notches at the sides of a phone on its side,
- * and the ability bar at the bottom. The camera keeps the hero clear of all
- * of it.
+ * Room kept at the screen's edges, in CSS pixels, on a phone with no notch:
+ * the health panels and Leave at the top (the target's, 62 tall, the
+ * deepest), the sides, and the ability bar at the bottom: the bands the
+ * controls take (`hudBands`), which a travelling camera keeps the hero
+ * inside. A notch's safe area widens them (`hudBands` with it).
  */
-export const DUNGEON_INSETS: Insets = { top: 64, right: 56, bottom: 80, left: 56 };
+export const DUNGEON_INSETS: Insets = { top: 72, right: 56, bottom: 80, left: 56 };
+
+/** What controls a dungeon shows: the tide's gauge if any room has a tide, a lesson's card if it teaches. */
+export function hudNeedsOf(dungeon: Dungeon): HudNeeds {
+  return {
+    tide: Object.values(dungeon.rooms).some((r) => r.ground.tidal || r.ground.ownTide),
+    lessons: (dungeonScene(dungeon.id)?.lessons?.length ?? 0) > 0,
+    tracker: true,
+  };
+}
+
+/** Reads a box's padding as edges: the safe area, from a probe padded by `env(safe-area-inset-*)`. */
+function paddingOf(el: HTMLElement): Edges {
+  if (typeof getComputedStyle !== 'function') return NO_EDGES;
+  const style = getComputedStyle(el);
+  const px = (v: string): number => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  return {
+    top: px(style.paddingTop),
+    right: px(style.paddingRight),
+    bottom: px(style.paddingBottom),
+    left: px(style.paddingLeft),
+  };
+}
+
+/** Puts an element at a box, CSS pixels from the run's top-left; touches the page only on a change. */
+function placeAt(el: HTMLElement, box: HudBox, width = false): void {
+  const set = (k: 'left' | 'top' | 'width', v: string): void => {
+    if (el.style[k] !== v) el.style[k] = v;
+  };
+  set('left', `${box.x}px`);
+  set('top', `${box.y}px`);
+  if (width) set('width', `${box.w}px`);
+}
 
 /** How far above the hero's feet the camera looks: the middle of a 64-pixel figure, as in town. */
 export const FOCUS_RISE_DUNGEON = 30;
@@ -627,6 +675,10 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** The view's size in CSS pixels: whether the phone is on its side. */
   let size = { width: 0, height: 0 };
+  /** The phone's safe area (its notches, its home bar), read from a probe padded by it. */
+  const safeProbe = h('div', { class: 'dungeon-safe', attrs: { 'aria-hidden': 'true' } });
+  root.append(safeProbe);
+  let safe: Edges = NO_EDGES;
   if (typeof ResizeObserver === 'function') {
     const observer = new ResizeObserver(([entry]) => {
       if (!root.isConnected) {
@@ -634,9 +686,60 @@ export function dungeonView(options: DungeonViewOptions): View {
         return;
       }
       if (entry) size = { width: entry.contentRect.width, height: entry.contentRect.height };
+      safe = paddingOf(safeProbe);
     });
     observer.observe(root);
   }
+
+  /* ----- The controls laid out round the room (`hud.ts`) ----- */
+
+  const needs = hudNeedsOf(dungeon);
+  let laid: { key: string; layout: ReturnType<typeof hudLayout> } | null = null;
+  /** The controls' boxes for the screen as it is now (CSS pixels), or null before it has a size. */
+  const layoutNow = (): ReturnType<typeof hudLayout> | null => {
+    if (!(size.width > 0 && size.height > 0)) return null;
+    const key = `${size.width} ${size.height} ${safe.top} ${safe.right} ${safe.bottom} ${safe.left}`;
+    if (laid?.key !== key) laid = { key, layout: hudLayout(size, safe, needs) };
+    return laid.layout;
+  };
+  /** The bands the controls take: what a travelling camera keeps the hero inside. */
+  const bandsNow = (): Insets => {
+    const layout = layoutNow();
+    return layout ? hudBands(size, layout, safe) : DUNGEON_INSETS;
+  };
+  /** Puts each control where the layout says: only what moved is touched. */
+  const placeHud = (): void => {
+    const layout = layoutNow();
+    if (!layout) return;
+    placeAt(heroPanel, layout.hero);
+    placeAt(targetPanel, layout.target);
+    placeAt(bossPanel, layout.target);
+    if (layout.tide) placeAt(tidePanel, layout.tide);
+    placeAt(bar, layout.bar);
+    if (layout.lesson) placeAt(lessonCard, layout.lesson, true);
+    const right = `${size.width - layout.leave.x - layout.leave.w}px`;
+    if (way.style.right !== right) way.style.right = right;
+    if (way.style.top !== `${layout.leave.y}px`) way.style.top = `${layout.leave.y}px`;
+  };
+  const fits = new Map<string, RoomFit>();
+  /**
+   * The scale and nudge for a dungeon whose rooms are seen whole, for a
+   * canvas of `device` pixels: nothing walked on, no door and nobody waiting
+   * under a control or a notch (`roomFit`).
+   */
+  const fitFor = (device: Size): RoomFit => {
+    const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    const css = size.width > 0 ? size : { width: device.width / dpr, height: device.height / dpr };
+    const layout = hudLayout(css, safe, needs);
+    const key = `${device.width} ${device.height} ${dpr} ${css.width} ${css.height} ${safe.top} ${safe.right} ${safe.bottom} ${safe.left}`;
+    let fit = fits.get(key);
+    if (!fit) {
+      const blocked = [...hudBoxes(layout), ...notchBoxes(css, safe)];
+      fit = roomFit(device, dpr, Object.values(dungeon.rooms), blocked);
+      fits.set(key, fit);
+    }
+    return fit;
+  };
 
   let roomShown = '';
   /** The walker as last handed to the stage: a different one back means a tap moved him. */
@@ -697,11 +800,12 @@ export function dungeonView(options: DungeonViewOptions): View {
   const viewBox = (look: StageLook): Box | null => {
     const per = look.cssPerArt;
     if (!(per > 0)) return null;
+    const bands = bandsNow();
     return {
-      x: look.camera.x + DUNGEON_INSETS.left / per,
-      y: look.camera.y + DUNGEON_INSETS.top / per,
-      w: look.view.width - (DUNGEON_INSETS.left + DUNGEON_INSETS.right) / per,
-      h: look.view.height - (DUNGEON_INSETS.top + DUNGEON_INSETS.bottom) / per,
+      x: look.camera.x + bands.left / per,
+      y: look.camera.y + bands.top / per,
+      w: look.view.width - (bands.left + bands.right) / per,
+      h: look.view.height - (bands.top + bands.bottom) / per,
     };
   };
 
@@ -718,6 +822,8 @@ export function dungeonView(options: DungeonViewOptions): View {
     },
     { width: 0, height: 0 },
   );
+  /** Whether its rooms are seen whole, the camera still (the cave's), or travelled (the grotto's). */
+  const seenWhole = biggestRoom.width <= ONE_SCREEN;
 
   const showRoom = (): void => {
     const run = options.run();
@@ -794,14 +900,19 @@ export function dungeonView(options: DungeonViewOptions): View {
       play: run.play,
       keep: () => {},
       press: () => {},
-      // As large as a whole room still fits: the cave's one-screen rooms fill a wide phone.
-      scaleOf: (device) => roomScale(device, biggestRoom, DUNGEON.scene.width),
+      // As large as a whole room still fits clear of the controls: the cave's fill a wide phone.
+      scaleOf: (device) =>
+        seenWhole ? fitFor(device).scale : roomScale(device, biggestRoom, DUNGEON.scene.width),
       // A dungeon of one-screen rooms is seen whole, the camera still; the grotto's rooms travel.
-      holdWhenFits: biggestRoom.width <= ONE_SCREEN,
+      holdWhenFits: seenWhole,
+      holdOffset: (device, scale) => {
+        const fit = fitFor(device);
+        return fit.scale === scale ? fit.offset : { x: 0, y: 0 };
+      },
       focusRise: FOCUS_RISE_DUNGEON,
       pixelated: true,
       overlay: true,
-      insets: DUNGEON_INSETS,
+      insets: bandsNow,
       frozen: () => !playing(),
       drive: (play, ms) => {
         const before = options.run();
@@ -1118,6 +1229,8 @@ export function dungeonView(options: DungeonViewOptions): View {
         now === undefined || lastNow === undefined ? 0 : Math.min(250, Math.max(0, now - lastNow));
       lastNow = now;
       const before = options.run();
+      if (safe === NO_EDGES && size.width > 0) safe = paddingOf(safeProbe);
+      placeHud();
       const ready = sideways(size);
       prompt.hidden = ready || before.finished;
       promptLine.textContent =
