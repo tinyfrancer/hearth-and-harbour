@@ -260,6 +260,7 @@ export function cheeks(
   top0: number,
   bottom0: number,
   rockAt: (x: number, y: number) => Cell,
+  tall = false,
 ): void {
   const W = g.w;
   for (let x = 0; x < 31; x++) {
@@ -269,10 +270,19 @@ export function cheeks(
     const bottom = bottom0 - pinch;
     // A ragged edge, kept inside the rows a scene shows of the passage past the room's edge (it
     // shows where the pieces differ and four rows round that, inside the piece's middle rows).
-    const raggedUp = 4 + Math.round(Math.abs(Math.sin(x * 1.7)) * 2 + (x % 5 === 0 ? 1 : 0));
-    const raggedDown = 4 + Math.round(Math.abs(Math.cos(x * 1.3)) * 2 + (x % 4 === 1 ? 1 : 0));
-    const reachUp = Math.min(raggedUp, top - CHEEK_TOP);
-    const reachDown = Math.min(raggedDown, CHEEK_BOTTOM - bottom);
+    // B17, `tall` (the tide-pool cave's): the edge is lumpy rock, 4 to 11 rows off, reaching to
+    // the piece's fourth row (the scene's four rows round it then end at its edge), where the
+    // grotto's stays the short one B15 drew.
+    const lump = (k: number, a: number, b: number) =>
+      Math.max(4, Math.round(7 + 2.6 * Math.sin(x * a + k) + 1.6 * Math.sin(x * b + k * 2)));
+    const raggedUp = tall
+      ? lump(0.4, 0.52, 1.7)
+      : 4 + Math.round(Math.abs(Math.sin(x * 1.7)) * 2 + (x % 5 === 0 ? 1 : 0));
+    const raggedDown = tall
+      ? lump(2.1, 0.47, 1.9)
+      : 4 + Math.round(Math.abs(Math.cos(x * 1.3)) * 2 + (x % 4 === 1 ? 1 : 0));
+    const reachUp = Math.min(raggedUp, top - (tall ? 4 : CHEEK_TOP));
+    const reachDown = Math.min(raggedDown, (tall ? g.h - 5 : CHEEK_BOTTOM) - bottom);
     for (let y = top - reachUp; y <= bottom + reachDown; y++) {
       if (y >= top && y <= bottom) continue;
       if (y < 0 || y >= g.h) continue;

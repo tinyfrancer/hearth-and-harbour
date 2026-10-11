@@ -127,8 +127,13 @@ export function tideSideDoorPiece(
   float(g, 39, O0 - 18, !barred);
   if (!barred) {
     const shut = tideSideDoorPiece(true, x0, y0, roomWest).grid;
-    cheeks(g, roomWest ? flip(shut) : shut, O0, O1, (x, y) =>
-      tideWallTopAt(x0 + (roomWest ? W - 1 - x : x), y0 + y),
+    cheeks(
+      g,
+      roomWest ? flip(shut) : shut,
+      O0,
+      O1,
+      (x, y) => tideWallTopAt(x0 + (roomWest ? W - 1 - x : x), y0 + y),
+      true,
     );
   }
   const out = roomWest ? flip(g) : g;
