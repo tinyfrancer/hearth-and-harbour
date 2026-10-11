@@ -164,7 +164,12 @@ if (typeof Worker === 'function' && typeof window !== 'undefined')
  * and a bar (`loadingScene.ts`). Never a dark empty scene.
  */
 function loadingCard(): { el: HTMLElement; update(): void } {
-  const card = loadingScene(now());
+  // At the town's own grain on this screen, so the card and the town have the same pixels.
+  const screen =
+    typeof innerWidth === 'number' && innerWidth > 0
+      ? { width: innerWidth, height: innerHeight }
+      : undefined;
+  const card = loadingScene(now(), screen);
   return { el: card.el, update: () => card.update(townProgress(), performance.now()) };
 }
 

@@ -14,14 +14,18 @@
  * is a wide stretch of harbour, 432 x 150 art pixels, so the boat (the
  * town's own, at its own size) is under a third of it across, the quay with
  * its cargo on the right and a buoy riding the swell between; it is shown
- * at the largest whole number of device pixels an art pixel that keeps the
- * card within a phone's width (`cardScale`): two at 3x, so 288 CSS pixels.
+ * at the town's own grain (`cardScale`: three device pixels an art pixel on a
+ * 3x phone, as the town is), the harbour cut on the left to the card's width
+ * where it does not all fit (`cardView`).
  */
 import { cell, darker, tgrid, type Picture2, type TGrid } from '../art/town2/cells';
 import { town2Piece } from '../art/town2/pieces';
 import { rasterize2 } from '../art/town2/raster';
 import { h } from '../ui/dom';
 import type { TimeOfDay } from './daylight';
+import type { Size } from './camera';
+import { sceneScale } from './scale';
+import { TOWN2_SCENE } from './town2Place';
 import { palette2 } from './town2Paint';
 
 /** The scene's size in art pixels. */
@@ -35,10 +39,35 @@ export const QUAY_X = 340;
 /** The most the picture takes across, in CSS pixels: inside a phone's width with the card's edges. */
 export const CARD_MOST = 330;
 
-/** Whole device pixels an art pixel for the picture at this device pixel ratio: never under one. */
-export function cardScale(dpr: number): number {
+/**
+ * Whole device pixels an art pixel for the picture: the town's own grain on
+ * this screen (`screen`, in CSS pixels; the town's scale rule), so the card
+ * and the town it gives way to are the same size of pixel. Without a screen,
+ * as many as fit the whole harbour in a phone's width. Never under one.
+ */
+export function cardScale(dpr: number, screen?: Size): number {
+  if (screen && screen.width > 0 && screen.height > 0)
+    return sceneScale({ width: screen.width * dpr, height: screen.height * dpr }, TOWN2_SCENE);
   return Math.max(1, Math.floor((CARD_MOST * dpr) / CARD_W + 1e-9));
 }
+
+/**
+ * How much of the harbour shows across at `scale`, in art pixels: all of it
+ * where it fits the card, else its right-hand part (the quay and the water
+ * before it), cut to the card's width.
+ */
+export function cardView(scale: number, dpr: number, screen?: Size): number {
+  return Math.min(CARD_W, Math.floor((cardMost(screen) * dpr) / scale));
+}
+
+/** The most the picture takes across on a screen, in CSS pixels: a phone's card, wider on a wide screen. */
+export function cardMost(screen?: Size): number {
+  if (!screen) return CARD_MOST;
+  return Math.max(CARD_MOST, Math.min(CARD_WIDE, screen.width - 60));
+}
+
+/** The most the picture takes across on a wide screen (a desktop's), in CSS pixels. */
+export const CARD_WIDE = 640;
 
 /** How long each beat of the swell and the boat's bob lasts. */
 export const SWELL_MS = 420;
@@ -170,9 +199,12 @@ export function keelOf(grid: TGrid): number[] {
   return out;
 }
 
-/** Where the boat is with `progress` (0 to 1) of the work done, in art pixels: from off the left to the quay. */
-export function boatX(progress: number, boatW: number): number {
-  const from = -boatW + 20;
+/**
+ * Where the boat is with `progress` (0 to 1) of the work done, in art pixels:
+ * from off the left of what shows (`left`, where the picture is cut) to the quay.
+ */
+export function boatX(progress: number, boatW: number, left = 0): number {
+  const from = left - boatW + 20;
   const to = QUAY_X - boatW - 4;
   return Math.round(from + (to - from) * Math.max(0, Math.min(1, progress)));
 }
@@ -212,27 +244,41 @@ function canvasOf(pic: Picture2, time: TimeOfDay): HTMLCanvasElement | null {
 }
 
 /** The loading card: the scene, the town's name and a line, and the bar of steps. */
-export function loadingScene(time: TimeOfDay): {
+export function loadingScene(
+  time: TimeOfDay,
+  screen?: Size,
+): {
   el: HTMLElement;
   /** Brings it up to `progress` (0 to 1) at the scene's time `now`. */
   update(progress: number, now: number): void;
 } {
   const canvas = h('canvas', { class: 'scene-loading-picture', attrs: { 'aria-hidden': 'true' } });
-  canvas.width = CARD_W;
-  canvas.height = CARD_H;
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
-  // Whole device pixels an art pixel, as many as fit a phone's width (2 on a 3x phone).
-  const scale = cardScale(dpr);
-  canvas.style.width = `${(CARD_W * scale) / dpr}px`;
+  // The town's grain (3 device pixels an art pixel on a 3x phone), the harbour cut to fit.
+  const scale = cardScale(dpr, screen);
+  const shownW = cardView(scale, dpr, screen);
+  const left = CARD_W - shownW;
+  canvas.width = shownW;
+  canvas.height = CARD_H;
+  canvas.style.width = `${(shownW * scale) / dpr}px`;
   canvas.style.height = `${(CARD_H * scale) / dpr}px`;
+  // The card as wide as its picture and its edges, where that is wider than a phone's card.
+  const cardWidth = Math.ceil((shownW * scale) / dpr) + 34;
   const fill = h('span', { class: 'scene-loading-fill' });
   const el = h('div', { class: 'scene-loading', attrs: { role: 'status' } }, [
-    h('div', { class: 'scene-loading-card' }, [
-      canvas,
-      h('h2', { text: 'Gullwick' }),
-      h('p', { text: 'The tide is bringing the town in.' }),
-      h('span', { class: 'scene-loading-bar', attrs: { 'aria-hidden': 'true' } }, [fill]),
-    ]),
+    h(
+      'div',
+      {
+        class: 'scene-loading-card',
+        attrs: { style: `width: min(100%, ${Math.max(364, cardWidth)}px)` },
+      },
+      [
+        canvas,
+        h('h2', { text: 'Gullwick' }),
+        h('p', { text: 'The tide is bringing the town in.' }),
+        h('span', { class: 'scene-loading-bar', attrs: { 'aria-hidden': 'true' } }, [fill]),
+      ],
+    ),
   ]);
 
   let ctx: CanvasRenderingContext2D | null | undefined;
@@ -256,7 +302,11 @@ export function loadingScene(time: TimeOfDay): {
     const key = `${k} ${beat}`;
     if (key === shown) return;
     shown = key;
-    if (ctx === undefined) ctx = typeof ImageData === 'undefined' ? null : canvas.getContext('2d');
+    if (ctx === undefined) {
+      ctx = typeof ImageData === 'undefined' ? null : canvas.getContext('2d');
+      // Drawn in the harbour's own pixels, its cut-off left out of the canvas.
+      ctx?.translate(-left, 0);
+    }
     if (!ctx) return;
     // The art lane's own boat, gull and buoy, and the quay's cargo, drawn once.
     boat ??= canvasOf(town2Piece('rowboat').picture, time);
@@ -266,7 +316,7 @@ export function loadingScene(time: TimeOfDay): {
     const phase = beat % 4;
     const boatPic = town2Piece('rowboat').picture.grid;
     keel ??= keelOf(boatPic);
-    const bx = boatX(k, boatPic.w);
+    const bx = boatX(k, boatPic.w, left);
     const by = CARD_H - boatPic.h - 10;
     // To and fro in four beats: 0, 1, 2, 1, so the loop has no jump; the boat's shadow where it is.
     const seaKey = `${phase} ${bx}`;
@@ -291,7 +341,7 @@ export function loadingScene(time: TimeOfDay): {
     }
     if (gull) {
       const a = (beat % 30) / 30;
-      const gx = Math.round(40 + 260 * a);
+      const gx = Math.round(left + 40 + (QUAY_X - left - 80) * a);
       const gy = Math.round(10 + 5 * Math.sin(a * Math.PI * 4));
       ctx.drawImage(gull, gx, gy);
     }
