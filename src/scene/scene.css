@@ -1436,6 +1436,71 @@
   color: var(--danger);
 }
 
+/* S16: the day's modifier on the landing, its challenges, and sending him in. */
+.chart-day {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--panel);
+  border: var(--px) solid var(--line);
+}
+
+.chart-day-icon {
+  display: flex;
+  flex: none;
+}
+
+.chart-day-icon > canvas,
+.chart-goal-medal > canvas {
+  image-rendering: pixelated;
+}
+
+.chart-day-body,
+.chart-goal-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chart-day-name {
+  color: var(--gold-bright);
+}
+
+.chart-day-words,
+.chart-goal-text {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.chart-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chart-goals li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-goals li[data-done='true'] .chart-goal-name {
+  color: var(--green);
+}
+
+.chart-goal-medal {
+  display: flex;
+  flex: none;
+}
+
+.chart-away {
+  color: var(--gold-bright);
+}
+
 .chart-row {
   min-height: 56px;
   font-size: 20px;

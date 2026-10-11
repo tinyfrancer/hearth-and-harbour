@@ -16,6 +16,7 @@ import type { StageExtra } from './stage';
 import type { Box, Scene } from './things';
 import { pieceBox, STAND_IN_PIECES } from './town2';
 import {
+  BOAT_HULL,
   BEACON,
   BEACON_MS,
   markFrame,
@@ -38,6 +39,12 @@ export interface TownExtraInput {
   readonly ring: string | null;
   /** The chevron at the screen's edge toward the boat (`boatPointer`), or none. */
   readonly pointer?: BoatPointer | null;
+  /**
+   * The hero is away running a dungeon unattended (S16): the boat is gone from
+   * its mooring. `water` is the town's still, whose open water under the boat
+   * is laid over where it was moored; the lantern in its bow goes with it.
+   */
+  readonly away?: { readonly water: CanvasImageSource } | null;
 }
 
 /**
@@ -92,14 +99,28 @@ function ellipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number
   }
 }
 
+/**
+ * Where the rowing boat is moored, as drawn (its picture's box, art pixels):
+ * covered with open water while the hero is away in it.
+ */
+export const MOORING = {
+  x: BOAT_HULL.x - 2,
+  y: BOAT_HULL.y - 2,
+  w: BOAT_HULL.w + 4,
+  h: BOAT_HULL.h + 6,
+};
+
 /** The town's extra drawing for a frame. */
 export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
   const gold = palette.colours.gold1;
   const actors: Standing[] = [];
   const boxes: Box[] = [];
   const own = new Set(input.scene.things.map((t) => t.id));
+  const away = input.away ?? null;
   for (const { piece } of STAND_IN_PIECES) {
     if (!own.has(piece.id)) continue;
+    // The bow lantern rides in the boat: away with it.
+    if (away && piece.id === 'boat_lantern') continue;
     const image = piece.picture(input.time);
     if (!image) continue;
     const box = pieceBox(piece);
@@ -160,12 +181,26 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
           }
         : { x: pointer.at.x - 16, y: pointer.at.y - 16, w: 32, h: 32 },
     );
+  if (away) boxes.push(MOORING);
   return {
     actors,
     boxes,
     ground:
-      ringAt || beacon
+      ringAt || beacon || away
         ? (ctx) => {
+            // The empty mooring: the open water just under it, laid where the boat lay.
+            if (away)
+              ctx.drawImage(
+                away.water,
+                MOORING.x,
+                MOORING.y + MOORING.h,
+                MOORING.w,
+                MOORING.h,
+                MOORING.x,
+                MOORING.y,
+                MOORING.w,
+                MOORING.h,
+              );
             if (beacon) {
               // Two rings, a step behind each other, fading as they spread.
               for (const phase of [0, 0.5]) {

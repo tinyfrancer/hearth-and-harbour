@@ -1,3 +1,4 @@
+import type { Palette } from '../art/palette';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
 import { h } from '../ui/dom';
@@ -17,6 +18,9 @@ import type { Cell, Point } from './tileMap';
 import type { Thing } from './things';
 import { chartPanel, type ChartPanel } from './chartPanel';
 import {
+  canSendIn,
+  idleRunOf,
+  sendIn,
   chartOpened,
   dungeonsInOrder,
   dungeonStatus,
@@ -143,6 +147,10 @@ export function runMark(run: Run): string {
  * with the clock stopped or the bars gone.
  */
 const asked = { paused: false, full: false };
+
+/** What the ferryman says while the hero is away in the boat, running a dungeon on his own. */
+export const FERRYMAN_AWAY =
+  'The boat’s out on your standing orders. Knows the way by now. I just wave it off and count the oars back.';
 
 /** Where the boat leaves from and lands: on the quay beside it, looking at it (24-pixel tiles). */
 export const BOAT_LANDING: Cell = BOAT_LANDING2;
@@ -320,8 +328,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         };
         const per = seenNow.cssPerArt > 0 ? seenNow.cssPerArt : 1;
         const sun = SCENE_BUTTONS.light;
+        // Away in the boat, running a dungeon unattended: nothing points at an empty mooring.
+        const gone = away();
         const pointer =
-          panFrom !== null
+          panFrom !== null || gone
             ? null
             : boatPointer(
                 view,
@@ -346,8 +356,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
             now: clockNow ?? stageNow,
             marks: {
               people: PEOPLE,
-              somewhereNew: somewhereNew(),
+              somewhereNew: somewhereNew() && !gone,
               panelOpen: open,
+              away: gone,
               hero: {
                 x: shown.walker.at.x - 14,
                 y: shown.walker.at.y - 66,
@@ -360,6 +371,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
             },
             ring: ringedNow,
             pointer,
+            away: gone ? waterOf(palette) : null,
           },
           palette,
         );
@@ -416,6 +428,15 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   /** The harbour chart, while it is open, and which thing opened it. */
   let chart: (ChartPanel & { for: string }) | null = null;
 
+  /** The hero is away running a dungeon unattended (lane A's idle run): the boat is out. */
+  const away = (): boolean => idleRunOf(latest) !== null;
+
+  /** The town's still in this palette, for the open water laid over the empty mooring. */
+  const waterOf = (palette: Palette): { water: CanvasImageSource } | null => {
+    const still = art2Now()?.still(palette)?.still;
+    return still ? { water: still as CanvasImageSource } : null;
+  };
+
   /**
    * Somewhere on the chart is open and has never been rowed to: not cleared
    * (the save's clears), and not rowed out to this page.
@@ -432,7 +453,12 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (chart) return;
     const thing = town2Scene().things.find((t) => t.id === by);
     const use = thing?.use;
-    const line = use && by === 'ferryman' ? sayingFor(use, now(), visitsTo(shownPlay(), by)) : null;
+    const line =
+      use && by === 'ferryman'
+        ? away()
+          ? FERRYMAN_AWAY
+          : sayingFor(use, now(), visitsTo(shownPlay(), by))
+        : null;
     const panel = chartPanel({
       content,
       state: () => latest,
@@ -443,6 +469,16 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         enter(id);
       },
       close: () => closeChart(),
+      // The day's modifier on each landing, by the shell's clock (S16).
+      today: (id) => todaysModifier(shell, id),
+      // Sending him in unattended, where the shell can: the chart closes on it.
+      ...(canSendIn(shell)
+        ? {
+            sendIn: (id: string) => {
+              if (sendIn(shell, id)) closeChart();
+            },
+          }
+        : {}),
       picked: (id) => {
         const dungeon = dungeons(id);
         if (dungeon && paintedAhead !== id) {
@@ -476,7 +512,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
    * neither trails a frame behind after a big move.
    */
   const frameLabel = (shown: Play, open: boolean, look: StageLook): void => {
-    const thing = run ? null : ringed(town2Scene(), shown, open || panFrom !== null, PEOPLE);
+    const near = run ? null : ringed(town2Scene(), shown, open || panFrom !== null, PEOPLE);
+    // An empty mooring is not ringed or named while he is away in the boat.
+    const thing = near?.id === 'rowboat' && away() ? null : near;
     ringedNow = thing?.id ?? null;
     const words = thing ? labelFor(thing, PEOPLE) : null;
     labelNow = thing?.tap && words ? { words, thing, look, feet: shown.walker.at } : null;

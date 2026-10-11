@@ -111,6 +111,8 @@ export interface MarkOptions {
    * stays small and its sparkle where it always was. In unless said.
    */
   readonly largeIn?: boolean;
+  /** The hero is away in the boat, running a dungeon unattended (S16): nothing marks it. */
+  readonly away?: boolean;
 }
 
 /** How near the screen's edge (art pixels) the boat's marker is drawn large even with the hero close. */
@@ -148,6 +150,7 @@ export function marksNow(scene: Scene, play: Play, o: MarkOptions): Mark[] {
     const box = strolling ?? thing.tap;
     if (!box) continue;
     const boat = thing.id === 'rowboat';
+    if (boat && o.away) continue;
     const near = (strolling ? nearestOf(strolling, feet) : distanceTo(thing, feet)) <= MARK_NEAR;
     // The boat's marker shows from anywhere, always: it is the way out of town (Cody's point).
     if (!near && !boat) continue;
