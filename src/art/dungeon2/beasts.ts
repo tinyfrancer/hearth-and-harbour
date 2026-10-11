@@ -276,7 +276,9 @@ function crabBody(
       cy - 5 * s,
       x,
       ey + r,
-      Math.max(2, Math.round(1.25 * s)),
+      // B17: the outline takes a pixel off each side, so the giant's three-wide stalks still read
+      // as one lit pixel at true size; it gets a fourth.
+      Math.max(2, Math.round(1.25 * s)) + (s > 1.5 ? 1 : 0),
       'crab',
       [2, 3, 4],
     );
@@ -727,7 +729,8 @@ function pawLeg(g: TGrid, x: number, y: number, ground: number, near: boolean, h
   const len = ground - y;
   for (let j = 0; j < len; j++) {
     const k = j / len;
-    const w = k < 0.35 ? 4 : 3;
+    // B17: a pixel thicker (the lower leg was a lit pixel between two lines at true size).
+    const w = k < 0.35 ? 5 : 4;
     // A hind leg bends back at the hock.
     const dx = hock
       ? Math.round(
@@ -768,8 +771,10 @@ const WOLF: Beast = {
     pawLeg(g, 44 + fx, 28 + by, 43 + fy, false);
     pawLeg(g, 15 + kx, 26 + by, 43 + ky, false, 3);
     // The body: grey, a dark saddle along the back, the belly and chest pale.
+    // B17: a step paler all over (he was a dark shape on the dark floor at dusk).
     shaped(g, poly(shifted(WOLF_BODY, bx, by)), 'fur', {
-      base: 0.7,
+      base: 0.1,
+      lo: 0,
       contrast: 1.5,
       radius: 6,
       tex: (x, y, t) => {
@@ -793,7 +798,8 @@ const WOLF: Beast = {
     pawLeg(g, 47 + fx, 28 + by, 43 + fy, true);
     // The head, long, the muzzle paler beneath.
     shaped(g, poly(shifted(WOLF_HEAD, hx, hy)), 'fur', {
-      base: 0.6,
+      base: 0.0,
+      lo: 0,
       contrast: 1.6,
       radius: 4,
       tex: (x, y, t) =>
@@ -1249,8 +1255,12 @@ function lowest(g: TGrid): number {
  */
 function trollLying(): { grid: TGrid; feet: { x: number; y: number } } {
   const g = tgrid(98, 50);
-  const T = (pts: Pts, base: number, light: readonly [number, number] = [20, 10]) =>
-    form(g, blob(pts), 'troll', {
+  // B17: every part was the same green on the same green, so the lying troll still read as a heap.
+  // Each part is drawn on its own and laid on with a dark seam wherever its edge meets body already
+  // drawn, so the head, the arm and the legs each have an edge.
+  const T = (pts: Pts, base: number, light: readonly [number, number] = [20, 10]) => {
+    const p = tgrid(g.w, g.h);
+    form(p, blob(pts), 'troll', {
       cx: light[0],
       cy: light[1],
       rx: 40,
@@ -1259,6 +1269,29 @@ function trollLying(): { grid: TGrid; feet: { x: number; y: number } } {
       k: 1.5,
       rim: 4,
     });
+    const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < g.w && y < g.h;
+    const seam: number[] = [];
+    for (let y = 0; y < g.h; y++)
+      for (let x = 0; x < g.w; x++) {
+        const c = p.d[y * g.w + x]!;
+        if (!c) continue;
+        let edge = false;
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const) {
+          const nx = x + dx;
+          const ny = y + dy;
+          // The ground row is not a seam: a part lying on the ground ends there anyway.
+          if (!inside(nx, ny) || ny >= g.h - 2) continue;
+          if (!p.d[ny * g.w + nx] && g.d[ny * g.w + nx]) edge = true;
+        }
+        seam.push(y * g.w + x, edge ? cell('troll', 6) : c);
+      }
+    for (let i = 0; i < seam.length; i += 2) g.d[seam[i]!] = seam[i + 1]!;
+  };
   // The far leg, straight along the ground behind, in shade.
   T(
     [
@@ -1467,7 +1500,8 @@ function trollLying(): { grid: TGrid; feet: { x: number; y: number } } {
       [40, 42],
       [34, 46],
     ],
-    2.2,
+    1.5,
+    [30, 26],
   );
   T(
     [
@@ -1476,7 +1510,8 @@ function trollLying(): { grid: TGrid; feet: { x: number; y: number } } {
       [54, 47],
       [34, 47],
     ],
-    2.4,
+    1.7,
+    [42, 36],
   );
   T(
     [
@@ -1486,7 +1521,8 @@ function trollLying(): { grid: TGrid; feet: { x: number; y: number } } {
       [61, 47],
       [52, 47],
     ],
-    2.2,
+    1.5,
+    [56, 35],
   );
   for (const x of [55, 58, 61]) put(g, x, 41, cell('troll', 1));
   const out = outlineIn(g);
