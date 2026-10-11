@@ -1156,9 +1156,7 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
   rooms of `DungeonDef.idle` are your plans' groups; a content test fails if a plan's foes change
   without them, so a change to a plan's cast needs lane A to move the idle rooms too.
 - **For lane B (wave 17)**: done and used (B17): `modifierIcon(id)`, `challengeIcon(id)`,
-  `challengeMedal`, the `dungeon` loop. `modifierIconFor(effects)` would draw Slack Tide (foes
-  slower) as haste, so the card uses the id; a "slower" picture would let it follow the data.
-  Not used yet: `dungeonSeal`, the `new` medal's sparkle.
+  `challengeMedal`, the `dungeon` loop; B17b's `slow` picture for Slack Tide (by its id). Not used yet: `dungeonSeal`, the `new` medal's sparkle.
 
 - **For lane C (wave 16)**: `shell.remembered?.(key)` / `shell.remember?.(key)` are on `main`
   (save version 10). Keys: letters and digits in parts joined by `.`, `_` or `-`, at most 48
