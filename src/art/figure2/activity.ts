@@ -528,19 +528,19 @@ const LOOPS: Readonly<Record<string, Loop>> = {
         offHand: 'open',
       },
       {
-        lean: 2,
+        lean: 3,
         bob: 3,
-        feet: [35, 21],
-        weapon: [14, 9],
+        feet: [34, 21],
+        weapon: [14, 11],
         off: [4, 3],
         weaponHand: 'open',
         offHand: 'open',
       },
       {
-        lean: 2,
+        lean: 3,
         bob: 3,
-        feet: [35, 21],
-        weapon: [14, 9],
+        feet: [34, 21],
+        weapon: [14, 11],
         off: [4, 3],
         weaponHand: 'fist',
         offHand: 'open',
@@ -759,7 +759,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     c.lying(1, 1, 18, 6, 'bark');
     c.dome(19, 4, 2, 3, 'wood', 1);
     c.set(19, 4, 'wood', 3);
-    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 26, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 27, y: 0 }, front: false };
   },
   // A boulder with veins of ore glinting in it.
   mining: () => {
@@ -777,7 +777,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
       c.set(x, y, 'bronze', 1);
       c.set(x + 1, y, 'bronze', 3);
     }
-    return { grid: c.done(), glows: [], foot: { x: 13, y: 21 }, at: { x: 30, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 13, y: 21 }, at: { x: 31, y: 0 }, front: false };
   },
   // The water's edge: a stretch of shallows with the float and its rings.
   fishing: () => {
@@ -789,24 +789,35 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     c.set(11, 4, 'linen', 1);
     return { grid: c.done(), glows: [], foot: { x: 17, y: 4 }, at: { x: 32, y: -6 }, front: false };
   },
-  // A bramble with berries.
+  // A bramble with berries: a waist-high crown on a few stems, so the hand
+  // reaches into it standing and the stems keep clear of the feet.
   foraging: () => {
-    const c = new Canvas(22, 22);
-    c.dome(11, 12, 10, 9, 'leaf', 2);
-    c.dome(7, 9, 5, 4, 'leaf', 2);
-    c.dome(15, 8, 5, 4, 'leaf', 2);
+    const c = new Canvas(26, 34);
+    for (const [x, lean] of [
+      [11, -1],
+      [13, 0],
+      [15, 1],
+    ] as const)
+      for (let y = 16; y < 34; y++)
+        c.set(x + Math.round(((33 - y) / 17) * lean), y, 'bark', x < 13 ? 2 : 3);
+    c.dome(9, 25, 3, 2, 'leaf', 3);
+    c.dome(17, 27, 3, 2, 'leaf', 3);
+    c.dome(13, 10, 11, 9, 'leaf', 2);
+    c.dome(8, 7, 5, 4, 'leaf', 2);
+    c.dome(18, 6, 5, 4, 'leaf', 2);
     for (const [x, y] of [
-      [5, 10],
-      [12, 6],
-      [16, 12],
-      [9, 15],
-      [14, 17],
-      [18, 9],
+      [5, 9],
+      [12, 4],
+      [18, 10],
+      [9, 14],
+      [15, 15],
+      [20, 7],
+      [3, 12],
     ] as const) {
       c.set(x, y, 'crimson', 1);
       c.set(x + 1, y, 'crimson', 3);
     }
-    return { grid: c.done(), glows: [], foot: { x: 11, y: 21 }, at: { x: 25, y: 0 }, front: false };
+    return { grid: c.done(), glows: [], foot: { x: 13, y: 33 }, at: { x: 24, y: 0 }, front: false };
   },
   // A pot on three stones over a fire.
   cooking: () => {
@@ -903,7 +914,7 @@ const PROPS: Readonly<Record<string, () => ActivityProp>> = {
     for (const y of [5, 15]) for (let yy = y; yy < y + 9; yy++) c.set(10, yy, 'wood', 4);
     c.dome(8, 2, 3, 2, 'leather', 2);
     c.set(8, 0, 'gold', 1);
-    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 26, y: 0 }, front: true };
+    return { grid: c.done(), glows: [], foot: { x: 11, y: 25 }, at: { x: 27, y: 0 }, front: true };
   },
 };
 

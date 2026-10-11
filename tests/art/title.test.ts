@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { TITLE_FRAME_MS, titleScene } from '../../src/art/title';
 import { TitleScene, RIPPLE_SHIFT, mirrorColour } from '../../src/art/title/scene';
-import { TITLE_MIN_H, TITLE_MIN_W, TOWN_RISE, REFLECTION_DEPTH } from '../../src/art/title/layout';
+import {
+  TITLE_MIN_H,
+  TITLE_MIN_W,
+  TOWN_HALF,
+  TOWN_RISE,
+  REFLECTION_DEPTH,
+} from '../../src/art/title/layout';
 import { bake, logotype, unbake } from '../../src/art/title/logo';
 import { drawLogotype } from '../../src/art/title/logoDraw';
 import { LOGO_DATA } from '../../src/art/title/logoData';
@@ -102,7 +108,13 @@ describe('the title scene', () => {
       expect(L.safe.x).toBeGreaterThanOrEqual(0);
       expect(L.safe.x + L.safe.w).toBeLessThanOrEqual(L.w);
       expect(L.safe.y + L.safe.h).toBe(L.h);
-      expect(L.safe.y).toBeGreaterThan(L.wl + REFLECTION_DEPTH / 2);
+      // Below the town's reflection, or (on a screen much wider than tall) beside the town.
+      const below = L.safe.y > L.wl + REFLECTION_DEPTH / 2;
+      const beside = L.safe.x >= L.cx + TOWN_HALF && L.safe.y > L.wl;
+      expect(below || beside).toBe(true);
+      if (h > w) expect(below).toBe(true);
+      // The water is calm under the menu.
+      expect(L.calm).toBeLessThanOrEqual(below ? L.safe.y : L.h);
       expect(L.safe.w * L.cssPerArt).toBeGreaterThanOrEqual(260);
       expect(L.safe.h * L.cssPerArt).toBeGreaterThanOrEqual(96);
     },

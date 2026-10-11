@@ -126,3 +126,67 @@ describe('activity poses', () => {
     expect(characterActivityPicture2({}, [], 'juggling', 0)).toBe(characterPicture2({}, []));
   });
 });
+
+// B14: the props stood too close to the front foot and some tools landed short.
+describe('activity poses at work on their props (B14)', () => {
+  /** A prop's drawn pixels on the hero's canvas, where the menu will put it. */
+  function propPixels(id: string): Set<string> {
+    const p = activityProp2(id)!;
+    const g = p.picture.grid;
+    const out = new Set<string>();
+    for (let y = 0; y < g.h; y++)
+      for (let x = 0; x < g.w; x++)
+        if (g.d[y * g.w + x])
+          out.add(`${28 + p.at.x - p.foot.x + x},${70 + p.at.y - p.foot.y + y}`);
+    return out;
+  }
+  const at = (s: string) => s.split(',').map(Number) as [number, number];
+
+  it('stands every prop clear of the hero’s front foot, in every frame', () => {
+    for (const id of SKILLS.filter((s) => !COMBAT.includes(s) && s !== 'fishing')) {
+      const prop = [...propPixels(id)].map(at);
+      // The prop's nearest pixel in the bottom rows (where the feet are).
+      const propLeft = Math.min(...prop.filter(([, y]) => y >= 62).map(([x]) => x));
+      for (let f = 0; f < activityFrames2(id); f++) {
+        const g = characterActivityPicture2({}, [], id, f).grid;
+        let foot = -1;
+        for (let y = 62; y < g.h; y++)
+          for (let x = 0; x < g.w; x++) if (g.d[y * g.w + x]) foot = Math.max(foot, x);
+        expect(propLeft - foot - 1, `${id} ${f}`).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('lands the work on its prop: the tool or hand touches it at the blow', () => {
+    // The frame where the work lands, by skill.
+    const contact: Record<string, number> = {
+      woodcutting: 2,
+      mining: 3,
+      smithing: 2,
+      cooking: 1,
+      crafting: 0,
+      foraging: 1,
+      thieving: 1,
+      alchemy: 3,
+      fishing: 0,
+    };
+    for (const [id, f] of Object.entries(contact)) {
+      const prop = propPixels(id);
+      const g = characterActivityPicture2({}, [], id, f).grid;
+      let touch = false;
+      for (let y = 0; y < g.h && !touch; y++)
+        for (let x = 0; x < g.w && !touch; x++) {
+          if (!g.d[y * g.w + x] || y >= 62) continue;
+          for (const [dx, dy] of [
+            [0, 0],
+            [1, 0],
+            [0, 1],
+            [-1, 0],
+            [0, -1],
+          ] as const)
+            if (prop.has(`${x + dx},${y + dy}`)) touch = true;
+        }
+      expect(touch, id).toBe(true);
+    }
+  });
+});

@@ -43,10 +43,14 @@ export interface TitleLayout {
   readonly logoY: number;
   /** Where the menu may put its button and version line, in art pixels. */
   readonly safe: Box;
+  /** The row from which the water is kept calm (the menu's band, when the menu is under the town). */
+  readonly calm: number;
 }
 
 /** The town's height above the waterline, chimney tops included (smoke rises above it). */
 export const TOWN_RISE = 178;
+/** How far the town (and the ship and their reflections) reach either side of its middle. */
+export const TOWN_HALF = 178;
 /** How far below the waterline the town's own reflection reaches before it is sky. */
 export const REFLECTION_DEPTH = 112;
 
@@ -93,11 +97,21 @@ export function titleLayout(
 
   const safeTop = Math.max(wl + Math.round(REFLECTION_DEPTH * 0.6), h - band);
   const safeW = Math.min(w - 24, Math.round(340 / cssPerArt));
-  const safe: Box = {
+  let safe: Box = {
     x: Math.round((w - safeW) / 2),
     y: safeTop,
     w: safeW,
     h: h - safeTop,
   };
-  return { w, h, scale, cssPerArt, cx, wl, logoX, logoY, safe };
+  // A screen much wider than tall (a phone on its side) has little height to
+  // spare under the town but water to spare beside it: the calm water to the
+  // right of the town, below the hills' foot, when that gives more room.
+  const side = cx + TOWN_HALF + 12;
+  const sideW = Math.min(safeW, w - side - 12);
+  let calm = safe.y;
+  if (sideW >= Math.round(280 / cssPerArt) && h - (wl + 12) > safe.h * 1.25) {
+    safe = { x: w - 12 - sideW, y: wl + 12, w: sideW, h: h - (wl + 12) };
+    calm = wl + Math.round((h - wl) * 0.45);
+  }
+  return { w, h, scale, cssPerArt, cx, wl, logoX, logoY, safe, calm };
 }
