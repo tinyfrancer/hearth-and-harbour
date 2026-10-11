@@ -667,6 +667,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     ? trackerView(content, dungeon.id, options.state?.() ?? EMPTY_STATE, {
         folded: trackerFolded(),
         fold: (folded) => foldTracker(folded),
+        modifier: options.run().modifier?.id ?? null,
       })
     : null;
 

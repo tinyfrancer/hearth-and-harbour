@@ -59,7 +59,7 @@ export function battleMods(e: ModifierEffects | undefined): BattleMods | null {
 }
 
 /** How much of the rooms' light a darker day leaves: its pools this much as wide. */
-export const DARKER_LIGHT = 0.6;
+export const DARKER_LIGHT = 0.45;
 
 /** How much of the rooms' light a run has (1: all of it). */
 export function dimOf(e: ModifierEffects | undefined): number {

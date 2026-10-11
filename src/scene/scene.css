@@ -906,8 +906,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  /* Four lines at the most in its 64-pixel box. */
   font-size: 13px;
-  line-height: 18px;
+  line-height: 14px;
   color: var(--text);
 }
 
@@ -956,7 +957,51 @@
   cursor: pointer;
 }
 
-.run-stats,
+/* The S16 card: compact, two columns, its buttons always in view at the foot of the right. */
+.run-card-s16 {
+  max-width: 680px;
+  padding: 12px 14px;
+}
+
+.run-card-s16 .run-head {
+  gap: 4px;
+}
+
+.run-card-s16 h2 {
+  font-size: 20px;
+}
+
+.run-card-s16 .dungeon-time {
+  font-size: 17px;
+}
+
+.run-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.run-card-s16 .run-earned {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.run-card-s16 .run-earned li {
+  min-height: 26px;
+}
+
+.run-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
 .run-challenges {
   display: flex;
   flex-direction: column;
@@ -965,6 +1010,12 @@
   padding: 0;
   list-style: none;
   font-size: 15px;
+}
+
+/* A medal and an icon a line, at a CSS pixel an art pixel. */
+.run-challenges canvas {
+  width: 24px !important;
+  height: auto !important;
 }
 
 .run-challenges li {

@@ -60,6 +60,12 @@ describe('the tracker', () => {
       'tidepool_cave.no_food': 'open',
       'tidepool_cave.snapper_dodge': 'met',
     });
+    // One only another day can meet is not tracked; on its day it is.
+    const grotto = CONTENT.dungeons!.brinebeards_grotto!.challenges!;
+    const ids = (m: string | null) => trackerLines(grotto, stats(), m).map((l) => l.id);
+    expect(ids('unlit_lamps')).not.toContain('brinebeards_grotto.spring_tide');
+    expect(ids(null)).not.toContain('brinebeards_grotto.spring_tide');
+    expect(ids('spring_tide')).toContain('brinebeards_grotto.spring_tide');
     // Those done before are not tracked again.
     const done = trackerLines(CAVE_CHALLENGES, stats(), null, (id) => id.endsWith('.quick'));
     expect(done.map((l) => l.id)).not.toContain('tidepool_cave.quick');

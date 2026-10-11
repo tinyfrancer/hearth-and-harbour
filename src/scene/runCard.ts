@@ -39,6 +39,27 @@ const NOTHING_YET: RunStats = {
   kills: 0,
 };
 
+/** As much of everything as a run could do: with `NOTHING_YET`, the two ends every statistic runs between. */
+const EVERYTHING: RunStats = {
+  timeMs: Number.MAX_SAFE_INTEGER,
+  damageTaken: Number.MAX_SAFE_INTEGER,
+  foodEaten: Number.MAX_SAFE_INTEGER,
+  braces: Number.MAX_SAFE_INTEGER,
+  stepOuts: Number.MAX_SAFE_INTEGER,
+  knockedOut: false,
+  kills: Number.MAX_SAFE_INTEGER,
+};
+
+/**
+ * Whether a run could meet a challenge at all: met at one end of what a run
+ * can do or the other (every statistic only grows). One a run cannot meet,
+ * whatever it does (a challenge of another day's modifier), is not tracked.
+ */
+function possible(c: ChallengeDef, modifier: string | null): boolean {
+  const ctx = { cleared: true, modifier };
+  return challengeMet(c.rule, NOTHING_YET, ctx) || challengeMet(c.rule, EVERYTHING, ctx);
+}
+
 /** Where a challenge stands as a run goes. */
 export type ChallengeState = 'open' | 'waiting' | 'met' | 'lost';
 
@@ -65,7 +86,7 @@ export function trackerLines(
 ): TrackerLine[] {
   const ctx = { cleared: true, modifier };
   return challenges
-    .filter((c) => !done(c.id))
+    .filter((c) => !done(c.id) && possible(c, modifier))
     .map((c) => {
       const before = challengeMet(c.rule, NOTHING_YET, ctx);
       const now = challengeMet(c.rule, stats, ctx);
@@ -93,10 +114,16 @@ export function trackerView(
   content: Content,
   dungeon: string,
   state: GameState,
-  o: { readonly folded: boolean; readonly fold: (folded: boolean) => void },
+  o: {
+    readonly folded: boolean;
+    readonly fold: (folded: boolean) => void;
+    /** The run's modifier: a challenge only another day can meet is not tracked. */
+    readonly modifier?: string | null;
+  },
 ): Tracker {
   const challenges = challengesOf(content, dungeon);
   const done = (id: string): boolean => challengeDone(state, dungeon, id);
+  const modifier = o.modifier ?? null;
   let folded = o.folded;
   const list = h('ul', { class: 'run-tracker-list' });
   const toggle = h('button', {
@@ -120,7 +147,7 @@ export function trackerView(
   el.dataset.folded = String(folded);
   const lines = new Map<string, { li: HTMLElement; clock: HTMLElement; state: string }>();
   for (const c of challenges) {
-    if (done(c.id)) continue;
+    if (done(c.id) || !possible(c, modifier)) continue;
     const clock = h('span', { class: 'run-tracker-clock' });
     const li = h('li', { attrs: { 'data-id': c.id } }, [
       h('span', { class: 'run-tracker-name', text: c.name }),
@@ -157,8 +184,8 @@ export function statLines(stats: RunStats): string[] {
     `Time: ${runTime(stats.timeMs)}`,
     `Damage taken: ${stats.damageTaken}`,
     `Eaten: ${stats.foodEaten}`,
-    `Heavy blows braced: ${stats.braces}`,
-    `Stepped out of: ${stats.stepOuts}`,
+    `Braced: ${stats.braces}`,
+    `Stepped out: ${stats.stepOuts}`,
     `Kills: ${stats.kills}`,
   ];
 }
@@ -197,6 +224,7 @@ export function resultsCard(o: ResultsOptions): {
     h('h2', { text: o.title }),
     h('p', { class: 'muted', text: o.line }),
     h('p', { class: 'dungeon-time', text: `Time taken: ${runTime(stats.timeMs)}` }),
+    // Two to a line: the card fits a phone on its side.
     h(
       'ul',
       { class: 'run-stats', attrs: { 'aria-label': 'How it went' } },
@@ -272,14 +300,15 @@ export function resultsCard(o: ResultsOptions): {
     frame = f;
     for (const slot of medals) slot.replaceChildren(challengeMedal('new', f));
   };
-  const el = h('div', { class: 'dungeon-card run-card' }, [
-    h('div', { class: 'run-head' }, [
-      ...head,
-      challengeList,
+  // Two columns on a phone on its side: how it went on the left; what it paid and the way on on
+  // the right, its buttons always at the foot of the card.
+  const el = h('div', { class: 'dungeon-card run-card run-card-s16' }, [
+    h('div', { class: 'run-head' }, [...head, challengeList]),
+    h('div', { class: 'run-side' }, [
       day,
+      h('ul', { class: 'run-earned', attrs: { 'aria-label': 'Earned' } }, earned),
       h('div', { class: 'run-buttons' }, [again, button('Back to town', o.home, 'primary')]),
     ]),
-    h('ul', { class: 'run-earned', attrs: { 'aria-label': 'Earned' } }, earned),
   ]);
   return { el, step };
 }
