@@ -19,6 +19,7 @@ import { chartPanel, type ChartPanel } from './chartPanel';
 import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './fromLaneA';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
+import { largeMarkersIn } from './fromLaneB';
 import { boatPointer, labelFor, labelPlace, panFocus, ringed } from './townMarks';
 import { SCENE_BUTTONS, type StageLook } from './stage';
 import { KEYS, remember, remembered, rememberWith } from './remember';
@@ -343,6 +344,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
               },
               strollers,
               view,
+              largeIn: largeMarkersIn(),
             },
             ring: ringedNow,
             pointer,

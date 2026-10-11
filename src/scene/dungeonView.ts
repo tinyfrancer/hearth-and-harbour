@@ -88,13 +88,7 @@ import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { roomScale } from './scale';
 import { DUNGEON } from './dungeonMetrics';
-import {
-  stage,
-  type Insets,
-  type StageExtra,
-  type StageLook,
-  type StillPicture,
-} from './stage';
+import { stage, type Insets, type StageExtra, type StageLook, type StillPicture } from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
 

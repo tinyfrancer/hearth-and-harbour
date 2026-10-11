@@ -96,6 +96,11 @@ export interface MarkOptions {
   readonly strollers?: ReadonlyMap<string, Box>;
   /** What the camera shows this frame (art pixels): the boat's marker is large at its edge. */
   readonly view?: Box;
+  /**
+   * Whether lane B's large marker is in (B16); without it the boat's marker
+   * stays small and its sparkle where it always was. In unless said.
+   */
+  readonly largeIn?: boolean;
 }
 
 /** How near the screen's edge (art pixels) the boat's marker is drawn large even with the hero close. */
@@ -138,7 +143,8 @@ export function marksNow(scene: Scene, play: Play, o: MarkOptions): Mark[] {
     if (!near && !boat) continue;
     // The boat's over the boat itself, not the top of its generous tap box (the quay's edge).
     const at = boat ? BOAT_MARK : { x: Math.round(box.x + box.w / 2), y: Math.round(box.y) - 3 };
-    const size: MarkerSize = boat ? boatMarkSize(feet, thing, o.view) : 'small';
+    const size: MarkerSize =
+      boat && o.largeIn !== false ? boatMarkSize(feet, thing, o.view) : 'small';
     const drawn = size === 'large' ? LARGE_MARK_BOX : MARK_BOX;
     const mark: Box = {
       x: at.x - drawn.w / 2,
@@ -279,7 +285,7 @@ export function panFocus(ms: number, from: Point, to: Point): Point | null {
 /* ----- The way to the boat from off the screen ----- */
 
 /** How far inside the screen's edge the pointer's tip stays, in art pixels. */
-export const POINTER_INSET = 6;
+export const POINTER_INSET = 8;
 
 /** The pointer to the boat at the screen's edge: where its tip goes, and which way it points. */
 export interface BoatPointer {

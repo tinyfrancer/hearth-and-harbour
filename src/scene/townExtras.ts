@@ -43,7 +43,7 @@ export interface TownExtraInput {
 /**
  * A plain chevron for the screen's edge, drawn here until lane B's
  * `townPointer2` is in: gold, keyed in ink, its tip at `at` (art pixels),
- * nudged toward where it points as the markers bob. 9 by 9 before the key.
+ * nudged toward where it points as the markers bob. 10 by 13 before the key.
  */
 function plainPointer(
   ctx: CanvasRenderingContext2D,
@@ -56,7 +56,7 @@ function plainPointer(
   const nudge = [0, 1, 2, 1][frame % 4]!;
   // Rows of the chevron pointing right, tip at (0, 0): each row's x from the tip.
   const cells: [number, number][] = [];
-  for (let r = -4; r <= 4; r++) for (let d = 0; d < 3; d++) cells.push([-(Math.abs(r) + d) - 1, r]);
+  for (let r = -6; r <= 6; r++) for (let d = 0; d < 4; d++) cells.push([-(Math.abs(r) + d) - 1, r]);
   const turn = ([x, y]: [number, number]): [number, number] =>
     dir === 'right' ? [x, y] : dir === 'left' ? [-x, y] : dir === 'down' ? [y, x] : [y, -x];
   const shift =
@@ -158,7 +158,7 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
             w: pointed.canvas.width + 2,
             h: pointed.canvas.height + 2,
           }
-        : { x: pointer.at.x - 12, y: pointer.at.y - 12, w: 24, h: 24 },
+        : { x: pointer.at.x - 16, y: pointer.at.y - 16, w: 32, h: 32 },
     );
   return {
     actors,

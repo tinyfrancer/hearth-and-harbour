@@ -77,6 +77,11 @@ describe('the town’s markers', () => {
       { id: 'rowboat', kind: 'travel', at: BOAT_MARK, size: 'large' },
       { id: 'rowboat', kind: 'new', at: { x: BOAT_MARK.x + 20, y: BOAT_MARK.y - 18 } },
     ]);
+    // Until lane B's large marker is in, the small one, and its sparkle beside it as before.
+    expect(marksNow(scene, far, options(far, { somewhereNew: true, largeIn: false }))).toEqual([
+      { id: 'rowboat', kind: 'travel', at: BOAT_MARK },
+      { id: 'rowboat', kind: 'new', at: { x: BOAT_MARK.x + 15, y: BOAT_MARK.y - 4 } },
+    ]);
     // Beside it, the quiet small one, its sparkle where it always was.
     const by = standing(centreOf(BOAT_LANDING2, TOWN2_TILE));
     expect(
