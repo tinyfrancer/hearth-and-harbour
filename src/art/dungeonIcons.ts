@@ -161,6 +161,7 @@ export const DUNGEON_ICON_KINDS = [
   'tough',
   'fierce',
   'swift',
+  'slow',
   'might',
   'frail',
   'loot',
@@ -176,6 +177,7 @@ export const DUNGEON_ICON_KINDS = [
   'nobrace',
   'nopotion',
   'unarmed',
+  'dodge',
   'boss',
   'slayer',
   'challenge',
@@ -246,6 +248,34 @@ const DRAW: Readonly<Record<DungeonIconKind, (g: TGrid) => void>> = {
     ];
     for (const [y, x1] of lines)
       for (let x = 0; x <= x1; x++) put(g, x, y, cell('crimson', x === x1 ? 2 : 3));
+  },
+
+  // Foes are slower: a large Z and a small one, half asleep.
+  slow(g) {
+    rows(
+      g,
+      9,
+      1,
+      [
+        '111111111',
+        '222222211',
+        '......112',
+        '.....112.',
+        '....112..',
+        '...112...',
+        '..112....',
+        '.112.....',
+        '111111111',
+        '222222222',
+      ],
+      { '1': ['blue', 1], '2': ['blue', 3] },
+    );
+    rows(g, 1, 12, ['111111', '....12', '...12.', '..12..', '.12...', '111111', '222222'], {
+      '1': ['blue', 1],
+      '2': ['blue', 3],
+    });
+    put(g, 15, 15, cell('blue', 2));
+    put(g, 18, 18, cell('blue', 2));
   },
 
   // The hero hits harder: a sword raised, a spark at its edge.
@@ -656,6 +686,27 @@ const DRAW: Readonly<Record<DungeonIconKind, (g: TGrid) => void>> = {
     );
   },
 
+  // Step out of the blows: an arrow arching over a blow that lands where the hero was.
+  dodge(g) {
+    const burst: Inside = (x, y) => {
+      const a = Math.atan2(y + 0.5 - 16, x + 0.5 - 11);
+      const r = Math.hypot(x + 0.5 - 11, y + 0.5 - 16);
+      return r <= 3.4 + 3 * (0.5 + 0.5 * Math.cos(a * 6)) ** 2;
+    };
+    fill(g, burst, 'crimson', 2, 1, 2, 0, 4);
+    put(g, 11, 16, cell('fire', 1));
+    for (let y = 0; y < IN; y++)
+      for (let x = 0; x < IN; x++) {
+        const px = x + 0.5 - 11;
+        const py = y + 0.5 - 13;
+        const r = Math.hypot(px, py);
+        const a = Math.atan2(py, px);
+        if (a > -Math.PI * 0.95 && a < -Math.PI * 0.14 && r >= 6.6 && r <= 9.6)
+          put(g, x, y, cell('leaf', r < 7.6 ? 1 : r < 8.6 ? 2 : 3));
+      }
+    rows(g, 16, 7, ['aaaaaa', '.abbbb', '..abb.', '...b..'], { a: ['leaf', 1], b: ['leaf', 3] });
+  },
+
   // Beat the boss: a skull wearing a crown.
   boss(g) {
     rows(
@@ -741,9 +792,11 @@ const DRAW: Readonly<Record<DungeonIconKind, (g: TGrid) => void>> = {
 const MODIFIER_WORDS: readonly (readonly [DungeonIconKind, RegExp])[] = [
   ['hungry', /hung|no_?food|nofood|famine|starv|no_?eat|ration/],
   ['dark', /dark|night|gloom|shadow|blind|dim|murk|fog|unlit/],
+  // Before the tide: a slack tide is the sea at rest, its foes half asleep.
+  ['slow', /slack|slow|sleep|drows|sluggish|lazy|calm|becalm/],
   ['tide', /tide|flood|wave|surge|brine/],
-  ['coins', /coin|gold|purse|wealth|rich|doubloon|money/],
-  ['loot', /loot|bount|treasure|plunder|drop|chest|spoil/],
+  ['coins', /coin|gold|purse|wealth|doubloon|money/],
+  ['loot', /loot|bount|treasure|plunder|drop|chest|spoil|rich|picking/],
   ['xp', /xp|exp|learn|wisdom|insight|lesson|scholar|veteran|study/],
   ['frail', /frail|fragil|glass|brittle|weak|vulner|exposed/],
   ['might', /hero|might|keen|sharp|valou?r|bless|empower|champion|player/],
@@ -765,6 +818,7 @@ const CHALLENGE_WORDS: readonly (readonly [DungeonIconKind, RegExp])[] = [
     'time',
     /time|under|swift|quick|speed|fast|clock|minute|\d+_?m(in)?\b|sec|hurr|rush|race|sprint|dash/,
   ],
+  ['dodge', /dodge|evade|step|sidestep|duck|roll|nimble/],
   ['boss', /boss|captain|snapper|brinebeard|chief|king|queen/],
   ['slayer', /kill|slay|all_?foes|every|clean|purge|hunt|sweep|thorough|full_?clear|all/],
   ['tide', /tide|dry|flood|wave/],
@@ -842,7 +896,9 @@ export function modifierKindFor(effects: unknown): DungeonIconKind {
       kind = num !== null && num < 1 ? 'frail' : 'tough';
     else if (hero && /damage|hit|attack|strength|power|might/.test(k)) kind = 'might';
     else if (/taken|incoming|frail|fragile/.test(k)) kind = 'frail';
-    else if (/speed|haste|interval|cooldown|delay|attack_?ms|rate|tempo/.test(k)) kind = 'swift';
+    else if (/speed|haste|tempo|rate/.test(k)) kind = num !== null && num < 1 ? 'slow' : 'swift';
+    else if (/interval|cooldown|delay|attack_?ms/.test(k))
+      kind = num !== null && num > 1 ? 'slow' : 'swift';
     else if (/health|hp|life|tough|armou?r|defen/.test(k)) kind = 'tough';
     else if (/damage|hit|attack|strength|power|fierce/.test(k))
       kind = foe || !hero ? 'fierce' : 'might';

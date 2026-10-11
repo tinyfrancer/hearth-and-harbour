@@ -67,8 +67,8 @@ challengeIcon(id: string): HTMLCanvasElement         //   aria-hidden (its name 
 modifierIconFor(effects: unknown): HTMLCanvasElement // from the effects, for ids never seen here
 modifierIconPicture(id) / challengeIconPicture(id) / modifierIconForPicture(effects): Picture2
 modifierKind(id) / challengeKind(id) / modifierKindFor(effects): DungeonIconKind
-DUNGEON_ICON_KINDS   // tough fierce swift might frail loot coins xp tide hungry dark modifier |
-                     // time untouched nobrace nopotion unarmed boss slayer challenge
+DUNGEON_ICON_KINDS   // tough fierce swift slow might frail loot coins xp tide hungry dark modifier |
+                     // time untouched nobrace nopotion unarmed dodge boss slayer challenge
 dungeonIconPicture(kind): Picture2;  DUNGEON_ICON_SIZE = 24
 challengeMedal(state: 'todo' | 'done' | 'new', frame = 0): HTMLCanvasElement
 challengeMedalPicture(state, frame = 0): Picture2
@@ -86,11 +86,12 @@ townPointer2(direction, frame)   // a diagonal is 22 x 22 with its keyline, one 
 ```
 
 - **Matching**: a modifier id is read for words (`tough|health|hardy` tough, `fierce|damage|hit|
-strong` fierce, `swift|speed|fast|frenzy` swift, `hero|might|keen` might, `frail|fragile` frail,
-  `loot|bounty|treasure` loot, `coin|gold|rich` coins, `xp|learn|wisdom` xp, `tide|flood|wave`
+strong` fierce, `swift|speed|fast|frenzy` swift, `slack|slow|sleep` slow (before the tide's words: a slack tide is its sea at rest),
+  `hero|might|keen` might, `frail|fragile` frail,
+  `loot|bounty|treasure|rich` loot, `coin|gold|purse` coins, `xp|learn|wisdom` xp, `tide|flood|wave`
   tide, `hung|no_food|famine` hungry, `dark|gloom|night` dark; else a die, `modifier`). A
   challenge is read by its slug after the last dot (`untouched|no_damage|flawless`, `brace`,
-  `no_food`, `potion`, `unarmed|fist|bare`, `time|under|swift|minute` an hourglass, `boss|captain`,
+  `no_food`, `potion`, `unarmed|fist|bare`, `dodge|step` a blow stepped out of, `time|under|swift|minute` an hourglass, `boss|captain`,
   `kill|every|all` crossed swords, `tide`, `loot`; else a target, `challenge`). The dungeon's own
   id is never read (the tide-pool cave's "tide"). `modifierKindFor` reads effects as an object
   (`{ foeHealth: 1.5 }`) or a list (`[{ kind: 'foeDamage', by: 1.3 }]`): who it touches (hero or
@@ -98,6 +99,14 @@ strong` fierce, `swift|speed|fast|frenzy` swift, `hero|might|keen` might, `frail
   biggest change winning; `heroHealth` below 1 is `frail`. `tests/art/dungeonIcons2.test.ts`
   asserts every modifier and challenge id in `src/data/dungeons.ts` gets a non-generic icon
   (skipped until those ids land).
+- **Lane A's ids (wave 17), checked**: `slack_tide` slow (its effect is `foeSpeed` 0.8, so the
+  effects give slow too: a speed below 1, or an interval above 1), `rich_pickings` loot,
+  `thick_skulls` tough, `angry_crew` fierce, `quick_tempers` swift, `spring_tide` tide,
+  `no_rations` hungry, `unlit_lamps` dark; `tidepool_cave.quick` and `brinebeards_grotto.swift`
+  the hourglass, `.unhurt` and `.nearly_unhurt` the bright heart, `.no_food` the forbidden meat,
+  `tidepool_cave.snapper_dodge` the dodge (an arrow arching over a blow; the data's note
+  expected the boss, but the challenge is stepping out of his blows), `brinebeards_grotto.spring_tide`
+  the tide. The data test now runs on them.
 - **Medals**: `todo` a dull iron disc with a hollow face on a grey ribbon; `done` gold with a
   star on a red ribbon; `new` the gold medal with a glint sweeping across it and a sparkle
   blooming: play frames 0 to 5 once at `CHALLENGE_MEDAL_FRAME_MS`; frame 5 on is exactly `done`.
