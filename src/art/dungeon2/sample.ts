@@ -14,6 +14,7 @@ import { foe2Frame, type Foe2Pose } from './cast2';
 import { prop2 } from './props';
 import { roomPicture2, type Stood } from './room';
 import { TILE2 } from './tiles';
+import type { Dungeon2Theme } from './theme';
 
 /**
  * The grotto's key: `#` rock, `.` rock floor, `:` dry sand, `=` planks, `~`
@@ -102,7 +103,7 @@ export function roomAtTide(rows: readonly string[], level: number, warn = false)
 }
 
 /** Where each prop letter in a room's rows stands: the middle of its cell's floor. */
-function propsOf(rows: readonly string[]): Stood[] {
+function propsOf(rows: readonly string[], theme: Dungeon2Theme = 'grotto'): Stood[] {
   const stood: Stood[] = [];
   const ids: Readonly<Record<string, string>> = {
     L: 'lantern',
@@ -116,17 +117,28 @@ function propsOf(rows: readonly string[]): Stood[] {
   };
   rows.forEach((row, r) =>
     [...row].forEach((ch, c) => {
-      const id = ids[ch];
+      let id = ids[ch];
       if (!id) return;
+      // In the tide-pool cave the day comes in through cracks above: a shaft of sun for a lantern.
+      if (theme === 'tidepool' && id === 'lantern') id = 'light_shaft';
+      if (theme === 'tidepool' && id === 'rope_coil') id = 'starfish_cluster';
       const p = prop2(id)!;
       // A lantern hangs on the wall's face; everything else stands on its tile, its foot two pixels up.
-      const y = id === 'lantern' ? r * TILE2 + TILE2 + 18 : r * TILE2 + TILE2 - 2;
+      const y =
+        id === 'lantern'
+          ? r * TILE2 + TILE2 + 18
+          : id === 'light_shaft'
+            ? r * TILE2 + TILE2 * 3 + 6
+            : r * TILE2 + TILE2 - 2;
       stood.push({
         picture: { grid: p.grid, glows: p.glows },
         anchor: { x: p.foot, y: p.base },
         x: c * TILE2 + TILE2 / 2,
         y,
-        shadow: id === 'lantern' || id === 'rope_coil' ? 0 : Math.floor(p.grid.w / 2.4),
+        shadow:
+          id === 'lantern' || id === 'rope_coil' || id === 'light_shaft'
+            ? 0
+            : Math.floor(p.grid.w / 2.4),
         ...(p.light ? { light: p.light } : {}),
       });
     }),
@@ -135,6 +147,8 @@ function propsOf(rows: readonly string[]): Stood[] {
 }
 
 const HERO = ['iron_sword', 'iron_helmet', 'iron_breastplate', 'iron_shield'];
+/** A level-1 hero, in linen with a bronze sword: who comes to the tide-pool cave. */
+const LINEN = ['linen_tunic', 'linen_trousers', 'bronze_sword'];
 
 /** A foe standing at (x, y) in a pose, its shadow under it. */
 function foe(id: string, x: number, y: number, pose: Foe2Pose = 'idle', phase = 1): Stood {
@@ -158,6 +172,8 @@ export interface SampleOptions {
   readonly lit?: boolean;
   /** Rock round the room, in whole tiles either side and above and below (a camera's view past its walls). */
   readonly pad?: { readonly cols: number; readonly rows: number };
+  /** Which cave to draw it in (B15). */
+  readonly theme?: Dungeon2Theme;
 }
 
 /** The room in rock: its rows padded and everything standing in it moved with them. */
@@ -176,16 +192,16 @@ function framed(rows: readonly string[], stood: readonly Stood[], o: SampleOptio
     y: st.y + pr * TILE2,
     ...(st.sort !== undefined ? { sort: st.sort + pr * TILE2 } : {}),
   }));
-  return roomPicture2(padded, moved, { lit: o.lit });
+  return roomPicture2(padded, moved, { lit: o.lit, theme: o.theme ?? 'grotto' });
 }
 
 /** The store, at low water, with its deckhands and powder monkey, the hero come in at the west door. */
 export function storeRoom2(o: SampleOptions = {}): Picture2 {
   const p = (id: string) => o.poses?.[id] ?? 'idle';
   const stood: Stood[] = [
-    ...propsOf(STORE2),
+    ...propsOf(STORE2, o.theme),
     {
-      picture: characterPicture2({}, o.hero ?? HERO),
+      picture: characterPicture2({}, o.hero ?? (o.theme === 'tidepool' ? LINEN : HERO)),
       anchor: { x: 28, y: 70 },
       x: 92,
       y: 128,
@@ -204,9 +220,9 @@ export function storeRoom2(o: SampleOptions = {}): Picture2 {
 export function poolsRoom2(o: SampleOptions = {}): Picture2 {
   const p = (id: string) => o.poses?.[id] ?? 'idle';
   const stood: Stood[] = [
-    ...propsOf(POOLS2),
+    ...propsOf(POOLS2, o.theme),
     {
-      picture: characterPicture2({}, o.hero ?? HERO),
+      picture: characterPicture2({}, o.hero ?? (o.theme === 'tidepool' ? LINEN : HERO)),
       anchor: { x: 28, y: 70 },
       x: 132,
       y: 150,
@@ -234,4 +250,77 @@ export function poolsRoom2(o: SampleOptions = {}): Picture2 {
     sort: py + 1,
   });
   return framed(POOLS2, stood, o);
+}
+
+/**
+ * The tide-pool cave's sample room (B15), one sideways screen (16 x 9 tiles)
+ * in the room key (room.ts): bright sand and wet sand, water-worn rock, a
+ * pool and the sea at the east, the cave's mouth in the back wall, shafts of
+ * sun, its props, the way in to the west and the way on barred to the east;
+ * the level-1 hero, a rat, a sand crab and Old Snapper.
+ */
+export const TIDE2: readonly string[] = [
+  '################',
+  '################',
+  '#...rrr....,~~~#',
+  '#..rrrr...,,~~=#',
+  'S........,,~~==#',
+  '#.~~.....,,,~~=#',
+  '#~~~~..rr..,,,,Z',
+  '#.~~..rrrr.....#',
+  '################',
+];
+
+/** What stands in the sample tide-pool room, by id and cell (col, row; feet at the cell's foot). */
+const TIDE2_PROPS: readonly (readonly [string, number, number])[] = [
+  ['cave_mouth', 8, 1],
+  ['kelp_clump', 2, 2],
+  ['anemone_rock', 13, 7],
+  ['boat_ribs', 4, 7],
+  ['driftwood', 11, 3],
+  ['starfish_cluster', 6, 3],
+  ['rock_pool', 10, 7],
+];
+
+export function tideRoom2(o: SampleOptions = {}): Picture2 {
+  const p = (id: string) => o.poses?.[id] ?? 'idle';
+  const stood: Stood[] = TIDE2_PROPS.map(([id, c, r]) => {
+    const pr = prop2(id)!;
+    return {
+      picture: { grid: pr.grid, glows: pr.glows },
+      anchor: { x: pr.foot, y: pr.base },
+      x: c * TILE2 + TILE2 / 2,
+      y: (r + 1) * TILE2 - (id === 'cave_mouth' ? 0 : 2),
+      shadow: id === 'cave_mouth' ? 0 : Math.floor(pr.grid.w / 2.6),
+      ...(pr.light ? { light: pr.light } : {}),
+    };
+  });
+  for (const [c, r] of [
+    [4, 5],
+    [12, 4],
+  ] as const) {
+    const sh = prop2('light_shaft')!;
+    stood.push({
+      picture: { grid: sh.grid, glows: sh.glows },
+      anchor: { x: sh.foot, y: sh.base },
+      x: c * TILE2 + TILE2 / 2,
+      y: r * TILE2 + TILE2 / 2,
+      shadow: 0,
+      sort: 0,
+      ...(sh.light ? { light: sh.light } : {}),
+    });
+  }
+  stood.push(
+    {
+      picture: characterPicture2({}, o.hero ?? LINEN),
+      anchor: { x: 28, y: 70 },
+      x: 118,
+      y: 132,
+      shadow: 11,
+    },
+    foe('old_snapper', 268, 140, p('old_snapper')),
+    foe('dock_rat', 70, 176, p('dock_rat')),
+    foe('sand_crab', 200, 196, p('sand_crab')),
+  );
+  return roomPicture2(TIDE2, stood, { lit: o.lit, theme: 'tidepool' });
 }

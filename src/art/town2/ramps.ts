@@ -108,6 +108,10 @@ const BASE = {
   shell: ['#ffffff', '#f6f2ec', '#ead8dc', '#d8a2b4', '#b07e90', '#80586a', '#402834'],
   pinewood: ['#fff0b0', '#f0d08a', '#dab06a', '#c4964e', '#9a703a', '#6c4c2c', '#342414'],
   willow: ['#fbf8ee', '#e4ddcc', '#c8c0ac', '#aca390', '#8a8270', '#625c50', '#302c28'],
+  // B15, the harbour chart: old paper, sepia ink, the sea's pale wash on a chart.
+  parchment: ['#fffaea', '#f8ecd0', '#eedcb4', '#dcc496', '#bc9c70', '#8c6c4c', '#4a3428'],
+  ink: ['#a08e7a', '#76604e', '#5c483c', '#483630', '#382826', '#281c1c', '#140c0e'],
+  chartsea: ['#f2f8ec', '#dcecdc', '#c0ded4', '#9ec8c2', '#7ca8aa', '#5c828a', '#2c3e48'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Mat = keyof typeof BASE;

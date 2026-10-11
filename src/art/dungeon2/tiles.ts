@@ -19,9 +19,11 @@
  * edge lies, so two tiles along one shore agree where they meet.
  */
 import { darker, hash, tgrid, type Cell, type TGrid } from '../town2/cells';
-import { cell, isMat } from './cave';
+import { cell, isMat, type Mat2 } from './cave';
 import { noise } from '../town2/texture';
 import { doorTileOf, placeDoor2 } from './doors';
+import type { Dungeon2Theme } from './theme';
+import { tidepoolLook } from './tidepool';
 
 /** A tile's size in art pixels. */
 export const TILE2 = 24;
@@ -87,18 +89,18 @@ const lim = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Mat
 const frac = (v: number) => v - Math.floor(v);
 
 /** A threshold in clumps a few pixels across. */
-const clumpsAt = (x: number, y: number, k: number) =>
+export const clumpsAt = (x: number, y: number, k: number) =>
   noise(x, y, 3, k + 101) * 0.6 + noise(x, y, 7, k + 103) * 0.4;
 
 /** Rounds, breaking the halfway line into clumps rather than a checker (texture.ts's `clumpRound`). */
-function cround(t: number, x: number, y: number, k: number, spread = 0.7): number {
+export function cround(t: number, x: number, y: number, k: number, spread = 0.7): number {
   const f = t - Math.floor(t);
   return f > 0.5 + (clumpsAt(x, y, k) - 0.5) * spread ? Math.ceil(t) : Math.floor(t);
 }
 
 /* ------------------------------------------------------------------- lumps */
 
-interface Lump {
+export interface Lump {
   /** Which lump: the same number for every pixel in it. */
   readonly id: number;
   /** -1, 0 or 1: how it is tilted, a step lighter or darker than its neighbours. */
@@ -112,7 +114,7 @@ interface Lump {
  * apart, wider than tall as rock splits along its beds, each domed and lit
  * from the upper left and tilted its own way.
  */
-function lumpAt(x: number, y: number, size: number, k: number, tall = false): Lump {
+export function lumpAt(x: number, y: number, size: number, k: number, tall = false): Lump {
   const gx = Math.floor(x / size);
   const gy = Math.floor(y / size);
   let bd = Infinity;
@@ -141,7 +143,7 @@ function lumpAt(x: number, y: number, size: number, k: number, tall = false): Lu
 }
 
 /** Whether a pixel is in a crack: its lump meets another below or to the right (only at a step, if `steps`). */
-function cracked(
+export function cracked(
   x: number,
   y: number,
   size: number,
@@ -163,7 +165,7 @@ function cracked(
 /* ------------------------------------------------------------------ floors */
 
 /** Sand ripples: a wavy line every seven rows, wandering. */
-const ripple = (x: number, y: number) =>
+export const ripple = (x: number, y: number) =>
   frac((y + 2.2 * Math.sin(x / 9) + 5 * noise(x, y, 14, 4)) / 7);
 
 /** Dry cave sand: soft patches, ripples here and there lit on their crests, a few grains. */
@@ -230,7 +232,7 @@ function deepAt(x: number, y: number): Cell {
 }
 
 /** Planks across: boards six rows deep, a lit top edge, grain, a dark seam, butt joints and nails. */
-function planksAt(x: number, y: number): Cell {
+export function planksAt(x: number, y: number): Cell {
   const row = ((y % 6) + 6) % 6;
   const board = Math.floor(y / 6);
   if (row === 5) return cell('wood', 5);
@@ -314,7 +316,7 @@ export function faceAt(x: number, y: number, wy: number): Cell {
 
 /* ------------------------------------------------------------- composition */
 
-type FloorKind = 'deep_water' | 'shallows' | 'rock_floor' | 'wet_sand' | 'sand';
+export type FloorKind = 'deep_water' | 'shallows' | 'rock_floor' | 'wet_sand' | 'sand';
 /** Which ground lies over which at a join: each spills over the edges of those before it. */
 const RANK: Readonly<Record<FloorKind, number>> = {
   deep_water: 0,
@@ -335,7 +337,7 @@ const WALLS = new Set([
   'door_side_open',
 ]);
 /** Rock: a wall kind, or nothing known (the map's edge). */
-const isRock = (k: string | null | undefined) => !k || WALLS.has(k) || !isTile2Kind(k);
+export const isRock = (k: string | null | undefined) => !k || WALLS.has(k) || !isTile2Kind(k);
 
 /** Which side of a door in a side wall the room is on: the side with open ground; east unless told otherwise. */
 export const roomIsWest = (around: Around | undefined): boolean =>
@@ -352,8 +354,34 @@ const FLOOR: Readonly<Record<FloorKind | 'planks' | 'wall_top', (x: number, y: n
   wall_top: wallTopAt,
 };
 
+/**
+ * A dungeon's ground as a set of textures and the materials its joins use
+ * (B15): the grotto's below, the tide-pool cave's in `tidepool.ts`. The
+ * composition (spills, foam, shade under walls, a deck's beams) is the same
+ * for every look, so rooms are data-compatible between themes.
+ */
+export interface TileLook {
+  /** The theme's name, in the tiles' cache keys. */
+  readonly key: string;
+  readonly floor: Readonly<
+    Record<FloorKind | 'planks' | 'wall_top', (x: number, y: number) => Cell>
+  >;
+  /** The lower and upper faces of a wall (`y` the row in the tile, `wy` in the room). */
+  readonly face: (x: number, y: number, wy: number) => Cell;
+  readonly faceHigh: (x: number, y: number, wy: number) => Cell;
+  /** Rock (scree, lips), the sand's own, the shallows' (foam, the deep's edge), the deep's, wrack, deck. */
+  readonly rock: Mat2;
+  readonly sand: Mat2;
+  readonly shoal: Mat2;
+  readonly deep: Mat2;
+  readonly wrack: Mat2;
+  readonly wood: Mat2;
+  /** Now and then a detail on a floor, by wear. */
+  readonly details: (g: TGrid, kind: Tile2Kind, wear: number) => void;
+}
+
 /** How deep a spill reaches over an edge, from where along the edge it is: 3 to 11 pixels, wandering. */
-const reach = (x: number, y: number, k: number) => 3 + 10 * noise(x, y, 13, 60 + k);
+export const reach = (x: number, y: number, k: number) => 3 + 10 * noise(x, y, 13, 60 + k);
 
 const DIRS = ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw'] as const;
 type Dir = (typeof DIRS)[number];
@@ -384,6 +412,7 @@ function joinFloor(
   x0: number,
   y0: number,
   wear: number,
+  look: TileLook,
 ): void {
   // Higher grounds spill over this one's edges, the lowest of them first.
   const over = DIRS.map((d) => ({ d, k: around[d] }))
@@ -394,7 +423,7 @@ function joinFloor(
     for (let y = 0; y < P; y++)
       for (let x = 0; x < P; x++) {
         if (!inSpill(d, x, y, x0, y0, RANK[k])) continue;
-        g.d[y * P + x] = FLOOR[k](x0 + x, y0 + y);
+        g.d[y * P + x] = look.floor[k](x0 + x, y0 + y);
         land[y * P + x] = isWater(k) ? 2 : 1;
       }
   // Water running into a bottom wall (B11: it met the rock in a square 24-pixel step): the ground
@@ -408,7 +437,7 @@ function joinFloor(
           const fromEdge = side === 'e' ? P - 0.5 - x : x + 0.5;
           const near = Math.max(0, y - (P - 13)) ** 1.6 * 0.55;
           if (fromEdge < reach(side === 'e' ? x0 + P : x0, y0 + y, RANK[k]) + near) {
-            g.d[y * P + x] = FLOOR[k](x0 + x, y0 + y);
+            g.d[y * P + x] = look.floor[k](x0 + x, y0 + y);
             land[y * P + x] = isWater(k) ? 2 : 1;
           }
         }
@@ -432,15 +461,15 @@ function joinFloor(
         const Y = y0 + y;
         // Where the water laps a bottom wall, a broken wash of foam along its foot.
         if (isWater(kind) && isRock(around.s) && y >= P - 2 && clumpsAt(X, Y, 61) > 0.42) {
-          add.push([i, cell('shoal', y === P - 1 ? 2 : 1)]);
+          add.push([i, cell(look.shoal, y === P - 1 ? 2 : 1)]);
           continue;
         }
         if (kind === 'wet_sand') {
           if (touch && clumpsAt(X, Y, 62) > 0.45)
-            add.push([i, cell(hash(X, Y, 63) < 0.5 ? 'weed' : 'cavesand', 4)]);
+            add.push([i, cell(hash(X, Y, 63) < 0.5 ? look.wrack : look.sand, 4)]);
         } else if (touch && clumpsAt(X, Y, 64) > 0.3)
-          add.push([i, cell('shoal', hash(X, Y, 65) < 0.35 ? 0 : 1)]);
-        else if (two && clumpsAt(X, Y, 66) > 0.62) add.push([i, cell('shoal', 2)]);
+          add.push([i, cell(look.shoal, hash(X, Y, 65) < 0.35 ? 0 : 1)]);
+        else if (two && clumpsAt(X, Y, 66) > 0.62) add.push([i, cell(look.shoal, 2)]);
       }
     for (const [i, c] of add) g.d[i] = c;
   }
@@ -459,13 +488,20 @@ function joinFloor(
           const yy = y + dy!;
           return xx >= 0 && yy >= 0 && xx < P && yy < P && !land[yy * P + xx];
         });
-        if (edge) g.d[y * P + x] = cell('shoal', 4);
+        if (edge) g.d[y * P + x] = cell(look.shoal, 4);
       }
-  shadeUnder(g, around, x0, y0, wear);
+  shadeUnder(g, around, x0, y0, wear, look);
 }
 
 /** Floors darken under the walls and decks that rise beside them, in clumps rather than a ruled band. */
-function shadeUnder(g: TGrid, around: Around, x0: number, y0: number, wear: number): void {
+function shadeUnder(
+  g: TGrid,
+  around: Around,
+  x0: number,
+  y0: number,
+  wear: number,
+  look: TileLook,
+): void {
   const dim = (x: number, y: number, n: number) => {
     const i = y * P + x;
     if (n > 0 && g.d[i]) g.d[i] = darker(g.d[i]!, n);
@@ -484,10 +520,10 @@ function shadeUnder(g: TGrid, around: Around, x0: number, y0: number, wear: numb
         const x = 2 + Math.floor(hash(wear, i, 68) * 19);
         const y = 2 + Math.floor(hash(wear, i, 69) * 2);
         const c = g.d[y * P + x]!;
-        if (hash(wear, i, 70) < 0.55 && !isMat(c, 'deep') && !isMat(c, 'shoal')) {
-          g.d[y * P + x] = cell('caverock', 2);
-          g.d[y * P + x + 1] = cell('caverock', 4);
-          g.d[(y + 1) * P + x] = cell('caverock', 5);
+        if (hash(wear, i, 70) < 0.55 && !isMat(c, look.deep) && !isMat(c, look.shoal)) {
+          g.d[y * P + x] = cell(look.rock, 2);
+          g.d[y * P + x + 1] = cell(look.rock, 4);
+          g.d[(y + 1) * P + x] = cell(look.rock, 5);
           g.d[(y + 1) * P + x + 1] = darker(g.d[(y + 1) * P + x + 1]!, 1);
         }
       }
@@ -508,7 +544,7 @@ function shadeUnder(g: TGrid, around: Around, x0: number, y0: number, wear: numb
 }
 
 /** The rock's top where it falls away to open ground: a ragged lip, lit or shaded by the way it faces. */
-function joinTop(g: TGrid, around: Around, x0: number, y0: number): void {
+function joinTop(g: TGrid, around: Around, x0: number, y0: number, look: TileLook): void {
   const open = (k: string | null | undefined) => !isRock(k);
   for (let y = 0; y < P; y++)
     for (let x = 0; x < P; x++) {
@@ -519,35 +555,35 @@ function joinTop(g: TGrid, around: Around, x0: number, y0: number): void {
       const dE = open(around.e) ? reach(x0 + P, y0 + y, 7) / 2.5 : 0;
       if (y + 0.5 < dN || x + 0.5 < dW) {
         const rim = (y < 1 && open(around.n)) || (x < 1 && open(around.w));
-        g.d[i] = cell('caverock', rim ? 3 : 2);
-      } else if (P - 0.5 - x < dE) g.d[i] = cell('caverock', x === P - 1 ? 5 : 4);
+        g.d[i] = cell(look.rock, rim ? 3 : 2);
+      } else if (P - 0.5 - x < dE) g.d[i] = cell(look.rock, x === P - 1 ? 5 : 4);
     }
 }
 
 /** A deck's own edges: a beam along any edge with no deck beyond. */
-function joinPlanks(g: TGrid, around: Around): void {
+function joinPlanks(g: TGrid, around: Around, wood: Mat2): void {
   if (around.s !== 'planks')
     for (let x = 0; x < P; x++) {
-      g.d[21 * P + x] = cell('wood', 2);
-      g.d[22 * P + x] = cell('wood', 4);
-      g.d[23 * P + x] = cell('wood', 5);
+      g.d[21 * P + x] = cell(wood, 2);
+      g.d[22 * P + x] = cell(wood, 4);
+      g.d[23 * P + x] = cell(wood, 5);
     }
   if (around.w !== 'planks')
-    for (let y = 0; y < P; y++) if (y % 6 !== 5) g.d[y * P] = cell('wood', 2);
-  if (around.e !== 'planks') for (let y = 0; y < P; y++) g.d[y * P + P - 1] = cell('wood', 5);
+    for (let y = 0; y < P; y++) if (y % 6 !== 5) g.d[y * P] = cell(wood, 2);
+  if (around.e !== 'planks') for (let y = 0; y < P; y++) g.d[y * P + P - 1] = cell(wood, 5);
 }
 
 /** A low ledge: a face with open ground above it shows its lip. */
-function joinFace(g: TGrid, around: Around): void {
+function joinFace(g: TGrid, around: Around, rock: Mat2): void {
   if (isRock(around.n)) return;
   for (let x = 0; x < P; x++) {
-    g.d[x] = cell('caverock', 2);
-    g.d[P + x] = cell('caverock', 3);
+    g.d[x] = cell(rock, 2);
+    g.d[P + x] = cell(rock, 3);
   }
 }
 
 /** Now and then a detail: a shell, pebbles, a crab's hole, weed, a rock pool, barnacles, a split board. */
-function details(g: TGrid, kind: Tile2Kind, wear: number): void {
+function grottoDetails(g: TGrid, kind: Tile2Kind, wear: number): void {
   const set = (x: number, y: number, c: Cell) => {
     if (x >= 0 && y >= 0 && x < P && y < P) g.d[y * P + x] = c;
   };
@@ -635,6 +671,21 @@ function details(g: TGrid, kind: Tile2Kind, wear: number): void {
   }
 }
 
+/** Brinebeard's Grotto's look: violet rock in lumps, grey sand, the lantern-lit shoal. */
+export const GROTTO_LOOK: TileLook = {
+  key: 'grotto',
+  floor: FLOOR,
+  face: faceAt,
+  faceHigh: faceHighAt,
+  rock: 'caverock',
+  sand: 'cavesand',
+  shoal: 'shoal',
+  deep: 'deep',
+  wrack: 'weed',
+  wood: 'wood',
+  details: grottoDetails,
+};
+
 const tiles = new Map<string, TGrid>();
 
 /** One letter per neighbour, for the cache: only what changes the tile. */
@@ -652,11 +703,18 @@ function signature(around: Around | undefined): string {
  * to its neighbours if told them. Kept once made (1.2 KB of cells each);
  * `forgetTiles2` lets them go.
  */
-export function tile2Grid(kind: Tile2Kind, wear: number, around?: Around, at?: TileAt): TGrid {
+export function tile2Grid(
+  kind: Tile2Kind,
+  wear: number,
+  around?: Around,
+  at?: TileAt,
+  theme: Dungeon2Theme = 'grotto',
+): TGrid {
+  const look = theme === 'tidepool' ? tidepoolLook() : GROTTO_LOOK;
   // Without a cell, each wear stands in its own place, far from the others.
   const col = at ? Math.floor(at.col) : wear * 5 + 1000;
   const row = at ? Math.floor(at.row) : 1000;
-  const key = `${kind} ${wear} ${signature(around)} ${col} ${row}`;
+  const key = `${look.key} ${kind} ${wear} ${signature(around)} ${col} ${row}`;
   let g = tiles.get(key);
   if (g) return g;
   const x0 = col * P;
@@ -669,23 +727,23 @@ export function tile2Grid(kind: Tile2Kind, wear: number, around?: Around, at?: T
   ) {
     // The room is on whichever side has open ground; east unless told otherwise.
     const west = roomIsWest(around);
-    g = doorTileOf(placeDoor2(kind, west, col, row).piece, kind, west);
+    g = doorTileOf(placeDoor2(kind, west, col, row, theme).piece, kind, west);
   } else {
     g = tgrid(P, P);
     for (let y = 0; y < P; y++)
       for (let x = 0; x < P; x++)
         g.d[y * P + x] =
           kind === 'wall_face'
-            ? faceAt(x0 + x, y, y0 + y)
+            ? look.face(x0 + x, y, y0 + y)
             : kind === 'wall_face_high'
-              ? faceHighAt(x0 + x, y, y0 + y)
-              : FLOOR[kind](x0 + x, y0 + y);
-    details(g, kind, wear);
+              ? look.faceHigh(x0 + x, y, y0 + y)
+              : look.floor[kind](x0 + x, y0 + y);
+    look.details(g, kind, wear);
     if (around) {
-      if (isFloor(kind)) joinFloor(g, kind, around, x0, y0, wear);
-      else if (kind === 'wall_top') joinTop(g, around, x0, y0);
-      else if (kind === 'planks') joinPlanks(g, around);
-      else if (kind === 'wall_face') joinFace(g, around);
+      if (isFloor(kind)) joinFloor(g, kind, around, x0, y0, wear, look);
+      else if (kind === 'wall_top') joinTop(g, around, x0, y0, look);
+      else if (kind === 'planks') joinPlanks(g, around, look.wood);
+      else if (kind === 'wall_face') joinFace(g, around, look.rock);
     }
   }
   tiles.set(key, g);

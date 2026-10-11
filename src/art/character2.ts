@@ -722,6 +722,38 @@ export function activityFrames2(activity: string): number {
   return activityFrameCount(activity);
 }
 
+/**
+ * Where each loop's work lands (B15, for lane A's `LANDS`): the frame the
+ * axe bites the log, the pick rings on the rock, the hammer meets the iron,
+ * the knife draws along the shaft. `tests/art/activity2.test.ts` holds the
+ * tool touching its prop on that frame.
+ */
+const ACTIVITY_HIT: Readonly<Partial<Record<ActivityId, number>>> = {
+  woodcutting: 2,
+  fishing: 0,
+  mining: 3,
+  foraging: 1,
+  cooking: 1,
+  smithing: 2,
+  crafting: 0,
+  fletching: 2,
+  alchemy: 3,
+  thieving: 1,
+};
+
+/**
+ * The frame of an activity's loop on which its work lands (count the
+ * stroke, flash the prop, play the sound): its tool's contact for the
+ * gathering and making skills, `STRIKE2_HIT_FRAME` for the blow (`melee`,
+ * `ranged`, `defence`). Null for the breath (`vitality`) and any unknown id.
+ */
+export function activityHitFrame2(activity: string): number | null {
+  const combat = COMBAT_ACTIVITIES[activity as ActivityId];
+  if (combat === 'strike') return STRIKE2_HIT_FRAME;
+  if (combat === 'idle') return null;
+  return Object.hasOwn(ACTIVITY_HIT, activity) ? ACTIVITY_HIT[activity as ActivityId]! : null;
+}
+
 /** How long to show each frame of an activity, in milliseconds (a suggestion; the loop has no rest). */
 export function activityFrameMs2(activity: string): number {
   const combat = COMBAT_ACTIVITIES[activity as ActivityId];

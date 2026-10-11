@@ -10,6 +10,7 @@ import { BEASTS, beastGrid, fallenBeast, type BeastPose } from './beasts';
 import { bossFrame, BOSS_FRAMES, type BossPhase } from './boss';
 import { MONKEY_FRAMES, monkeyFrame } from './monkey';
 import { PEOPLE, PERSON_FRAMES, personPose } from './people';
+import { forgetSnapper, SNAPPER_FRAMES, snapperFrame } from './snapper';
 
 /**
  * What a foe can be doing. Every id has every pose: standing (`idle`, two
@@ -138,13 +139,22 @@ export const MONSTER2_IDS: readonly string[] = [
   'bramble_wyrm',
 ];
 
-/** Everything that fights, once each: the grotto's cast and every monster in the tables. */
-export const FOE2_IDS: readonly string[] = [...new Set([...GROTTO2_IDS, ...MONSTER2_IDS])];
+/**
+ * The tide-pool cave's cast (B15), by the ids the scene fights them by: the
+ * rat and the sand crab from the tables, and its boss, Old Snapper.
+ */
+export const TIDEPOOL2_IDS: readonly string[] = ['dock_rat', 'sand_crab', 'old_snapper'];
+
+/** Everything that fights, once each: every dungeon's cast and every monster in the tables. */
+export const FOE2_IDS: readonly string[] = [
+  ...new Set([...GROTTO2_IDS, ...MONSTER2_IDS, ...TIDEPOOL2_IDS]),
+];
 
 /** How many frames each pose of an id has (the same for every phase of the captain). */
 export function foe2Frames(id: string): Readonly<Record<Foe2Pose, number>> | null {
   let drawn: Readonly<Record<Drawn, number>> | null = null;
   if (id === 'brinebeard') drawn = BOSS_FRAMES;
+  else if (id === 'old_snapper') drawn = SNAPPER_FRAMES;
   else if (id === 'powder_monkey') drawn = MONKEY_FRAMES;
   else if (Object.hasOwn(PEOPLE, id)) drawn = PERSON_FRAMES;
   else if (Object.hasOwn(BEAST_KEYS, id)) {
@@ -174,11 +184,38 @@ function flashed(g: TGrid): TGrid {
   return { w: g.w, h: g.h, d };
 }
 
+/**
+ * B15: anything drawn on a frame's very edge ends in its outline there (a
+ * claw or a leg that reached the canvas's edge had been cut off flat with
+ * no line), so nothing reads as running on past the canvas, and so past the
+ * sizes declared from it. Only the edge's own pixels change; nothing moves.
+ */
+function edged(g: TGrid): TGrid {
+  const d = g.d.slice();
+  const line = (i: number) => {
+    const c = d[i]!;
+    if (c && (c & 7) !== 6) d[i] = (c & ~7) | 6;
+  };
+  for (let x = 0; x < g.w; x++) {
+    line(x);
+    line((g.h - 1) * g.w + x);
+  }
+  for (let y = 0; y < g.h; y++) {
+    line(y * g.w);
+    line(y * g.w + g.w - 1);
+  }
+  return { w: g.w, h: g.h, d };
+}
+
 /** A drawn frame, before any flash: the captain's, a person's or a creature's. */
 function drawnFrame(id: string, pose: Drawn, f: number, ph: BossPhase): Foe2Frame {
   if (id === 'brinebeard') {
     const b = bossFrame(ph, pose, f);
     return { picture: pic(b.grid, b.glows), feet: b.anchor };
+  }
+  if (id === 'old_snapper') {
+    const s = snapperFrame(pose, f);
+    return { picture: pic(s.grid), feet: s.feet };
   }
   if (id === 'powder_monkey') {
     const m = monkeyFrame(pose, f);
@@ -223,6 +260,7 @@ export function foe2Frame(
     const hurt = drawnFrame(id, 'hurt', f, ph);
     out = { picture: pic(flashed(hurt.picture.grid), hurt.picture.glows), feet: hurt.feet };
   } else out = drawnFrame(id, pose, f, ph);
+  out = { ...out, picture: pic(edged(out.picture.grid), out.picture.glows) };
   made.set(key, out);
   return out;
 }
@@ -230,4 +268,5 @@ export function foe2Frame(
 /** Lets go of every kept frame. */
 export function forgetFoes2(): void {
   made.clear();
+  forgetSnapper();
 }

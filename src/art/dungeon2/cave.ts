@@ -46,6 +46,23 @@ const CAVE_BASE = {
   goblin: ['#e0ec9a', '#b8d06a', '#94b250', '#749240', '#567234', '#3c522a', '#1e2a16'],
   // A light itself (a lit fuse, a pool's glint): never shifted.
   ember: ['#ffffff', '#fff6c0', '#ffe070', '#ffb040', '#f07028', '#b84020', '#501010'],
+  // B15, the tide-pool cave (appended, so every material above keeps its id and colour).
+  // Its rock: warm, pale and water-worn, a sandstone grey with a blush of ochre, so a sea cave
+  // open to daylight never reads as the grotto's violet dark.
+  tiderock: ['#fcf4e6', '#e4d6c2', '#c8b8a2', '#a89884', '#887a6e', '#625858', '#2e262c'],
+  // Its sand: a beach's, bright and warm, wet sand a step down it.
+  tidesand: ['#fffae6', '#faecc6', '#f0daa8', '#dcc08a', '#bc9e72', '#8a745e', '#40342e'],
+  // Clear water over sand in a pool, sunlit: turquoise, lighter than any cave shoal.
+  pool: ['#f0fffa', '#b4f4e8', '#80e0d6', '#56c6c4', '#3aa2aa', '#2a7a88', '#123c4a'],
+  // The sea in the cave: blue-green and bright, much darker than the pools.
+  tidedeep: ['#c4f0f6', '#7ad0e6', '#4eaed2', '#3a8ebc', '#2c70a0', '#20527e', '#0e2644'],
+  // Kelp and wrack: olive-brown, not the grotto's green weed.
+  kelp: ['#f0e8a0', '#d0c066', '#a8964a', '#827238', '#5e5430', '#403a26', '#1e1a12'],
+  // Old Snapper's shell, mossy olive-brown, and his skin, grey-green.
+  turtle: ['#eee6a8', '#cabe80', '#a2965e', '#7e7448', '#5e563a', '#423c2e', '#201c16'],
+  turtleskin: ['#e8eac8', '#c2c8a0', '#9aa27e', '#7a8462', '#5e684e', '#42483c', '#1e221c'],
+  // Anemones: a soft sea pink, small and never on a floor's open ground.
+  anemone: ['#fff0f6', '#ffc4dc', '#f494bc', '#d8689e', '#ac4c82', '#783662', '#381830'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type CaveMat = keyof typeof CAVE_BASE;
@@ -124,6 +141,14 @@ function cavePalette(town: Palette2): CavePalette {
 export const CAVE_DUSK: CavePalette = cavePalette(DUSK2);
 /** The same by day: for portraits and the menus, which have no dusk. */
 export const CAVE_DAY: CavePalette = cavePalette(DAY2);
+
+/**
+ * The tide-pool cave (B15): a shallow sea cave open to daylight, so it is
+ * painted by day, not at dusk. Every town colour is the town's by day
+ * (`DAY2`), so the hero from `characterSprite2(look, worn, 'day')` and every
+ * foe read as they do in the sun; the cave's own ramps take the day shift.
+ */
+export const CAVE_TIDEPOOL: CavePalette = cavePalette(DAY2);
 
 /** The cave palette for a time of day. */
 export const cavePaletteFor = (time: 'day' | 'dusk'): CavePalette =>

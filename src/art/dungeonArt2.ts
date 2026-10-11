@@ -18,7 +18,10 @@
  */
 import { mirror, type Picture2 } from './town2/cells';
 import { spriteCanvas } from './town2/raster';
-import { CAVE_DAY, CAVE_DUSK, type CavePalette } from './dungeon2/cave';
+import { CAVE_DAY, CAVE_DUSK, CAVE_TIDEPOOL, type CavePalette } from './dungeon2/cave';
+import { DUNGEON2_THEMES, isDungeon2Theme, type Dungeon2Theme } from './dungeon2/theme';
+import { lightGround2 } from './dungeon2/light';
+import type { TGrid } from './town2/cells';
 import {
   foe2Frame,
   foe2Frames,
@@ -26,8 +29,10 @@ import {
   FOE2_POSES,
   GROTTO2_IDS,
   MONSTER2_IDS,
+  TIDEPOOL2_IDS,
   type Foe2Pose,
 } from './dungeon2/cast2';
+import { TIDEPOOL2_PROP_IDS } from './dungeon2/tideProps';
 import { FOE2_SIZES, type Foe2Size } from './dungeon2/sizes';
 import { prop2, PROP2_IDS } from './dungeon2/props';
 import {
@@ -54,6 +59,10 @@ import {
 export {
   CAVE_DAY,
   CAVE_DUSK,
+  CAVE_TIDEPOOL,
+  DUNGEON2_THEMES,
+  TIDEPOOL2_IDS,
+  TIDEPOOL2_PROP_IDS,
   FOE2_IDS,
   FOE2_POSES,
   FOE2_SIZES,
@@ -63,7 +72,7 @@ export {
   TILE2_KINDS,
   TILE2_WEARS,
 };
-export type { Around, CavePalette, Foe2Pose, Foe2Size, Light2, Tile2Kind, TileAt };
+export type { Around, CavePalette, Dungeon2Theme, Foe2Pose, Foe2Size, Light2, Tile2Kind, TileAt };
 export { GROUND2_SHADOW, forgetTiles2 } from './dungeon2/tiles';
 export { roomKinds2, aroundOf } from './dungeon2/room';
 export { forgetFoes2 } from './dungeon2/cast2';
@@ -71,10 +80,12 @@ export {
   DUNGEON2_LIGHT,
   FUSE_LIGHT2,
   LANTERN_LIGHT2,
+  SHAFT_LIGHT2,
+  TIDEPOOL2_LIGHT,
   flicker2,
   lightAt,
-  lightGround2,
 } from './dungeon2/light';
+export { lightGround2 };
 
 /** A dungeon tile's size at the C scale, in art pixels (`TILE` in the scene is 16 at the first scale). */
 export const DUNGEON2_TILE = TILE2;
@@ -100,16 +111,19 @@ function wearOf(variant: number, wears: number): number {
  * neighbours' kinds, lets it join them in curves (a shore with foam, sand
  * over rock, the deep's drop, shade under a wall); `at`, its column and row,
  * makes its texture run on from its neighbours' with no seam. Pass both for
- * a room. Kept once made.
+ * a room. Kept once made. `theme` (B15, `DUNGEON2_THEMES`) draws the same
+ * kind in another cave's look (`'tidepool'`); left out, the grotto's.
  */
 export function dungeonTile2(
   kind: string,
   variant = 0,
   around?: Around,
   at?: TileAt,
+  theme: Dungeon2Theme = 'grotto',
 ): Picture2 | null {
   if (!isTile2Kind(kind)) return null;
-  return { grid: tile2Grid(kind, wearOf(variant, TILE2_WEARS[kind]), around, at), glows: [] };
+  const t = isDungeon2Theme(theme) ? theme : 'grotto';
+  return { grid: tile2Grid(kind, wearOf(variant, TILE2_WEARS[kind]), around, at, t), glows: [] };
 }
 
 /**
@@ -140,18 +154,25 @@ const doorPieces = new Map<string, DoorPiece2Picture>();
  * The door piece for a door tile's id (`door_open`, `door_barred`,
  * `door_side_open`, `door_side_barred`), or null for any other kind.
  * `around` turns a side door to the room (as `dungeonTile2`); `at`, the door
- * cell's column and row, runs the rock on from its neighbours'. Kept once made.
+ * cell's column and row, runs the rock on from its neighbours'. `theme` (B15)
+ * draws it in another cave's look on the same footprint. Kept once made.
  */
-export function dungeonDoor2(kind: string, around?: Around, at?: TileAt): DoorPiece2Picture | null {
+export function dungeonDoor2(
+  kind: string,
+  around?: Around,
+  at?: TileAt,
+  theme: Dungeon2Theme = 'grotto',
+): DoorPiece2Picture | null {
   if (!isDoorKind2(kind)) return null;
+  const t = isDungeon2Theme(theme) ? theme : 'grotto';
   const west = roomIsWest(around);
   const col = at ? Math.floor(at.col) : 1000;
   const row = at ? Math.floor(at.row) : 1000;
-  const key = `${kind} ${west} ${col} ${row}`;
+  const key = `${t} ${kind} ${west} ${col} ${row}`;
   let made = doorPieces.get(key);
   if (made) return made;
   const f = footprint2(kind, west);
-  const { piece } = placeDoor2(kind, west, col, row);
+  const { piece } = placeDoor2(kind, west, col, row, t);
   const covers: [number, number][] = [];
   for (let r = 0; r < f.rows; r++)
     for (let c = 0; c < f.cols; c++) covers.push([c - f.door[0], r - f.door[1]]);
@@ -284,3 +305,70 @@ export const foeSize2 = (id: string): Foe2Size | null =>
 /** The cave palette for a time of day: dusk in a run, day in the menus. */
 export const cavePalette2 = (time: 'day' | 'dusk'): CavePalette =>
   time === 'day' ? CAVE_DAY : CAVE_DUSK;
+
+/**
+ * A dungeon's doors bound to its theme (B15): the same functions as the
+ * module's, with `theme` filled in, its palette, and the time of day its
+ * figures are drawn in. Nothing here differs from calling the functions
+ * with a trailing `theme` and the palette by hand; it saves passing them.
+ *
+ * ```ts
+ * const art = dungeonTheme2('tidepool');
+ * art.tile(kind, cellIndex, aroundOf(kinds, col, row), { col, row });
+ * art.lightGround(ground, lights);
+ * rasterize2(pic, art.palette, 1);
+ * characterSprite2(look, worn, art.figureTime);
+ * ```
+ */
+export interface DungeonTheme2 {
+  readonly theme: Dungeon2Theme;
+  /** Rasterize the room and everything in it with this: `CAVE_DUSK` or `CAVE_TIDEPOOL`. */
+  readonly palette: CavePalette;
+  /** The hero's time of day to match the palette (`characterSprite2(look, worn, figureTime)`). */
+  readonly figureTime: 'day' | 'dusk';
+  /** The prop ids made for this cave (any prop id still draws in any cave). */
+  readonly propIds: readonly string[];
+  /** The foe ids of this cave's cast. */
+  readonly castIds: readonly string[];
+  tile(kind: string, variant?: number, around?: Around, at?: TileAt): Picture2 | null;
+  door(kind: string, around?: Around, at?: TileAt): DoorPiece2Picture | null;
+  prop(id: string): PropPicture2 | null;
+  propSprite(id: string): HTMLCanvasElement | null;
+  lightGround(ground: TGrid, lights: readonly Light2[]): TGrid;
+  foeSprite(
+    id: string,
+    pose?: Foe2Pose,
+    facing?: Foe2Facing,
+    frame?: number,
+    phase?: number,
+  ): HTMLCanvasElement | null;
+}
+
+const themes = new Map<Dungeon2Theme, DungeonTheme2>();
+
+/** The doors bound to a theme; an unknown theme is the grotto. Kept once made. */
+export function dungeonTheme2(theme: Dungeon2Theme | string = 'grotto'): DungeonTheme2 {
+  const t: Dungeon2Theme = isDungeon2Theme(theme) ? theme : 'grotto';
+  let made = themes.get(t);
+  if (made) return made;
+  const palette = t === 'tidepool' ? CAVE_TIDEPOOL : CAVE_DUSK;
+  made = {
+    theme: t,
+    palette,
+    figureTime: t === 'tidepool' ? 'day' : 'dusk',
+    propIds:
+      t === 'tidepool'
+        ? TIDEPOOL2_PROP_IDS
+        : PROP2_IDS.filter((id) => !TIDEPOOL2_PROP_IDS.includes(id)),
+    castIds: t === 'tidepool' ? TIDEPOOL2_IDS : GROTTO2_IDS,
+    tile: (kind, variant = 0, around, at) => dungeonTile2(kind, variant, around, at, t),
+    door: (kind, around, at) => dungeonDoor2(kind, around, at, t),
+    prop: (id) => dungeonProp2(id),
+    propSprite: (id) => dungeonPropSprite2(id, palette),
+    lightGround: (ground, lights) => lightGround2(ground, lights, t),
+    foeSprite: (id, pose = 'idle', facing = 'right', frame = 0, phase = 1) =>
+      foeSprite2(id, pose, facing, frame, phase, palette),
+  };
+  themes.set(t, made);
+  return made;
+}

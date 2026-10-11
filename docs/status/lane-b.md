@@ -1,8 +1,93 @@
 # Lane B: art
 
-**Next session:** Cody's review of B14 (the title screen) and B13 (hair in every facing, the new
-hairstyles and beards, the cutlass's curve, the grotto's doors, greaves, the activity poses), and
-whatever it asks for.
+**Next session:** B15's second PR (the ferryman, the boat's sign and lantern, the town's
+interaction markers, polish of the boss, the tide-pool cave and the chart, the gallery), then
+Cody's review of the tide-pool cave and the chart.
+
+## The tide-pool cave, Old Snapper and the harbour chart, for lanes C and A (B15, first PR)
+
+No existing door renamed or re-signed; every existing call draws what it drew (the grotto's tiles,
+props, light and palette are held byte for byte to `main` by `tests/art/tidepool2.test.ts`), with
+three deliberate drawing changes noted below. Added:
+
+```ts
+// dungeonArt2.ts: the theme
+DUNGEON2_THEMES = ['grotto', 'tidepool'] as const;  type Dungeon2Theme
+dungeonTile2(kind, variant = 0, around?, at?, theme: Dungeon2Theme = 'grotto'): Picture2 | null
+dungeonDoor2(kind, around?, at?, theme: Dungeon2Theme = 'grotto'): DoorPiece2Picture | null
+lightGround2(ground, lights, theme: Dungeon2Theme = 'grotto'): TGrid
+dungeonTheme2(theme = 'grotto'): DungeonTheme2   // the same, bound (see below)
+CAVE_TIDEPOOL: CavePalette                        // the tide-pool cave's palette (day)
+TIDEPOOL2_IDS = ['dock_rat', 'sand_crab', 'old_snapper']
+TIDEPOOL2_PROP_IDS = ['rock_pool', 'kelp_clump', 'starfish_cluster', 'anemone_rock',
+                      'driftwood', 'boat_ribs', 'cave_mouth', 'light_shaft']  // also in PROP2_IDS
+TIDEPOOL2_LIGHT, SHAFT_LIGHT2                     // the day scheme's numbers, a shaft's light
+
+// the boss, through the existing doors
+foePicture2('old_snapper', pose, facing, frame)   // every pose: idle 2, walk 4, windup, strike,
+foeSprite2('old_snapper', …, CAVE_TIDEPOOL)       //   hurt, flash, fall 2; both facings
+FOE2_SIZES.old_snapper, foeSize2('old_snapper')
+portrait2('old_snapper'), PORTRAIT2_SAFE.old_snapper   // { x: 0, y: 0, w: 72, h: 56 }
+
+// chart.ts (new door)
+harbourChart2(): { picture: Picture2; width: 340; height: 300;
+                   landings: Record<string, { x, y }>; home: { x, y } }
+chartMarker2(state: 'open' | 'cleared' | 'locked' | 'unknown' | 'selected'): ChartPiece2
+chartEmblem2(id: string, silhouette = false): ChartPiece2 | null  // brinebeards_grotto, tidepool_cave
+chartBoat2(facing: 'left' | 'right' = 'right'): ChartPiece2
+chartDot2(): ChartPiece2
+chartRoute2(from, to, { step = 7, bend = 0.18 } = {}): { x, y }[]
+// ChartPiece2 = { picture: Picture2; anchor: { x, y } }: draw at (x - anchor.x, y - anchor.y)
+CHART2_W, CHART2_H, CHART2_LANDINGS, CHART2_HOME, CHART_MARKER2_STATES, CHART_EMBLEM2_IDS
+
+// character2.ts
+activityHitFrame2(activity: string): number | null   // where each loop's work lands
+```
+
+- **The theme** is a trailing optional argument on each door (left out, the grotto, exactly as
+  before), or `dungeonTheme2(theme)`, an object with `tile(kind, variant, around, at)`,
+  `door(kind, around, at)`, `prop(id)`, `propSprite(id)`, `lightGround(ground, lights)`,
+  `foeSprite(id, pose, facing, frame, phase)` bound to the theme and its palette, plus `palette`
+  (`CAVE_DUSK` or `CAVE_TIDEPOOL`), `figureTime` (`'dusk'` or `'day'`), `propIds`, `castIds`.
+  Same tile kinds, wears and footprints as the grotto, so a room's rows are laid out the same; only
+  the drawing differs. In the tide-pool cave, rasterize everything with `CAVE_TIDEPOOL` and draw the
+  hero with `characterSprite2(look, worn, 'day')` (its town colours are `DAY2`'s, tested). Its
+  glows are all `always` (the palette has no evening lights).
+- **Light by day**: `lightGround2(…, 'tidepool')` darkens nothing out to 3.2 pools from a light
+  (one step past that), and lifts a light's heart a step. Lights in a tide-pool room: each open
+  door's `light`, each `light_shaft`'s and the `cave_mouth`'s (move them with `lightAt` as a
+  lantern's). No lanterns.
+- **Props**: stand at (x - foot, y - base) as every prop. `light_shaft` is an overlay (a crack's
+  slit at its top, motes, and a chain of glows down and to the right): stand it at the floor spot it
+  lights (its foot and base are that spot; it is 58 x 112, reaching up over the wall); add its glows
+  and its `light`. `cave_mouth` is 70 x 72, three tiles tall like a door: stand it with its base on
+  the first floor row below a wall face, in the back wall; it carries daylight glows and a `light`.
+  The rest are floor props (rock pool 46 x 26, kelp on a rock, starfish on a rock, anemones and
+  mussels, a driftwood log 62 x 20, an old boat's ribs 76 x 40).
+- **Old Snapper** (`FOE2_SIZES.old_snapper`): canvas 108 x 66, feet (60, 64), tall 43, front 27,
+  back 56, strike 47, box 67 x 43, shadow 33. He stands a little behind his front feet, his shell and
+  tail behind, so a hero at the 36-pixel stand is not drawn over him (front 27 + 13 − 36 ≤ 4), and
+  his snap reaches 47: plainly onto the hero. Windup is the telegraph (he rears, front feet up, head
+  high, jaws gaping pink); strike the neck out low; hurt his head pulled into his shell; fall frame 1
+  on his back (108 x 48, feet given). His contact shadow centred on his feet sits a little ahead of
+  his shell's middle (see the weak list).
+- **The chart** is 340 x 300 art pixels, one art pixel a CSS pixel on a 390-wide phone (3 device
+  pixels), day only: rasterize with `DAY2`. Landings: `tidepool_cave` (239, 116) off the headland
+  just east of the bay, `brinebeards_grotto` (106, 170) by the island to the south-west,
+  `unknown_1` (250, 178) a south-eastern islet, `unknown_2` (52, 133) the western islets,
+  `unknown_3` (196, 262) the far shore; `home` (128, 100), the quay. A marker's anchor is the pole's
+  foot (on the landing); `selected` is a ring whose anchor is its middle (lay it round the chosen
+  marker, centred about 6 above the landing); an emblem's anchor is its middle (beside the marker).
+  The route: lay `chartDot2()` at each of `chartRoute2(home, landing)`; show the first n for a boat
+  on its way and put `chartBoat2` at the next point. The picture holds no words.
+- **Changed drawing** (no size the fight uses): (1) the open side door's passage past the room's
+  edge has rock round it in the open piece only (its jambs lit from beyond, rock out to a ragged
+  edge), so a scene showing only where the open and barred pieces differ shows it cut through rock;
+  (2) any foe's pixel on its canvas's edge is now its outline step (the giant crab's claws and legs
+  ran off its canvas cut flat), so nothing is drawn past a declared size; the giant crab keeps its
+  canvas and sizes (your drawn-apart test relies on them); (3) the sand crab's canvas is 48 x 32,
+  feet (24, 30) (it ran off its 40 x 26): `FOE2_SIZES.sand_crab` tall 26, front 22, back 22, strike
+  22, box 41 x 26, shadow 20.
 
 ## The title screen, for lane A (B14)
 
@@ -1511,6 +1596,23 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 - The townsfolk bodies are drawn only where they show, so they cannot be dressed in other gear.
 
 ## Needs from another lane
+
+- **Lane C, for B15's first PR** (the tide-pool cave and the chart):
+  - Build the tide-pool cave's rooms on the same tile kinds (rows in your key as the grotto's) and
+    draw them through `dungeonTheme2('tidepool')` (or each door with a trailing `'tidepool'`):
+    tiles, door pieces, `lightGround`, and rasterize ground, props and foes with `CAVE_TIDEPOOL`;
+    the hero from `characterSprite2(look, worn, 'day')`. The light: each open door's `light`, each
+    `light_shaft`'s and the `cave_mouth`'s, moved with `lightAt`; no lanterns. Every glow there is
+    `always`, so `litBy` lights walkers by day too.
+  - Old Snapper: `foeSprite2('old_snapper', pose, facing, frame, 1, CAVE_TIDEPOOL)` at (x −
+    feet.x, y − feet.y), sizes from `FOE2_SIZES.old_snapper`; `windup` while his snap is marked
+    (it is drawn as the plainest telegraph in the game), `strike` as it lands; `portrait2` as every
+    face. The sand crab's canvas grew (above): take its feet from `foePicture2` as before.
+  - The chart: `harbourChart2()` in the boat's panel, markers by state at `landings[id]`, emblems
+    beside them (silhouettes while locked), the dotted route and the boat token. Words are yours.
+- **Lane A, for B15's first PR**: `activityHitFrame2(activity)` replaces `LANDS` in
+  `src/ui/atWork.ts` (null for `vitality`). If `old_snapper` joins the tables, its portrait is
+  already there.
 
 - **Lane A, for B14**: wire the title screen (top of this file): `titleScene(innerWidth,
 innerHeight, devicePixelRatio)` in a full-screen container with `overflow: hidden` and the panel
