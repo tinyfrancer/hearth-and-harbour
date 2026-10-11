@@ -546,10 +546,11 @@ describe('the content tables', () => {
     expect(sources.map((source) => source.id)).toContain('bounty_shop');
   });
 
-  it('has about twenty-five achievements over real things, with names and lines', () => {
+  // Thirty-one since the Tidepool Cave's two (wave 15); the set grows with the content.
+  it('has about thirty achievements over real things, with names and lines', () => {
     const all = Object.values(CONTENT.achievements!);
     expect(all.length).toBeGreaterThanOrEqual(22);
-    expect(all.length).toBeLessThanOrEqual(30);
+    expect(all.length).toBeLessThanOrEqual(36);
     expect(all.some((def) => def.hidden)).toBe(true);
     const names = new Set<string>();
     for (const def of all) {

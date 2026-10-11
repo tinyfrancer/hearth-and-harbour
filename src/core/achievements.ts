@@ -48,8 +48,12 @@ export function meets(state: GameState, rule: AchievementRule, content: Content)
       const worn = new Set(Object.values(state.equipment).map((slot) => slot!.item));
       return rule.items.every((item) => worn.has(item));
     }
-    case 'cleared':
-      return (state.dungeons[rule.dungeon]?.clears ?? 0) >= (rule.count ?? 1);
+    case 'cleared': {
+      const record = state.dungeons[rule.dungeon];
+      if ((record?.clears ?? 0) < (rule.count ?? 1)) return false;
+      // A time asked for is a best time under it; an untimed clear never shows one.
+      return rule.withinMs === undefined || (record?.bestMs ?? Infinity) < rule.withinMs;
+    }
     case 'coins':
       return state.coins >= rule.amount;
     case 'thefts':

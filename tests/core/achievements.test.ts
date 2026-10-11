@@ -145,6 +145,13 @@ describe('what an achievement asks', () => {
     expect(check({ kind: 'cleared', dungeon: 'cave' }, state)).toBe(true);
     expect(check({ kind: 'cleared', dungeon: 'cave', count: 3 }, state)).toBe(false);
     expect(check({ kind: 'cleared', dungeon: 'grotto' }, state)).toBe(false);
+    // A time asked for is a best time under it; an untimed clear has none.
+    expect(check({ kind: 'cleared', dungeon: 'cave', withinMs: 90_000 }, state)).toBe(false);
+    const timed = (bestMs: number) => at({ dungeons: { cave: { clears: 1, bestMs } } });
+    expect(check({ kind: 'cleared', dungeon: 'cave', withinMs: 90_000 }, timed(89_999))).toBe(true);
+    expect(check({ kind: 'cleared', dungeon: 'cave', withinMs: 90_000 }, timed(90_000))).toBe(
+      false,
+    );
     expect(check({ kind: 'coins', amount: 500 }, state)).toBe(true);
     expect(check({ kind: 'coins', amount: 501 }, state)).toBe(false);
     expect(check({ kind: 'thefts', count: 11 }, state)).toBe(true);

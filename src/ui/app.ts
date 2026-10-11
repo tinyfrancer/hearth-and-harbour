@@ -47,6 +47,14 @@ import { createScreen, type CreateScreen } from './createScreen';
 import { achievementsView, collectionView } from './logScreen';
 import { button, h } from './dom';
 import { heroFace } from './face';
+import {
+  chartSeen,
+  firstStepsCard,
+  firstStepsDue,
+  firstStepsDungeon,
+  newLanding,
+  putFirstStepsAway,
+} from './hints';
 import { fullLook } from './look';
 import { counted, listed } from './format';
 import { menuScreen } from './menuScreen';
@@ -226,15 +234,19 @@ export function mountApp(
   let awayEl: HTMLElement | null = null;
   const toasts = h('div', { class: 'toasts', attrs: { role: 'status' } });
   /** The "now doing" strip above the tabs: made once, kept across every screen. */
-  const doing = nowDoing(content, (target: NowTarget) => {
-    tab = 'skills';
-    combatPage = null;
-    fightOver = null;
-    openSkill = null;
-    if (target.kind === 'skill') openSkill = content.skills[target.skill] ? target.skill : null;
-    if (target.kind === 'fight') combatPage = 'fight';
-    turnTo();
-  });
+  const doing = nowDoing(
+    content,
+    (target: NowTarget) => {
+      tab = 'skills';
+      combatPage = null;
+      fightOver = null;
+      openSkill = null;
+      if (target.kind === 'skill') openSkill = content.skills[target.skill] ? target.skill : null;
+      if (target.kind === 'fight') combatPage = 'fight';
+      turnTo();
+    },
+    prefs,
+  );
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
   const awards = h('div', { class: 'awards', attrs: { role: 'status' } });
@@ -569,7 +581,7 @@ export function mountApp(
           combatPage = game.fight ? 'fight' : 'areas';
           turnTo();
         };
-        return skillListView(
+        const list = skillListView(
           game,
           content,
           (id) => {
@@ -587,6 +599,24 @@ export function mountApp(
             turnTo();
           },
         );
+        // A new character's pointer to the learning dungeon, at the top, until put away.
+        const learning = firstStepsDungeon(game, content);
+        if (learning && firstStepsDue(game, content, prefs)) {
+          list.el.prepend(
+            firstStepsCard(
+              learning,
+              () => {
+                putFirstStepsAway(game, prefs);
+                toHarbour();
+              },
+              () => {
+                putFirstStepsAway(game, prefs);
+                redrawInPlace();
+              },
+            ),
+          );
+        }
+        return list;
       }
       return skillPageView(
         game,
@@ -766,6 +796,8 @@ export function mountApp(
         }
         if (said.length > 0) toast(said.join(' '));
         save();
+        // A first clear may open the next landing.
+        syncTownDot();
       },
       openBounties: () => {
         tab = 'skills';
@@ -776,6 +808,11 @@ export function mountApp(
       },
       keepRun: (run) => {
         if (!state) return;
+        // Rowing out to a dungeon is as good as having seen it on the chart.
+        if (run && !state.run) {
+          chartSeen(state, content, prefs, run.dungeon);
+          syncTownDot();
+        }
         // Kept with the next save (every few seconds while a run pauses the
         // idle clock, and when the page is hidden); a run over is saved at once.
         state = { ...state, run };
@@ -785,9 +822,17 @@ export function mountApp(
       takeRequest: () => {
         const asked = request;
         request = null;
+        if (asked === 'chart' && state) {
+          chartSeen(state, content, prefs);
+          syncTownDot();
+        }
         return asked;
       },
-      chartOpened: () => {},
+      chartOpened: () => {
+        if (!state) return;
+        chartSeen(state, content, prefs);
+        syncTownDot();
+      },
     });
   };
 
@@ -821,6 +866,24 @@ export function mountApp(
     view = buildView(state);
     screen.replaceChildren(view.el);
     screen.scrollTop = top;
+  };
+
+  /**
+   * The Town tab's dot: a landing on the harbour chart open and not yet seen
+   * there (`newLanding`). A dot, never a number; put right in place.
+   */
+  const syncTownDot = (): void => {
+    const town = root.querySelector('.tab[data-tab="town"]');
+    if (!town || !state) return;
+    const due = newLanding(state, content, prefs);
+    const dot = town.querySelector('.tab-dot');
+    if (due && !dot) {
+      town.append(h('span', { class: 'tab-dot', attrs: { 'data-tab-dot': '' } }));
+      town.setAttribute('aria-label', 'Town: somewhere new to sail to');
+    } else if (!due && dot) {
+      dot.remove();
+      town.removeAttribute('aria-label');
+    }
   };
 
   /** The header's face follows the outfit (the last arrow shot changes it) without a rebuild. */
@@ -932,6 +995,7 @@ export function mountApp(
       ),
     );
     doing.update(state, now());
+    syncTownDot();
   };
 
   /** Every frame: the game's step, then the strip, which shows wherever the game is. */

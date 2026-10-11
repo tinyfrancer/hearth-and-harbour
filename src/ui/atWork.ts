@@ -8,7 +8,9 @@ import {
   activityFrames2,
   activityProp2,
   characterActivity2,
+  characterActivityPicture2,
   characterIdle2,
+  characterIdlePicture2,
 } from '../art/character2';
 import { DAY2 } from '../art/town2/ramps';
 import { spriteCanvas } from '../art/town2/raster';
@@ -180,6 +182,63 @@ export interface Trim {
   top?: number;
 }
 
+/** Air kept either side of what is drawn, in art pixels, when a stage is fitted to the work. */
+const FIT_AIR = 1;
+
+/** Columns of a picture with anything drawn in them, first and last; null when it is empty. */
+function drawnColumns(grid: {
+  w: number;
+  h: number;
+  d: ArrayLike<number>;
+}): [number, number] | null {
+  let first = grid.w;
+  let last = -1;
+  for (let y = 0; y < grid.h; y += 1) {
+    const row = y * grid.w;
+    for (let x = 0; x < first; x += 1) if (grid.d[row + x]) first = x;
+    for (let x = grid.w - 1; x > last; x -= 1) if (grid.d[row + x]) last = x;
+  }
+  return last < 0 ? null : [first, last];
+}
+
+const fitted = new Map<string, { x0: number; x1: number }>();
+
+/**
+ * The columns a loop uses, from the hero's canvas's left: every frame of it
+ * in this look and gear, and what the work is done on, with a pixel of air
+ * either side. Read off the pictures themselves (the art's data, not a
+ * canvas), once for each loop, look and outfit.
+ */
+export function workColumns(
+  activity: string | null,
+  look: Parameters<typeof characterIdlePicture2>[0],
+  worn: readonly string[],
+  withProp: boolean,
+): { x0: number; x1: number } {
+  const key = JSON.stringify([activity, look, worn, withProp]);
+  const kept = fitted.get(key);
+  if (kept) return kept;
+  let x0 = FIGURE2_W;
+  let x1 = 0;
+  const take = (cols: [number, number] | null, at = 0): void => {
+    if (!cols) return;
+    x0 = Math.min(x0, at + cols[0]);
+    x1 = Math.max(x1, at + cols[1] + 1);
+  };
+  const frames = activity ? activityFrames2(activity) : IDLE2_FRAMES;
+  for (let f = 0; f < Math.max(1, frames); f += 1) {
+    const pic = activity
+      ? characterActivityPicture2(look, worn, activity, f)
+      : characterIdlePicture2(look, worn, f);
+    take(drawnColumns(pic.grid));
+  }
+  const prop = withProp && activity ? activityProp2(activity) : null;
+  if (prop) take(drawnColumns(prop.picture.grid), ANCHOR.x + prop.at.x - prop.foot.x);
+  const box = x1 > x0 ? { x0: x0 - FIT_AIR, x1: x1 + FIT_AIR } : { x0: 0, x1: FIGURE2_W };
+  fitted.set(key, box);
+  return box;
+}
+
 /**
  * The hero at work, `cssScale` CSS pixels to an art pixel (rounded to whole
  * device pixels, so every art pixel is a crisp square), with what the work is
@@ -191,6 +250,7 @@ export function workStage(
   cssScale: number,
   withProp = true,
   trim: Trim = {},
+  fit = false,
 ): WorkStage {
   const dpr = ratio();
   const scale = deviceScale(cssScale, dpr);
@@ -206,10 +266,24 @@ export function workStage(
   const canvas = document.createElement('canvas');
   canvas.className = 'pixel-art work-stage';
   canvas.setAttribute('role', 'img');
-  canvas.width = box.w * scale;
-  canvas.height = box.h * scale;
-  canvas.style.width = `${canvas.width / dpr}px`;
-  canvas.style.height = `${canvas.height / dpr}px`;
+  const size = (): void => {
+    canvas.width = box.w * scale;
+    canvas.height = box.h * scale;
+    canvas.style.width = `${canvas.width / dpr}px`;
+    canvas.style.height = `${canvas.height / dpr}px`;
+  };
+  size();
+  /**
+   * Fitted to the work (the strip): as wide as this loop and its prop need,
+   * so no other loop's prop leaves air beside him; as tall as every loop, so
+   * he stands on the same line whatever he does.
+   */
+  const fitTo = (doing: Doing, state: GameState): void => {
+    const cols = workColumns(doing.activity, fullLook(state.look), wornItemIds(state), withProp);
+    box.w = cols.x1 - cols.x0;
+    box.heroX = -cols.x0;
+    if (canvas.width !== box.w * scale) size();
+  };
   // jsdom has no pixels; what is shown is written on the canvas for the tests.
   const ctx = typeof ImageData === 'undefined' ? null : canvas.getContext('2d');
   let shownKey = '';
@@ -258,6 +332,7 @@ export function workStage(
       const key = JSON.stringify([doing.activity, frame, state.look, wornItemIds(state)]);
       if (key === shownKey) return;
       shownKey = key;
+      if (fit) fitTo(doing, state);
       draw(state, doing, frame);
     },
   };
