@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { modifierOn } from '../../src/core/progress';
 import { CONTENT } from '../../src/data';
 import { LocalStorageSaveService } from '../../src/persistence/LocalStorageSaveService';
 import { mountApp } from '../../src/ui/app';
@@ -324,6 +325,70 @@ describe('the harbour chart, asked for from the menus', () => {
     shell!.settleRun({ cleared: 'tidepool_cave' });
     expect(saved()!.bank).toMatchObject({ bronze_sword: 1, cooked_shrimp: 5 });
     expect(saved()!.dungeons.tidepool_cave).toEqual({ clears: 2, bestMs: 100_000 });
+  });
+});
+
+describe('the day’s modifier and challenges, for a scene (S16)', () => {
+  it('names today’s modifier by the app’s clock and the phone’s time zone, turning at local midnight', () => {
+    // 23:30 UTC: still the 11th in London's winter, already the 12th an hour ahead.
+    clock = Date.UTC(2026, 9, 11, 23, 30);
+    const at = (utcOffset: number): (string | null)[] => {
+      root.replaceChildren();
+      shell = undefined;
+      mountApp(root, {
+        saves: new LocalStorageSaveService(),
+        content: CONTENT,
+        now: () => clock,
+        utcOffset: () => utcOffset,
+      });
+      if (!saved()) {
+        root.querySelector<HTMLInputElement>('input[name="character-name"]')!.value = 'Cody';
+        root.querySelector<HTMLFormElement>('form')!.requestSubmit();
+      }
+      click('.tab[data-tab="town"]');
+      return [
+        shell!.todaysModifier!('brinebeards_grotto'),
+        shell!.todaysModifier!('tidepool_cave'),
+      ];
+    };
+    const day = (d: number): (string | null)[] => [
+      modifierOn(d, 'brinebeards_grotto', CONTENT),
+      modifierOn(d, 'tidepool_cave', CONTENT),
+    ];
+    const eleventh = Math.floor(Date.UTC(2026, 9, 11) / 86_400_000);
+    expect(at(0)).toEqual(day(eleventh));
+    expect(at(60)).toEqual(day(eleventh + 1));
+    expect(shell!.todaysModifier!('unknown_1')).toBeNull();
+  });
+
+  it('pays a challenge met by a clear once, and says so', () => {
+    inTown();
+    const stats = {
+      timeMs: 110_000,
+      damageTaken: 14,
+      foodEaten: 1,
+      braces: 2,
+      stepOuts: 1,
+      knockedOut: false,
+      kills: 7,
+    };
+    const run = { cleared: 'tidepool_cave', dungeon: 'tidepool_cave', timeMs: 110_000, stats };
+    shell!.settleRun(run);
+    expect(saved()!.dungeons.tidepool_cave!.challenges).toEqual([
+      'tidepool_cave.brace',
+      'tidepool_cave.brisk',
+    ]);
+    expect(root.querySelector('.toast')!.textContent).toBe(
+      'First clear of Tidepool Cave! Into the bank: a Bronze sword and 5 Cooked shrimp. ' +
+        'Challenge done: Stand Firm! 100 coins and 5 Cooked shrimp. ' +
+        'Challenge done: Brisk! 250 coins and 2 bounty points.',
+    );
+    expect(saved()!.coins).toBe(350);
+    root.querySelector('.toast')!.remove();
+    shell!.settleRun(run);
+    expect(saved()!.coins).toBe(350);
+    // Nothing new to say.
+    expect(root.querySelector('.toast')).toBeNull();
   });
 });
 

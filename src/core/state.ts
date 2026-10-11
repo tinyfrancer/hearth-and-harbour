@@ -10,7 +10,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 10;
+export const GAME_STATE_VERSION = 11;
 
 export interface ActiveAction {
   /** An ActionDef id. */
@@ -156,6 +156,63 @@ export interface DungeonRecord {
   clears: number;
   /** The quickest of those, in milliseconds, when a run said how long it took. */
   bestMs?: number;
+  /** The least damage taken in a clear that reported it (`RunStats.damageTaken`). */
+  leastDamage?: number;
+  /** The least eaten in a clear that reported it (`RunStats.foodEaten`). */
+  leastFood?: number;
+  /** Its challenges done (ChallengeDef ids), each once, in the order done. */
+  challenges?: string[];
+  /** The modifiers it has been cleared under by hand (ModifierDef ids), each once, in order. */
+  modifiers?: string[];
+  /** Runs the hero has finished in it unattended (src/core/idleRun.ts). */
+  idleRuns?: number;
+}
+
+/** One foe of an idle run's room still standing: its row in the cast, its hit points, its wait. */
+export interface IdleFoe {
+  id: string;
+  hp: number;
+  /** Milliseconds until its next blow. */
+  ms: number;
+}
+
+/**
+ * A dungeon run over and over unattended (src/core/idleRun.ts), after it has
+ * been cleared by hand: the third thing the character can be doing, beside an
+ * action and a fight. Everything the next event depends on is here, so it
+ * carries on from a save exactly.
+ */
+export interface IdleRun {
+  /** A DungeonDef id, with `idle` rooms. */
+  dungeon: string;
+  /**
+   * The calendar its runs read the day's modifier from: the epoch ms the
+   * runs have been paid up to (moved on by `advance` with the time it
+   * spends, and set to the app's clock when the runs start or the idle
+   * clock starts again), and the phone's offset from UTC in minutes (local
+   * minus UTC) when it was last set.
+   */
+  clock: number;
+  utcOffset: number;
+  /** The modifier of the run under way, fixed as it set out; null for none. */
+  modifier: string | null;
+  /** The room under way, from 0, in `IdleDungeonDef.rooms`. */
+  room: number;
+  /** Milliseconds still to walk (or row) before the room's foes are met; 0 while fighting. */
+  walkMs: number;
+  /** The hero's hit points: above zero. */
+  hp: number;
+  /** Milliseconds until the hero's next blow, while fighting. */
+  playerMs: number;
+  /** The room's foes still standing, in the order they are struck; empty while walking. */
+  foes: IdleFoe[];
+  /** What these runs have come to since they were started, for the menus' tally. */
+  runs: number;
+  kills: number;
+  coins: number;
+  loot: Record<string, number>;
+  eaten: number;
+  arrows: number;
 }
 
 /**
@@ -188,8 +245,9 @@ export interface GameState {
   /** Mastery XP by action id: practice at one particular thing. Unpractised reads as 0. */
   mastery: Record<string, number>;
   /**
-   * The one thing the character is doing, or null when idle or fighting. At
-   * most one of `action` and `fight` is ever set.
+   * The one thing the character is doing, or null when idle, fighting or
+   * running a dungeon unattended. At most one of `action`, `fight` and
+   * `idleRun` is ever set.
    */
   action: ActiveAction | null;
   /** The fight under way, or null. */
@@ -241,6 +299,11 @@ export interface GameState {
   perks: string[];
   /** A dungeon run under way, as the scene last handed it over; null when none is. */
   run: SavedRun | null;
+  /**
+   * A dungeon being run unattended, or null. At most one of `action`,
+   * `fight` and `idleRun` is ever set.
+   */
+  idleRun: IdleRun | null;
   /**
    * One-off things remembered for good (src/core/remembered.ts): short keys a
    * scene or menu chose, such as `'town.pan'`, each once, in the order first
@@ -303,6 +366,7 @@ export function newGame(name: string, now: number, look: Look = {}): GameState {
     stats: {},
     perks: [],
     run: null,
+    idleRun: null,
     seen: [],
   };
 }

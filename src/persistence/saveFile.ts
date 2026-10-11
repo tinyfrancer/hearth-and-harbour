@@ -277,6 +277,27 @@ function saveProblem(state: Record<string, unknown>): string | null {
   ) {
     return 'dungeons should be clears and a best time';
   }
+  if (
+    !Object.values(dungeons).every(
+      (record) =>
+        isRecord(record) &&
+        ['leastDamage', 'leastFood', 'idleRuns'].every(
+          (field) => record[field] === undefined || isWhole(record[field]),
+        ),
+    )
+  ) {
+    return "a dungeon's best damage, food and idle runs should be whole numbers";
+  }
+  if (
+    !Object.values(dungeons).every(
+      (record) =>
+        isRecord(record) &&
+        (record.challenges === undefined || isIdList(record.challenges)) &&
+        (record.modifiers === undefined || isIdList(record.modifiers)),
+    )
+  ) {
+    return "a dungeon's challenges and modifiers should be lists of ids, each once";
+  }
   const { stats } = state;
   if (
     !isRecord(stats) ||
@@ -297,7 +318,57 @@ function saveProblem(state: Record<string, unknown>): string | null {
   if (!isIdList(seen) || seen.length > SEEN_MAX || !seen.every(isSeenKey)) {
     return 'what is remembered should be a list of short keys, each once';
   }
+  const { idleRun } = state;
+  if (idleRun !== null && !isIdleRun(idleRun)) {
+    return 'the dungeon being run idle is not one';
+  }
+  if (idleRun !== null && (action !== null || fight !== null)) {
+    return 'it is running a dungeon idle and doing something else at once';
+  }
+  if (idleRun !== null && health !== null) {
+    return 'it has hit points in an idle run and out of one at once';
+  }
   return null;
+}
+
+/** The furthest from UTC any place keeps its clocks, in minutes. */
+const UTC_OFFSET_MOST = 14 * 60;
+
+/**
+ * A dungeon run idle: where, its calendar, the run under way (the room, the
+ * walk or the fight, the hero's hit points and wait, the foes standing) and
+ * its tally. The dungeon and the foes are the tables' to judge when it runs.
+ */
+function isIdleRun(run: unknown): boolean {
+  return (
+    isRecord(run) &&
+    typeof run.dungeon === 'string' &&
+    isWhole(run.clock) &&
+    Number.isInteger(run.utcOffset) &&
+    Math.abs(run.utcOffset as number) <= UTC_OFFSET_MOST &&
+    (run.modifier === null || typeof run.modifier === 'string') &&
+    isWhole(run.room) &&
+    isWhole(run.walkMs) &&
+    isWhole(run.hp) &&
+    run.hp > 0 &&
+    isWhole(run.playerMs) &&
+    run.playerMs > 0 &&
+    Array.isArray(run.foes) &&
+    run.foes.every(
+      (foe) =>
+        isRecord(foe) &&
+        typeof foe.id === 'string' &&
+        isWhole(foe.hp) &&
+        foe.hp > 0 &&
+        isWhole(foe.ms) &&
+        foe.ms > 0,
+    ) &&
+    // Walking to a room, or fighting in one: never both, never neither.
+    run.walkMs > 0 === (run.foes.length === 0) &&
+    ['runs', 'kills', 'coins', 'eaten', 'arrows'].every((count) => isWhole(run[count])) &&
+    isRecord(run.loot) &&
+    Object.values(run.loot).every(isWhole)
+  );
 }
 
 /** The most a kept run may take up, as JSON: a run is a few dozen foes and piles, far below it. */
@@ -316,6 +387,23 @@ function isSavedRun(run: unknown): boolean {
   if (!isRecord(spoils)) return false;
   for (const field of ['coins', 'foodEaten', 'arrowsUsed', 'timeMs', 'hp']) {
     if (spoils[field] !== undefined && !isCount(spoils[field])) return false;
+  }
+  if (spoils.dungeon !== undefined && typeof spoils.dungeon !== 'string') return false;
+  if (
+    spoils.modifier !== undefined &&
+    spoils.modifier !== null &&
+    typeof spoils.modifier !== 'string'
+  ) {
+    return false;
+  }
+  // How the run is going so far, kept with it (a statistic left out is not known).
+  const stats = spoils.stats;
+  if (stats !== undefined) {
+    if (!isRecord(stats)) return false;
+    for (const field of ['timeMs', 'damageTaken', 'foodEaten', 'braces', 'stepOuts', 'kills']) {
+      if (stats[field] !== undefined && !isCount(stats[field])) return false;
+    }
+    if (stats.knockedOut !== undefined && typeof stats.knockedOut !== 'boolean') return false;
   }
   for (const field of ['xp', 'loot', 'kills']) {
     const counts = spoils[field];

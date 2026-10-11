@@ -1,5 +1,7 @@
 import type { AchievementDef, AchievementRule, Content } from './content';
 import { noteFinds } from './collection';
+import { dungeonDef } from './dungeons';
+import { modifierPool } from './progress';
 import { masteryLevel, masteryXp, skillLevel, stat, type GameState } from './state';
 
 /**
@@ -52,7 +54,33 @@ export function meets(state: GameState, rule: AchievementRule, content: Content)
       const record = state.dungeons[rule.dungeon];
       if ((record?.clears ?? 0) < (rule.count ?? 1)) return false;
       // A time asked for is a best time under it; an untimed clear never shows one.
-      return rule.withinMs === undefined || (record?.bestMs ?? Infinity) < rule.withinMs;
+      if (rule.withinMs !== undefined && !((record?.bestMs ?? Infinity) < rule.withinMs)) {
+        return false;
+      }
+      // Likewise damage: a clear that never said what it took shows nothing.
+      return (
+        rule.damageAtMost === undefined || (record?.leastDamage ?? Infinity) <= rule.damageAtMost
+      );
+    }
+    case 'challenges': {
+      const all = dungeonDef(content, rule.dungeon)?.challenges ?? [];
+      const done = state.dungeons[rule.dungeon]?.challenges ?? [];
+      return all.length > 0 && all.every((challenge) => done.includes(challenge.id));
+    }
+    case 'underModifiers': {
+      const dungeon = dungeonDef(content, rule.dungeon);
+      const pool = dungeon ? modifierPool(dungeon, content) : [];
+      const under = (state.dungeons[rule.dungeon]?.modifiers ?? []).filter((id) =>
+        pool.includes(id),
+      );
+      const wanted = rule.count ?? pool.length;
+      return wanted > 0 && under.length >= wanted;
+    }
+    case 'idleRuns': {
+      const runs = rule.dungeon
+        ? (state.dungeons[rule.dungeon]?.idleRuns ?? 0)
+        : Object.values(state.dungeons).reduce((sum, record) => sum + (record.idleRuns ?? 0), 0);
+      return runs >= rule.count;
     }
     case 'coins':
       return state.coins >= rule.amount;

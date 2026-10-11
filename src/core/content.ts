@@ -298,6 +298,153 @@ export interface DungeonDef {
    * seen to drop is kept.
    */
   cast?: readonly DungeonFoe[];
+  /**
+   * Optional goals for a run, each paid once, the first time a clear meets it
+   * (`settleRun`). Ids are `<dungeon>.<slug>` and never change: the save keeps
+   * the ones done by id.
+   */
+  challenges?: readonly ChallengeDef[];
+  /**
+   * The modifiers its days are drawn from (`DUNGEON_MODIFIERS` ids), each in
+   * turn in an order that is shuffled afresh each time round
+   * (`dailyModifier`, src/core/progress.ts). Left out or empty, it has none.
+   */
+  modifiers?: readonly string[];
+  /**
+   * The tier of idle content its first clear opens (`tierUnlocked`), and what
+   * that tier will bring, in a line for the menus while it has not come yet.
+   */
+  opens?: { tier: number; brings: string };
+  /**
+   * How the hero runs it unattended once it has been cleared by hand
+   * (src/core/idleRun.ts). Left out, it cannot be run idle.
+   */
+  idle?: IdleDungeonDef;
+}
+
+/**
+ * A dungeon as the idle game runs it: its rooms as encounters in order (who
+ * is met together, from the dungeon's own `cast`, and the walk to them), the
+ * trip home and back between runs, and how much of what falls is kept.
+ */
+export interface IdleDungeonDef {
+  rooms: readonly IdleRoomDef[];
+  /** Rowing home and back between runs, in milliseconds. The hero heals meanwhile. */
+  tripMs: number;
+  /** The chance, in percent, of each drop (and of each coin) being kept: idle is never the best way. */
+  lootPercent: number;
+  /** Items only ever found by hand (trophies, the rarest things): never dropped idle. */
+  activeOnly?: readonly string[];
+}
+
+export interface IdleRoomDef {
+  /** Cast ids, met together, struck in this order. */
+  foes: readonly string[];
+  /** Walking to them from where the last room was cleared (or from the boat), in milliseconds. */
+  walkMs: number;
+}
+
+/**
+ * What a hand-played run reports of how it went (lane C fills it as the run
+ * goes). Every field is to be filled for a new run; a reader treats any that
+ * is missing (an older snapshot) as not known, never as nothing, so a
+ * challenge that reads it is not met by it (`challengeMet`).
+ */
+export interface RunStats {
+  /** How long the run took, in milliseconds. */
+  timeMs: number;
+  /** Hit points lost to blows, all told (before anything eaten put them back). */
+  damageTaken: number;
+  /** Everything eaten in the run: from the food slot, and anything found on the way. */
+  foodEaten: number;
+  /** Heavy blows met with a brace. */
+  braces: number;
+  /** Heavy blows stepped out of. */
+  stepOuts: number;
+  /** Whether the run ended with the hero knocked out. */
+  knockedOut: boolean;
+  /** Foes felled, all told. */
+  kills: number;
+}
+
+/** The numbers of a run's statistics, for a challenge to set a bound on. */
+export type RunStatId = 'timeMs' | 'damageTaken' | 'foodEaten' | 'braces' | 'stepOuts' | 'kills';
+
+/**
+ * What a challenge asks of a clear, as plain data both lanes read with one
+ * rule (`challengeMet`), never code per challenge. A closed set:
+ * - `atMost`: a statistic no higher than `n` (in seven minutes or less; no
+ *   food: `foodEaten` at most 0; no brace: `braces` at most 0).
+ * - `atLeast`: a statistic at least `n` (brace a heavy blow: `braces` at least 1).
+ * - `withModifier`: cleared on a day with that modifier, or with any if `id`
+ *   is left out.
+ * Every kind is met only by a clear, and never by a statistic not reported.
+ */
+export type ChallengeRule =
+  | { kind: 'atMost'; stat: RunStatId; n: number }
+  | { kind: 'atLeast'; stat: RunStatId; n: number }
+  | { kind: 'withModifier'; id?: string };
+
+/** What a challenge pays, once: coins, bounty points and things into the bank. */
+export interface ChallengeReward {
+  coins?: number;
+  bountyPoints?: number;
+  items?: readonly { item: string; qty: number }[];
+}
+
+export interface ChallengeDef {
+  /** `<dungeon>.<slug>`: kept in the save, so never changed. */
+  id: string;
+  name: string;
+  /** What it asks, in a line for the player. */
+  text: string;
+  rule: ChallengeRule;
+  reward: ChallengeReward;
+}
+
+/**
+ * What a day's modifier does, as a closed set of plain numbers and flags a
+ * run applies the same way whoever plays it (the scene by hand, the idle
+ * game unattended). Each number is a multiplier; left out, it is 1.
+ *
+ * Applied by the fight, scene and idle alike (`foeUnder`, `heroMaxHitUnder`):
+ * - `foeHealth`: foes' hit points, rounded, at least 1.
+ * - `foeDamage`: foes' max hit (so their heavy blows, made of it, too), rounded, at least 1.
+ * - `foeSpeed`: foes strike this many times as often (every wait divided by it), rounded.
+ * - `heroDamage`: the hero's max hit, rounded, at least 1.
+ * - `noFood`: nothing is eaten, from the food slot or found.
+ * Applied by the scene alone (the idle game has no tide and no lamps):
+ * - `tideFaster`: the tide's cycle runs this many times as fast (a dungeon with a tide).
+ * - `darker`: the rooms are lit less; how much is the scene's to say. No number changes.
+ * Paid when the run is settled (`settleRun`; the idle game as it goes), never by the scene:
+ * - `loot`: the run's regular drops (things some foe of that dungeon drops
+ *   on every kill: doubloons, shells) count this many times over, rounded.
+ * - `coins`, `xp`: the run's coins and each skill's XP, rounded.
+ *
+ * A modifier on a dungeon meant for learning is `kind`: easier, or a reward
+ * with no catch. Every other one is a trade: harder, and paid for it.
+ */
+export interface ModifierEffects {
+  foeHealth?: number;
+  foeDamage?: number;
+  foeSpeed?: number;
+  heroDamage?: number;
+  noFood?: true;
+  tideFaster?: number;
+  darker?: true;
+  loot?: number;
+  coins?: number;
+  xp?: number;
+}
+
+export interface ModifierDef {
+  id: string;
+  name: string;
+  /** A line of flavour; the plain effect is worded from `effects` (`effectWords`). */
+  text: string;
+  effects: ModifierEffects;
+  /** Only easier, never harder: the only kind a learning dungeon draws. */
+  kind?: true;
 }
 
 /**
@@ -364,8 +511,21 @@ export type AchievementRule =
   | { kind: 'kills'; count: number; monster?: string }
   /** Every one of these worn at once. */
   | { kind: 'worn'; items: readonly string[] }
-  /** Clears of a dungeon; with `withinMs`, a best time under it (`DungeonRecord.bestMs`). */
-  | { kind: 'cleared'; dungeon: string; count?: number; withinMs?: number }
+  /**
+   * Clears of a dungeon by hand; with `withinMs`, a best time under it
+   * (`DungeonRecord.bestMs`); with `damageAtMost`, a clear that took no more
+   * damage than that (`DungeonRecord.leastDamage`).
+   */
+  | { kind: 'cleared'; dungeon: string; count?: number; withinMs?: number; damageAtMost?: number }
+  /** Every one of a dungeon's challenges done. */
+  | { kind: 'challenges'; dungeon: string }
+  /**
+   * A dungeon cleared by hand under so many of its modifiers, each counted
+   * once (every one it draws from, if `count` is left out).
+   */
+  | { kind: 'underModifiers'; dungeon: string; count?: number }
+  /** Runs finished idle, in one dungeon or in all of them together. */
+  | { kind: 'idleRuns'; count: number; dungeon?: string }
   /** Coins in hand at once. */
   | { kind: 'coins'; amount: number }
   /** Pockets picked, or times caught, at all marks together. */
@@ -387,6 +547,8 @@ export interface Content {
   store?: Readonly<Record<string, StoreEntry>>;
   /** The dungeons scenes run, as far as the rules need them. */
   dungeons?: Readonly<Record<string, DungeonDef>>;
+  /** What a day can do to a dungeon (`DungeonDef.modifiers` names which a dungeon draws). */
+  modifiers?: Readonly<Record<string, ModifierDef>>;
   /** Things to have done, in the order the page lists them. */
   achievements?: Readonly<Record<string, AchievementDef>>;
 }

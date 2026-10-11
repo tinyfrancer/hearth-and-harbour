@@ -111,6 +111,24 @@ export interface Shell {
    * like `openBounties`.
    */
   remember?(key: string): void;
+  /**
+   * Today's modifier on a dungeon (a `DUNGEON_MODIFIERS` id), or null: the
+   * app's clock and the phone's time zone through `dailyModifier`
+   * (src/core/progress.ts). Read it once as a run rows out and keep it for
+   * the whole run (a run across midnight keeps its day's), apply its fight
+   * effects (`foeUnder`, `heroMaxHitUnder`, `noFood`, and the scene's own
+   * `tideFaster`, `darker`), and report it as `RunSpoils.modifier`;
+   * `settleRun` pays its rewards. Optional, like `openBounties`.
+   */
+  todaysModifier?(dungeon: string): string | null;
+  /**
+   * Send the hero through a dungeon unattended, over and over, as the idle
+   * task (allowed by `mayIdle`, src/core/progress.ts): it replaces whatever
+   * was running, as starting any task does. False if it may not be. The
+   * menus show it running; the scene need do nothing more. Optional, like
+   * `openBounties`.
+   */
+  sendIdle?(dungeon: string): boolean;
 }
 
 /** What the menus may ask the town to open (`Shell.takeRequest`). */

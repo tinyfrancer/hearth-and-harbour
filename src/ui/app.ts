@@ -31,6 +31,7 @@ import { equip, unequip, wornItemIds } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
 import { dungeonDef } from '../core/dungeons';
+import { dailyModifier, newChallenges } from '../core/progress';
 import { remember, remembered } from '../core/remembered';
 import { firstClearOf, settleRun } from '../core/run';
 import { buyFromStore } from '../core/store';
@@ -59,6 +60,7 @@ import {
 } from './hints';
 import { fullLook } from './look';
 import { counted, listed } from './format';
+import { rewardWords } from './dungeonWords';
 import { menuScreen } from './menuScreen';
 import { titleScreen, type TitleScreen } from './titleScreen';
 import { nowDoing, type NowTarget } from './nowDoing';
@@ -78,6 +80,17 @@ export interface AppDeps {
    * (src/main.ts). Left out (the tests), the app opens straight on the game.
    */
   title?: boolean;
+  /**
+   * The phone's offset from UTC at a moment, in minutes ahead (London in
+   * summer is 60): the day's dungeon modifiers change at local midnight. The
+   * real game reads the phone's time zone; tests pass a fixed one.
+   */
+  utcOffset?(now: number): number;
+}
+
+/** The phone's own offset from UTC at a moment, in minutes ahead of it. */
+export function phoneUtcOffset(now: number): number {
+  return -new Date(now).getTimezoneOffset();
 }
 
 /** The bank's sort, kept on this device across sessions (a preference, never the save). */
@@ -179,7 +192,14 @@ function bringIntoView(screen: HTMLElement, el: HTMLElement, under?: HTMLElement
 /** Builds the whole app inside `root`: character creation, or the tabbed shell. */
 export function mountApp(
   root: HTMLElement,
-  { saves, content, now, prefs = memoryPrefs(), title = false }: AppDeps,
+  {
+    saves,
+    content,
+    now,
+    prefs = memoryPrefs(),
+    title = false,
+    utcOffset = phoneUtcOffset,
+  }: AppDeps,
 ): App {
   let state: GameState | null = saves.load();
   let tab: TabId = 'skills';
@@ -791,6 +811,9 @@ export function mountApp(
           if (reward.length > 0)
             said.push(`First clear of ${dungeon.name}! Into the bank: ${listed(reward)}.`);
         }
+        for (const challenge of newChallenges(before, state, content)) {
+          said.push(`Challenge done: ${challenge.name}! ${rewardWords(challenge.reward, content)}`);
+        }
         if (bountyReady(state) && !bountyReady(before)) {
           said.push(
             `Bounty done: ${counted(state.bounty!.count, monsterName(state.bounty!.monster))}. Hand it in.`,
@@ -834,6 +857,10 @@ export function mountApp(
         if (!state) return;
         chartSeen(state, content, prefs);
         syncTownDot();
+      },
+      todaysModifier: (dungeon) => {
+        const time = now();
+        return dailyModifier(time, dungeon, content, utcOffset(time));
       },
       remembered: (key) => (state ? remembered(state, key) : false),
       remember: (key) => {

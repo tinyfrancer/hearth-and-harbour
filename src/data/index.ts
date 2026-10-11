@@ -1,7 +1,7 @@
 import type { Content } from '../core/content';
 import { ACHIEVEMENTS } from './achievements';
 import { ACTIONS } from './actions';
-import { DUNGEONS } from './dungeons';
+import { DUNGEON_MODIFIERS, DUNGEONS } from './dungeons';
 import { ITEMS } from './items';
 import { AREAS, MONSTERS } from './monsters';
 import { SHOP } from './shop';
@@ -18,5 +18,6 @@ export const CONTENT: Content = {
   shop: SHOP,
   store: STORE,
   dungeons: DUNGEONS,
+  modifiers: DUNGEON_MODIFIERS,
   achievements: ACHIEVEMENTS,
 };

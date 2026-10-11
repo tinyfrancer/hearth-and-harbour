@@ -1,8 +1,16 @@
 import { autoHandIn } from './bounty';
 import { comeRound, hurt, maxHp } from './combat';
-import type { Content, DungeonDef, DungeonFoe, MonsterDef } from './content';
+import type {
+  ChallengeReward,
+  Content,
+  DungeonDef,
+  DungeonFoe,
+  MonsterDef,
+  RunStats,
+} from './content';
 import { dungeonDef } from './dungeons';
-import type { GameState, MonsterRecord } from './state';
+import { challengeMet, effectsOf, modifierPool, readStats, scaled } from './progress';
+import type { DungeonRecord, GameState, MonsterRecord } from './state';
 
 /**
  * What a dungeon run came to. A run is played by hand in a scene, with its
@@ -48,6 +56,24 @@ export interface RunSpoils {
   cleared?: string;
   /** How long the run took, in milliseconds: the dungeon's best time, if it was cleared. */
   timeMs?: number;
+  /**
+   * The dungeon the run was in, cleared or not: what its modifier, its
+   * regular drops and its statistics are read against. Left out, a run that
+   * did not clear has no modifier paid.
+   */
+  dungeon?: string;
+  /**
+   * The day's modifier the run was played under, fixed as it rowed out
+   * (`Shell.todaysModifier`), or null for none. The scene applies its fight
+   * effects; its rewards (`loot`, `coins`, `xp`) are paid here, by
+   * `settleRun`, and never by the scene. Counted only if the dungeon draws it.
+   */
+  modifier?: string | null;
+  /**
+   * How the run went, for its challenges and the dungeon's records. To be
+   * filled by every new run; anything missing is not known, never nothing.
+   */
+  stats?: RunStats;
 }
 
 /**
@@ -95,6 +121,72 @@ const whole = (value: number | undefined): number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 
 /**
+ * The modifier a run's spoils name, if it counts: one the dungeon they say
+ * the run was in draws its days from. Null otherwise.
+ */
+export function runModifier(spoils: RunSpoils, content?: Content): string | null {
+  const modifier = typeof spoils.modifier === 'string' ? spoils.modifier : null;
+  const where = typeof spoils.dungeon === 'string' ? spoils.dungeon : spoils.cleared;
+  const dungeon = content && typeof where === 'string' ? dungeonDef(content, where) : undefined;
+  if (!modifier || !dungeon || !content) return null;
+  return modifierPool(dungeon, content).includes(modifier) ? modifier : null;
+}
+
+/**
+ * Items some foe of a dungeon drops on every kill (doubloons, shells): what a
+ * modifier's `loot` counts over again.
+ */
+export function regularDrops(dungeon: DungeonDef): Set<string> {
+  return new Set((dungeon.cast ?? []).flatMap((foe) => foe.always.map((drop) => drop.item)));
+}
+
+/**
+ * What settling a run will pay in, after its modifier's rewards (`loot`,
+ * `coins`, `xp`): whole and positive amounts only, as `settleRun` takes
+ * them. For the scene's results card, so it says what the bank will get.
+ */
+export function spoilsUnder(
+  spoils: RunSpoils,
+  content?: Content,
+): {
+  xp: Record<string, number>;
+  loot: Record<string, number>;
+  coins: number;
+  modifier: string | null;
+} {
+  const modifier = runModifier(spoils, content);
+  const effects = content ? effectsOf(content, modifier) : {};
+  const where = typeof spoils.dungeon === 'string' ? spoils.dungeon : spoils.cleared;
+  const dungeon = content && modifier && where ? dungeonDef(content, where) : undefined;
+  const regular = dungeon ? regularDrops(dungeon) : new Set<string>();
+  const xp: Record<string, number> = {};
+  for (const [skill, amount] of Object.entries(spoils.xp ?? {})) {
+    const gained = scaled(whole(amount), effects.xp);
+    if (gained > 0) xp[skill] = gained;
+  }
+  const loot: Record<string, number> = {};
+  for (const [item, amount] of Object.entries(spoils.loot ?? {})) {
+    const gained = regular.has(item) ? scaled(whole(amount), effects.loot) : whole(amount);
+    if (gained > 0) loot[item] = gained;
+  }
+  return { xp, loot, coins: scaled(whole(spoils.coins), effects.coins), modifier };
+}
+
+/** A challenge's reward as it will be paid: whole positive amounts, and only items the tables hold. */
+export function rewardOf(
+  reward: ChallengeReward,
+  content: Content,
+): { coins: number; bountyPoints: number; items: { item: string; qty: number }[] } {
+  return {
+    coins: whole(reward.coins),
+    bountyPoints: whole(reward.bountyPoints),
+    items: (reward.items ?? []).flatMap(({ item, qty }) =>
+      Object.hasOwn(content.items, item) && whole(qty) > 0 ? [{ item, qty: whole(qty) }] : [],
+    ),
+  };
+}
+
+/**
  * Bring a run's spoils home, as one change: what was eaten and shot is taken
  * from the food and ammunition slots, and the XP, loot and coins are paid in.
  * A failed run settles the same way, with whatever was picked up before it
@@ -109,17 +201,22 @@ const whole = (value: number | undefined): number =>
  * Kills and a clear count only against the tables in `content`: without them
  * (as a scene's own test may call it) they count for nothing, and everything
  * else settles the same.
+ *
+ * A clear also keeps the run's best statistics (the quickest, the least
+ * damage taken, the least eaten), the modifier it was cleared under, and
+ * pays each of the dungeon's challenges it meets for the first time
+ * (`challengeMet`, src/core/progress.ts). The modifier's rewards (`loot`,
+ * `coins`, `xp`) are paid on any run, cleared or not (`spoilsUnder`).
  */
 export function settleRun(state: GameState, spoils: RunSpoils, content?: Content): GameState {
+  const paid = spoilsUnder(spoils, content);
   const skills = { ...state.skills };
-  for (const [skill, amount] of Object.entries(spoils.xp ?? {})) {
-    const gained = whole(amount);
-    if (gained > 0) skills[skill] = (skills[skill] ?? 0) + gained;
+  for (const [skill, gained] of Object.entries(paid.xp)) {
+    skills[skill] = (skills[skill] ?? 0) + gained;
   }
   const bank = { ...state.bank };
-  for (const [item, amount] of Object.entries(spoils.loot ?? {})) {
-    const gained = whole(amount);
-    if (gained > 0) bank[item] = (bank[item] ?? 0) + gained;
+  for (const [item, gained] of Object.entries(paid.loot)) {
+    bank[item] = (bank[item] ?? 0) + gained;
   }
 
   let food = state.food;
@@ -142,7 +239,7 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
     ...state,
     skills,
     bank,
-    coins: state.coins + whole(spoils.coins),
+    coins: state.coins + paid.coins,
     food,
     equipment,
   };
@@ -181,13 +278,33 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
   const dungeon = content && cleared !== undefined ? dungeonDef(content, cleared) : undefined;
   // A landing with nothing there yet cannot have been cleared.
   if (cleared !== undefined && dungeon && !dungeon.comingSoon) {
-    const record = state.dungeons[cleared] ?? { clears: 0 };
-    const time = whole(spoils.timeMs);
+    const record: DungeonRecord = state.dungeons[cleared] ?? { clears: 0 };
+    const stats = readStats(spoils.stats);
+    const time = whole(spoils.timeMs) || (stats.timeMs ?? 0);
     const best = time > 0 ? Math.min(record.bestMs ?? time, time) : record.bestMs;
-    settled.dungeons = {
-      ...state.dungeons,
-      [cleared]: { clears: record.clears + 1, ...(best !== undefined ? { bestMs: best } : {}) },
-    };
+    const least = (was: number | undefined, now: number | undefined): number | undefined =>
+      now === undefined ? was : Math.min(was ?? now, now);
+    const next: DungeonRecord = { ...record, clears: record.clears + 1 };
+    if (best !== undefined) next.bestMs = best;
+    const leastDamage = least(record.leastDamage, stats.damageTaken);
+    if (leastDamage !== undefined) next.leastDamage = leastDamage;
+    const leastFood = least(record.leastFood, stats.foodEaten);
+    if (leastFood !== undefined) next.leastFood = leastFood;
+    if (paid.modifier && !(record.modifiers ?? []).includes(paid.modifier)) {
+      next.modifiers = [...(record.modifiers ?? []), paid.modifier];
+    }
+    // Each challenge pays once: the first clear that meets it.
+    for (const challenge of dungeon.challenges ?? []) {
+      if ((next.challenges ?? []).includes(challenge.id)) continue;
+      if (!challengeMet(challenge.rule, stats, { cleared: true, modifier: paid.modifier }))
+        continue;
+      next.challenges = [...(next.challenges ?? []), challenge.id];
+      const reward = rewardOf(challenge.reward, content!);
+      settled.coins += reward.coins;
+      settled.bountyPoints += reward.bountyPoints;
+      for (const { item, qty } of reward.items) bank[item] = (bank[item] ?? 0) + qty;
+    }
+    settled.dungeons = { ...state.dungeons, [cleared]: next };
     // The first clear's reward, once: on top of what the run picked up.
     if (record.clears === 0) {
       for (const { item, qty } of firstClearOf(dungeon, content!)) {

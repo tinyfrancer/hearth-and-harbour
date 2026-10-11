@@ -49,6 +49,7 @@ describe('newGame', () => {
       autoBounty: false,
       run: null,
       seen: [],
+      idleRun: null,
     });
   });
 

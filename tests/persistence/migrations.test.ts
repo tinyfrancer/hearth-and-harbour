@@ -18,7 +18,8 @@ const logged = (collection: string[]) => ({
 /**
  * What version 9 adds (wave 13): an unread notice board, no last target,
  * auto bounty off, no run kept, and a bare chin on whatever look there was;
- * and what version 10 adds (wave 16): nothing remembered yet.
+ * what version 10 adds (wave 16): nothing remembered yet; and what version 11
+ * adds (wave 17): no dungeon run idle.
  */
 const boarded = (look: Record<string, string> = {}) => ({
   bountyBoard: [],
@@ -27,6 +28,7 @@ const boarded = (look: Record<string, string> = {}) => ({
   run: null,
   look: { beard: 'none', ...look },
   seen: [],
+  idleRun: null,
 });
 
 /** What versions 6 and 7 add to a save made at `createdAt`: no fight, no food, dice of its own. */
@@ -267,12 +269,35 @@ describe('migrateGameState', () => {
       coins: 5000,
     } as Record<string, unknown>;
     delete v9.seen;
+    delete v9.idleRun;
     expect(migrateGameState(structuredClone(v9))).toEqual({
       ...v9,
       version: GAME_STATE_VERSION,
       seen: [],
+      idleRun: null,
     });
-    expect(GAME_STATE_VERSION).toBe(10);
+  });
+
+  it('brings a version 10 save (wave 16) up to date with no dungeon run idle, and its dungeon records as they were', () => {
+    const v10 = {
+      ...newGame('Cody', 5),
+      version: 10,
+      dungeons: {
+        tidepool_cave: { clears: 3, bestMs: 88_000 },
+        brinebeards_grotto: { clears: 1 },
+      },
+      seen: ['town.pan'],
+      fight: null,
+    } as Record<string, unknown>;
+    delete v10.idleRun;
+    // Nothing older can say what a clear took, what it was cleared under or
+    // which challenges it met: the records stand as they were, and gain none.
+    expect(migrateGameState(structuredClone(v10))).toEqual({
+      ...v10,
+      version: GAME_STATE_VERSION,
+      idleRun: null,
+    });
+    expect(GAME_STATE_VERSION).toBe(11);
   });
 
   it('walks every step in order and stamps the version as it goes', () => {

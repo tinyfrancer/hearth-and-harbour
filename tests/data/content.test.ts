@@ -4,6 +4,7 @@ import { SLOTS } from '../../src/core/content';
 import { meets } from '../../src/core/achievements';
 import { collectable, collectionSources } from '../../src/core/collection';
 import { equip } from '../../src/core/equipment';
+import { effectWords, isKind } from '../../src/core/progress';
 import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
@@ -440,6 +441,84 @@ describe('the content tables', () => {
     expect(levels).toEqual([...levels].sort((a, b) => a - b));
   });
 
+  // S16: the day's modifiers and the challenges.
+  it('draws every dungeon’s days from modifiers the tables hold, each used, kind for the cave and a trade elsewhere', () => {
+    const modifiers = Object.values(CONTENT.modifiers!);
+    expect(modifiers.length).toBeGreaterThanOrEqual(6);
+    expect(modifiers.length).toBeLessThanOrEqual(8);
+    const drawn = new Set<string>();
+    for (const dungeon of Object.values(CONTENT.dungeons!)) {
+      for (const id of dungeon.modifiers ?? []) {
+        expect(CONTENT.modifiers![id], `${dungeon.id} draws ${id}`).toBeDefined();
+        drawn.add(id);
+      }
+      if (dungeon.comingSoon) expect(dungeon.modifiers, dungeon.id).toBeUndefined();
+    }
+    for (const modifier of modifiers) {
+      expect(drawn.has(modifier.id), `${modifier.id} is drawn somewhere`).toBe(true);
+      expect(modifier.text, modifier.id).toMatch(/^[A-Z].*[.!]$/);
+      expect(effectWords(modifier.effects).length, modifier.id).toBeGreaterThan(0);
+      const { effects } = modifier;
+      const pays = (effects.loot ?? 1) > 1 || (effects.coins ?? 1) > 1 || (effects.xp ?? 1) > 1;
+      // A catch the hero sent through idle feels as well: not only the tide or the lamps.
+      const idleCatch =
+        (effects.foeHealth ?? 1) > 1 ||
+        (effects.foeDamage ?? 1) > 1 ||
+        (effects.foeSpeed ?? 1) > 1 ||
+        (effects.heroDamage ?? 1) < 1 ||
+        Boolean(effects.noFood);
+      expect(Boolean(modifier.kind), modifier.id).toBe(isKind(effects));
+      if (!modifier.kind) {
+        expect(pays, `${modifier.id} pays for its trouble`).toBe(true);
+        expect(idleCatch, `${modifier.id} is harder idle too`).toBe(true);
+      }
+      // Gentle numbers: no day more than a third harder or richer in any one way.
+      for (const value of [
+        effects.foeHealth,
+        effects.foeDamage,
+        effects.foeSpeed,
+        effects.loot,
+        effects.coins,
+        effects.xp,
+      ]) {
+        if (value !== undefined) expect(Math.abs(value - 1), modifier.id).toBeLessThanOrEqual(0.5);
+      }
+    }
+    // The tide is the grotto's own: only a dungeon with one draws a day that hurries it.
+    for (const dungeon of Object.values(CONTENT.dungeons!)) {
+      for (const id of dungeon.modifiers ?? []) {
+        if (CONTENT.modifiers![id]!.effects.tideFaster)
+          expect(dungeon.id, id).toBe('brinebeards_grotto');
+      }
+    }
+  });
+
+  it('gives each built dungeon three or four challenges, paid in things the tables hold', () => {
+    const ids = new Set<string>();
+    for (const dungeon of Object.values(CONTENT.dungeons!)) {
+      if (dungeon.comingSoon) {
+        expect(dungeon.challenges, dungeon.id).toBeUndefined();
+        continue;
+      }
+      const challenges = dungeon.challenges ?? [];
+      expect(challenges.length, dungeon.id).toBeGreaterThanOrEqual(3);
+      expect(challenges.length, dungeon.id).toBeLessThanOrEqual(4);
+      for (const challenge of challenges) {
+        expect(ids.has(challenge.id), challenge.id).toBe(false);
+        ids.add(challenge.id);
+        expect(challenge.id.startsWith(`${dungeon.id}.`), challenge.id).toBe(true);
+        expect(challenge.text, challenge.id).toMatch(/^[A-Z].*\.$/);
+        for (const { item, qty } of challenge.reward.items ?? []) {
+          expect(CONTENT.items[item], `${challenge.id} pays ${item}`).toBeDefined();
+          expect(Number.isInteger(qty) && qty > 0, challenge.id).toBe(true);
+        }
+        if (challenge.rule.kind === 'withModifier' && challenge.rule.id) {
+          expect(dungeon.modifiers, challenge.id).toContain(challenge.rule.id);
+        }
+      }
+    }
+  });
+
   it('opens the cave from the start at level 1, and the grotto by advice alone', () => {
     const cave = CONTENT.dungeons!.tidepool_cave!;
     expect([cave.recommended, cave.unlock]).toEqual([1, { kind: 'none' }]);
@@ -593,7 +672,14 @@ describe('the content tables', () => {
       if (rule.kind === 'kills' && rule.monster) {
         expect(CONTENT.monsters![rule.monster], def.id).toBeDefined();
       }
-      if (rule.kind === 'cleared') expect(CONTENT.dungeons![rule.dungeon], def.id).toBeDefined();
+      if (
+        rule.kind === 'cleared' ||
+        rule.kind === 'challenges' ||
+        rule.kind === 'underModifiers' ||
+        (rule.kind === 'idleRuns' && rule.dungeon)
+      ) {
+        expect(CONTENT.dungeons![rule.dungeon!], def.id).toBeDefined();
+      }
       if (rule.kind === 'collected') {
         expect(rule.count, def.id).toBeLessThanOrEqual(collectable(CONTENT).length);
       }

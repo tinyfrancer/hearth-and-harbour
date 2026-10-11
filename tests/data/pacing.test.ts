@@ -438,6 +438,31 @@ describe('the Tidepool Cave run again and again (wave 15)', () => {
   });
 });
 
+// Challenges (S16) are paid once each, and modestly: a goal, not a source of
+// income. Every challenge of a dungeon together pays less than half an hour of
+// the best gathering at the level the dungeon is meant for, counting what its
+// things sell for, and fewer bounty points than an hour of bounties there.
+describe('what challenges pay, all told (S16)', () => {
+  it.each([
+    // Dungeon, its coins and items' worth all told, and its points all told.
+    ['tidepool_cave', 910, 4],
+    ['brinebeards_grotto', 24000, 35],
+  ] as const)('pays %s’s challenges %i coins’ worth and %i points', (id, worth, points) => {
+    const dungeon = CONTENT.dungeons![id]!;
+    let coins = 0;
+    let earned = 0;
+    for (const { reward } of dungeon.challenges!) {
+      coins += reward.coins ?? 0;
+      for (const { item, qty } of reward.items ?? []) coins += CONTENT.items[item]!.value * qty;
+      earned += reward.bountyPoints ?? 0;
+    }
+    expect([coins, earned]).toEqual([worth, points]);
+    expect(coins).toBeLessThan(bestGatheringHour(dungeon.recommended) / 2);
+    // An hour of bounties pays at least 22 points from combat level 5, and 42 from 20.
+    expect(earned).toBeLessThan(dungeon.recommended >= 20 ? 42 : 22);
+  });
+});
+
 function ok(result: { ok: true; state: GameState } | { ok: false; reason: string }): GameState {
   if (!result.ok) throw new Error(result.reason);
   return result.state;
