@@ -246,7 +246,7 @@ export function dungeon2Gallery(): { button: HTMLElement; section: HTMLElement }
       2,
     );
     const marks = shot(
-      'The town’s markers, animated (talk, enter, gather, travel, new) and the ring round the nearest thing',
+      'The town’s markers, animated (talk, enter, gather, travel, new), small and large (B16), the edge pointers, and the ring round the nearest thing',
       () => markersPlate(markFrame),
       2,
     );

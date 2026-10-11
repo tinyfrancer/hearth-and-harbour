@@ -1,7 +1,36 @@
 # Lane B: art
 
-**Next session:** Cody's review of B15 (the tide-pool cave, Old Snapper, the harbour chart, the
-ferryman, the boat's sign and lantern, the town's markers) and whatever it asks for.
+**Next session:** B16 is in progress (the large travel marker and edge pointer shipped first; its
+second PR polishes the markers, the boat, and B15's weak spots). Then Cody's review of B15 and B16.
+
+## The large travel marker and the edge pointer, for lane C (B16, first PR)
+
+The boat should read as the thing to use from across the square. No existing door renamed or
+re-signed; every existing call draws what it drew (held byte for byte to B15 by
+`tests/art/markers2.test.ts`). Added:
+
+```ts
+// town2/markers.ts
+townMarker2(kind: TownMarker2Kind, frame = 0, size: TownMarker2Size = 'small'): TownMarker2
+TOWN_MARKER2_SIZES = ['small', 'large'] as const;  type TownMarker2Size
+townPointer2(direction: TownPointer2Direction, frame = 0): TownMarker2   // { picture, anchor }
+TOWN_POINTER2_DIRECTIONS = ['left', 'right', 'up', 'down'] as const;  type TownPointer2Direction
+```
+
+- **`townMarker2(kind, frame, 'large')`**: every kind, 29 x 30 with its keyline, all large kinds and
+  frames one canvas with one anchor, `{ x: 14, y: 29 }` (the keyline under the pointer's tip, as the
+  small's): float it with its anchor 2 to 6 pixels over the boat's gunwale, as the small. `travel`
+  is a little sailing boat in a gold-rimmed plaque; `new` a larger sparkle (no plaque); `talk`,
+  `enter` as the small, bolder; `gather` a leaf with a glint. Step its frame every
+  `TOWN_MARKER2_FRAME_MS` with the others; the plaque bobs 2 pixels inside its canvas. Suggested
+  use: the boat's `travel` large while the hero is more than about four tiles from it, small when
+  near (or keep it large always: it is the one thing Cody asked to stand out).
+- **`townPointer2(direction, frame)`**: a gold chevron with a dark keyline, 16 x 17 (left, right)
+  or 17 x 16 (up, down) with its keyline, every frame one size with one anchor. The anchor is the
+  point just past the arrow's tip at its furthest reach (it nudges 0, 1, 2, 1 pixels toward it), so
+  put the anchor where it should point to: a few pixels inside the screen's edge on the line from
+  the screen's middle to the boat, while the boat is off the screen. Same frames and timing as the
+  markers. Rasterize both with `DAY2` / `DUSK2` as the town.
 
 ## The ferryman, the boat's sign and lantern, the town's markers, for lane C (B15, second PR)
 
