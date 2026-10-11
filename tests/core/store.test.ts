@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sell } from '../../src/core/bank';
 import type { Content } from '../../src/core/content';
-import { buyFromStore, storeProblem } from '../../src/core/store';
+import { buyFromStore, perksFor, storeProblem } from '../../src/core/store';
 import { newGame, type GameState } from '../../src/core/state';
 
 const item = (id: string, extra = {}) => ({ id, name: id, description: '', value: 2, ...extra });
@@ -18,8 +18,9 @@ const content: Content = {
     satchel: {
       id: 'satchel',
       price: 1000,
-      perk: { name: 'Satchel', description: '', potionCharges: 50 },
+      perk: { name: 'Satchel', description: '', effect: '', shows: ['potions'], potionCharges: 50 },
     },
+    bell: { id: 'bell', price: 10, perk: { name: 'Bell', description: '', effect: '', shows: [] } },
   },
 };
 
@@ -51,6 +52,13 @@ describe('the general store', () => {
       ok: false,
       reason: 'Yours already.',
     });
+  });
+
+  it('lists the lasting things owned, in the order bought, and those a place shows', () => {
+    const owner = purse(0, { perks: ['bell', 'satchel', 'retired'] });
+    expect(perksFor(owner, content).map((p) => p.id)).toEqual(['bell', 'satchel']);
+    expect(perksFor(owner, content, 'potions').map((p) => p.id)).toEqual(['satchel']);
+    expect(perksFor(purse(0), content, 'potions')).toEqual([]);
   });
 
   it('sells a one-off only to someone without one, banked or worn', () => {

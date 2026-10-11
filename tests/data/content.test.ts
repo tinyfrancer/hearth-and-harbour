@@ -447,6 +447,16 @@ describe('the content tables', () => {
       expect(Number.isInteger(entry.price) && entry.price > 0, entry.id).toBe(true);
       if (entry.perk) {
         expect(entry.perk.description.length, entry.id).toBeGreaterThan(10);
+        // What it does is said in numbers, and they are its own (Cody found the
+        // case's old words confusing): a potion perk names its percent.
+        expect(entry.perk.effect, entry.id).toMatch(/\d/);
+        if (entry.perk.potionCharges) {
+          expect(entry.perk.effect, entry.id).toContain(`${entry.perk.potionCharges}%`);
+          const base = 150;
+          const stretched = Math.floor((base * (100 + entry.perk.potionCharges)) / 100);
+          expect(entry.perk.effect, entry.id).toContain(`${base} actions helps ${stretched}`);
+          expect(entry.perk.shows, entry.id).toContain('potions');
+        }
         continue;
       }
       const item = CONTENT.items[entry.item];

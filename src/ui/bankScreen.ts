@@ -3,6 +3,7 @@ import { bankCount, skillLevel, type GameState } from '../core/state';
 import { itemIcon } from '../art/icons';
 import { button, h, titled } from './dom';
 import { activePotion, chargesFor } from '../core/potions';
+import { perksFor } from '../core/store';
 import { formatNumber } from './format';
 import { gearText, slotText } from './gear';
 import { potionEffectText, potionSkillsText } from './potionPanel';
@@ -66,7 +67,19 @@ function potionFacts(potion: PotionDef, content: Content, state: GameState): HTM
     h('dt', { text: 'For' }),
     h('dd', { text: potionSkillsText(potion, content) }),
     h('dt', { text: 'Lasts' }),
-    h('dd', { text: `${formatNumber(chargesFor(state, potion, content))} actions` }),
+    h('dd', { attrs: { 'data-lasts': '' } }, [
+      `${formatNumber(chargesFor(state, potion, content))} actions`,
+      // Said where it shows: the potion's own number, and what owning the case adds.
+      ...perksFor(state, content, 'potions')
+        .filter(({ perk }) => perk.potionCharges)
+        .map(({ id, perk }) =>
+          h('span', {
+            class: 'perk-note',
+            attrs: { 'data-perk': id },
+            text: ` (${formatNumber(potion.charges)}, and ${perk.potionCharges ?? 0}% more from your ${perk.name})`,
+          }),
+        ),
+    ]),
   ];
 }
 

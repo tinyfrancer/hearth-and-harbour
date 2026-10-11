@@ -1,5 +1,5 @@
 import { held } from './bounty';
-import type { Content, StoreEntry } from './content';
+import type { Content, PerkDef, PerkPlace, StoreEntry } from './content';
 import { bankCount, stat, type GameState } from './state';
 
 /**
@@ -43,4 +43,21 @@ export function buyFromStore(state: GameState, entryId: string, content: Content
       bank: { ...state.bank, [entry.item]: bankCount(state, entry.item) + entry.qty },
     },
   };
+}
+
+/**
+ * The lasting things the character owns, in the order bought, each with its
+ * store entry; given a place, only those shown there. Read from the save's
+ * `perks` and the tables, so a new one needs a row and nothing else to be
+ * listed wherever it says it shows.
+ */
+export function perksFor(
+  state: GameState,
+  content: Content,
+  place?: PerkPlace,
+): { id: string; perk: PerkDef }[] {
+  return state.perks.flatMap((id) => {
+    const perk = content.store?.[id]?.perk;
+    return perk && (!place || perk.shows.includes(place)) ? [{ id, perk }] : [];
+  });
 }

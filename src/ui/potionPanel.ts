@@ -5,6 +5,7 @@ import { itemIcon } from '../art/icons';
 import { bar } from './bar';
 import { h, titled } from './dom';
 import { formatNumber, listed } from './format';
+import { perkNotes } from './storeScreen';
 import type { View } from './view';
 
 function ordinal(n: number): string {
@@ -66,6 +67,8 @@ export function potionPanel(state: GameState, content: Content, skillId?: string
         text: `${potionEffectText(potion)} · ${potionSkillsText(potion, content)}`,
       }),
       charges.el,
+      // What the store's lasting things do to potions, where potions are watched.
+      ...perkNotes(state, content, 'potions'),
     ]),
     update,
   };

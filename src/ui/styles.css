@@ -1318,3 +1318,24 @@ button.card:active {
 .panel.dear {
   border-color: var(--gold-bright);
 }
+
+/*
+ * The store's lasting things: what one does is said in plain text, not muted,
+ * and once owned it is marked in gold wherever it shows.
+ */
+.perk-effect {
+  color: var(--text);
+}
+
+.panel.owned {
+  border-color: var(--gold);
+}
+
+.owned-mark,
+.perk-name {
+  color: var(--gold-bright);
+}
+
+.perk-note {
+  color: var(--text);
+}

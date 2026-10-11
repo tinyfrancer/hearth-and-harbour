@@ -21,8 +21,10 @@ export const STORE = {
     price: 150_000,
     perk: {
       name: 'Cork-lined potion case',
-      description:
-        'Keeps every bottle snug, dark and the right way up. Each potion you drink from now on lasts half as long again.',
+      description: 'Keeps every bottle snug, dark and the right way up.',
+      effect:
+        'Every potion you drink from now on helps 50% more actions: one that helps 150 actions helps 225.',
+      shows: ['potions'],
       potionCharges: 50,
     },
   },

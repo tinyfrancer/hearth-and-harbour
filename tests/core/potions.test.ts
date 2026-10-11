@@ -99,8 +99,16 @@ describe('drinking a potion', () => {
     const stretched: Content = {
       ...content,
       store: {
-        case: { id: 'case', price: 1, perk: { name: '', description: '', potionCharges: 50 } },
-        cork: { id: 'cork', price: 1, perk: { name: '', description: '', potionCharges: 15 } },
+        case: {
+          id: 'case',
+          price: 1,
+          perk: { name: '', description: '', effect: '', shows: [], potionCharges: 50 },
+        },
+        cork: {
+          id: 'cork',
+          price: 1,
+          perk: { name: '', description: '', effect: '', shows: [], potionCharges: 15 },
+        },
         hat: { id: 'hat', price: 1, item: 'mud', qty: 1 },
       },
     };

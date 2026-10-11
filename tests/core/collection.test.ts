@@ -90,7 +90,7 @@ const content: Content = {
   store: {
     pies: { id: 'pies', item: 'pie', qty: 5, price: 10 },
     cake: { id: 'cake', item: 'cake', qty: 1, price: 100 },
-    lamp: { id: 'lamp', price: 10, perk: { name: 'Lamp', description: '' } },
+    lamp: { id: 'lamp', price: 10, perk: { name: 'Lamp', description: '', effect: '', shows: [] } },
   },
   dungeons: { cave: { id: 'cave', name: 'The Cave', loot: ['coin', 'gem'] } },
 };

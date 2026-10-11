@@ -220,10 +220,25 @@ export type StoreEntry = { id: string; price: number } & (
   | { perk: PerkDef; item?: undefined; qty?: undefined; once?: undefined }
 );
 
+/**
+ * The screens that show the lasting things owned that change them, by name:
+ * the potion panel and a potion's card in the bank are `potions`. A new place
+ * is a screen calling `perksFor` (src/core/store.ts) with its name.
+ */
+export type PerkPlace = 'potions';
+
 /** A lasting thing from the store: no item, just a difference the rules make from then on. */
 export interface PerkDef {
   name: string;
+  /** What it is, in a line of flavour. */
   description: string;
+  /**
+   * What owning it does, plainly and in numbers, for the store and for every
+   * place it shows: "Every potion you drink helps 50% more actions".
+   */
+  effect: string;
+  /** Where it is shown once owned, beside what it changes. */
+  shows: readonly PerkPlace[];
   /** Every potion drunk gives this many percent more charges, rounded down. */
   potionCharges?: number;
 }

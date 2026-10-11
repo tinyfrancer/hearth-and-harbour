@@ -81,13 +81,44 @@ describe('the general store', () => {
     q<HTMLButtonElement>('[data-store-door]').click();
     q<HTMLButtonElement>('[data-buy="potion_case"]').click();
     expect(saved().perks).toEqual(['potion_case']);
-    expect(q<HTMLButtonElement>('[data-buy="potion_case"]').textContent).toBe('Yours');
-    expect(q<HTMLButtonElement>('[data-buy="potion_case"]').disabled).toBe(true);
+    // Bought, it leaves the stock for a section of its own, marked and saying what it does.
+    expect(root.querySelector('[data-buy="potion_case"]')).toBeNull();
+    const owned = q('[data-owned="potion_case"]');
+    expect(owned.textContent).toContain('Owned');
+    expect(owned.textContent).toContain(
+      'helps 50% more actions: one that helps 150 actions helps 225',
+    );
+    expect(q('[data-store]').textContent).toContain('Yours');
     press('‹ Bank');
     q<HTMLButtonElement>('[data-item="sage_tonic"]').click();
-    expect(q('[data-card="sage_tonic"]').textContent).toContain('Lasts225 actions');
+    // Where it applies, it says so: the potion's own number and what the case adds.
+    expect(q('[data-card="sage_tonic"] [data-lasts]').textContent).toBe(
+      '225 actions (150, and 50% more from your Cork-lined potion case)',
+    );
     press('Drink Sage tonic');
     expect(saved().potion).toEqual({ item: 'sage_tonic', charges: 225 });
+    // And on the potion's own panel, wherever it is watched.
+    q<HTMLButtonElement>('.tab[data-tab="skills"]').click();
+    expect(q('[data-potion="sage_tonic"] [data-perk="potion_case"]').textContent).toContain(
+      'Cork-lined potion case: Every potion you drink',
+    );
+  });
+
+  it('says what each thing for sale does, plainly: what a vial is for, what an upgrade does', () => {
+    playing({ coins: 0 });
+    q<HTMLButtonElement>('.tab[data-tab="bank"]').click();
+    q<HTMLButtonElement>('[data-store-door]').click();
+    expect(q('[data-stock="shell_vial"]').textContent).toContain('Used in Alchemy.');
+    expect(q('[data-stock="potion_case"] .perk-effect').textContent).toBe(
+      CONTENT.store!.potion_case!.perk!.effect,
+    );
+    // Nothing owned, so no section for it.
+    expect(root.querySelector('[data-owned]')).toBeNull();
+    // A potion card without the case says only its own number.
+    playing({ bank: { sage_tonic: 1 } });
+    q<HTMLButtonElement>('.tab[data-tab="bank"]').click();
+    q<HTMLButtonElement>('[data-item="sage_tonic"]').click();
+    expect(q('[data-card="sage_tonic"] [data-lasts]').textContent).toBe('150 actions');
   });
 });
 
