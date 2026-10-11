@@ -73,7 +73,7 @@ describe('the Tidepool Cave, played by a new player', () => {
       const battle = clear.run.battle!;
       const spoils = spoilsOf(battle, TIDEPOOL_ID);
       expect(spoils.cleared).toBe(TIDEPOOL_ID);
-      expect(spoils.kills).toEqual({ dock_rat: 5, sand_crab: 2, old_snapper: 1 });
+      expect(spoils.kills).toEqual({ dock_rat: 4, sand_crab: 2, old_snapper: 1 });
       // The crate's fish were eaten from what was picked up, never from a food slot he did not have.
       expect(spoils.foodEaten).toBe(0);
       const ate = battle.tally.ateFound?.cooked_shrimp ?? 0;

@@ -87,7 +87,6 @@ export const TIDEPOOL: DungeonPlan = {
       { monster: 'dock_rat', at: { col: 12, row: 6 } },
       { monster: 'dock_rat', at: { col: 14, row: 7 } },
       { monster: 'dock_rat', at: { col: 15, row: 6 } },
-      { monster: 'dock_rat', at: { col: 13, row: 8 } },
       { monster: 'sand_crab', at: { col: 22, row: 4 } },
       { monster: 'sand_crab', at: { col: 21, row: 7 } },
     ],

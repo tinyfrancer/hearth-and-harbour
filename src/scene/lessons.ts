@@ -333,7 +333,7 @@ export const CAVE_LESSONS: readonly Lesson[] = [
       if (foodProblem(b) !== null) return false;
       const boss = bossOf(b, run.room);
       if (boss && alive(boss)) return true;
-      return b.hp * 10 <= b.fighter.maxHp * (done.includes('heavy') ? 6 : 4);
+      return b.hp * 4 <= b.fighter.maxHp * (done.includes('heavy') ? 3 : 1.6);
     },
     done: (_dungeon, run) =>
       cooldownLeft(run.battle!, 'food') > 0 || foodProblem(run.battle!) === 'none',

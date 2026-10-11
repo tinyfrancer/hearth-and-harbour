@@ -13,6 +13,7 @@ import { CONTENT } from '../../src/data';
 import {
   BEAT_MS,
   BRACE_MS,
+  BRACE_REEL_MS,
   FOOD_MS,
   MELEE_REACH,
   RANGED_REACH,
@@ -364,6 +365,28 @@ describe('the telegraph', () => {
     const after = run(braced.battle, braced.play, t.lands - b.clock, TICK_MS);
     expect(b.hp - after.battle.hp).toBe(Math.ceil(t.damage / 2));
     expect(after.battle.braceUntil).toBe(0);
+  });
+
+  it('braced, is answered: its maker reels before its next blow, and his own swing comes at once', () => {
+    const { b, play } = slam();
+    const t = foe(b).heavy!;
+    const braced = useAbility(b, place(), play, 1);
+    // Up to the tick before it lands, mid-swing.
+    const before = run(
+      { ...braced.battle, blowMs: 2000 },
+      braced.play,
+      t.lands - b.clock - TICK_MS,
+      TICK_MS,
+    );
+    const landed = advanceBattle(before.battle, place(), before.play, TICK_MS);
+    expect(landed.battle.effects.some((e) => e.kind === 'landed')).toBe(true);
+    expect(landed.battle.braceUntil).toBe(0);
+    // Reeling: its next ordinary blow is at least BRACE_REEL_MS off (less the tick it was counted in).
+    expect(foe(landed.battle).blowMs).toBeGreaterThanOrEqual(BRACE_REEL_MS - TICK_MS);
+    // Unbraced, nothing of the sort.
+    const plain = run({ ...b, blowMs: 2000 }, play, t.lands - b.clock, TICK_MS);
+    expect(plain.battle.blowMs).toBeGreaterThan(0);
+    expect(foe(plain.battle).blowMs).toBeLessThan(BRACE_REEL_MS - TICK_MS);
   });
 
   it('is called off if its thrower falls first', () => {

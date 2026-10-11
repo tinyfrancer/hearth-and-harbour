@@ -80,6 +80,14 @@ export const SAY_MS = 2600;
 export const SWEEP_REACH = far(40);
 /** Brace: how long it waits for a heavy blow before it lapses. */
 export const BRACE_MS = 6000;
+/**
+ * Brace, answered: a heavy blow taken braced leaves its maker reeling this
+ * long before its next ordinary blow, and the hero's own next swing comes at
+ * once. So bracing is a trade (half the blow, for keeping up the fight) and
+ * stepping out another (none of it, for the time away), not a worse
+ * stepping out.
+ */
+export const BRACE_REEL_MS = 2400;
 /** Step back: how far, and how many times walking pace. */
 export const STEP_BACK = far(40);
 export const STEP_BACK_PACE = 4;
@@ -816,8 +824,15 @@ function hurtHero(w: Work, dealt: number, hero: Point): void {
   if (w.hp === 0 && !w.over) w.over = { why: 'fell', at: w.clock };
 }
 
-/** A heavy blow landing: on the hero if he is in it, halved if he braced. */
-function land(w: Work, t: Telegraph, map: TileMap, hero: Point, def: MonsterDef | null): void {
+/** A heavy blow landing: on the hero if he is in it, halved if he braced (and answered: `BRACE_REEL_MS`). */
+function land(
+  w: Work,
+  t: Telegraph,
+  map: TileMap,
+  hero: Point,
+  def: MonsterDef | null,
+  by: Writable<Foe> | null = null,
+): void {
   const under = cellAt(t.at, T);
   const tile = inMap(map, under) ? map.tiles[under.row]![under.col] : undefined;
   const doused = !!t.douse && (tile === 'water' || tile === 'shallows');
@@ -828,6 +843,8 @@ function land(w: Work, t: Telegraph, map: TileMap, hero: Point, def: MonsterDef 
   if (inside && w.braceUntil > w.clock) {
     damage = Math.ceil(damage / 2);
     w.braceUntil = 0;
+    w.blowMs = 0;
+    if (by) by.blowMs = Math.max(by.blowMs, BRACE_REEL_MS);
   }
   if (def) {
     const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
@@ -1061,7 +1078,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     const t = foe.heavy;
     foe.heavy = null;
     foe.heavyMs = foeKind(foe.monster).heavy!.everyMs;
-    land(w, t, map, hero, w.monsters[foe.monster]!);
+    land(w, t, map, hero, w.monsters[foe.monster]!, foe);
     if (w.over) return next;
   }
   if (w.volleys.length > 0) {

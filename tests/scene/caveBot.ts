@@ -284,6 +284,8 @@ export interface CaveOutcome {
   readonly braced: number;
   /** The lessons in the order they showed. */
   readonly shown: readonly string[];
+  /** The room each lesson first showed in, and his health then. */
+  readonly shownIn: Readonly<Record<string, { readonly room: string; readonly hp: number }>>;
   readonly rooms: Readonly<Record<string, number>>;
   readonly lowest: number;
   readonly run: Run;
@@ -308,6 +310,7 @@ export function playCave(state: GameState, seed: number, o: CaveOptions): CaveOu
     mind.canBrace = o.brace;
   }
   const shown: string[] = [];
+  const shownIn: Record<string, { room: string; hp: number }> = {};
   const rooms: Record<string, number> = {};
   let room = run.room;
   let roomAt = 0;
@@ -323,7 +326,10 @@ export function playCave(state: GameState, seed: number, o: CaveOptions): CaveOu
     if ((lesson?.id ?? null) !== mind.lessonId) {
       mind.lessonId = lesson?.id ?? null;
       mind.lessonFor = 0;
-      if (lesson) shown.push(lesson.id);
+      if (lesson) {
+        shown.push(lesson.id);
+        shownIn[lesson.id] ??= { room: run.room, hp: run.battle!.hp };
+      }
     } else mind.lessonFor += 100;
     const wasBrace = run.battle!.braceUntil;
     run = decide(run, mind, o);
@@ -348,6 +354,7 @@ export function playCave(state: GameState, seed: number, o: CaveOptions): CaveOu
     kills: b.tally.kills,
     braced,
     shown,
+    shownIn,
     rooms,
     lowest,
     run,
