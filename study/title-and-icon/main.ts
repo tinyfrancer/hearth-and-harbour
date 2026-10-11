@@ -2,6 +2,7 @@ import '@fontsource/pixelify-sans/latin-400.css';
 import '@fontsource/pixelify-sans/latin-700.css';
 import { heroPage, logosPage } from './pages';
 import { screenEl, type Title } from './screen';
+import { iconsComparePage, iconsHomePage, iconsSafePage } from './iconPages';
 import { TITLE_A } from './titleA';
 import { TITLE_B } from './titleB';
 import { TITLE_C } from './titleC';
@@ -34,7 +35,11 @@ function titlePage(): void {
   };
 }
 
-const pages: Record<string, () => void | Promise<void>> = { logos: logosPage, title: titlePage, hero: heroPage };
+const pages: Record<string, () => void | Promise<void>> = { logos: logosPage, title: titlePage, hero: heroPage,
+  icons: iconsComparePage,
+  home: iconsHomePage,
+  safe: iconsSafePage,
+};
 void Promise.resolve((pages[v] ?? logosPage)()).then(() => {
   (window as unknown as { ready: boolean }).ready = true;
 });
