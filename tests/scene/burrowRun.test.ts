@@ -83,35 +83,20 @@ describe('Thistlewood Burrow, played through', () => {
 });
 
 /**
- * The Burrow's days as lane A's PR #82 has them (its pool, `DungeonDef.modifiers`, read from the
- * tables once its row is in them).
- */
-const LANE_A_DAYS: Readonly<Record<string, ModifierEffects>> = {
-  thick_caps: { foeHealth: 1.2, foeSpeed: 0.8, xp: 1.2, loot: 1.15 },
-  fierce_brambles: { foeDamage: 1.1, foeHealth: 0.95, loot: 1.1 },
-  swift_hounds: { foeSpeed: 1.1, foeHealth: 0.93, xp: 1.15 },
-  short_rations: { foodHeals: 0.8, foeHealth: 0.9, loot: 1.1 },
-  deep_gloom: { darker: true, heroDamage: 0.85, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
-};
-
-/**
- * Two days this lane asks lane A to change, played as asked: as they stand,
- * Swift Hounds is no harder than a plain day here (a median 652 hit points
- * lost to blows against a plain day's 743: its foes' tenth less health wins)
- * and Fierce Brambles is on the line (756). Their rewards are as they were.
+ * The one day this lane asks lane A to change, played as asked: against the
+ * asked cast, Deep Gloom's hero damage of 0.85 on top of the dark is cleared
+ * on 9 of 12 seeds (20 of 24 more); at 0.9 it is 10 of 12 (23 of 24) and
+ * still the longest day. Its rewards are as they were. (Swift Hounds as it
+ * stands is cleared on exactly 10: on the line.)
  */
 const ASKED_DAYS: Readonly<Record<string, ModifierEffects>> = {
-  fierce_brambles: { foeDamage: 1.15, foeHealth: 0.95, loot: 1.1 },
-  swift_hounds: { foeSpeed: 1.15, foeHealth: 0.97, xp: 1.15 },
+  deep_gloom: { darker: true, heroDamage: 0.9, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
 };
 
+/** The Burrow's days: its pool in the tables (`DungeonDef.modifiers`), with the asked one as asked. */
 const POOL: readonly RunModifier[] = (() => {
-  const row = CONTENT.dungeons?.[BURROW_ID];
-  const ids = row?.modifiers?.length ? row.modifiers : Object.keys(LANE_A_DAYS);
-  return ids.map((id) => ({
-    id,
-    effects: ASKED_DAYS[id] ?? (row?.modifiers?.length ? effectsOf(CONTENT, id) : LANE_A_DAYS[id]!),
-  }));
+  const ids = CONTENT.dungeons?.[BURROW_ID]?.modifiers ?? [];
+  return ids.map((id) => ({ id, effects: ASKED_DAYS[id] ?? effectsOf(CONTENT, id) }));
 })().filter((m) => !isKind(m.effects));
 
 const times = (k: number | undefined): number =>

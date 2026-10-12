@@ -97,8 +97,8 @@ export function tier2(level = 40, fish = 20, heals = 40): Fighter {
  * the tables' rows would carry them: what every balance case plays. Lane
  * A's first pass (PR #82: puff 40 hp, moth 36, guard 60, hound 95, king 340)
  * is far harder against this mechanic (2 clears of 12 for the careful
- * player, 14 minutes); until the tables hold these, the scene's stand-in
- * rows are the same numbers (`BURROW_STAND_IN_CAST`).
+ * player, 14 minutes). Until the tables hold these, the game fights by the
+ * tables' rows (`castOf`) and only these cases by the asked ones.
  */
 const asked = (
   id: string,
@@ -128,11 +128,11 @@ const asked = (
   },
 ];
 export const BURROW_ASKED: Readonly<Record<string, MonsterDef>> = Object.fromEntries([
-  asked('spore_puff', 'Spore puff', 34, 24, 76, 50, 9, 2600),
-  asked('lantern_moth', 'Lantern moth', 35, 18, 78, 58, 7, 2000),
-  asked('cap_guard', 'Cap guard', 37, 42, 84, 66, 13, 2800),
-  asked('bramble_hound', 'Bramble hound', 38, 38, 90, 55, 13, 2200),
-  asked('badger_king', 'The Badger King', 44, 200, 104, 72, 22, 2800),
+  asked('spore_puff', 'Spore puff', 34, 25, 65, 50, 10, 2600),
+  asked('lantern_moth', 'Lantern moth', 35, 18, 66, 58, 8, 2000),
+  asked('cap_guard', 'Cap guard', 37, 43, 71, 66, 15, 2800),
+  asked('bramble_hound', 'Bramble hound', 38, 38, 77, 55, 15, 2200),
+  asked('badger_king', 'The Badger King', 44, 225, 88, 72, 26, 2800),
 ]);
 
 /** The rows a balance case fights by: the tables', with the cast's numbers as asked. */

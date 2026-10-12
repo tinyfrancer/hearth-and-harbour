@@ -18,7 +18,6 @@
  * creatures (`fromLaneB.ts`), and tagged so in a corner of the screen.
  */
 import type { SayLine } from './battle';
-import type { CastDef } from './cast';
 import type { DungeonPlan } from './dungeon';
 
 export const BURROW_ID = 'thistlewood_burrow';
@@ -207,39 +206,3 @@ export const BADGER_SAYS: Partial<Record<SayLine, string>> = {
   anchor: 'ENOUGH. My burrow. My dark. My lanterns.',
   down: 'This is… most irregular.',
 };
-
-/**
- * The Burrow's cast as this scene fights it until lane A's rows are on
- * `main` (their PR 1 this wave): first-pass numbers for a level-40 hero in
- * tier-2 gear, measured by `burrowRun.test.ts`. The tables' rows win as soon
- * as they exist (`castOf`), so this is deleted then. No drops: what drops is
- * lane A's.
- */
-export const BURROW_STAND_IN_CAST: Readonly<Record<string, CastDef>> = Object.fromEntries(
-  (
-    [
-      ['spore_puff', 'Spore puff', 34, 24, 76, 50, 9, 2600],
-      ['lantern_moth', 'Lantern moth', 35, 18, 78, 58, 7, 2000],
-      ['cap_guard', 'Cap guard', 37, 42, 84, 66, 13, 2800],
-      ['bramble_hound', 'Bramble hound', 38, 38, 90, 55, 13, 2200],
-      ['badger_king', 'The Badger King', 44, 200, 104, 72, 22, 2800],
-    ] as const
-  ).map(([id, name, level, hp, attack, defence, maxHit, speedMs]) => [
-    id,
-    {
-      id,
-      name,
-      description: '',
-      level,
-      hp,
-      attack,
-      defence,
-      maxHit,
-      speedMs,
-      coins: [0, 0] as const,
-      always: [],
-      rare: [],
-      area: BURROW_ID,
-    } as CastDef,
-  ]),
-);

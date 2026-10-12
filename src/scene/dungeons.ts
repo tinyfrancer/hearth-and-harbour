@@ -13,7 +13,7 @@ import type { Content } from '../core/content';
 import type { SayLine } from './battle';
 import { GROTTO_CAST, GROTTO_ID, type CastDef } from './cast';
 import { buildDungeon, type Dungeon, type DungeonPlan } from './dungeon';
-import { BADGER_SAYS, BURROW_ID, BURROW_STAND_IN_CAST } from './burrow';
+import { BADGER_SAYS, BURROW_ID } from './burrow';
 import { CAPTAIN_SAYS } from './grottoWords';
 import { BURROW_LESSONS, CAVE_LESSONS, type Lesson } from './lessons';
 import { DUNGEON_PLANS } from './plans';
@@ -93,8 +93,6 @@ export const DUNGEON_SCENES: Readonly<Record<string, DungeonScene>> = {
   },
   [BURROW_ID]: {
     plan: DUNGEON_PLANS[BURROW_ID]!,
-    // Until lane A's rows are on `main`; theirs win from the moment they are (`castOf`).
-    cast: BURROW_STAND_IN_CAST,
     lessons: BURROW_LESSONS,
     standIn: 'Stand-in art',
     words: {

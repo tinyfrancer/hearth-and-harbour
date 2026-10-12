@@ -30,7 +30,6 @@ import {
   todaysModifier,
 } from './fromLaneA';
 import { dimOf, runSpoils, type RunModifier } from './modifiers';
-import { withBurrowRow } from './preview';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -231,9 +230,7 @@ function loadingCard(): { el: HTMLElement; update(): void } {
  * knows nothing else about scenes, so everything behind it can change without
  * touching the shell.
  */
-export function townView(state: GameState, tables: Content, shell?: Shell): View {
-  // TEMPORARY (`preview.ts`): the Burrow's row on the chart until lane A's is on `main`.
-  const content = withBurrowRow(tables);
+export function townView(state: GameState, content: Content, shell?: Shell): View {
   prepareTown(now());
   // One-off things remembered (the pan, lessons learned) go in the save through this shell.
   rememberWith(shell);
