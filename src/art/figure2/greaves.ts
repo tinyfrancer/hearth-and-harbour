@@ -121,6 +121,59 @@ const IRON_FAR = part(
 );
 
 /**
+ * Salt-iron (B19, the knight's, worn in his `knight_knees`): plate from the
+ * thigh to the ankle, so the knight's legs read heavier than the guard's. A
+ * cuisse on the thigh below the mail's hem, a knee cop of two lames, a full
+ * greave with a ridge and no strap showing, a pit or two in its shadow and a
+ * fleck of salt in its light. Short of the boot, as the others.
+ */
+export const SALT_NEAR = part(
+  21,
+  46,
+  'saltiron',
+  [
+    '0111223',
+    '1102334',
+    '4445555',
+    '..012..',
+    '.01123.',
+    '0112334',
+    '4445555',
+    '.01233.',
+    '.44555.',
+    '0102334',
+    '1102354',
+    '1002334',
+    '1102334',
+    '1112354',
+    '4445555',
+  ],
+  {},
+);
+export const SALT_FAR = part(
+  29,
+  47,
+  'saltiron',
+  [
+    '.01123',
+    '.11234',
+    '.44555',
+    '..0123',
+    '.11233',
+    '.44555',
+    '..1233',
+    '..4455',
+    '.10234',
+    '.11254',
+    '.10234',
+    '.12234',
+    '.12234',
+    '.44555',
+  ],
+  {},
+);
+
+/**
  * From behind: the calf, so only the plates' edges where they wrap round, the
  * straps across, and the cop's rim either side of the knee's hollow. Drawn in
  * front coordinates; the back view mirrors and re-lights it (views.ts).
@@ -147,6 +200,7 @@ export const GREAVES2: readonly Gear2[] = [
 export const GREAVES_BACK: Readonly<Record<string, readonly Part2[]>> = {
   bronze_greaves: [backOf(BRONZE_NEAR), backOf(BRONZE_FAR)],
   iron_greaves: [backOf(IRON_NEAR), backOf(IRON_FAR)],
+  knight_knees: [backOf(SALT_NEAR), backOf(SALT_FAR)],
 };
 
 /**
@@ -198,5 +252,15 @@ export const GREAVES_SIDE: Readonly<Record<string, SideGreaves>> = {
       { ...plate('iron', 19, 20), bulk: 2, hem: true },
     ],
     cop: ['.0112.', '011223', '444555', '.1223.', '.4455.'],
+  },
+  // B19: the knight's, plate from a cuisse on the thigh to the ankle in one greave.
+  knight_knees: {
+    mat: 'saltiron',
+    covers: [
+      { ...plate('saltiron', 5, 10), steps: [1, 1, 2, 3] },
+      { ...plate('saltiron', 13, 20), steps: [0, 1, 2, 4] },
+      { ...plate('saltiron', 20, 20), bulk: 2, hem: true },
+    ],
+    cop: ['.0112.', '011223', '444555', '.0123.', '.4455.'],
   },
 };

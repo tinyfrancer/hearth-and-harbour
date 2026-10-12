@@ -15,8 +15,10 @@ import { DEPTH } from '../depth';
 import { cloth, runs, type Gear2, type Part2, type Pins } from './engine';
 import { hold } from './clothes';
 import { gripPart, straightBlade } from './held';
+import { SALT_FAR, SALT_NEAR } from './greaves';
+import { mailSpans } from './mail';
 
-const { CLOAK, ARMOUR, LEGS, WRIST, HELD_FRONT, SHIELD } = DEPTH;
+const { CLOAK, ARMOUR, WRIST, HELD_FRONT, SHIELD } = DEPTH;
 
 const block = (
   x: number,
@@ -27,7 +29,7 @@ const block = (
 ): Part2 => ({
   at: [x, y],
   depth,
-  mat: 'plate',
+  mat: 'saltiron',
   rows,
   pins,
 });
@@ -36,6 +38,21 @@ const KNIGHT_PLATE: Gear2 = {
   id: 'knight_plate',
   slot: 'body',
   parts: [
+    // B19: plate over mail. A skirt of salt-iron rings below the fauld to
+    // mid-thigh, in place of the everyday tunic's skirt.
+    mailSpans(
+      19,
+      [
+        [41, 20, 36],
+        [42, 20, 36],
+        [43, 20, 37],
+        [44, 19, 37],
+        [45, 19, 37],
+        [46, 19, 37],
+        [47, 19, 37],
+      ],
+      ARMOUR - 1,
+    ),
     // The breastplate: a medial ridge down the centre line, the left facet
     // catching the light with a white specular high on it, the right in shade.
     block(22, 24, ARMOUR, [
@@ -92,13 +109,11 @@ const KNIGHT_PLATE: Gear2 = {
   ],
 };
 
+/** Salt-iron legs (greaves.ts): a cuisse, a knee cop of two lames, a full greave. */
 const KNEE_COPS: Gear2 = {
   id: 'knight_knees',
   slot: 'knees',
-  parts: [
-    block(21, 50, LEGS + 1, ['.01123.', '0011234', '1112334', '.44455.', '.11233.', '.33445.']),
-    block(29, 50, LEGS + 1, ['.01123', '011234', '112334', '.4455.', '.1233.', '.3445.']),
-  ],
+  parts: [SALT_NEAR, SALT_FAR],
 };
 
 /** The red cloak: hung from the shoulders behind, falling in folds nearly to the heels. */
@@ -199,13 +214,13 @@ const KITE_SHIELD: Gear2 = {
         '......N2gGN....',
         '.......NNN.....',
       ],
-      pins: { ...GOLD, N: ['plate', 3] },
+      pins: { ...GOLD, N: ['saltiron', 3] },
     },
     // The rim's lit edge down the left and along the top.
     {
       at: [31, 26],
       depth: SHIELD + 0.1,
-      mat: 'plate',
+      mat: 'saltiron',
       rows: [
         '.11111111111112',
         '1',
@@ -243,10 +258,58 @@ const KNIGHT_SWORD: Gear2 = {
   id: 'knight_sword',
   slot: 'weapon',
   parts: [
-    straightBlade('plate', { from: 37, tip: 1, per: 6, steps: [1, 0, 3], glint: [6, 7, 8, 9] }),
+    straightBlade('saltiron', { from: 37, tip: 1, per: 6, steps: [1, 0, 3], glint: [6, 7, 8, 9] }),
     { at: [10, 37], depth: HELD_FRONT, mat: 'gold', rows: ['1.........4', '01111222334'] },
     gripPart('leather'),
     { at: [14, 44], depth: HELD_FRONT, mat: 'gold', rows: ['.12.', '1234', '.34.'] },
+  ],
+};
+
+/**
+ * Tier 2's helm (B19): a salt-iron bascinet, rounder and broader than the
+ * guard's cone, its visor raised over the brow (a band with a row of breaths
+ * and a pivot at each temple), cheek plates framing the face to the jaw, and
+ * a mail aventail falling from them over the neck onto the shoulders. The
+ * face, eyes and brows stay clear; under it only the hang of a hairstyle is
+ * worn, as under any helm.
+ */
+const KNIGHT_HELM: Gear2 = {
+  id: 'knight_helm',
+  slot: 'head',
+  parts: [
+    // The aventail first, so the cheek plates lie over its top.
+    mailSpans(
+      18,
+      [
+        [17, 19, 21, 35, 37],
+        [18, 19, 22, 34, 37],
+        [19, 18, 23, 33, 38],
+        [20, 18, 25, 33, 38],
+        [21, 18, 38],
+        [22, 17, 39],
+        [23, 17, 39],
+        [24, 18, 38],
+      ],
+      DEPTH.HELMET - 0.5,
+    ),
+    block(19, 2, DEPTH.HELMET, [
+      '.......0011223',
+      '.....0001112233',
+      '....001111222334',
+      '...00111122223344',
+      '..0000001111222334',
+      '..1252525252535354',
+      '..1112222222333344',
+      '.034444444444444553',
+      '.122222222222233344',
+      '.1223..........2334',
+      '.1123..........2344',
+      '.1123..........3344',
+      '.1223..........3344',
+      '.1223..........3345',
+      '.12234........34455',
+      '..1223........3445',
+    ]),
   ],
 };
 
@@ -256,8 +319,10 @@ export const KNIGHT_GEAR: readonly string[] = [
   'red_cloak',
   'kite_shield',
   'knight_sword',
+  'knight_helm',
 ];
 export const KNIGHT2: readonly Gear2[] = [
+  KNIGHT_HELM,
   KNIGHT_PLATE,
   KNEE_COPS,
   RED_CLOAK,

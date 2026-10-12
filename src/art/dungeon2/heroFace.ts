@@ -183,7 +183,7 @@ const BODY: Readonly<Record<string, (g: TGrid, shirt: Mat) => void>> = {
     );
   },
   knight_plate: (g) => {
-    form(g, shoulders(), 'plate', { cx: 22, cy: 54, rx: 40, ry: 18, base: 2.2, k: 1.4, rim: 3 });
+    form(g, shoulders(), 'saltiron', { cx: 22, cy: 54, rx: 40, ry: 18, base: 2.2, k: 1.4, rim: 3 });
     for (const [x0, x1] of [
       [-2, 22],
       [50, 74],
@@ -195,8 +195,8 @@ const BODY: Readonly<Record<string, (g: TGrid, shirt: Mat) => void>> = {
         [x1 - 3, 58],
         [x1, 66],
       ]);
-      form(g, p, 'plate', { cx: x0 + 4, cy: 54, rx: 14, ry: 10, base: 1.8, k: 1.6, rim: 2 });
-      put(g, x0 + 7, 58, cell('plate', 0));
+      form(g, p, 'saltiron', { cx: x0 + 4, cy: 54, rx: 14, ry: 10, base: 1.8, k: 1.6, rim: 2 });
+      put(g, x0 + 7, 58, cell('saltiron', 0));
     }
   },
 };
@@ -740,6 +740,142 @@ const HATS: Readonly<Record<string, (g: TGrid, o: HeroBust) => void>> = {
     form(g, nasal, 'iron', { cx: 35, cy: RIM, rx: 4, ry: 18, base: 2, k: 1.4, rim: 1 });
     cast(g, nasal, { n: 1, dx: 1, dy: 0, on: [] });
   },
+  // B19: tier 2's bascinet, as on the figure: a broad round dome, the visor
+  // raised over the brow (a band with its breaths and a dark seam under it),
+  // a riveted rim above the brows, cheek plates framing the face to the jaw
+  // over the ears, and the aventail's rings over the neck onto the plate.
+  knight_helm: (g) => {
+    const head = blob(HEAD);
+    const av = blob([
+      [3, 67],
+      [7, 55],
+      [13, 44],
+      [24, 50],
+      [36, 54],
+      [50, 50],
+      [61, 44],
+      [67, 55],
+      [71, 67],
+      [52, 69],
+      [36, 70],
+      [20, 69],
+    ]);
+    const mail = (x: number, y: number) => av(x, y) && !head(x, y);
+    form(g, mail, 'saltiron', { cx: 20, cy: 46, rx: 40, ry: 22, base: 2.7, k: 1.2, rim: 2 });
+    // Rings in offset rows, three pixels a ring: its lit top, the dark hole
+    // in its middle, the gap below it; each row of rings set half a ring over.
+    const ringAt = (x: number, y: number) => [(x + (Math.floor(y / 3) % 2) * 2) % 3, y % 3];
+    tone(g, (x, y) => mail(x, y) && ringAt(x, y).join() === '1,0', -1, ['saltiron']);
+    tone(
+      g,
+      (x, y) => {
+        if (!mail(x, y)) return false;
+        const [i, j] = ringAt(x, y);
+        return (j === 1 && i === 1) || (j === 2 && i !== 1);
+      },
+      1,
+      ['saltiron'],
+    );
+    tone(g, (x, y) => mail(x, y) && !av(x, y + 2), 1, ['saltiron']);
+    for (const pts of [
+      [
+        [12, 20],
+        [23, 20],
+        [22, 31],
+        [23, 40],
+        [28, 49],
+        [25, 52],
+        [16, 46],
+        [11, 34],
+      ],
+      [
+        [51, 20],
+        [62, 20],
+        [62, 34],
+        [58, 46],
+        [49, 52],
+        [46, 49],
+        [51, 40],
+        [52, 31],
+      ],
+    ] as Pts[]) {
+      const plate = blob(pts);
+      form(g, plate, 'saltiron', { cx: 24, cy: 20, rx: 26, ry: 30, base: 2.2, k: 1.5, rim: 2 });
+      cast(g, plate, {
+        n: 1,
+        dx: 1,
+        dy: 1,
+        on: ['skin', 'skinpale', 'skingolden', 'skinbrown', 'skindeep'],
+      });
+    }
+    const dome = blob([
+      [11, RIM + 1],
+      [13, 10],
+      [22, 3],
+      [36, 0],
+      [51, 3],
+      [60, 10],
+      [62, RIM + 1],
+      [36, RIM],
+    ]);
+    form(g, dome, 'saltiron', { cx: 24, cy: 4, rx: 24, ry: 18, base: 2.1, k: 1.7, rim: 3 });
+    // The raised visor over the dome's front.
+    const visor = blob([
+      [13, 17],
+      [16, 9],
+      [36, 6],
+      [57, 9],
+      [60, 17],
+      [36, 15],
+    ]);
+    form(g, visor, 'saltiron', { cx: 26, cy: 6, rx: 26, ry: 10, base: 1.7, k: 1.6, rim: 2 });
+    // Its breaths: a row of short slots, each lit on the lip below.
+    for (let x = 19; x <= 52; x += 4) {
+      for (const dx of [0, 1, 2]) {
+        put(g, x + dx, 11, cell('saltiron', 5));
+        put(g, x + dx, 12, cell('saltiron', x < 36 ? 1 : 2));
+      }
+    }
+    tone(g, (x, y) => visor(x, y) && !visor(x, y + 1), 2, ['saltiron']);
+    // The rim above the brows, riveted, and a pivot at each temple.
+    const band = blob([
+      [11, RIM + 2],
+      [12, RIM - 2],
+      [36, RIM - 2],
+      [61, RIM - 2],
+      [62, RIM + 2],
+      [36, RIM + 1],
+    ]);
+    form(g, band, 'saltiron', { cx: 20, cy: RIM - 2, rx: 30, ry: 4, base: 2.5, k: 1.2, rim: 1 });
+    cast(g, band, {
+      n: 1,
+      dx: 0,
+      dy: 1,
+      on: ['skin', 'skinpale', 'skingolden', 'skinbrown', 'skindeep'],
+    });
+    for (const x of [21, 29, 44, 52]) put(g, x, RIM - 1, cell('saltiron', x < 36 ? 0 : 1));
+    for (const [x, y] of [
+      [13, RIM - 1],
+      [58, RIM - 1],
+    ] as const)
+      marks(g, x, y, ['.0.', '012', '.24'], {
+        0: ['saltiron', 0],
+        1: ['saltiron', 1],
+        2: ['saltiron', 3],
+        4: ['saltiron', 5],
+      });
+    // Salt in the lights and a pit or two in the shadow.
+    for (const [x, y, s] of [
+      [22, 7, 0],
+      [25, 5, 0],
+      [20, 9, 1],
+      [50, 5, 4],
+      [55, 13, 5],
+      [57, 30, 5],
+      [16, 30, 0],
+    ] as const)
+      put(g, x, y, cell('saltiron', s));
+  },
   feathered_hat: (g) => {
     const brim = blob([
       [6, 20],
@@ -949,6 +1085,8 @@ export function drawHero(g: TGrid, o: HeroBust): void {
       if (o.style === 'twin_braids') drawBraids(g, o.hair, 54);
     }
     if (o.style === 'long' && hooded) longOutOfHood(g, o);
+    // A beard below the jaw lies over the aventail, as over a hood's cape (B19).
+    if (o.head === 'knight_helm') drawBeard(g, o.beard, o.hair, o.skin, (y) => y >= 50);
   }
   void rod;
 }

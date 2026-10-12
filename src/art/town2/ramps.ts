@@ -112,6 +112,11 @@ const BASE = {
   parchment: ['#fffaea', '#f8ecd0', '#eedcb4', '#dcc496', '#bc9c70', '#8c6c4c', '#4a3428'],
   ink: ['#a08e7a', '#76604e', '#5c483c', '#483630', '#382826', '#281c1c', '#140c0e'],
   chartsea: ['#f2f8ec', '#dcecdc', '#c0ded4', '#9ec8c2', '#7ca8aa', '#5c828a', '#2c3e48'],
+  // B19, tier 2's metal (appended, so every cell above keeps its number): salt-iron, a sea-worn
+  // steel leaning blue-green, a pale salt bloom where the light strikes it and dark pitted
+  // shadows. Richer than iron (more contrast, more colour) and nothing like bronze or gold;
+  // tests/art/saltiron.test.ts measures it against them and every hair colour.
+  saltiron: ['#ffffff', '#c6e2d8', '#92bcb8', '#6a96a0', '#4a6e82', '#2f4a62', '#152234'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Mat = keyof typeof BASE;
@@ -146,6 +151,19 @@ const DUSK_SET: Partial<Record<Mat, readonly (string | null)[]>> = {
   bronze: ['#e6d6a0', '#b0964a', '#7c6c36', '#524c28', '#3a3824', '#28261a', '#12100a'],
   tan: ['#c8b07c', '#a88c5a', '#8e7046', '#745832', '#5c4426', '#463a24', '#201a0e'],
   shell: ['#f6eef2', '#ece4e6', '#d4c4cc', '#a07a8c', '#84607a', '#604458', '#30202a'],
+  // B19: salt-iron keeps its sea-green steel at dusk, a step brighter than iron (it is polished)
+  // with the salt still catching the last light; shifted, it went the plum-grey of iron.
+  saltiron: ['#e4ecec', '#9cbcc0', '#6e8e9a', '#53687c', '#3e4c66', '#2c3450', '#1a1a32'],
+};
+
+/**
+ * Day's hand-set steps (B19). Only salt-iron: the day shift lifts the
+ * saturation of a near-white, so its salt bloom went a pale lime and its
+ * lights a little sickly; set by hand, the bloom is a cream-grey and the
+ * steel a clean blue-green.
+ */
+const DAY_SET: Partial<Record<Mat, readonly (string | null)[]>> = {
+  saltiron: ['#e6eee0', '#a8cec4', '#7aa8a6', '#5a8590', '#416478', '#2c4660', '#14203a'],
 };
 
 export interface Palette2 {
@@ -163,7 +181,7 @@ function makePalette(name: Palette2['name']): Palette2 {
   const colours = {} as Record<Mat, readonly string[]>;
   const rgb = new Uint8Array((MATS.length + 1) * 8 * 3);
   MATS.forEach((m, i) => {
-    const set = name === 'dusk' ? DUSK_SET[m] : undefined;
+    const set = name === 'dusk' ? DUSK_SET[m] : DAY_SET[m];
     const steps = (BASE[m] as readonly string[]).map(
       (hex, t) => set?.[t] ?? (EXEMPT.includes(m) ? hex : shift(hex, by)),
     );

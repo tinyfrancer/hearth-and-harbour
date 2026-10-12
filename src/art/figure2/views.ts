@@ -393,10 +393,10 @@ const BACK_RULES: Readonly<Record<string, BackRule>> = {
   shell_necklace: () => null,
   trollstone: () => null,
   hunters_charm: () => null,
-  knight_knees: () => null,
   // Greaves from behind: the plates' edges round the calf and the straps across it.
   bronze_greaves: (_p, i) => GREAVES_BACK.bronze_greaves![i] ?? null,
   iron_greaves: (_p, i) => GREAVES_BACK.iron_greaves![i] ?? null,
+  knight_knees: (_p, i) => GREAVES_BACK.knight_knees![i] ?? null,
   teal_tunic: (p, i) => (i === 0 ? reshade(p) : p),
   linen_tunic: (p, i) => (i === 0 ? reshade(p) : p),
 };

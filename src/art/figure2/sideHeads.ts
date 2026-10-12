@@ -16,6 +16,7 @@ import type { Mat } from '../town2/ramps';
 import { HEAD_AT } from './body';
 import type { Part2, Pins } from './engine';
 import { LONG_HOOD, NEW_HAIR, RIM_SIDE, clipFrom } from './hairStyles';
+import { mailSpans } from './mail';
 
 export const PROFILE_AT = [HEAD_AT[0] - 1, HEAD_AT[1]] as const;
 const [PX, PY] = PROFILE_AT;
@@ -510,6 +511,47 @@ export const HEADGEAR_SIDE: Readonly<Record<string, readonly Part2[]>> = {
       '..............3.',
     ]),
   ],
+  // B19: the knight's bascinet in profile: the dome over the crown and down
+  // to the nape, the cheek plate over the ear to the jaw, the raised visor
+  // standing up and forward over the brow (its snout the furthest thing
+  // forward on the head), the aventail down the neck onto the shoulders.
+  knight_helm: [
+    mailSpans(18, [
+      [18, 19, 24],
+      [19, 19, 25],
+      [20, 19, 27],
+      [21, 19, 30],
+      [22, 18, 31],
+      [23, 18, 32],
+      [24, 19, 32],
+    ]),
+    gear(PX - 1, PY - 4, 'saltiron', [
+      '.......001122',
+      '.....00111122233',
+      '....0011111222334',
+      '...00111111222334',
+      '..001111112222334',
+      '..011111122223344',
+      '.0111111222233344',
+      '.1111112222333444',
+      '.3444444444444455',
+      '.1112222333',
+      '.1112223334',
+      '.111222334',
+      '.111222334',
+      '.11122334',
+      '.1122334',
+      '..12234',
+    ]),
+    // The visor, raised: pivoted at the temple, its snout up and forward.
+    gear(PX + 7, PY - 3, 'saltiron', [
+      '.....0112',
+      '...0011223',
+      '.001111223345',
+      '0152525253455',
+      '.44444444555',
+    ]),
+  ],
   linen_hood: [
     gear(PX - 1, PY - 2, 'linen', [
       '......11112222...',
@@ -652,6 +694,36 @@ export const HEADGEAR_BACK: Readonly<Record<string, readonly Part2[]>> = {
       '.111222202333345.',
       '01011011012121334',
       '34444444444445555',
+    ]),
+  ],
+  // B19: the bascinet from behind, its aventail over the nape and the neck.
+  knight_helm: [
+    mailSpans(18, [
+      [16, 19, 37],
+      [17, 18, 38],
+      [18, 18, 38],
+      [19, 18, 38],
+      [20, 18, 38],
+      [21, 18, 38],
+      [22, 17, 39],
+      [23, 17, 39],
+      [24, 18, 38],
+    ]),
+    gear(BX - 2, BY - 4, 'saltiron', [
+      '.......0011223',
+      '.....0001112233',
+      '....001111222334',
+      '...00111122223344',
+      '..0011111222233344',
+      '..0111111222233344',
+      '.01111112222233344',
+      '.011111122222333445',
+      '.111111222223333445',
+      '.111112222233334445',
+      '.111122222333344455',
+      '.111122222333344455',
+      '.11122222333344445',
+      '.34444444444444455',
     ]),
   ],
   linen_hood: [

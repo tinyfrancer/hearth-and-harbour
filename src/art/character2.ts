@@ -134,8 +134,9 @@ export const ITEM_LAYERS2: Readonly<Record<string, string>> = {
 };
 
 /**
- * Tier 2's knight, by gear id: drawn, waiting for tier 2's items. When lane A
- * adds them, each item id gets a row in `ITEM_LAYERS2` pointing at one of these.
+ * Tier 2's knight, by gear id: drawn in salt-iron (B19). Each tier 2 item id
+ * gets a row in `ITEM_LAYERS2` pointing at one of these. `knight_helm` (B19,
+ * appended) is his bascinet; the first five keep their order.
  */
 export const KNIGHT_GEAR2: readonly string[] = [
   'knight_plate',
@@ -143,6 +144,7 @@ export const KNIGHT_GEAR2: readonly string[] = [
   'red_cloak',
   'kite_shield',
   'knight_sword',
+  'knight_helm',
 ];
 
 /** What everyone has on under their gear: the tunic, trousers, boots and belt, unless replaced. */

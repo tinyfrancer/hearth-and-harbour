@@ -125,6 +125,11 @@ export const RAMPS = {
   // The general store's velvet cap (B10b): the C-scale figure's plum, a
   // sheen, the field and two shadows, for its icon.
   velvet: ['#e8a8c8', '#b86a9c', '#844276', '#55284c'],
+
+  // Tier 2's salt-iron (B19), for its icons: the C-scale ramp's steps (town2/ramps.ts), a salt
+  // bloom, the sea-green steel's light, field and shadow, and its deep (pits and the shadow side). Set by hand by day
+  // and at dusk (below), as the figures' are, so an icon and the worn piece are one metal.
+  saltiron: ['#ffffff', '#c6e2d8', '#92bcb8', '#6a96a0', '#3c5a74'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;
@@ -271,7 +276,15 @@ function makePalette(
   return { name, lightsOn, colours: { ...colours, ...fixed } };
 }
 
-export const DAY: Palette = makePalette('day', DAY_SHIFT, false, { ink1: '#1a1224' });
+export const DAY: Palette = makePalette('day', DAY_SHIFT, false, {
+  ink1: '#1a1224',
+  // B19: shifted, salt-iron's bloom goes lime; these are the figures' own day steps.
+  saltiron1: '#e6eee0',
+  saltiron2: '#a8cec4',
+  saltiron3: '#7aa8a6',
+  saltiron4: '#5a8590',
+  saltiron5: '#365270',
+});
 
 /**
  * Dusk, with the mock-up's lit and kept-bright steps. Windows and lamps are
@@ -306,6 +319,11 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   shell2: '#b88aa0',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
+  saltiron1: '#e4ecec',
+  saltiron2: '#9cbcc0',
+  saltiron3: '#6e8e9a',
+  saltiron4: '#53687c',
+  saltiron5: '#333e5a',
 });
 
 export const PALETTES: readonly Palette[] = [DAY, DUSK];

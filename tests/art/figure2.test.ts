@@ -435,7 +435,7 @@ const RUNGS = {
   iron: ['iron_helmet', 'iron_breastplate', 'iron_shield', 'iron_sword'],
 } as const;
 const metal = (g: TGrid) =>
-  count(g, (c) => ['bronze', 'iron', 'plate'].includes(matOf(c) as string));
+  count(g, (c) => ['bronze', 'iron', 'plate', 'saltiron'].includes(matOf(c) as string));
 
 describe('the gear ladder at the C scale', () => {
   it('makes each rung its own picture and each richer than the last', () => {
@@ -462,7 +462,10 @@ describe('the gear ladder at the C scale', () => {
     // From the knight on, a higher rung shows heavier metal, not more of it: polished plate, white where the light strikes.
     expect(knight).toBeGreaterThan(bronze);
     const glints = (g: TGrid) =>
-      count(g, (c) => ['plate', 'iron'].includes(matOf(c) as string) && stepOf(c) === 0);
+      count(
+        g,
+        (c) => ['plate', 'iron', 'saltiron'].includes(matOf(c) as string) && stepOf(c) === 0,
+      );
     expect(glints(rungs[4]!)).toBeGreaterThan(glints(rungs[3]!) * 1.5);
     // Colour arrives with the knight: a cloak, a painted shield, gilding.
     const trim = (g: TGrid) =>
