@@ -348,7 +348,9 @@ describe('settling a run that meets challenges', () => {
     expect(clearRewards(after, clear, CONTENT)).toEqual({ firstClear: [], challenges: [] });
     // A run that did not clear, a landing to come, or no tables: nothing.
     expect(clearRewards(start, { ...clear, cleared: undefined }, CONTENT).challenges).toEqual([]);
-    expect(clearRewards(start, { ...clear, cleared: 'thistlewood_burrow' }, CONTENT).firstClear).toEqual([]);
+    expect(
+      clearRewards(start, { ...clear, cleared: 'thistlewood_burrow' }, CONTENT).firstClear,
+    ).toEqual([]);
     expect(clearRewards(start, clear, undefined)).toEqual({ firstClear: [], challenges: [] });
   });
 

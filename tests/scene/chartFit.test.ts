@@ -121,7 +121,7 @@ describe('the chart’s panel on a phone', () => {
       close: () => {},
     });
     expect(panel.el.querySelector('.chart-map .chart-say')!.textContent).toBe('Pascoe: A line.');
-    panel.pick('unknown_1');
+    panel.pick('thistlewood_burrow');
     expect(panel.el.querySelector('.chart-medal')).toBeNull();
     expect(panel.el.querySelector('.chart-more .chart-unlock')).not.toBeNull();
   });

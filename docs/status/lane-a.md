@@ -23,7 +23,7 @@ burrow's row) first; PR 2 (tier 2's rows, pacing, menus) once lane B's art is on
     `thick_caps`, `fierce_brambles`, `swift_hounds`, `deep_gloom`; and `short_rations`). No idle
     rooms until lane C's plan exists. `unknown_2` now opens on the burrow's clear.
   - **A landing to come keeps its name back with real rows**: `dungeonName` (`src/core/
-    dungeons.ts`) gives "Uncharted waters" for a `comingSoon` row, which the collection log uses
+dungeons.ts`) gives "Uncharted waters" for a `comingSoon` row, which the collection log uses
     for its heading (its things listed as "?"); the bank's "From" leaves it out; the Combat
     page's bestiary, the Dungeons card, the day's modifier, first-clear rewards, challenges and
     idle runs already ignored a landing to come.
