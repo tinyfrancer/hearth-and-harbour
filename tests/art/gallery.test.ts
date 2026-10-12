@@ -14,6 +14,8 @@ describe('artGallery', () => {
     expect(buttons).toContain('See the title screen');
     // B19.
     expect(buttons).toContain('Draw tier 2');
+    // B20.
+    expect(buttons).toContain('Draw Thistlewood Burrow');
   });
 
   it('draws every picture at a whole number of device pixels', () => {

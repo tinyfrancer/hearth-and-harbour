@@ -1046,9 +1046,10 @@ lantern light against a cold blue-green dark.
 - **Spore clouds are never filled**: puffs of spores in clumps with the floor between them, denser
   at their rims, a low haze over the footprint, motes rising; the spores (`spore`, a sulphur green)
   glow faintly, so a cloud reads in the dark and never hides a mark drawn over it.
-- **Props belong to the warren**: toadstools (tawny caps, one or two little glowing ones), roots
-  arching out of the floor, a bramble mound, a mossy stone, a fallen log with a shelf of glowing
-  fungus, the throne's woven root wall (a tile-wide segment that runs on from the next) and the whole
+- **Props belong to the warren**: toadstools (tawny caps, one knot of three little glowing ones to
+  one side), roots arching out of the floor, a bramble mound, a mossy stone, a fallen log with a
+  shelf of ochre bracket fungus (unlit: two glows side by side on a prop read as a pair of eyes in
+  the dark, so a prop has one glowing knot or none), the throne's woven root wall (a tile-wide segment that runs on from the next) and the whole
   throne (a chair grown of roots, a faded cushion, a moth-eaten fur), a mushroom-folk dwelling with
   a lit window, the larder dug under a root, the court's bench, the king's banner (a crowned badger's
   head on purple). Each is lit from the upper left, outlined in its own darkest steps, and stands on
@@ -1074,9 +1075,26 @@ lantern light against a cold blue-green dark.
     thorax, feathered antennae. Its beat is the span of its wings foreshortening (spread, raised,
     lowered); telegraph: wings straight up over it, reared back; at a lantern its wings wrap forward
     over the flame, shedding glowing dust.
+  - **The badger king** (`dungeon2/badgerKing.ts`), the boss, a head and more over the hero and
+    broad: a grizzled grey badger standing upright in a violet robe with an ermine hem, front and
+    collar, a crimson sash, a gold crown on a long white-striped head. His white face is the
+    lightest thing on him, and his eyes shine back the light (`ember`), so in the dark he is a
+    pale wedge with two sparks. Three phases, each its own look: earth on him once he has been
+    under (phase 2), and in phase 3 his fur up in tufts, his hem torn, his teeth bared and his
+    eyes red. Telegraph: both fists raised high over the crown (tested: 8 rows over his idle top);
+    the strike brings them down before him. Moves: burrow (sinking through his own heap of earth),
+    erupt (bursting up through it), stunned (reeling, dazzled, feet where they stand).
 - **Faces** (`dungeon2/burrowFaces.ts`): the puff puffed up and indignant, the guard grim on duty
   under its brim, the hound snarling with a slit-pupilled ember eye, the moth rapt with two great
-  glowing eyes and its wings spread behind.
+  glowing eyes and its wings spread behind, the king crowned and haughty, his stripes running up
+  past the crown.
+- **On the chart**: the Burrow lands ashore west of the town (`thistlewood_burrow`), in a cove
+  under the old forest: a wash of moss-green, close-set pines drawn tree by tree, a river running
+  down out of it to the shore beside the landing. Its emblem is a crowned badger's head (black and
+  white with a gold crown), its locked silhouette the same head in ink.
+- **The gallery** has a Burrow section (`burrowGallery.ts`, drawn on a tap): lane C's rooms
+  dressed and lit three ways, the grounds, props, lantern states, clouds, mound and eruption, the
+  cast in every pose lit and dark, the king in his three phases, the faces and the chart.
 
 ### The harbour chart (B15)
 

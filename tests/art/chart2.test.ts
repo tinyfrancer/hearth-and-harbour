@@ -26,7 +26,15 @@ describe('the harbour chart (B15)', () => {
   it('has a landing for each dungeon and three to come, at sea by a shore, inside the frame and apart', () => {
     const c = harbourChart2();
     expect(Object.keys(c.landings).sort()).toEqual(
-      ['brinebeards_grotto', 'tidepool_cave', 'unknown_1', 'unknown_2', 'unknown_3'].sort(),
+      [
+        'brinebeards_grotto',
+        'tidepool_cave',
+        // B20: the Burrow's own landing, ashore under the old forest; the spare ones kept.
+        'thistlewood_burrow',
+        'unknown_1',
+        'unknown_2',
+        'unknown_3',
+      ].sort(),
     );
     const g = c.picture.grid;
     const points = [...Object.values(c.landings), c.home];
@@ -73,7 +81,11 @@ describe('the harbour chart (B15)', () => {
   });
 
   it('draws each dungeon’s emblem, and its silhouette in ink while it is locked', () => {
-    expect(CHART_EMBLEM2_IDS).toEqual(['brinebeards_grotto', 'tidepool_cave']);
+    expect(CHART_EMBLEM2_IDS).toEqual([
+      'brinebeards_grotto',
+      'tidepool_cave',
+      'thistlewood_burrow',
+    ]);
     for (const id of CHART_EMBLEM2_IDS) {
       const e = chartEmblem2(id)!;
       const s = chartEmblem2(id, true)!;

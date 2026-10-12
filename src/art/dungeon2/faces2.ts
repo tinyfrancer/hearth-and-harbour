@@ -570,6 +570,7 @@ const FACES2: Readonly<Record<string, FaceDef>> = {
   cap_guard: BURROWF.CAP_GUARD_FACE,
   bramble_hound: BURROWF.BRAMBLE_HOUND_FACE,
   lantern_moth: BURROWF.LANTERN_MOTH_FACE,
+  badger_king: BURROWF.BADGER_KING_FACE,
 };
 
 export const PORTRAIT2_IDS: readonly string[] = Object.keys(FACES2);
