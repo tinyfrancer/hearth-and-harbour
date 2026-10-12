@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: wave 18, part 2** (the menus: results card and toasts, a foldable Dungeons card, lane B's
-seal and sparkle), then Cody's review of wave 18.
+**Next: Cody's review of wave 18** (the grotto's days as fair trades, Short Rations, idle plays
+trade days plain, the folded Dungeons card), and whatever it asks for.
 
 ## Done
 
@@ -1172,6 +1172,33 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
     taken), pacing (the days by hand, the idle grotto never loses money on any day or over a
     night at 19 and 20).
 
+- Wave 18, part 2: the menus (same branch and PR). **Save version unchanged (11).**
+  - **Results first, notes after**: after a run by hand (`Shell.settleRun`) every toast and
+    achievement note is held while the player is on the Town tab (lane C's results card stays
+    clear on a phone on its side) and said together on the first screen of the menus; several
+    things said at once stay up 4.5 s instead of 3.
+  - **For the card**: `clearRewards(state, spoils, content)` (`src/core/run.ts`): what settling
+    will pay besides the run's own spoils, read before settling: the first-clear reward and each
+    challenge met for the first time with its reward as paid. `settleRun` now pays exactly that
+    (one rule, not two). With `spoilsUnder` the card can show everything the bank gets.
+  - **The Dungeons card folds**: each dungeon is one row to tap (56 px): lane B's
+    `dungeonSeal` once cleared (bronze; gold with every challenge done), the name, and a line
+    "Cleared · 1 of 4 challenges · Today: Thick Skulls" (or "Running idle"), turning at midnight
+    in place. Open, the row is what it was. Folded by default (open while it is running idle);
+    what the player opens is kept on the phone (`Prefs` key `dungeons-open`, not the save).
+    A medal won since the card last showed it plays lane B's `new` sparkle once (six frames at
+    90 ms, in the list and on the folded row); medals done when the app opened never sparkle.
+  - The card says a hero sent alone takes a hard day plain (for a dungeon with trade days).
+  - **Changed expectations**: `tests/ui/shell.test.ts`, three cases (a bounty finished by a run,
+    a first clear, a challenge met): their toasts and the clear's achievement are now looked for
+    after leaving the Town tab, and checked absent before. New: four Dungeons card cases in
+    `tests/ui/dungeonReplay.test.ts` (folding and remembered, seals, the sparkle once, the plain
+    hard day), and a `clearRewards` case in `tests/core/progress.test.ts`.
+  - **Checked** at 390 x 844 and 360 x 740, 3x, production build in headless Chromium:
+    `/home/claude/lane-shots/w18-a/` (folded and open). The class first chosen for the row's
+    title, `.dungeon-title`, is the scene's run title (absolute, transparent): renamed
+    `.dungeon-heading`.
+
 ## Deferred
 
 - Wave 14: greaves and the combat pins. **Done in wave 16** (Cody: "We can rebalance around the
@@ -1212,11 +1239,16 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
   pass on the new numbers as they are (measured above); tighten them to the new figures as you
   see fit, and add `short_rations` once (1) is in. (4) The grotto's careful player clears a plain
   day on only 40 of 48 seeds with 20 cod (your twelve are all clears): its margin is the cod, not
-  the modifiers.
+  the modifiers. (5) **The results card**: call `clearRewards(state, spoils, content)` (in
+  `src/core/run.ts`; re-export it) with the state as the run ends, before `shell.settleRun`, and
+  show its first-clear items and each challenge's reward beside `spoilsUnder`'s. The menus now
+  say nothing over the card: toasts and achievement notes wait until the player leaves the Town
+  tab, so the card is the only place a player sees these straight after a run.
 - **For lane B (wave 18)**: `short_rations` replaces `no_rations`; your matcher reads it as
-  `hungry` from "ration" (checked: the content/art id test passes). Its effects are `foodHeals:
-0.8` (new), `foeHealth: 0.9`, `loot: 1.1`; `modifierIconFor` is not needed for it while the id
-  matches. Every other id is unchanged.
+  `hungry` from "ration" (checked: the content/art id test passes). Its effects are
+  `foodHeals: 0.8` (new), `foeHealth: 0.9` and `loot: 1.1`. Every other id is unchanged.
+  `dungeonSeal` (both tiers) and the `new` medal's sparkle are now used on the Dungeons card,
+  the seal at `round(dpr × 1.5)` device pixels to an art pixel, about 48 CSS px wide.
 - **For lane C (wave 17)**: (1) fill `RunSpoils.stats` (all seven fields), `dungeon` and
   `modifier` in `spoilsOf`, so a kept run carries them too; (2) read `shell.todaysModifier?.(id)`
   once as a run rows out, keep it in the run, apply `foeUnder`/`heroMaxHitUnder` and `noFood`
@@ -1367,6 +1399,29 @@ was picked up with it (nothing is settled until the run ends).
   scene. Reloading to dodge a blow gets the snapshot at most a few seconds old, with the same
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
+
+### Weak list (wave 18)
+
+- Three grotto days (thick skulls aside from luck, quick tempers, spring tide) clear exactly 10
+  of lane C's 12 seeds: on the line. Over 48 seeds every day clears 38 to 42 times against a
+  plain day's 40, so they are as fair as a plain day, but a small change to the scene can tip a
+  12-seed count either way.
+- Each trade is gentle (a tenth to a fifth in any one way). "Harder in its own way" is real but
+  small: a minute and a half longer, or 10 to 40 more hit points, or one more fish. That is
+  what a dungeon run on its last cod allows; a bolder trade needs the player to carry more.
+- Short Rations plays nearly plain until lane C applies `foodUnder` (foes 10% weaker, loot 10%
+  more: briefly kinder than meant). Its food cost is small even when wired (one more fish at
+  the median, with 30 carried), as its foes have less health too. Its balance numbers are
+  measured with the cod's healing set by the test, not by the scene.
+- The spring tide is not monotonic for the bot: 1.3 times as fast is easier than 1.25 (less
+  waiting). 1.25 is the measured value.
+- Hard Tack is a goal for combat 45 or so in iron: real, but far off at tier 1.
+- Idle plays trade days plain, so the grotto's calendar means nothing idle; only the cave's kind
+  days change an idle run.
+- Notes held after a run wait until the player leaves the Town tab: someone who stays in town a
+  long while sees them late. Several held toasts are joined into one.
+- The new-medal sparkle is remembered only while the app is open: a reload before the card is
+  seen loses it (deliberately not in the save).
 
 ### Weak list (wave 17)
 

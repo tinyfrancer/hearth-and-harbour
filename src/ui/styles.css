@@ -2044,7 +2044,8 @@ button.card:active {
   outline-offset: 2px;
 }
 
-.dungeon-title {
+/* (Not `.dungeon-title`: the scene's run has one.) */
+.dungeon-heading {
   flex: 1;
   min-width: 0;
   gap: 2px;

@@ -314,11 +314,12 @@ export function dungeonsCard(
       },
       [
         cleared ? sealOf(dungeon, allDone) : h('span', { class: 'dungeon-seal none' }),
-        h('span', { class: 'stack tight dungeon-title' }, [
+        h('span', { class: 'stack tight dungeon-heading' }, [
           h('h3', { text: dungeon.name }),
           summary,
         ]),
-        done.length > 0 && h('span', { class: 'summary-medal' }, [medalOf(true, fresh.size > 0)]),
+        // A medal won since last shown sparkles here too, so a folded row still says so.
+        fresh.size > 0 && h('span', { class: 'summary-medal' }, [medalOf(true, true)]),
       ],
     );
     const row = h(
