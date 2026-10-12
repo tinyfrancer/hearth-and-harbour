@@ -19,7 +19,6 @@ import type { Thing } from './things';
 import { chartPanel, type ChartPanel } from './chartPanel';
 import {
   canSendIn,
-  chartRow,
   idleRunOf,
   sendIn,
   chartOpened,
@@ -30,6 +29,7 @@ import {
   todaysModifier,
 } from './fromLaneA';
 import { dimOf, runSpoils, type RunModifier } from './modifiers';
+import { clearCounts } from './runCard';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -632,8 +632,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     // Its modifier's rewards are paid by settling, never here. A landing still to come, rowed to
     // by `?burrow=1` for its review (`preview.ts`), is never counted cleared: a review save is not
     // moved on a tier by it.
-    const soon = !!chartRow(content, run.dungeon)?.comingSoon;
-    shell?.settleRun(runSpoils(run, run.ending === 'cleared' && !soon));
+    shell?.settleRun(runSpoils(run, clearCounts(content, run)));
     shell?.keepRun?.(null);
   };
 

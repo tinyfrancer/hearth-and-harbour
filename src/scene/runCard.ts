@@ -247,8 +247,15 @@ export interface RunReward {
  * each challenge met for the first time (`rewardOf`). Nothing for a run that
  * did not clear. Read from the character as the run ended, before settling.
  */
+/**
+ * Whether a run's clear counts: cleared, and not a landing still to come rowed
+ * to for its review (`preview.ts`), which settling never counts cleared.
+ */
+export const clearCounts = (content: Content, run: Run): boolean =>
+  run.ending === 'cleared' && !chartRow(content, run.dungeon)?.comingSoon;
+
 export function runRewards(content: Content, run: Run, state: GameState): RunReward[] {
-  if (run.ending !== 'cleared') return [];
+  if (!clearCounts(content, run)) return [];
   const out: RunReward[] = [];
   const def = chartRow(content, run.dungeon);
   const first = (state.dungeons[run.dungeon]?.clears ?? 0) === 0;
@@ -306,7 +313,8 @@ export function resultsCard(o: ResultsOptions): {
 } {
   const { content, run, state } = o;
   const stats = runStats(run);
-  const cleared = run.ending === 'cleared';
+  // As settling pays it: a review run of a landing to come is not counted cleared.
+  const cleared = clearCounts(content, run);
   const spoils = runSpoils(run, cleared);
   const paid = spoilsUnder(spoils, content);
   const plain = spoilsUnder({ ...spoils, modifier: null }, content);

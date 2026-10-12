@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { rewardOf } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 import { CONTENT } from '../../src/data';
-import { resultsCard, runRewards, rewardWords } from '../../src/scene/runCard';
+import { clearCounts, resultsCard, runRewards, rewardWords } from '../../src/scene/runCard';
 import { runStats } from '../../src/scene/modifiers';
 import { challengeMet } from '../../src/core/progress';
 import { novice, playCave } from './caveBot';
@@ -41,6 +41,12 @@ describe('the results card', () => {
     expect(runRewards(CONTENT, run, again)).toEqual([]);
     // A run that did not clear earns nothing on top.
     expect(runRewards(CONTENT, { ...run, ending: 'fell' }, fresh)).toEqual([]);
+    // Nor a clear of a landing still to come, rowed to for its review (`?burrow=1`): settling
+    // never counts it cleared, so the card promises nothing it will not pay.
+    const soon = Object.values(CONTENT.dungeons!).find((d) => d.comingSoon)!;
+    expect(clearCounts(CONTENT, run)).toBe(true);
+    expect(clearCounts(CONTENT, { ...run, dungeon: soon.id })).toBe(false);
+    expect(runRewards(CONTENT, { ...run, dungeon: soon.id }, fresh)).toEqual([]);
   }, 120_000);
 
   it('words a reward shortly', () => {
