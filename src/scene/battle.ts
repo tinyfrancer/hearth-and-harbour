@@ -43,6 +43,8 @@ import {
   CLOUD_BURN_MS,
   CLOUD_EVERY_MS,
   DARK_AIM,
+  DARK_GUARD,
+  DAZZLE_MS,
   LIGHT_MS,
   LIT_WARN_MS,
   TEND_REACH,
@@ -187,6 +189,8 @@ export interface Telegraph {
   readonly smashes?: true;
   /** A boss coming up out of the ground here as it lands. */
   readonly erupt?: true;
+  /** ...into a lantern's light, where it is dazzled (`DAZZLE_MS`). */
+  readonly dazzles?: true;
   /** An arc's direction (radians, from +x towards +y) and its width (radians). */
   readonly facing?: number;
   readonly spread?: number;
@@ -358,6 +362,8 @@ export type Effect =
   | { readonly kind: 'charge'; readonly at: Point; readonly to: Point; readonly from: number }
   /** A boss coming up out of the ground, here. */
   | { readonly kind: 'erupt'; readonly at: Point; readonly from: number }
+  /** A burrower come up into the light, dazzled: over its head. */
+  | { readonly kind: 'dazzled'; readonly at: Point; readonly from: number }
   | { readonly kind: 'say'; readonly who: string; readonly line: SayLine; readonly from: number };
 
 /** What the run has earned so far: paid in by `settleRun` however it ends. */
@@ -1003,14 +1009,25 @@ function fall(w: Work, dice: Dice, foe: Writable<Foe>, place: Place): void {
 }
 
 /** A foe's blow at the hero: Defence and Vitality earn from every attack, hit or miss. */
-function struck(w: Work, dice: Dice, def: MonsterDef, damage: number | null, hero: Point): void {
+function struck(
+  w: Work,
+  dice: Dice,
+  def: MonsterDef,
+  damage: number | null,
+  hero: Point,
+  place: Place,
+): void {
   const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
   earn(w, DEFENCE, earned);
   earn(w, VITALITY, Math.floor(earned / 2));
   let dealt = damage;
   if (dealt === null) {
+    // In the dark he does not see it coming (`light.ts`).
+    const guard = lightHere(place) && !inLight(w, place, hero) ? DARK_GUARD : 1;
     dealt =
-      dice.next() < hitChance(def.attack, w.fighter.defence) ? dice.between(1, def.maxHit) : 0;
+      dice.next() < hitChance(def.attack, w.fighter.defence * guard)
+        ? dice.between(1, def.maxHit)
+        : 0;
     if (dealt === 0) {
       effect(w, { kind: 'miss', at: hero, on: 'hero', from: w.clock });
       return;
@@ -1370,6 +1387,12 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       delete foe.under;
       foe.upUntil = w.clock + (kind.boss?.burrow?.upMs ?? 0);
       effect(w, { kind: 'erupt', at: t.at, from: w.clock });
+      if (t.dazzles) {
+        // Up into a lantern's light: dazzled, open to blows a while.
+        foe.stuck = w.clock + DAZZLE_MS;
+        foe.upUntil += DAZZLE_MS;
+        effect(w, { kind: 'dazzled', at: { x: t.at.x, y: t.at.y - kind.box.h }, from: w.clock });
+      }
     }
     if (w.over) return next;
   }
@@ -1611,7 +1634,7 @@ function act(
       foe.blowMs = Math.max(foe.blowMs, WINDUP_MS);
     } else if (foe.blowMs === 0) {
       foe.blowMs = def.speedMs;
-      struck(w, dice, def, null, hero);
+      struck(w, dice, def, null, hero, place);
       if (w.over) return true;
     }
   } else {
@@ -1961,6 +1984,7 @@ function erupt(
   const lit = w.lamps?.[place.room];
   const map = mapOf(w, place);
   let at = hero;
+  let dazzles = false;
   let nearest = Infinity;
   place.ground.lamps.forEach((l, i) => {
     if (!lit?.[i] || !inPool(l.cell, hero, shareOf(w))) return;
@@ -1969,6 +1993,7 @@ function erupt(
     if (spot && d < nearest) {
       nearest = d;
       at = spot;
+      dazzles = true;
     }
   });
   foe.heavy = {
@@ -1981,6 +2006,7 @@ function erupt(
     damage: burrow.times * def.maxHit,
     smashes: true,
     erupt: true,
+    ...(dazzles ? { dazzles: true as const } : {}),
   };
   foe.path = [at];
 }

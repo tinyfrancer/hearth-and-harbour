@@ -1024,6 +1024,9 @@ function drawEffectOver(
     case 'blocked':
       label(ctx, 'Blocked', e.at.x, e.at.y - 12 - rise, 14, C.metal2, k, WORDS);
       break;
+    case 'dazzled':
+      label(ctx, 'Dazzled!', e.at.x, e.at.y - 12 - rise, 15, C.flame, k, WORDS);
+      break;
     case 'interrupted':
       label(ctx, 'Put out!', hero.x, overHero - 4 - rise, 14, C.hurt, k, WORDS);
       break;
@@ -1803,7 +1806,7 @@ export function fightExtra(
       over.push({ x: x - 70, y: y - 48, w: 140, h: 58 });
     } else if (e.kind === 'splash') {
       over.push({ x: e.at.x - 50, y: e.at.y - HERO_TALL - 60, w: 100, h: 56 });
-    } else if (e.kind === 'reel' || e.kind === 'blocked') {
+    } else if (e.kind === 'reel' || e.kind === 'blocked' || e.kind === 'dazzled') {
       over.push({ x: e.at.x - 60, y: e.at.y - 70, w: 120, h: 60 });
     } else if (e.kind === 'interrupted') {
       over.push({ x: hero.x - 60, y: hero.y - HERO_TALL - 60, w: 120, h: 56 });

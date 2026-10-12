@@ -99,7 +99,7 @@ export const BURROW: DungeonPlan = {
       '#.....Q.........................M#',
       '#.........FF.........FF..........#',
       'b................................c',
-      '#..........::...........::...Y...#',
+      '#..........::...........::...Q...#',
       '#....FF.........FF..........FF...#',
       '#M.......:::.........:::........M#',
       '#MM...........OO..........V....MM#',
@@ -127,7 +127,7 @@ export const BURROW: DungeonPlan = {
       '#.....V..........................#',
       '#..........Q.........V...........#',
       '#U..........::...........::.....U#',
-      '#UU....::...........UU.......Y.UU#',
+      '#UU....::...........UU.......Q.UU#',
       '#UUUV.......UU.............UUVUUU#',
       '##################################',
     ],
@@ -218,11 +218,11 @@ export const BADGER_SAYS: Partial<Record<SayLine, string>> = {
 export const BURROW_STAND_IN_CAST: Readonly<Record<string, CastDef>> = Object.fromEntries(
   (
     [
-      ['spore_puff', 'Spore puff', 34, 34, 80, 50, 10, 2600],
-      ['lantern_moth', 'Lantern moth', 35, 22, 82, 58, 8, 2000],
-      ['cap_guard', 'Cap guard', 37, 64, 88, 66, 14, 2800],
-      ['bramble_hound', 'Bramble hound', 38, 54, 95, 55, 14, 2200],
-      ['badger_king', 'The Badger King', 44, 360, 108, 72, 20, 2800],
+      ['spore_puff', 'Spore puff', 34, 26, 76, 50, 10, 2600],
+      ['lantern_moth', 'Lantern moth', 35, 20, 78, 58, 8, 2000],
+      ['cap_guard', 'Cap guard', 37, 46, 84, 66, 14, 2800],
+      ['bramble_hound', 'Bramble hound', 38, 42, 90, 55, 14, 2200],
+      ['badger_king', 'The Badger King', 44, 260, 104, 72, 20, 2800],
     ] as const
   ).map(([id, name, level, hp, attack, defence, maxHit, speedMs]) => [
     id,

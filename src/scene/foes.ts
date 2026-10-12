@@ -211,7 +211,7 @@ export const BURROW_KINDS: Readonly<Record<string, FoeKind>> = {
       times: 2,
     },
     box: { w: 24, h: 40 },
-    guard: { turnMs: 900, recoverMs: 1300 },
+    guard: { turnMs: 1200, recoverMs: 1500 },
   },
   // A thorny beast that charges in a straight line through where you stood, to the wall: its
   // lane is marked; out of it, it sticks fast for a moment, open to a blow. A charge that ends
@@ -272,12 +272,12 @@ export const BURROW_KINDS: Readonly<Record<string, FoeKind>> = {
       ],
       burrow: {
         phases: [2],
-        firstMs: 2500,
-        everyMs: 4000,
+        firstMs: 2000,
+        everyMs: 2500,
         warnMs: 1700,
         radius: 34,
         times: 2,
-        upMs: 5000,
+        upMs: 6000,
       },
       rage: { phase: 3, pace: 1.35 },
     },

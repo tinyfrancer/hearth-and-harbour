@@ -15,9 +15,13 @@
  *   lights it in `LIGHT_MS`, striking nothing meanwhile. A blow that lands on
  *   him puts the match out (he must start again); any other order he gives
  *   ends it.
- * - In the dark his blows land `DARK_AIM` as often; a heavy blow made in the
- *   light is marked `LIT_WARN_MS` longer (seen coming). The mark itself is
- *   the same, lit or not, and never hidden.
+ * - In the dark he fights half blind: his blows land `DARK_AIM` as often, and
+ *   blows at him find him as if his defence were `DARK_GUARD` of itself. A
+ *   heavy blow made in the light is marked `LIT_WARN_MS` longer (seen
+ *   coming). The mark itself is the same, lit or not, and never hidden.
+ * - A boss that burrows comes up under him where he stands in the dark; in a
+ *   lantern's light it cannot, so it comes up at that lantern instead (which
+ *   it puts out) and is dazzled there for `DAZZLE_MS`, open to blows.
  * - Something that creeps (`FoeKind.creeps`) walks only in the dark: in a
  *   pool it holds still, though it still fights what comes into its reach.
  * - A moth (`FoeKind.seeksLight`) flies to the nearest burning lantern and
@@ -52,7 +56,11 @@ export const TEND_REACH = far(30);
 /** A darker day: every lantern lights this share as far. */
 export const DARKER_REACH = 0.75;
 /** In the dark, his blows land this much as often. */
-export const DARK_AIM = 0.8;
+export const DARK_AIM = 0.65;
+/** In the dark, blows at him find him as if his defence were this much of itself. */
+export const DARK_GUARD = 0.6;
+/** A burrower come up into a lantern's light is dazzled this long: it does nothing. */
+export const DAZZLE_MS = 2500;
 /** A heavy blow begun in the light is marked this much longer: it is seen coming. */
 export const LIT_WARN_MS = 500;
 /** How often a spore cloud hurts whoever stands in it. */
