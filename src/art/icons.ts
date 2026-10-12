@@ -146,6 +146,64 @@ export const ICON_FAMILIES: readonly {
       'broadhead_arrows',
     ],
   },
+  { name: 'Tier 2 woods', kind: 'item', ids: ['driftwood', 'elm_logs', 'yew_logs'] },
+  {
+    name: 'Tier 2 fish, raw and cooked',
+    kind: 'item',
+    ids: [
+      'raw_mackerel',
+      'raw_halibut',
+      'raw_swordfish',
+      'cooked_mackerel',
+      'cooked_halibut',
+      'cooked_swordfish',
+    ],
+  },
+  {
+    name: 'Silver and gold',
+    kind: 'item',
+    ids: ['silver_ore', 'gold_ore', 'silver_bar', 'gold_bar', 'silver_bangle', 'gold_amulet'],
+  },
+  {
+    name: 'Tier 2 forage, cloth and leather',
+    kind: 'item',
+    ids: [
+      'sea_holly',
+      'nettles',
+      'sea_glass',
+      'duskbloom',
+      'nettle_cloth',
+      'thick_hide',
+      'thick_leather',
+    ],
+  },
+  {
+    name: 'Tier 2 potions',
+    kind: 'item',
+    ids: ['holly_tonic', 'forgehand_draught', 'duskbloom_tincture', 'twilight_elixir'],
+  },
+  {
+    name: 'The ranger and the tier 2 bows',
+    kind: 'item',
+    ids: [
+      'ranger_hood',
+      'ranger_coat',
+      'ranger_bracers',
+      'driftwood_shortbow',
+      'elm_longbow',
+      'yew_longbow',
+    ],
+  },
+  {
+    name: 'Thistlewood’s Edge and the Deepthorn',
+    kind: 'item',
+    ids: ['ogre_maul', 'briar_charm', 'mossback_shield'],
+  },
+  {
+    name: 'Thistlewood Burrow',
+    kind: 'item',
+    ids: ['amber', 'thornwood_bow', 'capguard_helm', 'badger_crown'],
+  },
   { name: 'Skills', kind: 'skill', ids: SKILL_ICON_IDS },
 ];
 
