@@ -1,8 +1,9 @@
 # Lane C: scenes
 
-**Next session: Cody's review of wave 17** (wave 16's weak spots; S16 in play: run statistics,
-the day's modifier, challenges, the results card, Send him in), and whatever it asks for. The third
-dungeon is a plan module and a row ("Adding a dungeon", below).
+**Next session: Cody's review of wave 18** (every grotto day held to lane A's target, Short
+Rations wired, the chart's panel and the results card on a phone, a darker day that is dark, three in
+a knot, the tracker, Row out again, framing the foe being fought), and whatever it asks for. The
+third dungeon is a plan module and a row ("Adding a dungeon", below).
 
 ## The cave's map
 
@@ -90,6 +91,89 @@ target (`doorUnder`), and a tap or a held finger anywhere on it walks to that ce
   each one's post stands at the wall's foot, on the face over the floor.
 
 ## Done
+
+- **Wave 18: replay polish, on lane A's wave 18 trades (#79).** Two PRs: C18a (#80) changed the two
+  cases that read `no_rations` from the tables to give the no-food flag whole, so lane A's #79
+  could go green (checked on `main` and on `main` with #79 merged in); C18 (this one) the rest.
+  No grotto or cave rule, position, pace or number moved: `grottoRun`, `scaleTimeline`, `caveRun`,
+  `grottoRules` and every plain balance case pass with their expectations untouched. Review sheets
+  in `/home/claude/lane-shots/w18-c/`.
+  - **Every grotto day held to lane A's target** (`modifierRun.test.ts`, data-driven over the
+    grotto's pool, directions read from the effects, never the ids): cleared on at least 10 of 12
+    seeds by the careful player at combat 20, and harder than a plain day in its stated way: a
+    longer median clear (foes' health up, or the hero's blows softer) by at least a twenty-fifth,
+    more lost to blows (foes' damage or swing up, a faster tide) by at least a fiftieth, more food
+    eaten (food healing less) on the whole and by a seventh per hit point lost. Measured on `main`
+    (`modifiers.txt`): plain 12 of 12, 8.2 min, 406 lost; thick skulls 12, 9.8 min; angry crew 11,
+    422 lost; quick tempers 10, 441; spring tide 10, 447; short rations 11 (food per hit point
+    +28%); unlit lamps 11, 8.9 min. Every day meets it; quick tempers and spring tide sit on the
+    line. The no-food flag keeps its own case (0 of 12).
+  - **Short Rations wired once** (`modifiedFighter`, `modifiedHeals`, `foodShare` in
+    `modifiers.ts`): the food slot's fish and every kind found heal by lane A's `foodUnder` from
+    the moment the boat rows out (kept in the run, so a reload keeps it); the Eat button carries
+    "−20%" in its corner and says so to a screen reader; the chart and the results card word it
+    by lane A's `effectWords`; the statistics count what is eaten as before. A day of rewards alone
+    is still the same objects (a test).
+  - **The chart's panel on a phone** (`chartPanel.ts`): the sheet fills the Town tab and never
+    scrolls as a whole. Without scrolling: the map (cropped from above and below round the
+    landing picked, never shrunk: `chartShiftY`; 296 to 300 CSS tall at 390 x 844, 192 to 210 at
+    360 x 740), lane B's seal beside the name once cleared (gold with every challenge done) and the
+    state; today's modifier with its icon and plain effect; the challenges as a row of 48-pixel
+    medals (tap one for its words in a line over the day's, tap again to put it away; each says
+    its words to a screen reader), a medal done since the chart last showed it glinting once
+    (lane B's `'new'` frames; this page's memory); "Level 20 · you 19" beside them; Row out and
+    Send him in side by side. The rest (the line, clears and best time, what to bring, a warning,
+    an unlock) scrolls in its own box with a fade and "More ▾" while there is more. The
+    ferryman's word lies along the top of the map. The pennants are lane B's `chartPennant2`, as
+    before.
+  - **The results card** (`runCard.ts`, laid out for 844 x 390, 932 x 430 and 667 x 375): heading
+    and time along the top; how it went on the left (the line in two lines at the most, the
+    statistics flowing as many to a row as fit, each challenge met with "New!" and the glinting
+    medal); what it earns on the right (the first clear's and each new challenge's rewards on the
+    card itself, `runRewards`, as lane A's `settleRun` will pay them; the day's modifier on a line
+    of its own with its icon and what it added, its full effect on a long press; what comes home),
+    each column scrolling on its own if it must; Row out again and Back to town along the foot,
+    whole, 48 pixels, clear of the edge, inside the safe area.
+  - **A darker day looks and plays dark** (`grottoArt.ts`: `shadeAt`, `darkenPixels`, `HeroLight`,
+    `litness`; `inTheDark` in `fightArt.ts`): beyond the lanterns' smaller pools (lane B's pools
+    and their ragged edges) the floor goes toward the cave's night in two bands (to 0.6 of its
+    colour at a pool's edge, 0.3 beyond); props, barred doors and contact shadows as dark as the
+    ground they stand on; the hero carries a pool of his own (the floor as lane B's light leaves
+    it, its heart a step lighter, its edge a band); a foe out of every pool is drawn as a dim
+    shape. Heavy blows' rings, marked ground, health bars and words are drawn over it and never
+    dimmed, and the sea's warning stays a step darker than the ground round it (a test). The room
+    as a whole: 62 to 33 in mean luminance on the canvas (was 56 in wave 17: about a tenth). Plain
+    days pixel for pixel as before (a test; the same canvas luminance in the browser).
+  - **Three in a knot** (`apart.ts`): those the pairs' rule leaves overlapping, three or more joined
+    by overlaps, are looked at again where they are shown, the lower-ranked giving way further, to
+    a tile at the most as the knot draws tight (`APART_CHAIN`, `APART_TIGHT`). Two alone are drawn
+    exactly as before (a test over every distance). The cove arrangement that knotted: 21 pixels of
+    overlap left by the pairs' rule, 10 now (`knot-before-after.png`). Drawing only.
+  - **The tracker** in a 16-pixel hand, three lines at the most (`TRACKER_LINES`): what can still be
+    had first (one against the clock first of those), then waiting, met, lost last; its box 264 by
+    64 (`HUD_SIZES.tracker`; `hudFit.test.ts` still passes at every size).
+  - **Row out again** finds the first room still painted: the first room of a dungeon is never let
+    go during a run (`showRoom`), so going straight back from the card needs nothing painted.
+  - **A tap under a control is never needed** in a room the camera travels: from anywhere he
+    stands some cell nearer to any place in the room is in view and clear (`reachView.test.ts`,
+    every room at 844 x 390 with and without a notch and at 667 x 375); and the camera eases toward
+    framing the foe he fights (`framedFocus` in `hud.ts`, `targetBox` and `FRAME_SPEED` in
+    `dungeonView.ts`), so a bow's foe picked off below or to the side is never hidden under a
+    control (the test fails without it). Drawing only.
+  - **Lane B's optional pieces**: the bow lantern's pennant stirs (`pieceFrameAt`,
+    `town2PieceFrame`). Medium markers looked at over the square and the quay by day and at dusk
+    (`markers-small-medium.png`): in play the square shows few markers and the small ones read;
+    left small. The turned standing hero looked at true size on lane B's sheet: it reads as
+    squeezed in the face and the iron turned left reads oddly; the idle stays front-on.
+  - **Checked** in headless Chromium, production build, 3x, touch: the chart at 390 x 844 and
+    360 x 740 for both dungeons (Row out's top at 654 and 550, inside the sheet), a medal tapped;
+    the results card at 844 x 390 (first clear with its rewards), 932 x 430 (a repeat with new
+    challenges), 667 x 375 (a knock-out), and 844 x 390 with a notch's and home bar's safe area
+    (simulated by padding: `env()` cannot be set in Chromium); the grotto played through by its
+    scripted player at the controls of the real app on the day's modifier (the page's clock shifted
+    by whole days): Unlit Lamps cleared in 9:30 (342 lost, 16 eaten); Short Rations knocked out in
+    the cove at 7:18 with all 20 cod eaten (a level-19 save; the Eat button read "−20%" and its
+    fish healed 16, not 20); Thick Skulls cleared in 10:31; An Angry Crew in 8:05.
 
 - **Wave 17, second PR: S16 in play, on lane A's contract (#73) and lane B's pictures (#72).**
   Nothing here is a stand-in: a stand-in of the contract was written behind `fromLaneA.ts` while
@@ -1283,27 +1367,39 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 17)
+## Weak spots, honestly (wave 18)
 
-- **Three in a knot**: at high tide in the cove the hero, a deckhand and the captain can stand in
-  one knot, drawn over each other (`apart.ts` moves only the lower-ranked of each pair, by at most
-  14). Seen in the GIFs; not changed.
-- **The brace's reel is often small**: a foe's swing timer does not run during its wind-up, so
-  after a heavy blow it is often nearly full and the 2.4 s reel adds little. It now shows
-  ("Staggered!"); the rule and its number are as Cody was told.
-- **The cave with a notch** is drawn at 3x, not 4x (at 4x its doors would be under the notch). The
-  Leave button's confirm panel, when open, is not kept off the room (a choice is being made).
-- **A darker day is subtle**: smaller pools, about a tenth darker on the whole.
-- **The tracker** uses a 13-pixel hand to fit four lines in its box; a dungeon with five
-  challenges would show four.
-- **Row out again** settles the run first and rows straight back; the first room is painted again
-  if it was let go, behind the results card's "Rowing out" line.
-- **No rations**: see Needs. The modifier balance cases hold lane A's numbers as they are; most of
-  the grotto's are much harder than a plain day for the scripted player (2 to 9 clears of 12).
-- **The grotto's rooms travel**: a cell far from the hero can be under a control until he walks
-  toward it; he and the ground under him never are (`hudFit.test.ts`).
-- **Safe areas** are read from CSS (`env()`) and checked in Chromium with made-up numbers; not on a
-  notched iPhone.
+- **Two grotto days sit on the line**: quick tempers and spring tide clear exactly 10 of 12 for the
+  scripted player; a change that costs one seed breaks the target case (a decision, as it should).
+- **Short Rations' cost is small in fish**: the careful player eats 19 or 20 of 20 cod either way,
+  so the trade shows per hit point lost (+28%) and only a little on the whole; its foes' tenth less
+  health makes its clears quicker than a plain day's.
+- **The dark is a colour shift, not more steps**: lane B's ramps reach their darkest a step or two
+  past the scheme's own dark, too light for "dark", so the darker day takes pixels toward the
+  cave's night by two bands with lane B's pool shapes and ragged edges. The floor keeps its hues;
+  it is not lane B's step rule. If lane B would rather own a night ramp, the bands are one
+  function (`shadeAt`/`darkenPixels`).
+- **A foe is dimmed whole, by its feet**: one half in a pool is all lit or all dim; it changes as
+  its feet cross a pool's edge (lit, edge, dark: three looks, no fade).
+- **The hero's own pool** is recut when he moves a pixel (a small canvas, about 110 by 70): fine in
+  headless Chromium; not timed on a phone.
+- **The knot** still leaves some overlap when three stand almost on one spot (a tile is the most
+  anyone is moved); the hero's shield can still lie over a deckhand's arm.
+- **The chart's "new" medal** is this page's memory: a medal done before a reload is not new after
+  it. The "More ▾" cue is drawn over the last line of the details box until scrolled.
+- **The results card**'s modifier line keeps the full effect for a long press (`title`), which a
+  phone does not show; the chart shows it in full before rowing out. Its right column scrolls on
+  its own when a first clear's rewards are long (with a notch at 844 x 390 the last skill's line is
+  below the fold), with no cue that it does.
+- **Camera framing** eases at a quarter of an art pixel a millisecond; the camera can drift while
+  fighting a foe at the edge of the view (drawing only, never the fight).
+- **The first room kept painted** costs its pictures' memory all run (the grotto's pools: seven
+  states, about 8 MB of canvases).
+- **Lane A's reward toasts** still cover the results card on a phone on its side for a few seconds
+  (`results-first-844x390-toasts.png`); the card shows the same rewards now (Needs).
+- From wave 17, still so: the brace's reel is often small; the cave with a notch is drawn at 3x;
+  the Leave button's confirm panel is not kept off the room; safe areas are read from CSS and
+  checked in Chromium with made-up numbers, not on a notched iPhone.
 - From wave 14 to 16, still so: a tap on a barred door walks him to the cell inside it; the 1x face
   is cut to its safe box; the town's ship, boat and buoys do not bob; the chart is day only; what a
   reload takes back is up to a frame old; the browser playthroughs are by a tap-script player.
@@ -1311,6 +1407,10 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   checked in WebKit or Safari, nor on the live site (unreachable from here).
 
 ## Deferred
+
+- From wave 18: the chart's "new" medal kept beyond the page (it would need a remembered key a
+  medal); a darker day by lane B's own steps (needs a night ramp); a dark day for the cave (it
+  draws only kind days); the turned standing hero for idle (it reads as squeezed).
 
 - From wave 15, now done: the lessons and the pan remembered beyond the page (lane A's save
   version 10); a hero who steps out walking back by himself.
@@ -1335,20 +1435,22 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Needs from another lane
 
-- **Lane A (wave 17)**: (1) **No rations makes the grotto unclearable** for the careful scripted
-  player at the recommended level and well above it (0 of 12 at combat 20 and at 28): the grotto is
-  balanced on eating what is brought. Likewise its "Hard Tack" challenge (clear without eating).
-  Held in `modifierRun.test.ts` so a change is seen. (2) Your toasts (achievements, challenge
-  rewards) cover most of the results card on a phone on its side for several seconds
-  (`results-cave-first-clear-toasts.png`). (3) `damageTaken` here is hit points lost to blows and
-  heavy blows (after a brace's halving), not the sea's wash; `stepOuts` counts cannon volleys as
-  heavy blows too. Say if either should differ. (4) When part 2 lands: the chart calls
-  `shell.sendIdle` and reads `GameState.idleRun`; the dungeons need their `idle` rows for Send him
-  in to show.
-- **Lane B (wave 17)**: nothing blocking. The diagonal pointers, modifier and challenge icons,
-  medals and the pennant are in use. A darker day is the existing light code with smaller pools
-  (a tenth darker on the whole, by measure); if it should read darker still, the scheme's
-  `darkSteps` for a darker day would be the lever.
+- **Lane A (wave 18)**: (1) The results card now shows the first clear's and each new challenge's
+  rewards itself (`runRewards`: `DungeonDef.firstClear` once, `rewardOf` for each challenge met
+  for the first time); your reward toasts still cover most of the card on a phone on its side for a
+  few seconds. Could they wait until the card is gone, or be left out while it shows? If
+  `settleRun` comes to pay anything else on a clear, say so and the card shows it. (2) Short
+  Rations is wired through your `foodUnder` (slot and found food, as the run starts). (3) Two grotto
+  days sit exactly on your target for the scripted player (quick tempers and spring tide, 10 of
+  12): the target case will fail if either loses a seed. (4) Unchanged from wave 17: `damageTaken`
+  is hit points lost to blows and heavy blows (after a brace's halving), not the sea's wash;
+  `stepOuts` counts cannon volleys as heavy blows too.
+- **Lane B (wave 18)**: nothing blocking. Used: `dungeonSeal` (the chart's name line), the `'new'`
+  medal (the chart and the results card), `chartPennant2`, the bow lantern's pennant frames. Not
+  used, by looking: medium markers (the small read in play), the turned standing hero (squeezed at
+  true size). The darker day's dark is this lane's own two bands toward a night colour, over your
+  pools' shapes and ragged edges; a night ramp of your own (a step or two darker than step 5 for
+  the cave's materials) would let it be your step rule instead.
 - **Lane A:** (1) `tests/data/cave.ts` models the pool room with four rats; the scene now has
   three there (four in all, with the landing's). Your model counts one rat more than the cave
   holds, which only makes it more careful; bring it to three if you want it exact. (2) Nothing
@@ -1378,6 +1480,22 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
    card, the chart and the boat take any dungeon the registry knows.
 
 ## Notes for this lane's next session
+
+- **Wave 18's pieces:** `chartShiftY`, `forgetMedalsSeen`, `levelWords` (`chartPanel.ts`);
+  `chartSeal`, `pieceFrameAt` (`fromLaneB.ts`); `runRewards`, `rewardWords`, `trackerShown`,
+  `TRACKER_LINES` (`runCard.ts`); `modifiedHeals`, `foodShare` (`modifiers.ts`), lane A's
+  `foodUnder` as `foodHealsUnder` (`fromLaneA.ts`); `shadeAt`, `litness`, `darkenPixels`,
+  `darkenCanvas`, `isDark`, `HeroLight`, `IN_THE_DARK`, `NIGHT_RGB`, `POOL_EDGE`, `HERO_POOL`
+  (`grottoArt.ts`), `inTheDark` (`fightArt.ts`), `CaveShadow.at`'s `shade`; `APART_CHAIN`,
+  `APART_TIGHT`, `APART_ROUNDS` and `shownApart`'s `rounds` (`apart.ts`); `framedFocus`,
+  `FRAME_MARGIN` (`hud.ts`), `targetBox`, `FRAME_SPEED` (`dungeonView.ts`). The bots take a
+  modifier by id or whole (`modifierOf`).
+- **Measuring (wave 18):** the scratch harness as before (`.shots/` with `perf.html`, `hooks.ts`,
+  `vite.perf.ts`), built and served from a folder of its own (the serving folder is refilled, never
+  deleted, so a running `http.server` keeps serving it). A day's modifier in the browser: shift the
+  page's `Date` by whole days in an init script registered before the save's (`playday.mjs`); the
+  grotto's pool comes round in a shuffled order, so find the day with `modifierOn` first. A plain
+  day's pixels: the canvas's mean luminance, before and after, on the same save.
 
 - **Wave 17's pieces:** `hud.ts` (`hudLayout`, `hudBands`, `roomFit`, `mustSee`, `HUD_SIZES`: any
   new control on a run's screen gets a box there and a case in `hudFit.test.ts`); the stage's
