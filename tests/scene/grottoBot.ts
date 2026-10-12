@@ -9,6 +9,7 @@
  */
 import { newGame, type GameState } from '../../src/core/state';
 import { xpForLevel as lvl } from '../../src/core/xp';
+import { effectsOf } from '../../src/core/progress';
 import { CONTENT } from '../../src/data';
 import {
   abilityProblem,
@@ -92,12 +93,19 @@ export function halfStrength(cod = 20): GameState {
 
 export const MONSTERS = { ...CONTENT.monsters, ...GROTTO_CAST };
 
-export function begin(state: GameState, seed: number, known?: Iterable<string>): Run {
+export function begin(
+  state: GameState,
+  seed: number,
+  known?: Iterable<string>,
+  modifier?: string,
+): Run {
   return startRun(GROTTO_DUNGEON, {
     fighter: fighterOf(state, CONTENT),
     monsters: MONSTERS,
     seed,
     known: known ?? Object.keys(CONTENT.items),
+    // Under a day's modifier (S16), as the boat rows out with it; none for every older case.
+    ...(modifier ? { modifier: { id: modifier, effects: effectsOf(CONTENT, modifier) } } : {}),
   });
 }
 
@@ -341,11 +349,13 @@ export function playThrough(
     readonly reactMs?: number;
     /** Brace every heavy blow he can, rather than step out (wave 17). */
     readonly brace?: boolean;
+    /** Under this day's modifier (S16). */
+    readonly modifier?: string;
   } = {},
 ): Outcome {
   reaction = options.reactMs ?? 0;
   bracing = options.brace ?? false;
-  let run = begin(state, seed, options.known);
+  let run = begin(state, seed, options.known, options.modifier);
   const rooms: Record<string, number> = {};
   const ate: Record<string, number> = {};
   const hurt: Record<string, number> = {};

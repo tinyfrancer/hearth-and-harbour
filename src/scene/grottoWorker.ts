@@ -18,6 +18,8 @@ export interface GroundRequest {
   readonly room: string;
   readonly level: number;
   readonly warn: boolean;
+  /** A darker day's light (`Room.dim`); all of it when absent. */
+  readonly dim?: number;
 }
 
 /** What comes back: the cells and pixels of that ground, `w` x `h`. */
@@ -54,8 +56,10 @@ scope.onmessage = (event) => {
     dungeon = buildDungeon(plan);
     dungeons.set(which, dungeon);
   }
-  const r = dungeon.rooms[room];
-  if (!r) return;
+  const plain = dungeon.rooms[room];
+  if (!plain) return;
+  const dim = event.data.dim;
+  const r = dim !== undefined && dim !== 1 ? { ...plain, dim } : plain;
   const { cells, data, doors } = groundPixels(r, level, warn);
   const flat = doors.map((d) => ({
     letter: d.letter,

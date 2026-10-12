@@ -20,10 +20,22 @@ import {
   chartDot,
   chartEmblem,
   chartMarker,
+  chartPennant,
   chartRoute,
+  challengeMedal,
   harbourChart,
+  modifierIcon,
+  PENNANT_FRAME_MS,
   type ChartPiece,
 } from './fromLaneB';
+import {
+  challengeDone,
+  challengesOf,
+  effectWords,
+  idleRunOf,
+  mayIdle,
+  modifierDef,
+} from './fromLaneA';
 import type { Point } from './tileMap';
 
 export interface ChartPanelOptions {
@@ -37,6 +49,13 @@ export interface ChartPanelOptions {
   close(): void;
   /** A landing was picked: its first room can be painted ahead. */
   picked?(id: string): void;
+  /** Today's modifier on a dungeon (a modifier id), or null: the shell's, by its clock (S16). */
+  today?(id: string): string | null;
+  /**
+   * Sends the hero through a cleared dungeon unattended (lane A's idle run);
+   * left out, the chart offers no such button.
+   */
+  sendIn?(id: string): void;
 }
 
 export interface ChartPanel {
@@ -201,6 +220,47 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
           : 'Not yet cleared';
     const go = l.rowable ? button('Row out', () => o.rowOut(l.id), 'primary') : null;
     if (go) go.classList.add('chart-row');
+    // S16: the day's modifier, the dungeon's challenges, and sending him in once it is cleared.
+    const open = l.state === 'open' || l.state === 'cleared';
+    const todayId = open ? (o.today?.(l.id) ?? null) : null;
+    const today = todayId ? modifierDef(o.content, todayId) : undefined;
+    const day = today
+      ? h('div', { class: 'chart-day', attrs: { 'data-modifier': today.id } }, [
+          h('span', { class: 'chart-day-icon' }, [modifierIcon(today.id)]),
+          h('span', { class: 'chart-day-body' }, [
+            h('span', { class: 'chart-day-name', text: `Today: ${today.name}` }),
+            h('span', {
+              class: 'chart-day-words',
+              text: effectWords(today.effects).join('. ') + '.',
+            }),
+          ]),
+        ])
+      : null;
+    const challenges = open ? challengesOf(o.content, l.id) : [];
+    const goals = challenges.length
+      ? h(
+          'ul',
+          { class: 'chart-goals', attrs: { 'aria-label': 'Challenges' } },
+          challenges.map((c) => {
+            const done = challengeDone(state, l.id, c.id);
+            return h('li', { attrs: { 'data-done': String(done) } }, [
+              h('span', { class: 'chart-goal-medal' }, [challengeMedal(done ? 'done' : 'todo')]),
+              h('span', { class: 'chart-goal-body' }, [
+                h('span', { class: 'chart-goal-name', text: c.name }),
+                h('span', { class: 'chart-goal-text', text: done ? `${c.text} Done.` : c.text }),
+              ]),
+            ]);
+          }),
+        )
+      : null;
+    const away = idleRunOf(state);
+    const send =
+      o.sendIn && mayIdle(state, l.id, o.content)
+        ? away === l.id
+          ? h('p', { class: 'chart-away', text: 'He is away there now, running it on his own.' })
+          : button('Send him in', () => o.sendIn!(l.id))
+        : null;
+    if (send instanceof HTMLButtonElement) send.classList.add('chart-send');
     const parts: (HTMLElement | null)[] = [
       h('h3', { text: l.name ?? 'Uncharted waters' }),
       h('p', {
@@ -223,6 +283,9 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
       l.state === 'open' || l.state === 'cleared'
         ? h('p', { class: 'chart-bring', text: whatToBring(state, l) })
         : null,
+      day,
+      goals,
+      send,
       go,
     ];
     detail.replaceChildren(...parts.filter((p): p is HTMLElement => p !== null));
@@ -246,6 +309,14 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
   }
 
   let ctx: CanvasRenderingContext2D | null | undefined;
+  /** The landings with a modifier today, and the pennants' frame as drawn and as due. */
+  const pennants = new Set(
+    list
+      .filter((l) => (l.state === 'open' || l.state === 'cleared') && o.today?.(l.id))
+      .map((l) => l.id),
+  );
+  let pennantFrame = 0;
+  let pennantDrawn = 0;
   /** How much of the route was last drawn: drawn again only when it moves. */
   let drawn = -1;
   const lay = (c: CanvasRenderingContext2D, p: ChartPiece | null, at: Point): void => {
@@ -255,8 +326,9 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     const l = list.find((x) => x.id === chosen);
     const dots = l ? routeShort(chartRoute(map.home, l.at), l.at) : [];
     const n = Math.round(dots.length * shown);
-    if (n === drawn) return;
+    if (n === drawn && pennantFrame === pennantDrawn) return;
     drawn = n;
+    pennantDrawn = pennantFrame;
     if (ctx === undefined) {
       try {
         ctx = marks.getContext('2d');
@@ -281,6 +353,8 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     }
     // Each landing's marker standing on it, its emblem beside it; the picked one ringed.
     for (const x of list) {
+      // A pennant beside a landing that has a modifier today (lane B's, B17a).
+      if (pennants.has(x.id)) lay(c, chartPennant(pennantFrame), { x: x.at.x - 8, y: x.at.y });
       lay(c, chartMarker(x.state), x.at);
       const emblem = x.state === 'soon' ? null : chartEmblem(x.id, x.state === 'locked');
       lay(c, emblem, { x: x.at.x + 16, y: x.at.y - 6 });
@@ -311,6 +385,7 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
         return;
       }
       pickedAt ??= now;
+      if (pennants.size) pennantFrame = Math.floor(now / PENNANT_FRAME_MS);
       drawMarks(routeShown(now - pickedAt));
     },
     picked: () => chosen,

@@ -68,4 +68,6 @@ export const KEYS = {
   lesson: (dungeon: string, id: string) => `${dungeon}.lesson.${id}`,
   /** "Skip tips" pressed in a dungeon, by its short name. */
   tipsOff: (dungeon: string) => `${dungeon}.tips.off`,
+  /** The challenges' tracker folded in a run: it starts folded from then on. */
+  trackerOff: 'run.tracker.off',
 } as const;

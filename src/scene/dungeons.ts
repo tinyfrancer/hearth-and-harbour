@@ -108,9 +108,32 @@ export function dungeonById(id: string): Dungeon | null {
   return made;
 }
 
+const dimmed = new Map<string, Dungeon>();
+
+/**
+ * A dungeon as a darker day shows it (`Room.dim`): the same rooms, ground
+ * and doors, their lights laying smaller pools. Drawing only: every rule
+ * reads the same ground. The dungeon itself at `dim` 1.
+ */
+export function dimDungeon(dungeon: Dungeon, dim: number): Dungeon {
+  if (dim === 1) return dungeon;
+  const key = `${dungeon.id} ${dim}`;
+  let made = dimmed.get(key);
+  if (!made) {
+    made = {
+      ...dungeon,
+      rooms: Object.fromEntries(
+        Object.entries(dungeon.rooms).map(([id, room]) => [id, { ...room, dim }]),
+      ),
+    };
+    dimmed.set(key, made);
+  }
+  return made;
+}
+
 /** Every dungeon built so far this page: for letting their rooms' pictures go. */
 export function builtDungeons(): readonly Dungeon[] {
-  return [...built.values()];
+  return [...built.values(), ...dimmed.values()];
 }
 
 /**

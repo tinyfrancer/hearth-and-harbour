@@ -53,13 +53,23 @@ export interface TideNow {
 }
 
 /** The shared tide at `clock` (the run's own clock, in ms). */
-export function cycleTide(clock: number): TideNow {
-  const into = (((clock + TIDE_START) % TIDE_PERIOD) + TIDE_PERIOD) % TIDE_PERIOD;
+export function cycleTide(clock: number, pace = 1): TideNow {
+  // A faster tide (a day's modifier) runs its cycle on a quicker clock; at 1, the clock itself.
+  const t = pace === 1 ? clock : clock * pace;
+  const into = (((t + TIDE_START) % TIDE_PERIOD) + TIDE_PERIOD) % TIDE_PERIOD;
   let start = 0;
   for (let i = 0; i < TIDE_CYCLE.length; i++) {
     const step = TIDE_CYCLE[i]!;
     if (into < start + step.ms) {
       const following = TIDE_CYCLE[(i + 1) % TIDE_CYCLE.length]!;
+      if (pace !== 1) {
+        const since = clock - (into - start) / pace;
+        return {
+          level: step.level,
+          since,
+          next: { level: following.level, at: since + step.ms / pace },
+        };
+      }
       const since = clock - (into - start);
       return { level: step.level, since, next: { level: following.level, at: since + step.ms } };
     }

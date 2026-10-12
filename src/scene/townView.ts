@@ -1,12 +1,13 @@
+import type { Palette } from '../art/palette';
 import type { Content } from '../core/content';
 import type { GameState } from '../core/state';
 import { h } from '../ui/dom';
 import type { Shell, View } from '../ui/view';
 import { other, timeOfDayAt, type TimeOfDay } from './daylight';
 import { seedFrom } from '../core/rng';
-import { fighterOf, spoilsOf } from './battle';
+import { fighterOf } from './battle';
 import { startRun, type Dungeon, type Run } from './dungeon';
-import { builtDungeons, castOf, dungeonById, dungeonScene, healsOf } from './dungeons';
+import { builtDungeons, castOf, dimDungeon, dungeonById, dungeonScene, healsOf } from './dungeons';
 import { dungeonView } from './dungeonView';
 import { startLessons } from './lessons';
 import { closePanel, startPlay, visitsTo, type Play } from './play';
@@ -16,7 +17,18 @@ import { stage } from './stage';
 import type { Cell, Point } from './tileMap';
 import type { Thing } from './things';
 import { chartPanel, type ChartPanel } from './chartPanel';
-import { chartOpened, dungeonsInOrder, dungeonStatus, takeRequest } from './fromLaneA';
+import {
+  canSendIn,
+  idleRunOf,
+  sendIn,
+  chartOpened,
+  dungeonsInOrder,
+  dungeonStatus,
+  effectsOf,
+  takeRequest,
+  todaysModifier,
+} from './fromLaneA';
+import { dimOf, runSpoils, type RunModifier } from './modifiers';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -136,11 +148,21 @@ export function runMark(run: Run): string {
  */
 const asked = { paused: false, full: false };
 
+/** What the ferryman says while the hero is away in the boat, running a dungeon on his own. */
+export const FERRYMAN_AWAY =
+  'The boat’s out on your standing orders. Knows the way by now. I just wave it off and count the oars back.';
+
 /** Where the boat leaves from and lands: on the quay beside it, looking at it (24-pixel tiles). */
 export const BOAT_LANDING: Cell = BOAT_LANDING2;
 
 /** A dungeon this scene can play, by id (`dungeons.ts`); null for one it does not know. */
 const dungeons = (id: string): Dungeon | null => dungeonById(id);
+
+/** A run's dungeon as its day shows it: dimmer on a darker day (drawing only). */
+const dungeonOf = (run: Run): Dungeon | null => {
+  const plain = dungeons(run.dungeon);
+  return plain && dimDungeon(plain, dimOf(run.modifier?.effects));
+};
 
 const now = (): TimeOfDay => chosen ?? timeOfDayAt(new Date().getHours());
 
@@ -224,6 +246,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
 
   const host = h('div', { class: 'scene-host' });
   let current: View;
+  /** Whether the town is what shows (else a run, or its results while the boat rows out again). */
+  let inTown = true;
   /** Over the town until its first picture is in. */
   let loading: ReturnType<typeof loadingCard> | null = null;
 
@@ -245,6 +269,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   };
 
   const showTown = (): void => {
+    inTown = true;
     if (!townReady()) {
       showComing();
       return;
@@ -309,8 +334,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         };
         const per = seenNow.cssPerArt > 0 ? seenNow.cssPerArt : 1;
         const sun = SCENE_BUTTONS.light;
+        // Away in the boat, running a dungeon unattended: nothing points at an empty mooring.
+        const gone = away();
         const pointer =
-          panFrom !== null
+          panFrom !== null || gone
             ? null
             : boatPointer(
                 view,
@@ -335,8 +362,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
             now: clockNow ?? stageNow,
             marks: {
               people: PEOPLE,
-              somewhereNew: somewhereNew(),
+              somewhereNew: somewhereNew() && !gone,
               panelOpen: open,
+              away: gone,
               hero: {
                 x: shown.walker.at.x - 14,
                 y: shown.walker.at.y - 66,
@@ -349,6 +377,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
             },
             ring: ringedNow,
             pointer,
+            away: gone ? waterOf(palette) : null,
           },
           palette,
         );
@@ -405,6 +434,15 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   /** The harbour chart, while it is open, and which thing opened it. */
   let chart: (ChartPanel & { for: string }) | null = null;
 
+  /** The hero is away running a dungeon unattended (lane A's idle run): the boat is out. */
+  const away = (): boolean => idleRunOf(latest) !== null;
+
+  /** The town's still in this palette, for the open water laid over the empty mooring. */
+  const waterOf = (palette: Palette): { water: CanvasImageSource } | null => {
+    const still = art2Now()?.still(palette)?.still;
+    return still ? { water: still as CanvasImageSource } : null;
+  };
+
   /**
    * Somewhere on the chart is open and has never been rowed to: not cleared
    * (the save's clears), and not rowed out to this page.
@@ -421,7 +459,12 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (chart) return;
     const thing = town2Scene().things.find((t) => t.id === by);
     const use = thing?.use;
-    const line = use && by === 'ferryman' ? sayingFor(use, now(), visitsTo(shownPlay(), by)) : null;
+    const line =
+      use && by === 'ferryman'
+        ? away()
+          ? FERRYMAN_AWAY
+          : sayingFor(use, now(), visitsTo(shownPlay(), by))
+        : null;
     const panel = chartPanel({
       content,
       state: () => latest,
@@ -432,6 +475,16 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         enter(id);
       },
       close: () => closeChart(),
+      // The day's modifier on each landing, by the shell's clock (S16).
+      today: (id) => todaysModifier(shell, id),
+      // Sending him in unattended, where the shell can: the chart closes on it.
+      ...(canSendIn(shell)
+        ? {
+            sendIn: (id: string) => {
+              if (sendIn(shell, id)) closeChart();
+            },
+          }
+        : {}),
       picked: (id) => {
         const dungeon = dungeons(id);
         if (dungeon && paintedAhead !== id) {
@@ -465,7 +518,9 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
    * neither trails a frame behind after a big move.
    */
   const frameLabel = (shown: Play, open: boolean, look: StageLook): void => {
-    const thing = run ? null : ringed(town2Scene(), shown, open || panFrom !== null, PEOPLE);
+    const near = run ? null : ringed(town2Scene(), shown, open || panFrom !== null, PEOPLE);
+    // An empty mooring is not ringed or named while he is away in the boat.
+    const thing = near?.id === 'rowboat' && away() ? null : near;
     ringedNow = thing?.id ?? null;
     const words = thing ? labelFor(thing, PEOPLE) : null;
     labelNow = thing?.tap && words ? { words, thing, look, feet: shown.walker.at } : null;
@@ -510,7 +565,16 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   };
 
   const showDungeon = (dungeon: Dungeon, resume = false): void => {
+    inTown = false;
     current = dungeonView({
+      // The character before the run is settled: what its results and tracker read as done before.
+      state: () => latest,
+      // Row out again from the results: the run is settled, and the boat goes straight back.
+      again: () => {
+        settle();
+        run = null;
+        enter(dungeon.id);
+      },
       dungeon,
       content,
       run: () => run!,
@@ -562,12 +626,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     if (!run?.battle || settled) return;
     settled = true;
     kept = null;
-    // A clear is the boss down and the end reached: the run ended by itself, cleared.
-    // With how long it took, for the dungeon's best time.
-    shell?.settleRun({
-      ...spoilsOf(run.battle, run.ending === 'cleared' ? run.dungeon : undefined),
-      timeMs: run.ms,
-    });
+    // A clear is the boss down and the end reached: the run ended by itself, cleared. With what
+    // the run did (its time to the boss's fall is the dungeon's best time), and the day's bonus.
+    // Its modifier's rewards are paid by settling, never here.
+    shell?.settleRun(runSpoils(run, run.ending === 'cleared'));
     shell?.keepRun?.(null);
   };
 
@@ -582,8 +644,15 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     const dungeon = dungeons(id);
     if (!dungeon || rowing) return;
     rowedTo.add(id);
+    // The day's modifier, by the shell's clock and time zone, fixed now: a run that crosses
+    // midnight keeps it, and keeps what it does.
+    const today = todaysModifier(shell, id);
+    const modifier: RunModifier | undefined = today
+      ? { id: today, effects: effectsOf(content, today) }
+      : undefined;
     // A run reads the character as they row out, and rolls its own dice, never the save's.
     const started = startRun(dungeon, {
+      ...(modifier ? { modifier } : {}),
       fighter: fighterOf(latest, content),
       // A dungeon's own cast fights by its rows here; the tables' monsters by theirs.
       monsters: castOf(content, id),
@@ -602,8 +671,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
           lessons: startLessons(id, taught, (latest.dungeons[id]?.clears ?? 0) > 0),
         }
       : started;
-    paintAhead(dungeon);
-    rowing = { run: next, dungeon, since: performance.now() };
+    // Seen as its day shows it: dimmer on a darker day.
+    const seen = dungeonOf(next) ?? dungeon;
+    paintAhead(seen);
+    rowing = { run: next, dungeon: seen, since: performance.now() };
+
     rowOn();
   };
 
@@ -647,6 +719,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
   const leave = (): void => {
     // What was picked up comes home with you, before the clock starts again.
     settle();
+    // Back to town from the results while the boat was rowing out again: it stays moored.
+    rowing = null;
+    rowingCard?.remove();
+    rowingCard = null;
     // The shell first: starting the clock again draws a frame, and that frame is still the run's.
     tell(false, false);
     run = null;
@@ -689,7 +765,7 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     }
   }
 
-  const inRun = run && dungeons(run.dungeon);
+  const inRun = run && dungeonOf(run);
   if (inRun) showDungeon(inRun, resuming);
   else showTown();
 
@@ -720,7 +796,10 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
         // The facts came in: the town can be walked, under the loading card until its picture comes.
         if (!run && loading && !current.update && townReady()) showTown();
         current.update?.(next, now);
-        if (!run) {
+        if (!run && !inTown) {
+          // Rowing out again from a run's results: nothing of the town's until the town shows.
+          rowOn();
+        } else if (!run) {
           // The menus asked for the chart: to the quay by the boat with it open, once the town is up.
           if (takeRequest(shell) === 'chart') wantChart = true;
           if (wantChart && townReady() && current.update) {

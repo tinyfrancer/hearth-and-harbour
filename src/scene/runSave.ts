@@ -18,11 +18,16 @@
  * save migration.
  */
 import type { RunSpoils } from '../core/run';
-import { spoilsOf } from './battle';
+import { runSpoils } from './modifiers';
 import type { Run } from './dungeon';
 
-/** The version of the shape a snapshot is in. */
-export const RUN_SCENE_VERSION = 1;
+/**
+ * The version of the shape a snapshot is in. 2 (wave 17): the fight counts
+ * what the run has done (`Battle.count`) and may carry the day's modifier
+ * (`Run.modifier`, `Battle.mods`); a version-1 run is settled from its
+ * spoils, as any other this cannot take up.
+ */
+export const RUN_SCENE_VERSION = 2;
 
 /** A JSON value. */
 export type Plain = null | boolean | number | string | Plain[] | { [key: string]: Plain };
@@ -151,9 +156,9 @@ export function restoreRun(data: unknown, scene = RUN_SCENE_VERSION): Run | null
  * app's clock (`keptAtOf`).
  */
 export function savedRunOf(run: Run, keptAt?: number): SavedRun {
-  const spoils: RunSpoils = run.battle
-    ? spoilsOf(run.battle)
-    : { xp: {}, loot: {}, coins: 0, foodEaten: 0, arrowsUsed: 0 };
+  // With the dungeon, its modifier and what the run has done so far: settled from these if the
+  // run itself cannot be taken up.
+  const spoils: RunSpoils = runSpoils(run);
   const snapshot = snapshotRun(run);
   const data =
     keptAt !== undefined && Number.isFinite(keptAt) && snapshot && typeof snapshot === 'object'

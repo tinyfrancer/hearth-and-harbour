@@ -11,7 +11,10 @@ import {
   chartDot2,
   chartEmblem2,
   chartMarker2,
+  chartPennant2,
   chartRoute2,
+  CHART_PENNANT2_FRAME_MS,
+  CHART_PENNANT2_FRAMES,
   harbourChart2,
   type ChartMarker2State,
   type ChartPiece2,
@@ -291,4 +294,23 @@ export const BOAT_LANTERN: StandInPiece = placed(
 export function foeArtId(monster: string): string {
   if (monster === 'old_snapper' && !foeSize2('old_snapper')) return 'giant_crab';
   return monster;
+}
+
+/* ----- Dungeon replay (lane B's B17a): modifier and challenge icons, medals, the pennant ----- */
+
+export {
+  CHALLENGE_MEDAL_FRAME_MS,
+  CHALLENGE_MEDAL_FRAMES,
+  challengeIcon,
+  challengeMedal,
+  modifierIcon,
+} from '../art/dungeonIcons';
+
+/** How often the chart's pennant flutters a frame. */
+export const PENNANT_FRAME_MS = CHART_PENNANT2_FRAME_MS;
+
+/** The chart's pennant for a landing with a modifier today, at a frame of its flutter. */
+export function chartPennant(frame = 0): ChartPiece | null {
+  const f = ((frame % CHART_PENNANT2_FRAMES) + CHART_PENNANT2_FRAMES) % CHART_PENNANT2_FRAMES;
+  return chartPiece(`pennant ${f}`, () => chartPennant2(f));
 }

@@ -10,6 +10,7 @@
  */
 import type { MonsterDef } from '../../src/core/content';
 import { newGame, type GameState } from '../../src/core/state';
+import { effectsOf } from '../../src/core/progress';
 import { CONTENT } from '../../src/data';
 import {
   alive,
@@ -63,8 +64,11 @@ export function beginCave(
   seed: number,
   lessons = true,
   rows: Readonly<Record<string, MonsterDef>> = {},
+  modifier?: string,
 ): Run {
   const run = startRun(CAVE, {
+    // Under a day's modifier (S16); none for every older case.
+    ...(modifier ? { modifier: { id: modifier, effects: effectsOf(CONTENT, modifier) } } : {}),
     fighter: fighterOf(state, CONTENT),
     monsters: { ...castOf(CONTENT, TIDEPOOL_ID), ...rows },
     seed,
@@ -85,6 +89,8 @@ export interface CaveOptions {
   readonly lessons?: boolean;
   /** Rows to fight by in place of the cave's own: for trying other numbers. */
   readonly rows?: Readonly<Record<string, MonsterDef>>;
+  /** Under this day's modifier (S16). */
+  readonly modifier?: string;
 }
 
 interface Mind {
@@ -294,7 +300,7 @@ export interface CaveOutcome {
 /** The cave, played through as a new player would: the run's clock, and the page's around it. */
 export function playCave(state: GameState, seed: number, o: CaveOptions): CaveOutcome {
   forgetLessons();
-  let run = beginCave(state, seed, o.lessons ?? true, o.rows);
+  let run = beginCave(state, seed, o.lessons ?? true, o.rows, o.modifier);
   const mind: Mind = {
     lessonFor: 0,
     lessonId: null,
