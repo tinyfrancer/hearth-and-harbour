@@ -1,9 +1,14 @@
 /*
- * The harbour chart on screen: lane B's map filling the panel, each landing
- * on it with its marker (and its emblem), a button over each (48 px at the
- * least), and under the map the landing picked: its name and line, the level
- * it is meant for against the character's, its clears and best time, what to
- * bring, and "Row out". A dotted route lays itself out from home to the
+ * The harbour chart on screen: lane B's map, each landing on it with its
+ * marker (and its emblem), a button over each (48 px at the least), and
+ * under the map the landing picked. Wave 18: everything a player decides by
+ * is in view on a phone without scrolling (390 x 844, and 360 x 740): the
+ * map, cropped from above and below (never shrunk) round the landing picked;
+ * the dungeon's seal, name and state; today's modifier with its icon and
+ * what it does; its challenges as a row of medals (tap one for its words);
+ * the level it is meant for; and Row out / Send him in. The rest (its line,
+ * clears and best time, what to bring) scrolls in a box of its own with a
+ * cue while there is more. A dotted route lays itself out from home to the
  * landing picked, the rowboat at its head, timed by the time passed in.
  * Everything on the map is drawn on one canvas at whole device pixels over
  * the map's own; the buttons are only where a thumb lands. Plain DOM over
@@ -22,7 +27,10 @@ import {
   chartMarker,
   chartPennant,
   chartRoute,
+  chartSeal,
   challengeMedal,
+  CHALLENGE_MEDAL_FRAME_MS,
+  CHALLENGE_MEDAL_FRAMES,
   harbourChart,
   modifierIcon,
   PENNANT_FRAME_MS,
@@ -109,6 +117,51 @@ export function routeShort(dots: readonly Point[], to: Point): Point[] {
   return kept.length ? kept : dots.slice(0, 1);
 }
 
+/**
+ * How far the map is slid up inside a box `box` CSS pixels tall when it is
+ * taller (`height`): the landing picked (at `y`) in the middle, as far as
+ * the map's edges allow. 0 when it fits. The map is cropped, never shrunk.
+ */
+export function chartShiftY(height: number, box: number, y: number): number {
+  if (!(box > 0) || height <= box) return 0;
+  return Math.round(Math.max(0, Math.min(height - box, y - box / 2)));
+}
+
+/**
+ * The challenges each dungeon had done when this page first showed the
+ * chart, and every medal shown since: one done after that is new to the
+ * chart, and its medal glints once (lane B's `'new'` frames) the next time
+ * it is shown. This page's only: a reload starts from what is done.
+ */
+let medalsSeen: Set<string> | null = null;
+
+/** Forgets the medals seen (a new page, or a test). */
+export function forgetMedalsSeen(): void {
+  medalsSeen = null;
+}
+
+/** The chart's pieces at whole device pixels, about one CSS pixel an art pixel. */
+function pieceCanvas(piece: ChartPiece | null, dpr: number): HTMLCanvasElement | null {
+  if (!piece) return null;
+  const k = Math.max(1, Math.round(dpr));
+  const c = document.createElement('canvas');
+  c.width = piece.canvas.width * k;
+  c.height = piece.canvas.height * k;
+  c.style.width = `${(piece.canvas.width * k) / dpr}px`;
+  c.style.height = `${(piece.canvas.height * k) / dpr}px`;
+  c.setAttribute('aria-hidden', 'true');
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(piece.canvas, 0, 0, c.width, c.height);
+  return c;
+}
+
+/** The level line beside the medals, short: what it is meant for, and the character's. */
+export function levelWords(recommended: number, level: number): string {
+  return `Level ${recommended} · you ${level}`;
+}
+
 export function chartPanel(o: ChartPanelOptions): ChartPanel {
   const map = harbourChart();
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
@@ -124,6 +177,12 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
   /** When the landing was picked, on the app's clock; null until the first frame says. */
   let pickedAt: number | null = null;
   let lastNow: number | undefined;
+
+  const seen = (medalsSeen ??= new Set(
+    Object.entries(o.state().dungeons).flatMap(([id, r]) =>
+      (r.challenges ?? []).map((c) => `${id} ${c}`),
+    ),
+  ));
 
   const shift = chartShift(
     cssW,
@@ -146,10 +205,28 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
   const sheet = h('div', { class: 'chart-slide' }, [paper, marks, pins]);
   sheet.style.width = `${cssW}px`;
   sheet.style.height = `${cssH}px`;
-  sheet.style.transform = `translateX(${-shift}px)`;
-  const mapBox = h('div', { class: 'chart-map' }, [sheet]);
+  // Someone's word as the chart opens, over the top of the map (the land, not the sea).
+  const say = o.say
+    ? h('p', { class: 'chart-say' }, [
+        h('span', { class: 'chart-who', text: `${o.say.who}: ` }),
+        o.say.line,
+      ])
+    : null;
+  const mapBox = h('div', { class: 'chart-map' }, [sheet, say]);
   mapBox.style.width = `${boxW}px`;
+  // As tall as the map at the most; shorter (cropped) where the phone is short.
   mapBox.style.height = `${cssH}px`;
+  /** The map's box as last laid out, and how far the map is slid up in it. */
+  let boxH = -1;
+  const slide = (): void => {
+    const shown = mapBox.clientHeight;
+    const l = list.find((x) => x.id === chosen);
+    const up = chartShiftY(cssH, shown, (l ? l.at.y - 8 : map.home.y) * k);
+    const value = `translate(${-shift}px, ${-up}px)`;
+    if (sheet.style.transform !== value) sheet.style.transform = value;
+    boxH = shown;
+  };
+  slide();
 
   const detail = h('div', { class: 'chart-detail', attrs: { 'aria-live': 'polite' } });
 
@@ -159,19 +236,12 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     attrs: { type: 'button', 'aria-label': 'Close the chart' },
     on: { click: () => o.close() },
   });
-  const say = o.say
-    ? h('p', { class: 'chart-say' }, [
-        h('span', { class: 'chart-who', text: `${o.say.who}: ` }),
-        o.say.line,
-      ])
-    : null;
   const el = h(
     'section',
     { class: 'chart', attrs: { role: 'dialog', 'aria-label': 'The harbour chart' } },
     [
       h('div', { class: 'chart-sheet' }, [
         h('header', { class: 'chart-head' }, [h('h2', { text: 'The harbour chart' }), closeButton]),
-        say,
         mapBox,
         detail,
       ]),
@@ -201,10 +271,33 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     return b;
   };
 
+  /** The medals glinting as new, and when on the app's clock they began; null until a frame says. */
+  let glinting: { slot: HTMLElement; frame: number }[] = [];
+  let glintFrom: number | null = null;
+  /** The details' box, and whether there is more in it below what shows (its cue). */
+  let more: HTMLElement | null = null;
+  const moreCue = h('span', {
+    class: 'chart-more-cue',
+    text: 'More ▾',
+    attrs: { 'aria-hidden': 'true' },
+  });
+  const cue = (): void => {
+    if (!more) return;
+    const left = more.scrollHeight - more.clientHeight - more.scrollTop;
+    const value = String(left > 2);
+    if (more.dataset.more !== value) {
+      more.dataset.more = value;
+      moreCue.hidden = value !== 'true';
+    }
+  };
+
   const showDetail = (): void => {
     const state = o.state();
     const l = list.find((x) => x.id === chosen);
+    glinting = [];
+    glintFrom = null;
     if (!l) {
+      more = null;
       detail.replaceChildren(
         h('p', { class: 'muted', text: 'Tap a landing to see what is there.' }),
       );
@@ -212,16 +305,34 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     }
     const level = combatLevel(state);
     const warn = levelWarning(state, l);
+    const open = l.state === 'open' || l.state === 'cleared';
     const record =
       l.state === 'soon'
         ? null
         : l.clears > 0
           ? `Cleared ${l.clears === 1 ? 'once' : `${l.clears} times`}${l.bestMs !== undefined ? ` · best ${runTime(l.bestMs)}` : ''}`
           : 'Not yet cleared';
-    const go = l.rowable ? button('Row out', () => o.rowOut(l.id), 'primary') : null;
-    if (go) go.classList.add('chart-row');
-    // S16: the day's modifier, the dungeon's challenges, and sending him in once it is cleared.
-    const open = l.state === 'open' || l.state === 'cleared';
+    const challenges = open ? challengesOf(o.content, l.id) : [];
+    const doneOf = (id: string): boolean => challengeDone(state, l.id, id);
+    const all = challenges.length > 0 && challenges.every((c) => doneOf(c.id));
+
+    // The name, with the dungeon's seal once it is cleared (gold with every challenge done).
+    const seal =
+      l.state === 'cleared'
+        ? pieceCanvas(chartSeal(l.id, all ? 'all-challenges' : 'cleared'), dpr)
+        : null;
+    if (seal) seal.classList.add('chart-seal');
+    const name = h('div', { class: 'chart-name' }, [
+      seal,
+      h('h3', { text: l.name ?? 'Uncharted waters' }),
+      h('p', {
+        class: 'chart-state',
+        attrs: { 'data-state': l.state },
+        text: STATE_WORDS[l.state],
+      }),
+    ]);
+
+    // S16: the day's modifier, its icon and what it does, plainly.
     const todayId = open ? (o.today?.(l.id) ?? null) : null;
     const today = todayId ? modifierDef(o.content, todayId) : undefined;
     const day = today
@@ -236,59 +347,101 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
           ]),
         ])
       : null;
-    const challenges = open ? challengesOf(o.content, l.id) : [];
-    const goals = challenges.length
-      ? h(
-          'ul',
-          { class: 'chart-goals', attrs: { 'aria-label': 'Challenges' } },
-          challenges.map((c) => {
-            const done = challengeDone(state, l.id, c.id);
-            return h('li', { attrs: { 'data-done': String(done) } }, [
-              h('span', { class: 'chart-goal-medal' }, [challengeMedal(done ? 'done' : 'todo')]),
-              h('span', { class: 'chart-goal-body' }, [
-                h('span', { class: 'chart-goal-name', text: c.name }),
-                h('span', { class: 'chart-goal-text', text: done ? `${c.text} Done.` : c.text }),
-              ]),
-            ]);
-          }),
-        )
+
+    // The challenges as a row of medals: tap one for its words, in a line over the row.
+    const said = h('p', { class: 'chart-said', attrs: { role: 'status' } });
+    said.hidden = true;
+    let saying: string | null = null;
+    const medals = challenges.map((c) => {
+      const done = doneOf(c.id);
+      const fresh = done && !seen.has(`${l.id} ${c.id}`);
+      const slot = h('span', { class: 'chart-goal-medal' }, [
+        challengeMedal(done ? (fresh ? 'new' : 'done') : 'todo', 0),
+      ]);
+      if (fresh) glinting.push({ slot, frame: 0 });
+      const words = `${c.name}: ${c.text}${done ? ' Done.' : ''}`;
+      const b = h(
+        'button',
+        {
+          class: 'chart-medal',
+          attrs: {
+            type: 'button',
+            'data-id': c.id,
+            'aria-label': words,
+            'aria-expanded': 'false',
+          },
+          on: {
+            click: () => {
+              saying = saying === c.id ? null : c.id;
+              said.hidden = saying === null;
+              said.textContent = saying ? words : '';
+              said.dataset.done = String(done);
+              for (const m of goals?.querySelectorAll<HTMLElement>('.chart-medal') ?? [])
+                m.setAttribute('aria-expanded', String(m.dataset.id === saying));
+            },
+          },
+        },
+        [slot],
+      );
+      return h('li', { attrs: { 'data-done': String(done), 'data-new': String(fresh) } }, [b]);
+    });
+    const goals = medals.length
+      ? h('ul', { class: 'chart-goals', attrs: { 'aria-label': 'Challenges' } }, medals)
       : null;
-    const away = idleRunOf(state);
-    const send =
-      o.sendIn && mayIdle(state, l.id, o.content)
-        ? away === l.id
-          ? h('p', { class: 'chart-away', text: 'He is away there now, running it on his own.' })
-          : button('Send him in', () => o.sendIn!(l.id))
-        : null;
-    if (send instanceof HTMLButtonElement) send.classList.add('chart-send');
-    const parts: (HTMLElement | null)[] = [
-      h('h3', { text: l.name ?? 'Uncharted waters' }),
-      h('p', {
-        class: 'chart-state',
-        attrs: { 'data-state': l.state },
-        text: STATE_WORDS[l.state],
-      }),
-      l.description ? h('p', { class: 'muted', text: l.description }) : null,
-      l.state === 'soon' || l.state === 'locked'
-        ? h('p', { class: 'chart-unlock', text: l.unlock })
-        : null,
+    // Shown as new once: from now on these are seen.
+    for (const c of challenges) if (doneOf(c.id)) seen.add(`${l.id} ${c.id}`);
+    const levelLine =
       l.state === 'soon'
         ? null
         : h('p', {
-            class: 'chart-level',
-            text: `Meant for combat level ${l.recommended}. You are ${level}.`,
-          }),
-      warn ? h('p', { class: 'chart-warn', text: warn }) : null,
-      record ? h('p', { class: 'chart-record', text: record }) : null,
-      l.state === 'open' || l.state === 'cleared'
-        ? h('p', { class: 'chart-bring', text: whatToBring(state, l) })
+            class: warn ? 'chart-level chart-level-warn' : 'chart-level',
+            attrs: { 'aria-label': `Meant for combat level ${l.recommended}. You are ${level}.` },
+            text: levelWords(l.recommended, level),
+          });
+    const row =
+      goals || levelLine ? h('div', { class: 'chart-goal-row' }, [goals, levelLine]) : null;
+
+    // The rest scrolls in a box of its own, with a cue while there is more below.
+    const away = idleRunOf(state);
+    const details: (HTMLElement | null)[] = [
+      l.state === 'soon' || l.state === 'locked'
+        ? h('p', { class: 'chart-unlock', text: l.unlock })
         : null,
+      warn ? h('p', { class: 'chart-warn', text: warn }) : null,
+      l.description ? h('p', { class: 'muted', text: l.description }) : null,
+      record ? h('p', { class: 'chart-record', text: record }) : null,
+      open ? h('p', { class: 'chart-bring', text: whatToBring(state, l) }) : null,
+      o.sendIn && away === l.id
+        ? h('p', { class: 'chart-away', text: 'He is away there now, running it on his own.' })
+        : null,
+    ];
+    more = h(
+      'div',
+      { class: 'chart-more', attrs: { tabindex: '0', 'aria-label': 'More about it' } },
+      details.filter((p): p is HTMLElement => p !== null),
+    );
+    more.addEventListener('scroll', cue, { passive: true });
+    moreCue.hidden = true;
+
+    const go = l.rowable ? button('Row out', () => o.rowOut(l.id), 'primary') : null;
+    if (go) go.classList.add('chart-row');
+    const send =
+      o.sendIn && mayIdle(state, l.id, o.content) && away !== l.id
+        ? button('Send him in', () => o.sendIn!(l.id))
+        : null;
+    if (send) send.classList.add('chart-send');
+    const buttons = go || send ? h('div', { class: 'chart-go' }, [send, go]) : null;
+
+    const parts: (HTMLElement | null)[] = [
+      name,
       day,
-      goals,
-      send,
-      go,
+      row,
+      said,
+      h('div', { class: 'chart-more-box' }, [more, moreCue]),
+      buttons,
     ];
     detail.replaceChildren(...parts.filter((p): p is HTMLElement => p !== null));
+    cue();
   };
 
   const showPins = (): void => {
@@ -302,6 +455,7 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     for (const b of pins.querySelectorAll<HTMLElement>('.chart-landing'))
       b.setAttribute('aria-pressed', String(b.dataset.id === id));
     showDetail();
+    slide();
     drawn = -1;
     drawMarks(0);
     const l = list.find((x) => x.id === id);
@@ -380,12 +534,28 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
         showDetail();
         drawn = -1;
       }
+      // Laid out anew (the phone turned, the sheet shown): the map's crop round the landing.
+      if (mapBox.clientHeight !== boxH) slide();
+      cue();
       if (now === undefined) {
         drawMarks(1);
         return;
       }
       pickedAt ??= now;
       if (pennants.size) pennantFrame = Math.floor(now / PENNANT_FRAME_MS);
+      // A medal new to the chart glints once, by the app's clock.
+      if (glinting.length) {
+        glintFrom ??= now;
+        const f = Math.min(
+          CHALLENGE_MEDAL_FRAMES - 1,
+          Math.floor((now - glintFrom) / CHALLENGE_MEDAL_FRAME_MS),
+        );
+        for (const g of glinting)
+          if (g.frame !== f) {
+            g.frame = f;
+            g.slot.replaceChildren(challengeMedal('new', f));
+          }
+      }
       drawMarks(routeShown(now - pickedAt));
     },
     picked: () => chosen,

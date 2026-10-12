@@ -20,6 +20,7 @@ import {
   type ChartPiece2,
 } from '../art/chart';
 import type { Picture2 } from '../art/town2/cells';
+import { dungeonSeal } from '../art/dungeonIcons';
 import { foeSize2 } from '../art/dungeonArt2';
 import * as markers2 from '../art/town2/markers';
 import {
@@ -313,4 +314,9 @@ export const PENNANT_FRAME_MS = CHART_PENNANT2_FRAME_MS;
 export function chartPennant(frame = 0): ChartPiece | null {
   const f = ((frame % CHART_PENNANT2_FRAMES) + CHART_PENNANT2_FRAMES) % CHART_PENNANT2_FRAMES;
   return chartPiece(`pennant ${f}`, () => chartPennant2(f));
+}
+
+/** A dungeon's seal (lane B's `dungeonSeal`, B17a): bronze once cleared, gold with every challenge done. */
+export function chartSeal(id: string, tier: 'cleared' | 'all-challenges'): ChartPiece | null {
+  return chartPiece(`seal ${id} ${tier}`, () => dungeonSeal(id, tier));
 }
