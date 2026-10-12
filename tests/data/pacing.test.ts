@@ -29,6 +29,8 @@ import { xpForLevel } from '../../src/core/xp';
 import { handRunOf, idleHourOf } from './idleRuns';
 import { novice, playCave } from '../scene/caveBot';
 import { begin, playThrough, prepared } from '../scene/grottoBot';
+import { playBurrow } from '../scene/burrowBot';
+import { fighterOf } from '../../src/scene/battle';
 import { foodUnder } from '../../src/core/progress';
 
 /** The pins of the idle dungeon cases, measured (S16). */
@@ -909,4 +911,63 @@ describe('what a tier 2 potion is worth (S22)', () => {
       xp: (aided.skills[action.skill] ?? 0) - (plain.skills[action.skill] ?? 0),
     }).toEqual(TIER2_POTIONS[potion]);
   });
+});
+
+// Thistlewood Burrow by hand (wave 20): the second dungeon is the best active
+// content of tier 2, not strictly dominated by re-running the grotto. At
+// level 40, in the best tier-2 gear the level wears (tests/data/fighting.ts)
+// with 20 cooked swordfish, lane C's careful player (tests/scene/burrowBot.ts,
+// twelve seeds, a person's 0.4 s to react) clears it; an hour is the median
+// clear plus fifteen seconds of round trip, what falls the tables' average
+// (`handRunOf`), less the fish eaten as sold instead. The grotto is measured
+// the same way, re-run by the same level-40 character (lane C's grotto
+// player): far quicker than at 20, and nearly no fish. The burrow earns more
+// coins an hour than that by at least a tenth, and more XP; and more than the
+// best fight for money at 40 (`bestFightHour`). Not held: XP against an idle
+// fight. A dungeon's rooms are walked, its lanterns lit and its foes met a
+// few at a time, so by hand it pays about half the XP of a fight back to back
+// (the grotto by hand at 20 paid 0.73 of that level's best fight).
+// The hour by hand is the bot's, which lane C may re-tune; only the run's
+// worth and XP are pinned.
+describe('Thistlewood Burrow by hand (wave 20)', () => {
+  const ROUND_TRIP_MS = 15_000;
+  const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
+  const median = (xs: readonly number[]): number =>
+    [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+  const fish = CONTENT.items.cooked_swordfish!.value;
+
+  it('earns more an hour at level 40 than re-running the grotto, or the best fight for money', () => {
+    const hero = characterAt(40, { tier2: true, food: 20 });
+    const burrow = CONTENT.dungeons!.thistlewood_burrow!;
+    const grotto = CONTENT.dungeons!.brinebeards_grotto!;
+    const byHand = (
+      runs: readonly { cleared: boolean; ms: number; eaten: number }[],
+      run: { worth: number; xp: number },
+    ): { xp: number; earned: number; clears: number } => {
+      const cleared = runs.filter((r) => r.cleared);
+      const hours = (median(cleared.map((r) => r.ms)) + ROUND_TRIP_MS) / HOUR;
+      const eaten = median(runs.map((r) => r.eaten)) * fish;
+      return { xp: run.xp / hours, earned: (run.worth - eaten) / hours, clears: cleared.length };
+    };
+    const burrowRun = handRunOf(burrow);
+    const grottoRun = handRunOf(grotto);
+    // Pinned so a change is seen: a burrow run by its tables is worth about 31,285 coins and pays
+    // 10,665 XP (its foes at tier 2's 270%); the grotto's 10,086 and 3,230.
+    expect([Math.round(burrowRun.worth), burrowRun.xp]).toEqual([31285, 10665]);
+    expect([Math.round(grottoRun.worth), grottoRun.xp]).toEqual([10086, 3230]);
+    const fighter = fighterOf(hero, CONTENT);
+    const there = byHand(
+      SEEDS.map((seed) => playBurrow(fighter, seed, { reactMs: 400 })),
+      burrowRun,
+    );
+    const again = byHand(
+      SEEDS.map((seed) => playThrough(hero, seed, { reactMs: 400 })),
+      grottoRun,
+    );
+    expect(there.clears).toBeGreaterThanOrEqual(10);
+    expect(again.clears).toBe(12);
+    expect(there.earned / again.earned).toBeGreaterThan(1.1);
+    expect(there.xp / again.xp).toBeGreaterThan(1.1);
+    expect(there.earned).toBeGreaterThan(bestFightHour(40, true).earned);
+  }, 240_000);
 });

@@ -56,11 +56,17 @@ export interface IdleHour {
 export function idleHourOf(
   level: number,
   dungeon: string,
-  { modifier = null as string | null, seed = 1, hours = 1, state = null as GameState | null } = {},
+  {
+    modifier = null as string | null,
+    seed = 1,
+    hours = 1,
+    state = null as GameState | null,
+    tier2 = false,
+  } = {},
 ): IdleHour {
   const content = withDay(dungeon, modifier);
   const plenty = 100_000;
-  const fresh = state ?? characterAt(level, { seed, food: plenty });
+  const fresh = state ?? characterAt(level, { seed, food: plenty, tier2 });
   const start: GameState = {
     ...fresh,
     rng: seedFrom(seed),
@@ -96,7 +102,8 @@ export function idleHourOf(
 /**
  * What one run by hand brings, on average, by the dungeon's own tables: every
  * foe its rooms hold (the scene's own cast, `idle.rooms`) felled once, each
- * drop at its odds, every point of their health dealt once at 5 XP. Under a
+ * drop at its odds, every point of their health dealt once at 5 XP (times
+ * the foe's `xpPercent`). Under a
  * day's modifier (`effects`), as settling pays it: foes' health as the fight
  * has it, the regular drops times `loot`, coins times `coins`, XP times `xp`.
  */
@@ -119,10 +126,11 @@ export function handRunOf(
         const each = foe.pick.items.reduce((sum, item) => sum + value(item), 0);
         total += each / foe.pick.items.length / foe.pick.oneIn;
       }
-      damage += foeUnder(foe, effects).hp;
+      // At the foe's own rate (tier 2's pay 270%: `foeXp`), as the scene pays it.
+      damage += (foeUnder(foe, effects).hp * (foe.xpPercent ?? 100)) / 100;
     }
   }
-  return { worth: total, xp: damage * 5 * (effects.xp ?? 1) };
+  return { worth: total, xp: Math.round(damage * 5 * (effects.xp ?? 1)) };
 }
 
 export { HOUR, foodAt };

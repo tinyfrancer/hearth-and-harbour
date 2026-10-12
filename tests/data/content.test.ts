@@ -462,7 +462,8 @@ describe('the content tables', () => {
       'badger_king',
     ]);
     expect(dungeonName(burrow)).toBe('Uncharted waters');
-    expect(burrow.idle).toBeUndefined();
+    // Wave 20: lane C's idle rooms, room by room (src/scene/burrow.ts), checked against the plan below.
+    expect(burrow.idle!.rooms.map((room) => room.foes.length)).toEqual([3, 4, 5, 4, 5]);
     for (const foe of burrow.cast!) {
       expect(CONTENT.monsters![foe.id], foe.id).toBeUndefined();
       for (const id of foeDrops(foe)) expect(burrow.loot, `${foe.id} drops ${id}`).toContain(id);
@@ -563,7 +564,9 @@ describe('the content tables', () => {
   // scene places (src/scene/plans.ts), and those a boss calls in, once each.
   it('runs each built dungeon idle on the scene’s own cast, at a walk, keeping a share and never the rarest', () => {
     for (const dungeon of Object.values(CONTENT.dungeons!)) {
-      if (dungeon.comingSoon) {
+      // A placeholder landing has no rooms; a designed one waiting to open (the burrow, wave
+      // 20) has them already, held to its plan like any other (`startIdleRun` refuses it).
+      if (dungeon.comingSoon && !dungeon.cast) {
         expect(dungeon.idle, dungeon.id).toBeUndefined();
         continue;
       }
@@ -585,9 +588,12 @@ describe('the content tables', () => {
       const placed = Object.values(plan.foes ?? {}).flatMap((foes) =>
         foes.map((foe) => foe.monster),
       );
+      // Those a boss calls, in every phase (the burrow's king calls more as he goes: `more`).
       const called = placed.flatMap((id) => {
-        const calls = foeKind(id).boss?.calls;
-        return calls ? Array.from({ length: calls.count }, () => calls.monster) : [];
+        const boss = foeKind(id).boss;
+        return [...(boss?.calls ? [boss.calls] : []), ...(boss?.more ?? [])].flatMap((call) =>
+          Array.from({ length: call.count }, () => call.monster),
+        );
       });
       expect(tally(idle.rooms.flatMap((room) => [...room.foes])), dungeon.id).toEqual(
         tally([...placed, ...called]),

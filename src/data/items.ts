@@ -549,7 +549,9 @@ export const ITEMS = {
     name: 'Amber',
     description:
       'A warm golden nugget with a seed caught in it since before the forest was old. Merchants hold it up to the light and stop haggling.',
-    value: 400,
+    // Wave 20: 450 (was 400), with more of it falling in the burrow, so a run by hand at
+    // level 40 out-earns re-running the grotto and the best fight (tests/data/pacing.test.ts).
+    value: 450,
   },
   thornwood_bow: {
     id: 'thornwood_bow',
