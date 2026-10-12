@@ -189,7 +189,7 @@ const PIRATES_CUTLASS: Gear2 = {
 // -------------------------------------------------------------------- hafts
 
 /** A haft of wood along the held line from row `top` to row `bottom`, lit on its left. */
-function haft(
+export function haft(
   mat: Mat,
   top: number,
   bottom: number,

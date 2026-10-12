@@ -153,7 +153,7 @@ const DUSK_SET: Partial<Record<Mat, readonly (string | null)[]>> = {
   shell: ['#f6eef2', '#ece4e6', '#d4c4cc', '#a07a8c', '#84607a', '#604458', '#30202a'],
   // B19: salt-iron keeps its sea-green steel at dusk, a step brighter than iron (it is polished)
   // with the salt still catching the last light; shifted, it went the plum-grey of iron.
-  saltiron: ['#e4ecec', '#9cbcc0', '#6e8e9a', '#53687c', '#3e4c66', '#2c3450', '#1a1a32'],
+  saltiron: ['#e4ecec', '#8ec2c0', '#5e929a', '#46707e', '#384e68', '#2a3450', '#1a1a32'],
 };
 
 /**

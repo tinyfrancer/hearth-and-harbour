@@ -65,7 +65,7 @@ const BRASS: Legend = { ...L, y: 'bronze1', Y: 'bronze2' };
 
 // A longbow taller than the shortbows, nearly straight, in dark oak with a
 // green wrap at the grip: a poacher's, for shooting from cover.
-const POACHERS_LONGBOW: readonly string[] = [
+export const POACHERS_LONGBOW: readonly string[] = [
   '....................k=',
   '..................k&.e',
   '................kk&.e',
@@ -117,7 +117,7 @@ const WYRMSCALE_SHIELD: readonly string[] = [
 
 // Two arrows, heads up and to the right, each head hooked behind its point;
 // dark red fletching so they are not taken for the plain iron ones.
-const BARBED_ARROWS: readonly string[] = [
+export const BARBED_ARROWS: readonly string[] = [
   '..................M',
   '.................Mn',
   '...............MMn',
@@ -274,7 +274,7 @@ const TRICORN: readonly string[] = [
 
 // Brinebeard's coat: long and purple, brass braid down the front and on the
 // cuffs, a white shirt at the collar.
-const CAPTAINS_COAT: readonly string[] = [
+export const CAPTAINS_COAT: readonly string[] = [
   '....uuuu....UUUU',
   '...uuuuuyweyUUUUU',
   '..uuuuuuyweyUUUUUU',
@@ -415,3 +415,6 @@ export const GROTTO_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   ships_figurehead: { rows: SHIPS_FIGUREHEAD, legend: L },
   velvet_cap: { rows: VELVET_CAP, legend: VELVET },
 };
+
+/** The grotto icons' legend, for tier 2's drawings made from them (B19). */
+export const GROTTO_L = L;

@@ -14,7 +14,7 @@
 import { DEPTH } from '../depth';
 import { cloth, runs, type Gear2, type Part2, type Pins } from './engine';
 import { hold } from './clothes';
-import { gripPart, straightBlade } from './held';
+import { gripPart, haft, straightBlade } from './held';
 import { SALT_FAR, SALT_NEAR } from './greaves';
 import { mailSpans } from './mail';
 
@@ -292,24 +292,63 @@ const KNIGHT_HELM: Gear2 = {
       ],
       DEPTH.HELMET - 0.5,
     ),
-    block(19, 2, DEPTH.HELMET, [
-      '.......0011223',
-      '.....0001112233',
-      '....001111222334',
-      '...00111122223344',
-      '..0000001111222334',
-      '..1252525252535354',
-      '..1112222222333344',
-      '.034444444444444553',
-      '.122222222222233344',
-      '.1223..........2334',
-      '.1123..........2344',
-      '.1123..........3344',
-      '.1223..........3344',
-      '.1223..........3345',
-      '.12234........34455',
-      '..1223........3445',
-    ]),
+    block(
+      19,
+      2,
+      DEPTH.HELMET,
+      [
+        '.......0011223',
+        '.....0001112233',
+        '....001111222334',
+        '...00111122223344',
+        '..0000001111222334',
+        '..1252525252535354',
+        '..1112222222333344',
+        '.034444444444444553',
+        '.ogggggggggggGGGGhh',
+        '.1223..........2334',
+        '.1123..........2344',
+        '.1123..........3344',
+        '.1223..........3344',
+        '.1223..........3345',
+        '.12234........34455',
+        '..1223........3445',
+      ],
+      GOLD,
+    ),
+  ],
+};
+
+/**
+ * The salt-iron war axe (B19): a long crescent bit on the outside, polished
+ * along its edge, a socket round the haft and a back spike, a gilt collar
+ * under the head, on a dark haft rising a little above it.
+ */
+const SALT_IRON_AXE: Gear2 = {
+  id: 'saltiron_axe',
+  slot: 'weapon',
+  parts: [
+    haft('wood', 19, 45, 9, [3, 5]),
+    {
+      // Hung at the shoulder, so it never crosses (or shades) a hat's brim or a hood.
+      at: [5, 20],
+      depth: HELD_FRONT,
+      mat: 'saltiron',
+      rows: [
+        '01',
+        '011',
+        '0112',
+        '01122221234',
+        '0112222123401',
+        '011222212344',
+        '01122221234',
+        '0112....gGGh',
+        '011.....gGGh',
+        '01',
+      ],
+      pins: { g: ['gold', 1], G: ['gold', 3], h: ['gold', 4] },
+    },
+    gripPart('wood', [3, 5]),
   ],
 };
 
@@ -323,6 +362,7 @@ export const KNIGHT_GEAR: readonly string[] = [
 ];
 export const KNIGHT2: readonly Gear2[] = [
   KNIGHT_HELM,
+  SALT_IRON_AXE,
   KNIGHT_PLATE,
   KNEE_COPS,
   RED_CLOAK,

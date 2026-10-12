@@ -12,8 +12,14 @@
  */
 import type { Legend } from './grid';
 import { recolour, type IconDef } from './iconKit';
+import { FLETCH, IRON_ARROWS } from './gearIcons';
+import { BARBED_ARROWS, GROTTO_L } from './grottoIcons';
 
 const SALT: Legend = {
+  R: 'red1',
+  r: 'red2',
+  e: 'red3',
+  o: 'wood3',
   S: 'saltiron1',
   s: 'saltiron2',
   t: 'saltiron3',
@@ -40,7 +46,7 @@ const HELM: readonly string[] = [
   '..svvsvvsvvsvvtvvuv',
   '..sssssssttttttuuuv',
   '.Svvvvvvvvvvvvvvvvuv',
-  '.Sssssssssttttttuuuv',
+  '.GGGGGGGGGGgggggggv',
   '.Sst.xxxxxxxxxx.tuuv',
   '.Sst.xxxxxxxxxx.tuuv',
   '.Sst.xxxxxxxxxx.tuuv',
@@ -122,6 +128,53 @@ const LONG_SWORD: readonly string[] = [
   '..fO',
   '.GgO',
   '.gg',
+];
+
+const WAR_AXE: readonly string[] = [
+  '...........oO',
+  '.SSssssstttuuu',
+  'SSssssssttuuuuv',
+  'Sssssssttuuuuvvvvv',
+  'Ssssssttuuuuv',
+  'Sssssttt...GgO',
+  'Sssstt......GgO',
+  'Ssstt.......oO',
+  '.Sstt........oO',
+  '..Sst........oO',
+  '...St.........oO',
+  '....S..........oO',
+  '...............oO',
+  '................oO',
+  '................oO',
+  '.................oO',
+  '.................oO',
+  '..................oO',
+  '..................oO',
+  '...................oO',
+  '...................oO',
+  '...................OO',
+];
+
+const CLOAK: readonly string[] = [
+  '....RRRr...rre',
+  '...GgRrrxxxrreGg',
+  '..RRrrrrexerrrree',
+  '.RrrrRrerrRrerRee',
+  '.RrrrRrerrRrerRree',
+  '.RrrrRrerrRrerRree',
+  '.RrrrRrerrRrerRree',
+  '.RrrrRrerrRrerRree',
+  '.RrrrRrerrRrerRree',
+  'RrrrrRrerrRrerRreee',
+  'RrrrrRrerrRrerRreee',
+  'RrrrrRrerrRrerRreee',
+  'RrrrrRrerrRrerRreee',
+  'RrrrrRrerrRrerRreee',
+  'RrrrrRrerrRrerRreee',
+  'RrrrrRrerrRrerRreree',
+  'RrrrrRrerrRrerRreree',
+  'RrrrrRrerrRrerRreree',
+  'ee.eeee.eeee.eeee.ee',
 ];
 
 // Ore: a slate-dark lump with sea-green crystals in it and a crust of salt on its top faces.
@@ -238,13 +291,43 @@ export const TIER2_DRAWINGS: Readonly<Record<string, IconDef>> = {
     },
   },
   saltiron_arrowheads: { rows: ARROWHEADS, legend: SALT },
+  saltiron_axe: { rows: WAR_AXE, legend: SALT },
+  red_cloak: { rows: CLOAK, legend: SALT },
+  saltiron_arrows: {
+    rows: recolour(IRON_ARROWS, { M: '1', m: '2', n: '4' }),
+    legend: { ...FLETCH, '1': 'saltiron1', '2': 'saltiron3', '4': 'saltiron5' },
+  },
+  broadhead_arrows: {
+    rows: recolour(BARBED_ARROWS, { M: '1', m: '2', n: '4', r: 'g', R: 'G' }),
+    legend: {
+      ...GROTTO_L,
+      '1': 'saltiron1',
+      '2': 'saltiron3',
+      '4': 'saltiron5',
+      g: 'pine1',
+      G: 'pine2',
+    },
+  },
 };
 
 /**
  * The game's tier 2 item ids, by the drawing each is shown with. Filled in
  * from docs/tier2-manifest.md as lane A publishes it.
  */
-export const TIER2_ICON_IDS: Readonly<Record<string, string>> = {};
+export const TIER2_ICON_IDS: Readonly<Record<string, string>> = {
+  salt_iron_ore: 'saltiron_ore',
+  salt_iron_bar: 'saltiron_bar',
+  salt_iron_arrowheads: 'saltiron_arrowheads',
+  salt_iron_sword: 'saltiron_longsword',
+  salt_iron_axe: 'saltiron_axe',
+  salt_iron_helm: 'saltiron_helm',
+  salt_iron_plate: 'saltiron_cuirass',
+  salt_iron_greaves: 'saltiron_greaves',
+  salt_iron_shield: 'saltiron_kite',
+  red_cloak: 'red_cloak',
+  salt_iron_arrows: 'saltiron_arrows',
+  broadhead_arrows: 'broadhead_arrows',
+};
 
 export const TIER2_ICON_DEFS: Readonly<Record<string, IconDef>> = Object.fromEntries(
   Object.entries(TIER2_ICON_IDS).map(([id, drawing]) => [id, TIER2_DRAWINGS[drawing]!]),

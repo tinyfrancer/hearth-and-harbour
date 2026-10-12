@@ -75,6 +75,16 @@ const WEARABLES = [
   // B13: the smithy's leg armour (lane A adds the items this wave).
   'bronze_greaves',
   'iron_greaves',
+  // B19: tier 2 (docs/tier2-manifest.md), the salt-iron set first.
+  'salt_iron_sword',
+  'salt_iron_axe',
+  'salt_iron_helm',
+  'salt_iron_plate',
+  'salt_iron_greaves',
+  'salt_iron_shield',
+  'red_cloak',
+  'salt_iron_arrows',
+  'broadhead_arrows',
 ];
 
 const at = (g: TGrid, x: number, y: number) => g.d[y * g.w + x]!;
@@ -346,6 +356,8 @@ describe('the hand rule at the C scale', () => {
         'poachers_longbow',
         'smugglers_cutlass',
         'willow_shortbow',
+        // B19, tier 2.
+        'saltiron_axe',
       ].sort(),
     );
   });

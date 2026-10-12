@@ -34,6 +34,7 @@ export const EDGE2: Readonly<Record<string, EdgeRule>> = {
   bronze_hatchet: { edge: 'out', turn: 'flip' },
   iron_bearded_axe: { edge: 'out', turn: 'flip' },
   boarding_axe: { edge: 'out', turn: 'flip' },
+  saltiron_axe: { edge: 'out', turn: 'flip' },
 };
 
 /** Whether a held thing (by gear id) turns only by true rotations. */

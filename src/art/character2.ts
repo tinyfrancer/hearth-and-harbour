@@ -131,6 +131,16 @@ export const ITEM_LAYERS2: Readonly<Record<string, string>> = {
   velvet_cap: 'velvet_cap',
   bronze_greaves: 'bronze_greaves',
   iron_greaves: 'iron_greaves',
+  // B19, tier 2 (docs/tier2-manifest.md): the salt-iron set is the knight.
+  salt_iron_sword: 'knight_sword',
+  salt_iron_axe: 'saltiron_axe',
+  salt_iron_helm: 'knight_helm',
+  salt_iron_plate: 'knight_plate',
+  salt_iron_greaves: 'knight_knees',
+  salt_iron_shield: 'kite_shield',
+  red_cloak: 'red_cloak',
+  salt_iron_arrows: 'arrow_quiver',
+  broadhead_arrows: 'barbed_quiver',
 };
 
 /**

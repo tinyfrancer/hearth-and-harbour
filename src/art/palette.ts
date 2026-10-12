@@ -130,6 +130,32 @@ export const RAMPS = {
   // bloom, the sea-green steel's light, field and shadow, and its deep (pits and the shadow side). Set by hand by day
   // and at dusk (below), as the figures' are, so an icon and the worn piece are one metal.
   saltiron: ['#ffffff', '#c6e2d8', '#92bcb8', '#6a96a0', '#3c5a74'],
+
+  // Tier 2's other icons (B19): its woods, fish, ores, forage, cloth, leather and potions,
+  // the ranger's leather, and what the Thistlewood gives up.
+  drift: ['#f2f0e8', '#cac6ba', '#9c968a', '#6c665e'],
+  elmbark: ['#8c8072', '#5e544a', '#3c342e'],
+  elmwood: ['#d49a62', '#a46c3e', '#784628'],
+  yewbark: ['#b46c4a', '#804430', '#542a1e'],
+  yewheart: ['#f8b048', '#d8762a', '#a8521c'],
+  mackerel: ['#86d0b8', '#3c8090', '#1e4054'],
+  halibut: ['#b0a272', '#80744c', '#564c34'],
+  swordfish: ['#a8c4e2', '#6282b2', '#384c80'],
+  silver: ['#ffffff', '#dfe3ea', '#aeb4c2', '#7c8294'],
+  ingot: ['#fff4b0', '#ffd34d', '#d99a2b', '#9a5e1e'],
+  holly: ['#d8e8f8', '#98b4d4', '#62809e', '#3e5670'],
+  nettle: ['#86bc66', '#548640', '#2e5030'],
+  seaglass: ['#d4f4dc', '#94d0aa', '#d8ecfa', '#98bedc'],
+  duskbloom: ['#f0d4ff', '#b680e4', '#7448ac', '#42286e'],
+  nettlecloth: ['#bec4a8', '#929c7e', '#68705a'],
+  thickhide: ['#94704e', '#664630', '#40281a'],
+  holtonic: ['#e4f2ff', '#a2ccf2', '#5e90cc'],
+  forge: ['#ffcc92', '#f28c3c', '#b4501e'],
+  dusklight: ['#f8e4ff', '#c890f4', '#8050c4'],
+  twilight: ['#7484dc', '#30409c', '#161e5c'],
+  ranger: ['#84946a', '#5c6a46', '#3a442e'],
+  amber: ['#ffe48e', '#f2aa3a', '#ba6c1e'],
+  thorn: ['#5c4a40', '#3a2c28', '#22181a'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;
@@ -320,9 +346,9 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   white1: '#efe4f0',
   sail1: '#cdb8c0',
   saltiron1: '#e4ecec',
-  saltiron2: '#9cbcc0',
-  saltiron3: '#6e8e9a',
-  saltiron4: '#53687c',
+  saltiron2: '#8ec2c0',
+  saltiron3: '#5e929a',
+  saltiron4: '#46707e',
   saltiron5: '#333e5a',
 });
 

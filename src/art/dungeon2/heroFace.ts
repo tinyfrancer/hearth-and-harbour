@@ -846,14 +846,14 @@ const HATS: Readonly<Record<string, (g: TGrid, o: HeroBust) => void>> = {
       [62, RIM + 2],
       [36, RIM + 1],
     ]);
-    form(g, band, 'saltiron', { cx: 20, cy: RIM - 2, rx: 30, ry: 4, base: 2.5, k: 1.2, rim: 1 });
+    form(g, band, 'gold', { cx: 20, cy: RIM - 2, rx: 30, ry: 4, base: 2.2, k: 1.2, rim: 1 });
     cast(g, band, {
       n: 1,
       dx: 0,
       dy: 1,
       on: ['skin', 'skinpale', 'skingolden', 'skinbrown', 'skindeep'],
     });
-    for (const x of [21, 29, 44, 52]) put(g, x, RIM - 1, cell('saltiron', x < 36 ? 0 : 1));
+    for (const x of [21, 29, 44, 52]) put(g, x, RIM - 1, cell('gold', x < 36 ? 0 : 1));
     for (const [x, y] of [
       [13, RIM - 1],
       [58, RIM - 1],
