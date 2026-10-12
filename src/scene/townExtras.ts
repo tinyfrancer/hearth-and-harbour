@@ -121,7 +121,7 @@ export function townExtra(input: TownExtraInput, palette: Palette): StageExtra {
     if (!own.has(piece.id)) continue;
     // The bow lantern rides in the boat: away with it.
     if (away && piece.id === 'boat_lantern') continue;
-    const image = piece.picture(input.time);
+    const image = piece.picture(input.time, input.now);
     if (!image) continue;
     const box = pieceBox(piece);
     actors.push({ image, x: box.x, y: box.y, base: piece.base });
