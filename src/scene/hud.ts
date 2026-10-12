@@ -55,8 +55,11 @@ export const HUD_SIZES = {
   buttons: 3,
   /** A lesson: up to three lines of words beside its Skip button. */
   lesson: { w: 460, h: 80, gap: 12 },
-  /** The challenges still to be had, quietly, in the lesson's place (S16), or folded to a chip. */
-  tracker: { w: 220, h: 64 },
+  /**
+   * The challenges still to be had, quietly, in the lesson's place (S16), or folded to a chip:
+   * three lines at the most, in a 16-pixel hand (wave 18; it was four in 13).
+   */
+  tracker: { w: 264, h: 64 },
 } as const;
 
 /** Every control's box, CSS pixels: null for one this dungeon never shows. */

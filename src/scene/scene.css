@@ -885,7 +885,7 @@
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  width: 220px;
+  width: 264px;
   height: 64px;
   padding: 4px 4px 4px 8px;
   background: var(--scrim);
@@ -912,14 +912,16 @@
 }
 
 .run-tracker-list {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
-  /* Four lines at the most in its 64-pixel box. */
-  font-size: 13px;
-  line-height: 14px;
+  /* Three lines at the most in its 64-pixel box (`TRACKER_LINES`), in a hand to read mid-fight. */
+  font-size: 16px;
+  line-height: 18px;
   color: var(--text);
 }
 
@@ -928,6 +930,10 @@
   gap: 6px;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.run-tracker-list li[hidden] {
+  display: none;
 }
 
 .run-tracker-name {
@@ -964,7 +970,7 @@
   border: var(--px) solid var(--line);
   color: var(--text-muted);
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   cursor: pointer;
 }
 

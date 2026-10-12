@@ -105,6 +105,35 @@ export function trackerLines(
     });
 }
 
+/** The most lines the tracker shows at once: what can still be had first, what is lost last. */
+export const TRACKER_LINES = 3;
+
+/** The order the tracker shows its lines in: still to be had, waiting, met, then lost. */
+const TRACKER_ORDER: Readonly<Record<ChallengeState, number>> = {
+  open: 0,
+  waiting: 1,
+  met: 2,
+  lost: 3,
+};
+
+/**
+ * The tracker's lines as it shows them: what can still be had first (one
+ * against the clock first of those), then those waiting, then those met,
+ * the lost last; `TRACKER_LINES` at the most.
+ */
+export function trackerShown(lines: readonly TrackerLine[]): TrackerLine[] {
+  return lines
+    .map((l, at) => ({ l, at }))
+    .sort(
+      (a, b) =>
+        TRACKER_ORDER[a.l.state] - TRACKER_ORDER[b.l.state] ||
+        Number(!a.l.clock) - Number(!b.l.clock) ||
+        a.at - b.at,
+    )
+    .slice(0, TRACKER_LINES)
+    .map(({ l }) => l);
+}
+
 /** The tracker in the corner of a run: a line a challenge, or folded to one button. */
 export interface Tracker {
   readonly el: HTMLElement;
@@ -167,7 +196,9 @@ export function trackerView(
       const show = shown && lines.size > 0;
       if (el.hidden === show) el.hidden = !show;
       if (!show || folded) return;
-      for (const line of trackerLines(challenges, runStats(run), run.modifier?.id ?? null, done)) {
+      const all = trackerLines(challenges, runStats(run), run.modifier?.id ?? null, done);
+      const visible = trackerShown(all);
+      for (const line of all) {
         const at = lines.get(line.id);
         if (!at) continue;
         if (at.state !== line.state) {
@@ -176,6 +207,12 @@ export function trackerView(
         }
         const text = line.clock ?? '';
         if (at.clock.textContent !== text) at.clock.textContent = text;
+        // Three lines at the most, in their order (a flex column's `order`, so nothing is rebuilt).
+        const place = visible.indexOf(line);
+        const hide = place < 0;
+        if (at.li.hidden !== hide) at.li.hidden = hide;
+        const order = String(Math.max(0, place));
+        if (at.li.style.order !== order) at.li.style.order = order;
       }
     },
   };
