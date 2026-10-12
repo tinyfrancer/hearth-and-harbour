@@ -8,7 +8,7 @@
  *   by lane A's `foeUnder` (heavy blows are made of a foe's max hit; a cannon's are not);
  * - hero damage: his max hit as he rows out, by `heroMaxHitUnder`;
  * - what food heals (wave 18's Short Rations): the food slot's and every
- *   kind found, as the run starts, by lane A's `foodUnder` (`foodHealsUnder`);
+ *   kind found, as the run starts, by lane A's `foodUnder`;
  * - the tide's pace, and no food: read by the rules as the fight goes
  *   (`BattleMods`, `battleMods`);
  * - darker: smaller light pools, from the rooms' own light (`dimOf`);
