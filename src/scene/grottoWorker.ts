@@ -38,6 +38,12 @@ export interface GroundAnswer {
     readonly barred: Int16Array;
     readonly open: Int16Array;
   }[];
+  /** A dark room's layers (`DarkLayers`): each pixel's shade, and the ground lit and in a heart. */
+  readonly dark: {
+    readonly shade: Uint8Array;
+    readonly lit: Uint8ClampedArray;
+    readonly heart: Uint8ClampedArray;
+  } | null;
 }
 
 const scope = self as unknown as {
@@ -64,16 +70,27 @@ scope.onmessage = (event) => {
   const dimmed = dim !== undefined && dim !== 1 ? { ...plain, dim } : plain;
   const lit = event.data.lit;
   const r = lit !== undefined ? { ...dimmed, lit } : dimmed;
-  const { cells, data, doors } = groundPixels(r, level, warn);
+  const { cells, data, doors, dark } = groundPixels(r, level, warn);
   const flat = doors.map((d) => ({
     letter: d.letter,
     box: d.box,
     barred: d.barred.d,
     open: d.open.d,
   }));
-  scope.postMessage({ id, w: cells.w, h: cells.h, cells: cells.d, data, doors: flat }, [
-    cells.d.buffer as ArrayBuffer,
-    data.buffer as ArrayBuffer,
-    ...flat.flatMap((d) => [d.barred.buffer as ArrayBuffer, d.open.buffer as ArrayBuffer]),
-  ]);
+  const layers = dark && { shade: dark.shade, lit: dark.lit, heart: dark.heart };
+  scope.postMessage(
+    { id, w: cells.w, h: cells.h, cells: cells.d, data, doors: flat, dark: layers },
+    [
+      cells.d.buffer as ArrayBuffer,
+      data.buffer as ArrayBuffer,
+      ...flat.flatMap((d) => [d.barred.buffer as ArrayBuffer, d.open.buffer as ArrayBuffer]),
+      ...(layers
+        ? [
+            layers.shade.buffer as ArrayBuffer,
+            layers.lit.buffer as ArrayBuffer,
+            layers.heart.buffer as ArrayBuffer,
+          ]
+        : []),
+    ],
+  );
 };

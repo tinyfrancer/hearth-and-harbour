@@ -29,7 +29,8 @@ import { BURROW, BURROW_ID } from '../../src/scene/burrow';
 import { advanceRun, groundNow, placeOf, type Run } from '../../src/scene/dungeon';
 import { dungeonById, dungeonScene, DUNGEON_IDS } from '../../src/scene/dungeons';
 import { far } from '../../src/scene/dungeonMetrics';
-import { FIGHT_COLOURS, fightArtFor, fightExtra, liftOf } from '../../src/scene/fightArt';
+import { FIGHT_COLOURS, fightArtFor, fightExtra, foePose, liftOf } from '../../src/scene/fightArt';
+import { DAZZLE_HINT_MS, forgetLessons, lessonBlocks, stepLessons } from '../../src/scene/lessons';
 import { foeKind } from '../../src/scene/foes';
 import { foeArtId } from '../../src/scene/fromLaneB';
 import { standable } from '../../src/scene/ground';
@@ -59,8 +60,10 @@ import {
   BURROW_DUNGEON,
   BURROW_ORDER,
   beginBurrow,
+  burrowMonsters,
   burrowPolicy,
   decideBurrow,
+  playBurrow,
   tier2,
 } from './burrowBot';
 
@@ -122,6 +125,7 @@ describe('the Burrow as written', () => {
       'lantern',
       'moth',
       'guard',
+      'dazzle',
     ]);
   });
 
@@ -543,6 +547,58 @@ describe('the cast', () => {
     expect(king.under).toBeUndefined();
     expect(r.battle!.lamps!.sett![lit]).toBe(false);
     expect(king.stuck! - r.battle!.clock).toBeGreaterThan(DAZZLE_MS - 2 * TICK_MS);
+
+    // Taught on screen: he reels where he stands (hurt and not, by turns), the lantern he came up
+    // under flares as it goes out, and the first time, a hint says why he came up there.
+    const kind = foeKind('badger_king');
+    const poses = new Set(
+      [0, 220, 440, 660].map((dt) => foePose(king, r.battle!.clock + dt, 2800, kind).pose),
+    );
+    expect(poses).toEqual(new Set(['hurt', 'idle']));
+    const look = roomLook(litRoom(sett, lampMask(r.battle!.lamps!.sett!)));
+    const extra = fightExtra(D, r, look, fightArtFor(look));
+    const flame = lampFoot(sett.ground.lamps[lit]!.cell);
+    expect(
+      extra.boxes.some(
+        (b) =>
+          b.x <= flame.x &&
+          flame.x <= b.x + b.w &&
+          b.y <= flame.y - 30 &&
+          flame.y - 30 <= b.y + b.h,
+      ),
+    ).toBe(true);
+    forgetLessons();
+    const lessons = dungeonScene(BURROW_ID)!.lessons!;
+    const shown = stepLessons(
+      { shown: null, done: ['lantern', 'moth', 'guard'], off: false },
+      lessons,
+      D,
+      r,
+    );
+    expect(shown.shown).toBe('dazzle');
+    expect(lessonBlocks(shown, lessons)).toBe(false);
+    // Up long enough to be read, though the dazzle passes.
+    const after = on(r, DAZZLE_MS + TICK_MS);
+    expect(stepLessons(shown, lessons, D, after, 1000).shown).toBe('dazzle');
+    const read = stepLessons(shown, lessons, D, after, DAZZLE_HINT_MS);
+    expect(stepLessons(read, lessons, D, after, 16).shown).toBeNull();
+  });
+
+  it('counts a lantern lit before the hint was due as learned: the hint never comes', () => {
+    forgetLessons();
+    const lessons = dungeonScene(BURROW_ID)!.lessons!;
+    const room = D.rooms.hollow!;
+    // He walks straight from the light he came in by to a lantern and lights it.
+    const i = room.ground.lamps.findIndex((l) => !l.lit);
+    let run = beginBurrow(tier2(), 2);
+    const start = { shown: null, done: [], off: false };
+    expect(stepLessons(start, lessons, D, run).shown).toBeNull();
+    const tended = tendLamp(run.battle!, placeOf(D, run), run.play, i);
+    run = { ...run, battle: tended.battle, play: tended.play };
+    const state = stepLessons(start, lessons, D, run);
+    expect(state.done).toContain('lantern');
+    // Out in the dark later, with something awake: still nothing shown for it.
+    expect(state.shown).not.toBe('lantern');
   });
 });
 
@@ -661,4 +717,30 @@ describe('a Burrow run kept through a reload', () => {
     expect(cut.battle).toEqual(whole.battle);
     expect(cut.play).toEqual(whole.play);
   });
+});
+
+describe('what a fight in the Burrow pays', () => {
+  it('pays experience at tier 2’s rate (`foeXp`): each blow its foe’s `xpPercent`', () => {
+    // The same fight twice, once by the tables' rows (270 a hundred) and once with the rate left
+    // out: the fight is the same, blow for blow; only what each blow pays differs.
+    const rows = burrowMonsters();
+    const cast = ['spore_puff', 'lantern_moth', 'cap_guard', 'bramble_hound', 'badger_king'];
+    for (const id of cast) expect(rows[id]!.xpPercent).toBe(270);
+    const plainRows = Object.fromEntries(
+      Object.entries(rows).map(([id, m]) => [id, { ...m, xpPercent: undefined }]),
+    );
+    const tier = playBurrow(tier2(), 7919, { reactMs: 400, light: true, monsters: rows });
+    const plain = playBurrow(tier2(), 7919, { reactMs: 400, light: true, monsters: plainRows });
+    expect(tier.ms).toBe(plain.ms);
+    expect(tier.kills).toBe(plain.kills);
+    const xp = (o: typeof tier) => o.run.battle!.tally.xp;
+    for (const skill of ['melee', 'defence', 'vitality']) {
+      const paid = xp(tier)[skill]!;
+      const base = xp(plain)[skill]!;
+      expect(base).toBeGreaterThan(1000);
+      // Rounded once a blow: within a blow's rounding of 2.7 times as much.
+      expect(paid / base).toBeGreaterThan(2.68);
+      expect(paid / base).toBeLessThan(2.72);
+    }
+  }, 120_000);
 });

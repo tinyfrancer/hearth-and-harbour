@@ -7,6 +7,7 @@
  * (brace three, step out of three). Plain DOM; no dialogs.
  */
 import type { Content, RunStats } from '../core/content';
+import type { RunSpoils } from '../core/run';
 import type { GameState } from '../core/state';
 import { button, h } from '../ui/dom';
 import { itemIcon, skillIcon } from '../art/icons';
@@ -254,6 +255,28 @@ export interface RunReward {
 export const clearCounts = (content: Content, run: Run): boolean =>
   run.ending === 'cleared' && !chartRow(content, run.dungeon)?.comingSoon;
 
+/** Whether a run is a review of a landing still to come (`preview.ts`): it settles nothing. */
+export const reviewOnly = (content: Content, dungeon: string): boolean =>
+  !!chartRow(content, dungeon)?.comingSoon;
+
+/** What a review run pays: nothing at all, and nothing used up. */
+export const NOTHING_SETTLED: RunSpoils = {
+  xp: {},
+  loot: {},
+  coins: 0,
+  foodEaten: 0,
+  arrowsUsed: 0,
+};
+
+/**
+ * What a run pays in when it is settled: its spoils as it ended (`runSpoils`,
+ * counted cleared as `clearCounts` says); a review run of a landing still
+ * to come pays nothing in and takes nothing out (no XP, loot, kills or
+ * clear, no food or arrows used), so a save looked round in is not moved.
+ */
+export const settledSpoils = (content: Content, run: Run): RunSpoils =>
+  reviewOnly(content, run.dungeon) ? NOTHING_SETTLED : runSpoils(run, clearCounts(content, run));
+
 export function runRewards(content: Content, run: Run, state: GameState): RunReward[] {
   if (!clearCounts(content, run)) return [];
   const out: RunReward[] = [];
@@ -315,7 +338,8 @@ export function resultsCard(o: ResultsOptions): {
   const stats = runStats(run);
   // As settling pays it: a review run of a landing to come is not counted cleared.
   const cleared = clearCounts(content, run);
-  const spoils = runSpoils(run, cleared);
+  const review = reviewOnly(content, run.dungeon);
+  const spoils = settledSpoils(content, run);
   const paid = spoilsUnder(spoils, content);
   const plain = spoilsUnder({ ...spoils, modifier: null }, content);
   const modifier = run.modifier ? modifierDef(content, run.modifier.id) : undefined;
@@ -431,7 +455,13 @@ export function resultsCard(o: ResultsOptions): {
   if (paid.coins > 0) earned.push(line(null, 'Coins', `+${paid.coins}`));
   for (const [item, qty] of Object.entries(paid.loot))
     earned.push(line(itemIcon(item), content.items[item]?.name ?? item, `×${qty}`));
-  if (!earned.length) earned.push(h('li', { class: 'muted', text: 'Nothing, this time.' }));
+  if (!earned.length)
+    earned.push(
+      h('li', {
+        class: 'muted',
+        text: review ? 'A look round only: nothing is kept.' : 'Nothing, this time.',
+      }),
+    );
 
   const again = o.again ? button('Row out again', o.again) : null;
   let frame = 0;

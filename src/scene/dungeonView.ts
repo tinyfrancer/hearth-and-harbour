@@ -52,8 +52,10 @@ import {
   FIGHT_COLOURS,
   HERO_TALL,
   doorsOpen,
+  castIn,
   fightArtFor,
   fightExtra,
+  warmFoes,
   heroStrikePose,
   liftOf,
   tapLift,
@@ -79,6 +81,9 @@ import { foeSize2 } from '../art/dungeonArt2';
 import {
   CaveShadow,
   HeroLight,
+  themeOf,
+  ownLight,
+  shadeIn,
   doorPieces,
   heroPoolIn,
   isDark,
@@ -486,8 +491,8 @@ export function withRing(extra: StageExtra, ring: LessonRing, now: number): Stag
     ...extra,
     overlayBox,
     ...(extra.overlayBoxes ? { overlayBoxes: [...extra.overlayBoxes, box] } : {}),
-    overlay(ctx, k) {
-      extra.overlay?.(ctx, k);
+    overlay(ctx, k, area) {
+      extra.overlay?.(ctx, k, area);
       const p = (((now % LESSON_PULSE_MS) + LESSON_PULSE_MS) % LESSON_PULSE_MS) / LESSON_PULSE_MS;
       ctx.save();
       ctx.lineWidth = 4 * k;
@@ -914,17 +919,11 @@ export function dungeonView(options: DungeonViewOptions): View {
     at: () => {
       const run = options.run();
       const s = tideStateOf(dungeon, run);
-      const open = doorsAreOpen(run);
-      const cells = look.cellsAt(s.level, s.warn, open);
-      if (!cells) return null;
-      return heroLight.at(
-        cells,
-        poolsOf(run),
-        open ? look.openGlows : look.glows,
-        run.play.walker.at,
-        look.theme.palette,
-        heroPoolIn(look.room),
-      );
+      const dark = look.darkAt(s.level, s.warn);
+      if (!dark) return null;
+      // Never over the ground an open door lights from beyond: it is lit already.
+      const skip = doorsAreOpen(run) ? look.doorsAt(s.level, s.warn).map((d) => d.box) : undefined;
+      return heroLight.at(dark, run.play.walker.at, heroPoolIn(look.room), skip);
     },
   };
   /** The pools of light in the run's room as the day leaves them: the lanterns', and its doors' once open. */
@@ -1024,6 +1023,9 @@ export function dungeonView(options: DungeonViewOptions): View {
   const showRoom = (): void => {
     const run = options.run();
     const here = dungeon.rooms[run.room]!;
+    // Everyone this room may show drawn now, in the dark of the door (or as the boat rows out),
+    // so no creature's first picture is drawn in the middle of a fight.
+    warmFoes(castIn(here), themeOf(here).palette);
     // Rooms behind are let go; this one and the next are kept and painted ahead, and the first
     // always (wave 18): Row out again from the results goes straight back to it, never to a room
     // painted again behind the card.
@@ -1089,6 +1091,9 @@ export function dungeonView(options: DungeonViewOptions): View {
           if (!cells) return null;
           // On a darker day his shadow is as dark as the ground it falls on (in his own light).
           const lights = isDark(look.room) ? poolsOf(run) : null;
+          const dark = lights && !open ? look.darkAt(s.level, s.warn) : null;
+          const own = ownLight(heroPoolIn(look.room));
+          own.placeAt(feet);
           const placed = heroShadow.at(
             cells,
             look.kindsAt(s.level, s.warn),
@@ -1096,7 +1101,11 @@ export function dungeonView(options: DungeonViewOptions): View {
             feet,
             HERO_SHADOW,
             look.theme.palette,
-            lights ? (x, y) => shadeAt(lights, x, y, feet, heroPoolIn(look.room)) : undefined,
+            dark
+              ? (x, y) => shadeIn(dark, own, x, y)
+              : lights
+                ? (x, y) => shadeAt(lights, x, y, feet, heroPoolIn(look.room))
+                : undefined,
           );
           return (
             placed && {

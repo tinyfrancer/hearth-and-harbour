@@ -5,7 +5,13 @@
  * worker, or one that fails, it is done on the spot.
  */
 import type { Room } from './dungeon';
-import { groundOnTheSpot, type DoorPaint, type GroundPainter, type TideState } from './grottoArt';
+import {
+  groundOnTheSpot,
+  type DarkLayers,
+  type DoorPaint,
+  type GroundPainter,
+  type TideState,
+} from './grottoArt';
 import type { GroundAnswer, GroundRequest } from './grottoWorker';
 import type { TGrid } from '../art/town2/cells';
 
@@ -17,6 +23,7 @@ interface Job {
     cells: TGrid,
     data: Uint8ClampedArray | null,
     doors?: readonly DoorPaint[],
+    dark?: DarkLayers | null,
   ) => void;
 }
 
@@ -65,6 +72,7 @@ export function groundInAWorker(): WorkerPainter {
             barred: { w: d.box.w, h: d.box.h, d: d.barred },
             open: { w: d.box.w, h: d.box.h, d: d.open },
           })),
+          a.dark && { w: a.w, h: a.h, ...a.dark },
         );
       send();
     };

@@ -318,9 +318,11 @@ export interface StageExtra {
    * Over everything at the screen's own resolution (with the stage's
    * `overlay`): words and thin lines, which an enlarged art pixel would make
    * blocky. Drawn in art-pixel coordinates; `k` is art pixels per CSS pixel,
-   * so a size in CSS pixels times `k` is that size on screen.
+   * so a size in CSS pixels times `k` is that size on screen. `area`, where
+   * given, is the patch of the overlay this canvas covers (`overlayBoxes`):
+   * what lies wholly outside it need not be drawn.
    */
-  overlay?(ctx: CanvasRenderingContext2D, k: number): void;
+  overlay?(ctx: CanvasRenderingContext2D, k: number, area?: Box): void;
   /**
    * Where the overlay draws this frame, in art pixels, generously; null for
    * nothing. The overlay canvas covers only this (a canvas the whole screen's
@@ -879,7 +881,7 @@ export function stage(options: StageOptions): View {
     shownLast = shown;
     drawnLast = moving;
     extraLast = extra?.boxes ?? [];
-    if (top && !(globalThis as {NOOVER?: boolean}).NOOVER) drawOverlay(top, extra, cam, scale);
+    if (top) drawOverlay(top, extra, cam, scale);
     options.seen?.(cam, cssPerArt);
   };
 
@@ -920,7 +922,7 @@ export function stage(options: StageOptions): View {
     const rects = patches
       .flatMap((b) => {
         const at = overlayRect(b, cam, per, fitted, dpr);
-        return at ? [at] : [];
+        return at ? [{ ...at, area: b }] : [];
       })
       .sort((a, b) => a.x - b.x);
     while (tops.length < rects.length) {
@@ -957,7 +959,7 @@ export function stage(options: StageOptions): View {
       tc.clearRect(0, 0, c.width, c.height);
       tc.setTransform(per, 0, 0, per, -cam.x * per - at.x, -cam.y * per - at.y);
       tc.imageSmoothingEnabled = false;
-      drawn!.overlay!(tc, fitted.k);
+      drawn!.overlay!(tc, fitted.k, rects.length > 1 ? at.area : undefined);
       t.shown = true;
     });
   };

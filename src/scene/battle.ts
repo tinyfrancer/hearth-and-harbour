@@ -26,6 +26,7 @@ import {
   PLAYER_ATTACK_MS,
   VITALITY,
   XP_PER_DAMAGE,
+  foeXp,
   hitChance,
   playerCombat,
   type PlayerCombat,
@@ -932,8 +933,10 @@ function strike(w: Work, dice: Dice, foe: Writable<Foe>, hero: Point, place: Pla
     const dealt = Math.min(dice.between(1, me.maxHit), foe.hp);
     foe.hp -= dealt;
     foe.struckAt = w.clock;
-    earn(w, me.skill, XP_PER_DAMAGE * dealt);
-    earn(w, VITALITY, Math.floor((XP_PER_DAMAGE * dealt) / 2));
+    // At the foe's own rate (tier 2's pay more a blow: `foeXp`), as the idle fight pays it.
+    const xp = foeXp(XP_PER_DAMAGE * dealt, def);
+    earn(w, me.skill, xp);
+    earn(w, VITALITY, Math.floor(xp / 2));
     effect(w, { kind: 'hit', at: top, amount: dealt, on: 'foe', from: w.clock });
     // A moth struck as it puts a lantern out starts over.
     const moth = foeKind(foe.monster).seeksLight;
@@ -1014,7 +1017,7 @@ function struck(
   hero: Point,
   place: Place,
 ): void {
-  const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
+  const earned = foeXp(DEFENCE_XP_PER_MAX_HIT * def.maxHit, def);
   earn(w, DEFENCE, earned);
   earn(w, VITALITY, Math.floor(earned / 2));
   let dealt = damage;
@@ -1085,7 +1088,7 @@ function land(
     }
   }
   if (def) {
-    const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
+    const earned = foeXp(DEFENCE_XP_PER_MAX_HIT * def.maxHit, def);
     earn(w, DEFENCE, earned);
     earn(w, VITALITY, Math.floor(earned / 2));
   }

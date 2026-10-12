@@ -441,25 +441,100 @@ export function darkenPixels(
     }
 }
 
-/** A canvas placed at (`ox`, `oy`) in the room, darkened in place by its pixels' shades. */
-export function darkenCanvas(
-  canvas: HTMLCanvasElement | null,
-  ox: number,
-  oy: number,
-  shade: (x: number, y: number) => Shade,
-): void {
-  const ctx = canvas?.getContext('2d', { willReadFrequently: true });
-  if (!canvas || !ctx || !(canvas.width > 0)) return;
-  const px = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  darkenPixels(px.data, px.width, px.height, ox, oy, shade);
-  ctx.putImageData(px, 0, 0);
+/**
+ * A dark room's ground made ready for what moves about in it, worked out
+ * with the ground itself (in the worker): the shade the room's own pools
+ * leave each pixel (`shadeAt`, ragged edges and all), and the ground as it
+ * would be lit (`lit`: in a pool's light; `heart`: in the heart of the
+ * hero's own, a step lighter). His pool and the shadows cast in the dark
+ * are put together from these by lookup each frame, never worked out a
+ * pixel at a time from the lights (which cost a frame its budget).
+ */
+export interface DarkLayers {
+  readonly w: number;
+  readonly h: number;
+  readonly shade: Uint8Array;
+  readonly lit: Uint8ClampedArray;
+  readonly heart: Uint8ClampedArray;
+}
+
+/** The ground's cells with the heart of the hero's own pool's lift: a step lighter, as lane B lifts a pool's heart. */
+function heartCells(cells: TGrid): TGrid {
+  const L = DUNGEON2_LIGHT;
+  const d = cells.d.slice();
+  for (let i = 0; i < d.length; i++) {
+    const c = d[i]!;
+    if (c && (c & 7) !== 6 && !isMat(c, 'wood'))
+      d[i] = (c & ~7) | Math.max(0, (c & 7) - L.heartSteps);
+  }
+  return { w: cells.w, h: cells.h, d };
+}
+
+/** A pixel's shade where a dark room's pools and the hero's own meet: the lighter of the two. */
+export function shadeIn(dark: DarkLayers, own: OwnLight | null, x: number, y: number): Shade {
+  const g =
+    x >= 0 && y >= 0 && x < dark.w && y < dark.h ? (dark.shade[y * dark.w + x]! as Shade) : 2;
+  if (!own || g === 0) return g;
+  const o = own.at(x, y);
+  return o < g ? o : g;
+}
+
+/**
+ * The hero's own pool of light, as a mask about his feet worked out once
+ * for its size (`pool`): each pixel's shade by it (0 its heart and body, 1
+ * its edge, 2 beyond), ragged as lane B's pools are, the rag going with him.
+ */
+export class OwnLight {
+  readonly rx: number;
+  readonly ry: number;
+  readonly bw: number;
+  readonly bh: number;
+  /** 0 the heart, 1 inside, 2 the edge, 3 beyond. */
+  readonly mask: Uint8Array;
+  readonly pool: number;
+  hero: Point = { x: 0, y: 0 };
+  constructor(pool: number) {
+    this.pool = pool;
+    const L = DUNGEON2_LIGHT;
+    this.rx = Math.ceil(pool * POOL_EDGE) + 2;
+    this.ry = Math.ceil(pool * POOL_EDGE * L.squash) + 2;
+    this.bw = 2 * this.rx + 1;
+    this.bh = 2 * this.ry + 1;
+    this.mask = new Uint8Array(this.bw * this.bh);
+    for (let j = 0; j < this.bh; j++)
+      for (let i = 0; i < this.bw; i++) {
+        const dx = i - this.rx;
+        const dy = j - this.ry;
+        const u = intoHero({ x: 0, y: HERO_POOL_RISE }, dx + 0.5, dy + 0.5, pool) + ragged(dx, dy);
+        this.mask[j * this.bw + i] = u < L.heart ? 0 : u < 1 ? 1 : u < POOL_EDGE ? 2 : 3;
+      }
+  }
+  /** Where the mask lies in the room with him at `feet`: its top-left. */
+  placeAt(feet: Point): Point {
+    this.hero = { x: Math.round(feet.x), y: Math.round(feet.y) };
+    return { x: this.hero.x - this.rx, y: this.hero.y - HERO_POOL_RISE - this.ry };
+  }
+  /** His light's shade at a room pixel, as last placed. */
+  at(x: number, y: number): Shade {
+    const i = x - this.hero.x + this.rx;
+    const j = y - this.hero.y + HERO_POOL_RISE + this.ry;
+    if (i < 0 || j < 0 || i >= this.bw || j >= this.bh) return 2;
+    const m = this.mask[j * this.bw + i]!;
+    return m <= 1 ? 0 : m === 2 ? 1 : 2;
+  }
+  /** Whether his light reaches a box (room pixels), as last placed. */
+  reaches(b: Box): boolean {
+    const x0 = this.hero.x - this.rx;
+    const y0 = this.hero.y - HERO_POOL_RISE - this.ry;
+    return b.x < x0 + this.bw && x0 < b.x + b.w && b.y < y0 + this.bh && y0 < b.y + b.h;
+  }
 }
 
 /**
  * Whether a room is drawn dark beyond its pools: on a darker day, and always
  * in a room whose light is a rule (it has lanterns on posts).
  */
-export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1 || (room.ground.lamps.length > 0 && !(globalThis as {NODARK?: boolean}).NODARK);
+export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1 || room.ground.lamps.length > 0;
 
 /** The hero's own pool's half-width in a room: in a room of lanterns on a darker day, smaller. */
 export const heroPoolIn = (room: Room): number =>
@@ -823,16 +898,23 @@ export function groundWithDoors(
 /** Whether this browser can paint pixels (not jsdom). */
 const canPaint = (): boolean => typeof ImageData !== 'undefined' && typeof document !== 'undefined';
 
-/** Cells in a cave's palette (the grotto's dusk unless said) onto a canvas of their size, empty cells empty. */
+/**
+ * Cells in a cave's palette (the grotto's dusk unless said) onto a canvas of
+ * their size, empty cells empty; taken toward the night first by `shade`
+ * (its top-left in the room, and each room pixel's shade) where given, so
+ * a dark picture is darkened before it is put down, never read back.
+ */
 export function paintCells(
   pic: Picture2,
   into?: HTMLCanvasElement,
   palette: CavePalette = CAVE_DUSK,
+  shade?: { readonly x: number; readonly y: number; at(x: number, y: number): Shade },
 ): HTMLCanvasElement | null {
   if (!canPaint()) return null;
   const image = rasterize2(pic, palette, 1);
   const d = pic.grid.d;
   for (let i = 0; i < d.length; i++) if (!d[i]) image.data[i * 4 + 3] = 0;
+  if (shade) darkenPixels(image.data, pic.grid.w, pic.grid.h, shade.x, shade.y, shade.at);
   const canvas = into ?? document.createElement('canvas');
   if (canvas.width !== pic.grid.w) canvas.width = pic.grid.w;
   if (canvas.height !== pic.grid.h) canvas.height = pic.grid.h;
@@ -844,6 +926,83 @@ export function paintCells(
     0,
   );
   return canvas;
+}
+
+/** What lights a picture, as text: every glow's part in it. */
+export const glowSig = (gs: readonly Glow[]): string =>
+  gs
+    .map(
+      (g) =>
+        `${g.x},${g.y},${g.radius},${g.strength},${g.always ? 1 : 0}${g.byDay ? 1 : 0},${g.rgb?.join('/') ?? ''}`,
+    )
+    .join(';');
+
+/**
+ * The pools whose light can reach a box, by the furthest their ragged edges
+ * go (`POOL_EDGE` and lane B's rag): the only ones its pixels' shades
+ * (`shadeAt`) depend on.
+ */
+export function poolsNear(lights: readonly Light2[], box: Box): Light2[] {
+  const L = DUNGEON2_LIGHT;
+  const reach = POOL_EDGE + L.ragged + 0.03;
+  return lights.filter((l) => {
+    const cy = l.y + l.drop;
+    const nx = Math.max(box.x, Math.min(l.x, box.x + box.w));
+    const ny = Math.max(box.y, Math.min(cy, box.y + box.h));
+    return Math.hypot((nx - l.x) / l.pool, (ny - cy) / (l.pool * L.squash)) < reach;
+  });
+}
+
+const poolSig = (ls: readonly Light2[]): string =>
+  ls.map((l) => `${l.x},${l.y},${l.drop},${l.pool}`).join(';');
+
+/** Pictures standing in a room, lit and darkened, kept across its looks by what lights each. */
+const litPictures = new WeakMap<object, Map<string, HTMLCanvasElement | null>>();
+/** How many a room keeps: the least lately used goes first. */
+const LIT_PICTURES_KEPT = 400;
+
+/**
+ * A picture standing in a room (a prop, a door's piece) whose top-left is
+ * `box`'s, lit by the glows that reach it and, where `dark` pools are given,
+ * taken toward the night beyond them as the ground is. Painted once for each
+ * different light that falls on it and kept for every look of the room (its
+ * looks by its lanterns share the room's ground), so a lantern lit or put
+ * out paints again only what its light reaches. Null where nothing can be
+ * painted.
+ */
+export function litPicture(
+  room: Room,
+  key: string,
+  pic: Picture2,
+  box: Box,
+  glows: readonly Glow[],
+  dark: readonly Light2[] | null,
+  palette: CavePalette,
+): HTMLCanvasElement | null {
+  if (!canPaint()) return null;
+  const local = glowsIn(glows, box, palette);
+  const near = dark ? poolsNear(dark, box) : null;
+  let kept = litPictures.get(room.ground);
+  if (!kept) {
+    kept = new Map();
+    litPictures.set(room.ground, kept);
+  }
+  const k = `${key}|${palette.name}|${glowSig(local)}|${near ? poolSig(near) : '-'}`;
+  const known = kept.get(k);
+  if (known !== undefined) {
+    kept.delete(k);
+    kept.set(k, known);
+    return known;
+  }
+  const image = paintCells(
+    { grid: pic.grid, glows: [...pic.glows, ...local] },
+    undefined,
+    palette,
+    near ? { x: box.x, y: box.y, at: (x, y) => shadeAt(near, x, y) } : undefined,
+  );
+  if (kept.size >= LIT_PICTURES_KEPT) kept.delete(kept.keys().next().value!);
+  kept.set(k, image);
+  return image;
 }
 
 /** The glows that reach a box, moved into its own pixels. */
@@ -882,15 +1041,26 @@ export function groundPixels(
   room: Room,
   level: number,
   warn: boolean,
-): { cells: TGrid; data: Uint8ClampedArray; doors: DoorPaint[] } {
+): { cells: TGrid; data: Uint8ClampedArray; doors: DoorPaint[]; dark: DarkLayers | null } {
   const { cells, doors } = groundWithDoors(room, level, warn);
-  const data = rasterize2({ grid: cells, glows: steadyGlows(room) }, themeOf(room).palette, 1).data;
-  // A darker day: beyond the (smaller) pools the floor goes down toward the night.
-  if (isDark(room)) {
-    const lights = lightsOf(room);
-    darkenPixels(data, cells.w, cells.h, 0, 0, (x, y) => shadeAt(lights, x, y));
-  }
-  return { cells, data, doors };
+  const steady = steadyGlows(room);
+  const palette = themeOf(room).palette;
+  const data = rasterize2({ grid: cells, glows: steady }, palette, 1).data;
+  if (!isDark(room)) return { cells, data, doors, dark: null };
+  // A darker day, a room of lanterns: beyond the pools the floor goes down toward the night,
+  // and what the hero's own light and the shadows in the dark are made from is kept (`DarkLayers`).
+  const lights = lightsOf(room);
+  const lit = data.slice();
+  const shade = new Uint8Array(cells.w * cells.h);
+  for (let y = 0; y < cells.h; y++)
+    for (let x = 0; x < cells.w; x++) {
+      const i = y * cells.w + x;
+      const s = shadeAt(lights, x, y);
+      shade[i] = s;
+      if (data[i * 4 + 3]) nightOf(data, i * 4, s);
+    }
+  const heart = rasterize2({ grid: heartCells(cells), glows: steady }, palette, 1).data;
+  return { cells, data, doors, dark: { w: cells.w, h: cells.h, shade, lit, heart } };
 }
 
 /** The lanterns' glows on the ground at their weakest; the rest flickers over it (`flicker`). */
@@ -914,7 +1084,12 @@ export interface GroundPainter {
     room: Room,
     state: TideState,
     urgent: boolean,
-    done: (cells: TGrid, data: Uint8ClampedArray | null, doors?: readonly DoorPaint[]) => void,
+    done: (
+      cells: TGrid,
+      data: Uint8ClampedArray | null,
+      doors?: readonly DoorPaint[],
+      dark?: DarkLayers | null,
+    ) => void,
   ): void;
 }
 
@@ -925,8 +1100,8 @@ export const groundOnTheSpot: GroundPainter = {
       const { cells, doors } = groundWithDoors(room, state.level, state.warn);
       done(cells, null, doors);
     } else {
-      const { cells, data, doors } = groundPixels(room, state.level, state.warn);
-      done(cells, data, doors);
+      const { cells, data, doors, dark } = groundPixels(room, state.level, state.warn);
+      done(cells, data, doors, dark);
     }
   },
 };
@@ -970,6 +1145,8 @@ export interface RoomLook {
    * once the room is cleared.
    */
   cellsAt(level: number, warn: boolean, open?: boolean): TGrid | null;
+  /** A dark room's layers at a state of the tide (`DarkLayers`), once its ground is in; else null. */
+  darkAt(level: number, warn: boolean): DarkLayers | null;
   /**
    * The doors at a state of the tide (or the nearest state that is in), each
    * barred and open, to lay over the ground: barred while the room is shut,
@@ -1030,6 +1207,7 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       cells: TGrid;
       still: StillPicture | null;
       doors: readonly DoorPaint[] | null;
+      dark: DarkLayers | null;
       shown?: readonly DoorShown[];
       openCells?: TGrid;
     }
@@ -1044,7 +1222,11 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
   const asked = new Set<string>();
   const kinds = new Map<string, Tile2Kind[][]>();
   const key = (s: TideState): string => `${s.level} ${s.warn}`;
-  /** Each prop painted once, lit by the lanterns that reach it. */
+  /**
+   * Each prop painted once, lit by the lanterns that reach it: kept for every
+   * look of the room by its lanterns (`litPicture`), so a lantern lit or put
+   * out paints again only what its light reaches.
+   */
   let standing: Standing[] | null = null;
   const standers = (): Standing[] => {
     if (!standing) {
@@ -1052,17 +1234,16 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       for (const p of props) {
         const { w, h } = p.art.picture.grid;
         const box = { x: p.topLeft.x, y: p.topLeft.y, w, h };
-        const image = paintCells(
-          {
-            grid: p.art.picture.grid,
-            glows: [...p.art.picture.glows, ...glowsIn(glows, box, palette)],
-          },
-          undefined,
+        // On a darker day, as dark as the ground where it stands; a lantern is its own light.
+        const image = litPicture(
+          room,
+          p.key,
+          p.art.picture,
+          box,
+          glows,
+          dark && !p.art.light ? lights : null,
           palette,
         );
-        // On a darker day, as dark as the ground where it stands; a lantern is its own light.
-        if (image && dark && !p.art.light)
-          darkenCanvas(image, box.x, box.y, (x, y) => shadeAt(lights, x, y));
         if (image) standing.push({ image, x: box.x, y: box.y, base: p.feet.y });
       }
       standing.sort((a, b) => a.base - b.base);
@@ -1074,6 +1255,7 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     cells: TGrid,
     data: Uint8ClampedArray | null,
     doors?: readonly DoorPaint[],
+    darkLayers?: DarkLayers | null,
   ): void => {
     let still: StillPicture | null = null;
     if (data && canPaint()) {
@@ -1092,14 +1274,14 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
         still = { still: canvas, standing: list };
       }
     }
-    done.set(key(s), { cells, still, doors: doors ?? null });
+    done.set(key(s), { cells, still, doors: doors ?? null, dark: darkLayers ?? null });
   };
   const ask = (s: TideState, urgent: boolean): void => {
     const k = key(s);
     if (asked.has(k)) return;
     asked.add(k);
-    painterNow.paint(room, s, urgent, (cells, data, doors) => {
-      if (asked.has(k)) arrive(s, cells, data, doors);
+    painterNow.paint(room, s, urgent, (cells, data, doors, darkLayers) => {
+      if (asked.has(k)) arrive(s, cells, data, doors, darkLayers);
     });
   };
   /** The nearest state to `s` that is in, or null: what is shown while `s` is still coming. */
@@ -1129,22 +1311,28 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     },
     s: TideState,
   ): readonly DoorShown[] => {
+    // A darker day: barred, as dark as the ground; open, lit by the light from beyond. Kept for
+    // every look of the room by its lanterns, by what lights each (`litPicture`).
     d.shown ??= doorPaintsOf(s, d).map((p) => {
-      const barred = paintCells(
-        { grid: p.barred, glows: glowsIn(steady, p.box, palette) },
-        undefined,
+      const at = `door ${p.letter} ${s.level} ${s.warn}`;
+      const barred = litPicture(
+        room,
+        `${at} barred`,
+        { grid: p.barred, glows: [] },
+        p.box,
+        steady,
+        dark ? lights : null,
         palette,
       );
-      const open = paintCells(
-        { grid: p.open, glows: glowsIn(openSteady, p.box, palette) },
-        undefined,
+      const open = litPicture(
+        room,
+        `${at} open`,
+        { grid: p.open, glows: [] },
+        p.box,
+        openSteady,
+        dark ? openLights : null,
         palette,
       );
-      // A darker day: barred, as dark as the ground; open, lit by the light from beyond.
-      if (dark) {
-        darkenCanvas(barred, p.box.x, p.box.y, (x, y) => shadeAt(lights, x, y));
-        darkenCanvas(open, p.box.x, p.box.y, (x, y) => shadeAt(openLights, x, y));
-      }
       return { letter: p.letter, box: p.box, barred, open };
     });
     return d.shown;
@@ -1196,7 +1384,12 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
       const k = key(s);
       if (done.has(k)) return;
       asked.add(k);
-      groundOnTheSpot.paint(room, s, true, (cells, data, doors) => arrive(s, cells, data, doors));
+      groundOnTheSpot.paint(room, s, true, (cells, data, doors, darkLayers) =>
+        arrive(s, cells, data, doors, darkLayers),
+      );
+    },
+    darkAt(level, warn) {
+      return done.get(key(stateOf(room, level, warn)))?.dark ?? null;
     },
     cellsAt(level, warn, open = false) {
       const s = stateOf(room, level, warn);
@@ -1227,10 +1420,8 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     glows,
     flicker: flickering(room, glows),
     forget() {
-      for (const d of done.values()) {
-        if (d.still) release(d.still.still);
-        for (const s of d.shown ?? []) for (const c of [s.barred, s.open]) if (c) release(c);
-      }
+      // Doors' and props' pictures are kept for every look of the room (`litPicture`): only the ground goes.
+      for (const d of done.values()) if (d.still) release(d.still.still);
       done.clear();
       asked.clear();
     },
@@ -1266,6 +1457,9 @@ function flickerOf(room: Room, glow: Glow): number {
  * over the ground under everyone, the step chosen by `flicker2` at the
  * scene's time. Only the lanterns' own patch is drawn again when it changes.
  */
+/** Each lantern's flicker pictures, by its glow: kept for the page (a few small canvases a lantern). */
+const flickerSteps = new Map<string, (Image | null)[]>();
+
 function flickering(room: Room, glows: readonly Glow[]): Life[] {
   const lights = lightsOf(room);
   return lights.flatMap((light, k) => {
@@ -1275,13 +1469,17 @@ function flickering(room: Room, glows: readonly Glow[]): Life[] {
     const x0 = Math.floor(glow.x) - r;
     const y0 = Math.floor(glow.y) - r;
     const size = 2 * r + 1;
-    const steps: (Image | null)[] = [];
     const extra = glow.strength * light.flicker;
     const spot = { image: null as Image | null, x: x0, y: y0 };
-    let made = false;
+    // The same lantern in every look of the room by its lanterns flickers in the same pictures.
+    const kept = `${glowSig([glow])} ${light.flicker}`;
+    let steps: (Image | null)[] = flickerSteps.get(kept) ?? [];
+    let made = steps.length > 0;
     const make = (): void => {
       made = true;
       if (!canPaint()) return;
+      steps = [];
+      flickerSteps.set(kept, steps);
       for (let i = 1; i <= FLICKER_STEPS; i++) {
         const px = new Float64Array(size * size * 4);
         addGlow(px, size, size, {
@@ -1362,13 +1560,13 @@ export class CaveShadow {
       this.placed = null;
       return null;
     }
+    // On a darker day, as dark as the ground it falls on.
     this.canvas = paintCells(
       { grid: dark, glows: glowsIn(glows, box, palette) },
       this.canvas ?? undefined,
       palette,
+      shade ? { x: box.x, y: box.y, at: shade } : undefined,
     );
-    // On a darker day, as dark as the ground it falls on.
-    if (shade) darkenCanvas(this.canvas, box.x, box.y, shade);
     this.placed = this.canvas && { image: this.canvas, x: box.x, y: box.y };
     return this.placed;
   }
@@ -1376,77 +1574,100 @@ export class CaveShadow {
   private lastCells: TGrid | null = null;
 }
 
+/** The hero's own light by the size of its pool, one mask each, placed where he is each frame. */
+const ownLights = new Map<number, OwnLight>();
+export function ownLight(pool: number): OwnLight {
+  let made = ownLights.get(pool);
+  if (!made) {
+    made = new OwnLight(pool);
+    ownLights.set(pool, made);
+  }
+  return made;
+}
+
 /**
  * The hero's own pool of light on a darker day, laid on the ground round his
  * feet over the room's dark: the floor as lane B's light leaves it, its
  * heart a step lighter, its edge a ring half as dark as the dark beyond,
  * ragged by lane B's rule for a pool's. Only where it is lighter than the
- * ground already is (a lantern's pool needs nothing of it). Painted on one
- * small canvas kept for him and painted again only when he moves a pixel
- * or the ground changes.
+ * ground already is (a lantern's pool needs nothing of it), and never over
+ * the ground an open door lights (`skip`). Put together by lookup from the
+ * room's dark layers (`DarkLayers`) into `into` (its top-left `at`, its size
+ * the mask's), pixels not drawn left clear. Pure; true if any is drawn.
+ */
+export function heroLightPixels(
+  dark: DarkLayers,
+  own: OwnLight,
+  at: Point,
+  into: Uint8ClampedArray,
+  skip?: readonly Box[],
+): boolean {
+  const { bw, bh, mask } = own;
+  const k = IN_THE_DARK[1];
+  let any = false;
+  for (let j = 0; j < bh; j++) {
+    const y = at.y + j;
+    for (let i = 0; i < bw; i++) {
+      const o4 = (j * bw + i) * 4;
+      into[o4 + 3] = 0;
+      const x = at.x + i;
+      const m = mask[j * bw + i]!;
+      if (m === 3 || x < 0 || y < 0 || x >= dark.w || y >= dark.h) continue;
+      const p = y * dark.w + x;
+      const ownShade = m === 2 ? 1 : 0;
+      if (ownShade >= dark.shade[p]!) continue;
+      const p4 = p * 4;
+      if (!dark.lit[p4 + 3]) continue;
+      if (skip && skip.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h))
+        continue;
+      const src = m === 0 ? dark.heart : dark.lit;
+      if (ownShade === 1) {
+        into[o4] = src[p4]! * k + NIGHT_RGB[0] * (1 - k);
+        into[o4 + 1] = src[p4 + 1]! * k + NIGHT_RGB[1] * (1 - k);
+        into[o4 + 2] = src[p4 + 2]! * k + NIGHT_RGB[2] * (1 - k);
+      } else {
+        into[o4] = src[p4]!;
+        into[o4 + 1] = src[p4 + 1]!;
+        into[o4 + 2] = src[p4 + 2]!;
+      }
+      into[o4 + 3] = 255;
+      any = true;
+    }
+  }
+  return any;
+}
+
+/**
+ * His pool (`heroLightPixels`) on one small canvas and buffer kept for him,
+ * put together again only when he moves a pixel or the ground changes.
  */
 export class HeroLight {
   private canvas: HTMLCanvasElement | null = null;
+  private pixels: ImageData | null = null;
   private key = '';
   private placed: Placed | null = null;
-  private lastCells: TGrid | null = null;
+  private lastDark: DarkLayers | null = null;
 
-  at(
-    cells: TGrid,
-    lights: readonly Light2[],
-    glows: readonly Glow[],
-    feet: Point,
-    palette: CavePalette = CAVE_DUSK,
-    pool = HERO_POOL,
-  ): Placed | null {
-    const L = DUNGEON2_LIGHT;
-    const hero = { x: Math.round(feet.x), y: Math.round(feet.y) };
-    const key = `${hero.x} ${hero.y} ${lights.length} ${pool}`;
-    if (key === this.key && cells === this.lastCells) return this.placed;
+  at(dark: DarkLayers, feet: Point, pool = HERO_POOL, skip?: readonly Box[]): Placed | null {
+    if (!canPaint()) return null;
+    const own = ownLight(pool);
+    const tl = own.placeAt(feet);
+    const key = `${tl.x} ${tl.y} ${pool} ${skip?.map((b) => `${b.x},${b.y}`).join(' ') ?? ''}`;
+    if (key === this.key && dark === this.lastDark) return this.placed;
     this.key = key;
-    this.lastCells = cells;
-    const rx = Math.ceil(pool * POOL_EDGE) + 2;
-    const ry = Math.ceil(pool * POOL_EDGE * L.squash) + 2;
-    const cy = hero.y - HERO_POOL_RISE;
-    const box = { x: hero.x - rx, y: cy - ry, w: 2 * rx + 1, h: 2 * ry + 1 };
-    const out = tgrid(box.w, box.h);
-    const shades = new Uint8Array(box.w * box.h);
-    let any = false;
-    for (let j = 0; j < box.h; j++)
-      for (let i = 0; i < box.w; i++) {
-        const x = box.x + i;
-        const y = box.y + j;
-        if (x < 0 || y < 0 || x >= cells.w || y >= cells.h) continue;
-        const c = cells.d[y * cells.w + x]!;
-        if (!c) continue;
-        const rag = ragged(x, y);
-        const own = shadeOf(intoHero(hero, x + 0.5, y + 0.5, pool) + rag);
-        const ground = shadeOf(intoPools(lights, x + 0.5, y + 0.5) + rag);
-        if (own >= ground) continue;
-        const u = intoHero(hero, x + 0.5, y + 0.5, pool) + rag;
-        out.d[j * box.w + i] =
-          u < L.heart && (c & 7) !== 6 && !isMat(c, 'wood')
-            ? (c & ~7) | Math.max(0, (c & 7) - L.heartSteps)
-            : c;
-        shades[j * box.w + i] = own;
-        any = true;
-      }
-    if (!any) {
+    this.lastDark = dark;
+    const { bw, bh } = own;
+    if (!this.pixels || this.pixels.width !== bw || this.pixels.height !== bh)
+      this.pixels = new ImageData(bw, bh);
+    if (!heroLightPixels(dark, own, tl, this.pixels.data, skip)) {
       this.placed = null;
       return null;
     }
-    this.canvas = paintCells(
-      { grid: out, glows: glowsIn(glows, box, palette) },
-      this.canvas ?? undefined,
-      palette,
-    );
-    darkenCanvas(
-      this.canvas,
-      box.x,
-      box.y,
-      (x, y) => shades[(y - box.y) * box.w + (x - box.x)] as Shade,
-    );
-    this.placed = this.canvas && { image: this.canvas, x: box.x, y: box.y };
+    if (!this.canvas) this.canvas = document.createElement('canvas');
+    if (this.canvas.width !== bw) this.canvas.width = bw;
+    if (this.canvas.height !== bh) this.canvas.height = bh;
+    this.canvas.getContext('2d')?.putImageData(this.pixels, 0, 0);
+    this.placed = { image: this.canvas, x: tl.x, y: tl.y };
     return this.placed;
   }
 }

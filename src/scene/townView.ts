@@ -28,8 +28,8 @@ import {
   takeRequest,
   todaysModifier,
 } from './fromLaneA';
-import { dimOf, runSpoils, type RunModifier } from './modifiers';
-import { clearCounts } from './runCard';
+import { dimOf, type RunModifier } from './modifiers';
+import { NOTHING_SETTLED, reviewOnly, settledSpoils } from './runCard';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -632,7 +632,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     // Its modifier's rewards are paid by settling, never here. A landing still to come, rowed to
     // by `?burrow=1` for its review (`preview.ts`), is never counted cleared: a review save is not
     // moved on a tier by it.
-    shell?.settleRun(runSpoils(run, clearCounts(content, run)));
+    // A review run of a landing to come pays in nothing and uses nothing up (`settledSpoils`).
+    shell?.settleRun(settledSpoils(content, run));
     shell?.keepRun?.(null);
   };
 
@@ -763,7 +764,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
       resuming = true;
       takenUpAt = keptAtOf(saved.data);
     } else {
-      shell?.settleRun({ ...saved.spoils, cleared: undefined });
+      shell?.settleRun(
+        reviewOnly(content, saved.dungeon)
+          ? NOTHING_SETTLED
+          : { ...saved.spoils, cleared: undefined },
+      );
       shell?.keepRun?.(null);
     }
   }
