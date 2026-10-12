@@ -134,8 +134,9 @@ describe('foes on their canvases (B15)', () => {
 });
 
 describe('dungeon themes (B15)', () => {
-  it('names two looks, the grotto the default for every door', () => {
-    expect(DUNGEON2_THEMES).toEqual(['grotto', 'tidepool']);
+  it('names its looks, the grotto the default for every door', () => {
+    // B20 adds the Burrow's (tests/art/burrow2.test.ts).
+    expect(DUNGEON2_THEMES).toEqual(['grotto', 'tidepool', 'burrow']);
     expect(dungeonTheme2().theme).toBe('grotto');
     expect(dungeonTheme2('nonsense').theme).toBe('grotto');
     expect(dungeonTheme2('tidepool').palette).toBe(CAVE_TIDEPOOL);

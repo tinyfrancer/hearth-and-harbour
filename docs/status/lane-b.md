@@ -1,9 +1,55 @@
 # Lane B: art
 
-**Next session:** B20. Tier 2's art is all drawn (B19, four PRs) except what the brief held back
-for later: Thistlewood Burrow's tiles and creatures (`spore_puff`, `cap_guard`, `bramble_hound`,
-`lantern_moth`, `badger_king`) and Magic. Start with Cody's verdict on the tier 2 section of the
-gallery (it says "not yet approved") and the weak list below.
+**Next session:** after B20 (Thistlewood Burrow's art, in batches below). Start with Cody's verdict
+on the Burrow and the weak lists below.
+
+## Thistlewood Burrow, batch 1: the `burrow` theme, its doors and the night ramp (B20, first PR)
+
+**For lane C, on `main` once this PR merges** (no export renamed or re-signed; every older call
+draws what it drew: the grotto and the tide-pool cave, every older prop and foe, are hashed to
+`main` in `tests/art/burrow2.test.ts` and `tidepool2.test.ts`):
+
+```ts
+// dungeonArt2.ts
+DUNGEON2_THEMES = ['grotto', 'tidepool', 'burrow']          // type Dungeon2Theme
+dungeonTile2(kind, variant, around, at, 'burrow')           // same kinds, wears, 24 x 24
+dungeonDoor2(kind, around, at, 'burrow')                    // same footprints, dx, dy, covers
+lightGround2(ground, lights, 'burrow')                      // lifts a pool's heart; darkens nothing
+dungeonTheme2('burrow')  // palette CAVE_BURROW, figureTime 'dusk', castIds BURROW2_IDS,
+                         // propIds BURROW2_PROP_IDS (empty until batch 2)
+CAVE_BURROW, CAVE_BURROW_DARK: CavePalette   // the light (= CAVE_DUSK's colours), the night ramp
+burrowNight(level: number): CavePalette      // 0 light, 1 pool's edge, 2 dark, 3 far dark (clamped)
+BURROW_NIGHT_LEVELS = 4; BURROW_DARK_BANDS = [1, 1.5, 2.2]   // where levels 1, 2, 3 begin (u)
+burrowLevel2(lights: Light2[], x, y): 0 | 1 | 2 | 3          // the rule at a pixel, ragged edges
+NIGHT = { grey: 0.5, keep: 0.34, floor: [9, 15, 22] }; nightRgb(r, g, b); NIGHT_EXEMPT
+BURROW2_LIGHT                                // the scheme's numbers (darkSteps 0)
+FUNGUS2_RGB = [120, 240, 214]                // the fungus's glow colour
+BURROW2_IDS = ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king']
+BURROW2_PROP_IDS: string[]                   // [] for now
+CavePalette.key?: string   // a level's own sprite-cache key (they share dusk's name)
+// dungeon2/burrowSample.ts: the art lane's reference composition of the rule
+HOLLOW_ROWS, HOLLOW_LAMPS, lampLight(col, row), heroLight(x, y), burrowRoomRgba(rows, stood, lights, o)
+```
+
+- **To use the theme**: give the Burrow's plan `theme: 'burrow'` (your `burrow.ts` has none yet, so
+  `themeOf` gives the grotto). Your `.` floor is earth; `:` would be leaf litter, `,` moss, `=` the
+  badger's flagstones (`sand`, `wet_sand`, `planks`), if you want them in a room (the sett's hall
+  wants flagstones). Water is black seep.
+- **The dark, as you asked in wave 18**: the Burrow's dark is a palette per level, not a colour
+  shift. Paint a pixel at level `l` by looking its cell up in `burrowNight(l).rgb` (as
+  `rasterize2(pic, burrowNight(l))` does for a whole picture): level 0 inside a pool (`u < 1`), 1
+  in its edge band (`u < 1.5`, still lit by your rules), 2 beyond, 3 past 2.2. Your `shadeAt`'s
+  0/1/2 map onto 0/1/2 directly; add 3 for the far dark if you like. A foe out of every pool is
+  `foeSprite2(id, pose, facing, frame, phase, burrowNight(2))` (and 1 at the edge). The hero the
+  same through his figure's cells if you can, else your night bands. Lights (`fire`, `lamp`,
+  `ember`, `glowcap`) keep their colour at every level, so lanterns and fungus glow in the dark.
+  `burrowRoomRgba` in `dungeon2/burrowSample.ts` is the reference: ground lit by the pools, each
+  pixel by its level, each figure by the level at its feet, then glows.
+- **Fungus glows** are on the face tiles' pictures (`dungeonTile2(…, at, 'burrow').glows`, only
+  when given `at`): `always`, cool `rgb`. Add them to the room's steady glows to light the walls
+  faintly in the dark.
+- **Memory**: tiles kept as before (1.2 KB of cells each; a Burrow room about 450 of them). The
+  three extra palettes are 13 KB of RGB each, made at load.
 
 ## Tier 2, batch 4: monsters, faces, marks, the tier badge and the gallery (B19, fourth PR)
 

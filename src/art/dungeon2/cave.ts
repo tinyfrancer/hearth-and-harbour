@@ -70,6 +70,27 @@ const CAVE_BASE = {
   direfur: ['#bab6c0', '#8e8a98', '#6e6a7a', '#545062', '#3e3a4a', '#2a2834', '#121018'],
   ogre: ['#dce2c4', '#b6bea0', '#949e84', '#78826a', '#5c6654', '#40483c', '#1e221c'],
   hobgob: ['#f8c08c', '#e09a66', '#c67e4c', '#a8623a', '#84482c', '#5a3022', '#2a1410'],
+  // B20, Thistlewood Burrow (appended). Packed earth, warm umber in the light and cool violet-brown
+  // in its shadows, so a lantern's pool reads warm against the burrow's cold dark.
+  soil: ['#ecc896', '#c89c6a', '#a27a52', '#7e5c42', '#5c4436', '#3e2e2c', '#1e1418'],
+  // The paler, greyer beds of clay between the soil's, and the stones in them.
+  clay: ['#eedcb0', '#d0ba8c', '#ae9a72', '#8a7a5e', '#68604e', '#48423c', '#22201e'],
+  // Roots: pale, fibrous, lighter than the earth they run through.
+  root: ['#f6e6c4', '#dcc29a', '#b89c74', '#927a5a', '#6e5a46', '#4a3c34', '#221a18'],
+  // Fungus that glows in the dark: a cool blue-green light, never shifted and never dimmed by the
+  // dark (`NIGHT_EXEMPT`), distinct from a lantern's warmth.
+  glowcap: ['#f4fffc', '#c2fff2', '#7ef4e0', '#46d4c8', '#2ea4a8', '#22727e', '#103644'],
+  // Leaf litter blown down the tunnels: dun and olive (floors never red or orange).
+  litter: ['#f0e4ac', '#d0c084', '#ac9a60', '#887848', '#665a38', '#463e2c', '#221e16'],
+  // The badger king's flagstones: worn grey-green stone.
+  flag: ['#e4e4d4', '#c4c6b4', '#a2a694', '#828878', '#646a60', '#484e4a', '#22262a'],
+  // The cast: the spore puff's pale puffball skin, the cap folk's stalk, the bramble hound's briar,
+  // the moth's dusky wings, the badger's coat.
+  puff: ['#fff8ea', '#f0e2c8', '#d8c6a6', '#b8a486', '#94826c', '#6a5c54', '#342a2c'],
+  stalk: ['#fffcf2', '#f2e8d4', '#dccdb0', '#bcaa8e', '#988670', '#6c5e56', '#36282c'],
+  briar: ['#ccd496', '#9ca868', '#72824a', '#56643c', '#3e4a30', '#2a3424', '#121a10'],
+  mothwing: ['#f4ecde', '#d6c6b6', '#b2a094', '#8e7e78', '#6c5e60', '#4a3e48', '#221c26'],
+  badger: ['#aaa6b2', '#7e7a8a', '#605c6c', '#4a4656', '#383442', '#26222e', '#121018'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type CaveMat = keyof typeof CAVE_BASE;
@@ -111,7 +132,7 @@ export function swap2(swap: Partial<Record<Mat2, Mat2>>): (c: Cell) => Cell {
 }
 
 /** Ramps that never shift. */
-const EXEMPT: readonly CaveMat[] = ['ember'];
+const EXEMPT: readonly CaveMat[] = ['ember', 'glowcap'];
 
 /**
  * Dusk's hand-set steps: shallow water, shifted, stays a bright daylight teal
@@ -126,6 +147,12 @@ const DUSK_SET: Partial<Record<CaveMat, readonly (string | null)[]>> = {
 export interface CavePalette extends Palette2 {
   /** The cave's own ramps as colours, for keys and the gallery. */
   readonly cave: Readonly<Record<CaveMat, readonly string[]>>;
+  /**
+   * B20: what tells it apart from the other palettes of its time of day in a
+   * sprite's cache key (`spriteCanvas`), for a palette whose colours differ
+   * from `CAVE_DUSK`'s (the Burrow's night levels). Absent: the time's name.
+   */
+  readonly key?: string;
 }
 
 function cavePalette(town: Palette2): CavePalette {
@@ -156,6 +183,134 @@ export const CAVE_DAY: CavePalette = cavePalette(DAY2);
  * foe read as they do in the sun; the cave's own ramps take the day shift.
  */
 export const CAVE_TIDEPOOL: CavePalette = cavePalette(DAY2);
+
+/* ------------------------------------------------------- the Burrow's night (B20) */
+
+/**
+ * Thistlewood Burrow is played dark: lit only in lanterns' pools. Its palette
+ * in the light (`CAVE_BURROW`) is the dungeon's dusk (`CAVE_DUSK`, so the
+ * hero and every figure are as at dusk in town); its **night ramp**
+ * (`CAVE_BURROW_DARK`) is the same cells taken down to the dark: each colour
+ * desaturated by `NIGHT.grey`, scaled by `NIGHT.keep` and lifted by a cold
+ * blue-green floor (`NIGHT.floor`), so a dark room keeps every material's
+ * steps in order (its forms) and its hue a little, never flat black, while
+ * its detail sinks together. Lights themselves (`NIGHT_EXEMPT`: flame, lamp,
+ * ember, glowing fungus) keep their colour in the dark.
+ *
+ * **The rule, in whole palette steps** (`burrowNight(level)`), by how far into
+ * a lantern's pool a pixel is (`u`: 0 its middle, 1 its edge, as the
+ * pools' rings, edges ragged; `BURROW_DARK_BANDS`):
+ *
+ * | level | where (`u`)              | colour of a cell at step `t`               |
+ * | ----- | ------------------------ | ------------------------------------------ |
+ * | 0     | in a pool (`u < 1`)      | `CAVE_BURROW` at `t` (the light's own)      |
+ * | 1     | its edge (`1 ≤ u < 1.5`) | `CAVE_BURROW_DARK` at `t − 2` (twilight)    |
+ * | 2     | the dark (`u ≥ 1.5`)     | `CAVE_BURROW_DARK` at `t`                   |
+ * | 3     | far dark (`u ≥ 2.2`)     | `CAVE_BURROW_DARK` at `t + 1`               |
+ *
+ * A step stays within 0 to 5 (the line, 6, stays the line, at each level's
+ * own palette). The edge is the night ramp lifted, not the light darkened:
+ * the warm light's own lower steps read as a red stain round each pool, the
+ * cold twilight reads as light failing. Each level is a whole palette, so a scene paints a pixel by
+ * looking its cell up in that level's palette: no blending, no grey wash, and
+ * a figure in the dark is its sprite in `burrowNight(2)`.
+ */
+export const NIGHT = {
+  /** How much of a colour's own saturation the dark keeps. */
+  grey: 0.5,
+  /** How much of its brightness. */
+  keep: 0.34,
+  /** The cold floor added to every colour in the dark: no pixel is ever black. */
+  floor: [9, 15, 22] as const,
+} as const;
+
+/** Where each level of the dark begins, in pools' half-widths from their middle (`u`). */
+export const BURROW_DARK_BANDS = [1, 1.5, 2.2] as const;
+
+/** Lights in the dark: these keep their colour at every level (flame, lamp, ember, the glowing fungus). */
+export const NIGHT_EXEMPT: readonly Mat2[] = ['fire', 'lamp', 'ember', 'glowcap'];
+
+/** A colour in the dark, by `NIGHT`. */
+export function nightRgb(r: number, g: number, b: number): [number, number, number] {
+  const L = 0.299 * r + 0.587 * g + 0.114 * b;
+  const f = (c: number, i: number) =>
+    Math.round(Math.min(255, (L + (c - L) * NIGHT.grey) * NIGHT.keep + NIGHT.floor[i]!));
+  return [f(r, 0), f(g, 1), f(b, 2)];
+}
+
+const exemptIds = (): Set<number> => new Set(NIGHT_EXEMPT.map((m) => cell(m, 0) >> 3));
+
+/**
+ * A palette whose every cell (material, step) takes the colour of the same
+ * material at `step + shift` in `from`, the line kept, lights kept as lit.
+ */
+function stepped(
+  from: CavePalette,
+  shift: number,
+  key: string,
+  lit: CavePalette = from,
+): CavePalette {
+  const rgb = new Uint8Array(from.rgb.length);
+  const keepLit = exemptIds();
+  const ids = from.rgb.length / 24;
+  for (let id = 0; id < ids; id++)
+    for (let t = 0; t < 8; t++) {
+      const to = t >= 6 ? t : Math.max(0, Math.min(5, t + shift));
+      const src = keepLit.has(id) ? lit : from;
+      const s = keepLit.has(id) ? t : to;
+      rgb.set(src.rgb.subarray((id * 8 + s) * 3, (id * 8 + s) * 3 + 3), (id * 8 + t) * 3);
+    }
+  return { ...from, rgb, key };
+}
+
+/** Thistlewood Burrow in the light (B20): the dungeon's dusk, as the hero and every figure are drawn. */
+// The same colours as `CAVE_DUSK` (so its sprites are shared with the dusk's in the cache).
+export const CAVE_BURROW: CavePalette = cavePalette(DUSK2);
+
+/** Thistlewood Burrow's night ramp (B20): every cell of `CAVE_BURROW` in the dark (`NIGHT`). */
+export const CAVE_BURROW_DARK: CavePalette = (() => {
+  const rgb = new Uint8Array(CAVE_BURROW.rgb.length);
+  const keepLit = exemptIds();
+  for (let i = 0; i < rgb.length; i += 3) {
+    const id = Math.floor(i / 24);
+    const [r, g, b] = keepLit.has(id)
+      ? [CAVE_BURROW.rgb[i]!, CAVE_BURROW.rgb[i + 1]!, CAVE_BURROW.rgb[i + 2]!]
+      : nightRgb(CAVE_BURROW.rgb[i]!, CAVE_BURROW.rgb[i + 1]!, CAVE_BURROW.rgb[i + 2]!);
+    rgb[i] = r;
+    rgb[i + 1] = g;
+    rgb[i + 2] = b;
+  }
+  const cave = Object.fromEntries(
+    CAVE_MATS.map((m) => [
+      m,
+      CAVE_BURROW.cave[m].map((_hex, t) => {
+        const o = (CAVE_ID[m] * 8 + t) * 3;
+        return `#${[rgb[o]!, rgb[o + 1]!, rgb[o + 2]!].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+      }),
+    ]),
+  ) as unknown as Record<CaveMat, readonly string[]>;
+  return { ...CAVE_BURROW, rgb, cave, key: 'burrow-dark' };
+})();
+
+/** How many levels of the dark `burrowNight` has (0 the light, 3 the far dark). */
+export const BURROW_NIGHT_LEVELS = 4;
+
+const NIGHT_LEVELS: readonly CavePalette[] = [
+  CAVE_BURROW,
+  stepped(CAVE_BURROW_DARK, -2, 'burrow-edge', CAVE_BURROW_DARK),
+  CAVE_BURROW_DARK,
+  stepped(CAVE_BURROW_DARK, 1, 'burrow-far', CAVE_BURROW_DARK),
+];
+
+/**
+ * The Burrow's palette at a level of the dark (0 to 3; the rule above
+ * `NIGHT`): paint a pixel at that level by looking its cell up in it. Out of
+ * range is clamped.
+ */
+export function burrowNight(level: number): CavePalette {
+  const l = Math.max(0, Math.min(3, Math.floor(Number.isFinite(level) ? level : 0)));
+  return NIGHT_LEVELS[l]!;
+}
 
 /** The cave palette for a time of day. */
 export const cavePaletteFor = (time: 'day' | 'dusk'): CavePalette =>

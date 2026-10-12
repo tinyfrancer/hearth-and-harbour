@@ -70,6 +70,44 @@ export const TIDEPOOL2_LIGHT = {
 } as const;
 
 /**
+ * Thistlewood Burrow's scheme (B20): a lantern lifts its pool's heart a step,
+ * as the grotto's do, but nothing beyond a pool is darkened by steps here:
+ * the Burrow's dark is its own palettes (`burrowNight` in cave.ts, by the
+ * levels `burrowLevel2` gives), which take the ground down in whole steps of
+ * a night ramp rather than a step of its own colours.
+ */
+export const BURROW2_LIGHT = {
+  heartSteps: 1,
+  ringSteps: 0,
+  heart: 0.5,
+  darkSteps: 0,
+  deep: Infinity,
+  squash: 0.62,
+  ragged: 0.16,
+} as const;
+
+/** The glow of the Burrow's fungus (B20): a cool blue-green, unlike a lantern's warm one. */
+export const FUNGUS2_RGB: readonly [number, number, number] = [120, 240, 214];
+
+/**
+ * How dark a pixel of a Burrow room is (B20): 0 in a pool, 1 at its edge, 2
+ * in the dark, 3 far out (`BURROW_DARK_BANDS`), by the nearest of `lights`'
+ * pools, flattened on the floor and ragged-edged as the pools' rings are.
+ * Paint it with `burrowNight(level)`.
+ */
+export function burrowLevel2(lights: readonly Light2[], x: number, y: number): 0 | 1 | 2 | 3 {
+  const L = BURROW2_LIGHT;
+  let t = Infinity;
+  for (const l of lights) {
+    const dx = (x + 0.5 - l.x) / l.pool;
+    const dy = (y + 0.5 - (l.y + l.drop)) / (l.pool * L.squash);
+    t = Math.min(t, Math.hypot(dx, dy));
+  }
+  const u = t + (noise(x, y, 4, 211) - 0.5) * 2 * L.ragged + (hash(x, y, 7) - 0.5) * 0.04;
+  return u < 1 ? 0 : u < 1.5 ? 1 : u < 2.2 ? 2 : 3;
+}
+
+/**
  * Daylight's glow (B16): a cool, nearly white light for the tide-pool cave's
  * sun (its shafts, its mouth, its open doors), where the town lamp's warm
  * `GLOW_RGB` read as late-afternoon sun. Carried on each such glow as `rgb`.
@@ -111,7 +149,8 @@ export function lightGround2(
   lights: readonly Light2[],
   theme: Dungeon2Theme = 'grotto',
 ): TGrid {
-  const L = theme === 'tidepool' ? TIDEPOOL2_LIGHT : DUNGEON2_LIGHT;
+  const L =
+    theme === 'tidepool' ? TIDEPOOL2_LIGHT : theme === 'burrow' ? BURROW2_LIGHT : DUNGEON2_LIGHT;
   const out: TGrid = { w: ground.w, h: ground.h, d: ground.d.slice() };
   for (let y = 0; y < ground.h; y++)
     for (let x = 0; x < ground.w; x++) {

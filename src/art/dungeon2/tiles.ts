@@ -24,6 +24,7 @@ import { noise } from '../town2/texture';
 import { doorTileOf, placeDoor2 } from './doors';
 import type { Dungeon2Theme } from './theme';
 import { tidepoolLook } from './tidepool';
+import { burrowLook } from './burrow';
 
 /** A tile's size in art pixels. */
 export const TILE2 = 24;
@@ -710,7 +711,8 @@ export function tile2Grid(
   at?: TileAt,
   theme: Dungeon2Theme = 'grotto',
 ): TGrid {
-  const look = theme === 'tidepool' ? tidepoolLook() : GROTTO_LOOK;
+  const look =
+    theme === 'tidepool' ? tidepoolLook() : theme === 'burrow' ? burrowLook() : GROTTO_LOOK;
   // Without a cell, each wear stands in its own place, far from the others.
   const col = at ? Math.floor(at.col) : wear * 5 + 1000;
   const row = at ? Math.floor(at.row) : 1000;

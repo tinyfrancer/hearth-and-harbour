@@ -8,8 +8,13 @@
  * - `tidepool`: the tide-pool cave, a shallow sea cave open to daylight
  *   (`CAVE_TIDEPOOL`): warm water-worn rock in beds, bright sand, clear
  *   pools, shafts of sun through cracks above and the sea at its mouth.
+ * - `burrow` (B20): Thistlewood Burrow, a warren under the old forest, played
+ *   dark (`CAVE_BURROW` in the light, `burrowNight(level)` beyond it): walls
+ *   of soil strata, stones and roots shored with old timbers, floors of
+ *   trodden earth, moss and leaf litter, flagstones in the badger's hall,
+ *   fungus glowing cold in the dark.
  */
-export const DUNGEON2_THEMES = ['grotto', 'tidepool'] as const;
+export const DUNGEON2_THEMES = ['grotto', 'tidepool', 'burrow'] as const;
 export type Dungeon2Theme = (typeof DUNGEON2_THEMES)[number];
 
 /** Whether a string names a theme (anything else is drawn as the grotto). */

@@ -105,7 +105,8 @@ const sprites = new Map<string, HTMLCanvasElement>();
  * Memory is width x height x 4 bytes per canvas kept.
  */
 export function spriteCanvas(key: string, pic: Picture2, palette: Palette2): HTMLCanvasElement {
-  const id = `${key} ${palette.name}`;
+  // B20: a palette may carry a key of its own (the Burrow's levels of the dark share dusk's name).
+  const id = `${key} ${(palette as { key?: string }).key ?? palette.name}`;
   let canvas = sprites.get(id);
   if (!canvas) {
     canvas = document.createElement('canvas');
