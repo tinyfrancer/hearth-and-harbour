@@ -121,7 +121,7 @@ describe('the day’s modifier', () => {
   });
 
   it('is none for a landing to come, an unknown id, or a dungeon that draws from none', () => {
-    expect(dailyModifier(NOON, 'unknown_1', CONTENT)).toBeNull();
+    expect(dailyModifier(NOON, 'thistlewood_burrow', CONTENT)).toBeNull();
     expect(dailyModifier(NOON, 'nowhere', CONTENT)).toBeNull();
     expect(dailyModifier(NOON, 'constructor', CONTENT)).toBeNull();
     const plain: Content = {
@@ -348,7 +348,7 @@ describe('settling a run that meets challenges', () => {
     expect(clearRewards(after, clear, CONTENT)).toEqual({ firstClear: [], challenges: [] });
     // A run that did not clear, a landing to come, or no tables: nothing.
     expect(clearRewards(start, { ...clear, cleared: undefined }, CONTENT).challenges).toEqual([]);
-    expect(clearRewards(start, { ...clear, cleared: 'unknown_1' }, CONTENT).firstClear).toEqual([]);
+    expect(clearRewards(start, { ...clear, cleared: 'thistlewood_burrow' }, CONTENT).firstClear).toEqual([]);
     expect(clearRewards(start, clear, undefined)).toEqual({ firstClear: [], challenges: [] });
   });
 
@@ -404,7 +404,7 @@ describe('what a clear opens', () => {
     const cleared = settleRun(fresh, { cleared: CAVE }, idleCave);
     expect(mayIdle(cleared, CAVE, idleCave)).toBe(true);
     expect(mayIdle(cleared, GROTTO, idleCave)).toBe(false);
-    expect(mayIdle(cleared, 'unknown_1', idleCave)).toBe(false);
+    expect(mayIdle(cleared, 'thistlewood_burrow', idleCave)).toBe(false);
   });
 });
 

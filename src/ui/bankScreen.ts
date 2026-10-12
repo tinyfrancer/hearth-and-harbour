@@ -60,7 +60,8 @@ function provenance(
     }
   }
   for (const dungeon of Object.values(content.dungeons ?? {})) {
-    if (dungeon.loot.includes(item.id)) from.push(dungeon.name);
+    // A landing still to come is never named, nor teased: it gives nothing yet.
+    if (!dungeon.comingSoon && dungeon.loot.includes(item.id)) from.push(dungeon.name);
   }
   if (Object.values(content.shop ?? {}).some((entry) => entry.item === item.id)) {
     from.push('The bounty shop');

@@ -1,9 +1,37 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 18** (the grotto's days as fair trades, Short Rations, idle plays
-trade days plain, the folded Dungeons card), and whatever it asks for.
+**Now: S22, tier 2 content** (wave 19, branch `lane-a/s22-tier2`). PR 1 (the manifest and the
+burrow's row) first; PR 2 (tier 2's rows, pacing, menus) once lane B's art is on `main`.
 
 ## Done
+
+- Wave 19, PR 1: S22's manifest and Thistlewood Burrow's row (branch `lane-a/s22-tier2`).
+  **Save version unchanged (11).**
+  - **`docs/tier2-manifest.md`**: every id tier 2 adds, fixed: gathering (three a skill,
+    Foraging four), made things, four potions, the salt-iron set mapped onto lane B's knight
+    layers (sword `knight_sword`, plate `knight_plate`, greaves `knight_knees`, kite shield
+    `kite_shield`, cloak `red_cloak`; the helm and the axe are new layers), the ranger's line,
+    three bows, two pieces of jewellery, drops and a bounty-shop arrow, the burrow's cast and
+    things, seven monsters in two areas, five marks, the burrow's days and challenges.
+  - **The cloak is worn in the neck slot** (it fastens at the throat): no new slot, so no save
+    change and the sheet keeps its eight squares; a knight chooses the cloak or an amulet.
+  - **`thistlewood_burrow`** replaces the placeholder `unknown_1` (order 3, recommended combat
+    40, opened by the grotto's first clear, `comingSoon: true`), with its real cast
+    (`spore_puff`, `lantern_moth`, `cap_guard`, `bramble_hound`, `badger_king`), loot (`amber`
+    its regular drop, `thornwood_bow`, `capguard_helm`, the trophy `badger_crown`, and glowcap and
+    hide), a first-clear reward, four challenges and a pool of five days (four new trades:
+    `thick_caps`, `fierce_brambles`, `swift_hounds`, `deep_gloom`; and `short_rations`). No idle
+    rooms until lane C's plan exists. `unknown_2` now opens on the burrow's clear.
+  - **A landing to come keeps its name back with real rows**: `dungeonName` (`src/core/
+    dungeons.ts`) gives "Uncharted waters" for a `comingSoon` row, which the collection log uses
+    for its heading (its things listed as "?"); the bank's "From" leaves it out; the Combat
+    page's bestiary, the Dungeons card, the day's modifier, first-clear rewards, challenges and
+    idle runs already ignored a landing to come.
+  - **Tests changed**: `unknown_1` → `thistlewood_burrow` in `combat.test.ts`, `shell.test.ts`,
+    `dungeons.test.ts`, `progress.test.ts`, `idleRun.test.ts`; `content.test.ts` lets a designed
+    landing to come carry cast, loot, days and challenges (a placeholder still carries nothing),
+    pins the burrow's row, raises the modifier bound 8 → 12, and checks faces only for charted
+    dungeons' casts (the burrow's arrive with lane B's pass).
 
 - S2 Idle engine and woodcutting (PR #2)
 - S3 Offline progress and the away report (PR #3)
@@ -1224,6 +1252,19 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
   notes).
 
 ## Needs from another lane
+
+- **For lane C (wave 19)**: (1) the chart's third landing is now the row `thistlewood_burrow`
+  (coming soon, landed by `landings` on the spare `unknown_1` spot as before); three of your
+  tests named the landing `unknown_1` (`chart.test.ts`, `chartFit.test.ts`, `harbour.test.ts`).
+  (2) Build the burrow against its row: cast ids `spore_puff`, `lantern_moth`, `cap_guard`,
+  `bramble_hound`, `badger_king`; first-pass numbers are for a combat-40 hero in full salt-iron
+  eating tier 2's fish (cooked swordfish, heals 40, from PR 2), aimed at 8 to 10 minutes. Send
+  back the numbers your scripted player needs, and the room plan, so lane A can add
+  `idle.rooms`. (3) Its regular drop is `amber` (what the day's `loot` multiplies).
+- **For lane B (wave 19)**: everything in `docs/tier2-manifest.md`: icons for every new item;
+  figure layers for the fifteen new wearables and `ITEM_LAYERS2` rows for the seven mapped ones;
+  foes and portraits for the seven monsters and the burrow's five; faces for the five marks if
+  there is time. The new modifier and challenge ids already match your matcher.
 
 - **For lane C (wave 18)**: (1) **wire short rations**: where `modifiedFighter` builds the hero
   under the day's effects, take what each thing eaten heals through `foodUnder` from

@@ -366,7 +366,7 @@ describe('the day’s modifier and challenges, for a scene (S16)', () => {
     const eleventh = Math.floor(Date.UTC(2026, 9, 11) / 86_400_000);
     expect(at(0)).toEqual(day(eleventh));
     expect(at(60)).toEqual(day(eleventh + 1));
-    expect(shell!.todaysModifier!('unknown_1')).toBeNull();
+    expect(shell!.todaysModifier!('thistlewood_burrow')).toBeNull();
   });
 
   it('pays a challenge met by a clear once, and says so', () => {

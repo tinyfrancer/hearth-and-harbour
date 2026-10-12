@@ -98,7 +98,7 @@ describe('dungeonStatus', () => {
     expect(states).toEqual([
       'tidepool_cave open',
       'brinebeards_grotto open',
-      'unknown_1 soon',
+      'thistlewood_burrow soon',
       'unknown_2 soon',
       'unknown_3 soon',
     ]);

@@ -3,6 +3,8 @@ import { DEFENCE, MELEE, RANGED, VITALITY } from '../../src/core/combat';
 import { SLOTS } from '../../src/core/content';
 import { meets } from '../../src/core/achievements';
 import { collectable, collectionSources } from '../../src/core/collection';
+import { dungeonName } from '../../src/core/dungeons';
+import { foeDrops } from '../../src/core/run';
 import { equip } from '../../src/core/equipment';
 import { effectWords, idleModifier, isKind } from '../../src/core/progress';
 import { newGame, type GameState } from '../../src/core/state';
@@ -413,7 +415,7 @@ describe('the content tables', () => {
     expect(rows.map((row) => row.id)).toEqual([
       'tidepool_cave',
       'brinebeards_grotto',
-      'unknown_1',
+      'thistlewood_burrow',
       'unknown_2',
       'unknown_3',
     ]);
@@ -428,15 +430,32 @@ describe('the content tables', () => {
         expect(CONTENT.items[item], `${row.id} first clear ${item}`).toBeDefined();
         expect(row.loot, `${row.id} lists ${item} in its loot`).toContain(item);
       }
-      if (row.comingSoon) {
-        // Nothing to give away: no name, loot, cast or reward.
+      if (row.comingSoon && !row.cast) {
+        // A placeholder landing: nothing to give away, no name, loot, cast or reward.
         expect(row.name, row.id).toBe('Uncharted');
-        expect([row.loot.length, row.cast, row.firstClear], row.id).toEqual([
-          0,
-          undefined,
-          undefined,
-        ]);
+        expect([row.loot.length, row.firstClear], row.id).toEqual([0, undefined]);
       }
+    }
+    // Wave 19: a designed dungeon may wait as a landing to come with its real rows (the burrow,
+    // for lanes B and C to build against); its name is still never shown (`dungeonName`).
+    const burrow = CONTENT.dungeons!.thistlewood_burrow!;
+    expect([burrow.comingSoon, burrow.recommended, burrow.unlock]).toEqual([
+      true,
+      40,
+      { kind: 'cleared', dungeon: 'brinebeards_grotto' },
+    ]);
+    expect(burrow.cast!.map((foe) => foe.id)).toEqual([
+      'spore_puff',
+      'lantern_moth',
+      'cap_guard',
+      'bramble_hound',
+      'badger_king',
+    ]);
+    expect(dungeonName(burrow)).toBe('Uncharted waters');
+    expect(burrow.idle).toBeUndefined();
+    for (const foe of burrow.cast!) {
+      expect(CONTENT.monsters![foe.id], foe.id).toBeUndefined();
+      for (const id of foeDrops(foe)) expect(burrow.loot, `${foe.id} drops ${id}`).toContain(id);
     }
     // Recommended levels climb along the chart.
     const levels = rows.map((row) => row.recommended);
@@ -447,14 +466,15 @@ describe('the content tables', () => {
   it('draws every dungeon’s days from modifiers the tables hold, each used, kind for the cave and a trade elsewhere', () => {
     const modifiers = Object.values(CONTENT.modifiers!);
     expect(modifiers.length).toBeGreaterThanOrEqual(6);
-    expect(modifiers.length).toBeLessThanOrEqual(8);
+    expect(modifiers.length).toBeLessThanOrEqual(12);
     const drawn = new Set<string>();
     for (const dungeon of Object.values(CONTENT.dungeons!)) {
       for (const id of dungeon.modifiers ?? []) {
         expect(CONTENT.modifiers![id], `${dungeon.id} draws ${id}`).toBeDefined();
         drawn.add(id);
       }
-      if (dungeon.comingSoon) expect(dungeon.modifiers, dungeon.id).toBeUndefined();
+      if (dungeon.comingSoon && !dungeon.cast)
+        expect(dungeon.modifiers, dungeon.id).toBeUndefined();
     }
     for (const modifier of modifiers) {
       expect(drawn.has(modifier.id), `${modifier.id} is drawn somewhere`).toBe(true);
@@ -505,7 +525,7 @@ describe('the content tables', () => {
   it('gives each built dungeon three or four challenges, paid in things the tables hold', () => {
     const ids = new Set<string>();
     for (const dungeon of Object.values(CONTENT.dungeons!)) {
-      if (dungeon.comingSoon) {
+      if (dungeon.comingSoon && !dungeon.cast) {
         expect(dungeon.challenges, dungeon.id).toBeUndefined();
         continue;
       }
@@ -621,7 +641,11 @@ describe('the content tables', () => {
   });
 
   it('has a face from the art for everyone in every dungeon’s cast', () => {
-    const cast = Object.values(CONTENT.dungeons!).flatMap((dungeon) => dungeon.cast ?? []);
+    // A dungeon still to come is not shown in the menus (the bestiary lists only charted ones), so
+    // its cast's faces may arrive with its art pass; once it opens, this holds them too.
+    const cast = Object.values(CONTENT.dungeons!)
+      .filter((dungeon) => !dungeon.comingSoon)
+      .flatMap((dungeon) => dungeon.cast ?? []);
     expect(cast.map((foe) => foe.id)).toContain('old_snapper');
     for (const foe of cast) expect(PORTRAIT2_IDS, foe.id).toContain(foe.id);
   });

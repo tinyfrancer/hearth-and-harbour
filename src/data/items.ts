@@ -541,6 +541,46 @@ export const ITEMS = {
       'A carved lady with a chipped nose and a fierce stare. Worth little to a merchant; she belongs on a wall.',
     value: 50,
   },
+  // What Thistlewood Burrow gives up (tier 2's dungeon, the gate to tier 3; its
+  // cast drops them by these ids, docs/tier2-manifest.md). A step above the
+  // salt-iron set, needing 40 to wear.
+  amber: {
+    id: 'amber',
+    name: 'Amber',
+    description:
+      'A warm golden nugget with a seed caught in it since before the forest was old. Merchants hold it up to the light and stop haggling.',
+    value: 400,
+  },
+  thornwood_bow: {
+    id: 'thornwood_bow',
+    name: 'Thornwood bow',
+    description:
+      'Grown, not carved: a dark, twisting bow with thorns still along its back. It draws as if it wants to.',
+    value: 4000,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'ranged',
+      attack: 25,
+      strength: 21,
+      requires: { skill: 'ranged', level: 40 },
+    },
+  },
+  capguard_helm: {
+    id: 'capguard_helm',
+    name: 'Cap-guard helm',
+    description:
+      'A broad red mushroom cap with a chin strap. Tougher than steel, somehow, and it smells faintly of a damp cellar.',
+    value: 2500,
+    equip: { slot: 'head', attack: 3, armour: 14, requires: { skill: 'defence', level: 40 } },
+  },
+  badger_crown: {
+    id: 'badger_crown',
+    name: 'The Badger King’s crown',
+    description:
+      'Small, dented, one stone missing and far too tight for any head but his. It belongs on a shelf, where it can be glared at.',
+    value: 50,
+  },
   // What only the general store sells (src/data/store.ts): something to save for.
   velvet_cap: {
     id: 'velvet_cap',
