@@ -233,7 +233,8 @@ describe('the day’s modifier, as the boat rows out', () => {
   });
 
   it('forbids eating on a day of no food: the button says why', () => {
-    const run = beginCave(novice(), 3, false, {}, 'no_rations');
+    // The flag itself, whatever the tables' days are (lane A's wave 18 set none).
+    const run = beginCave(novice(), 3, false, {}, { id: 'no_food', effects: { noFood: true } });
     expect(run.battle!.mods).toEqual({ noFood: true });
     const b: Battle = {
       ...run.battle!,

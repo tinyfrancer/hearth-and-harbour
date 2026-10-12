@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { advanceRun, type Run } from '../../src/scene/dungeon';
 import { novice, playCave } from './caveBot';
 import { begin, decide, GROTTO_DUNGEON, playThrough, prepared, type Outcome } from './grottoBot';
+import type { RunModifier } from '../../src/scene/modifiers';
 
 const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
 const REACT_MS = 400;
@@ -18,8 +19,8 @@ const median = (xs: readonly number[]): number =>
 const minutes = (ms: number): number => ms / 60_000;
 
 const played = new Map<string, Outcome[]>();
-const grotto = (modifier?: string): Outcome[] => {
-  const key = modifier ?? 'none';
+const grotto = (modifier?: string | RunModifier): Outcome[] => {
+  const key = typeof modifier === 'object' ? JSON.stringify(modifier) : (modifier ?? 'none');
   let runs = played.get(key);
   if (!runs) {
     runs = SEEDS.map((seed) => playThrough(prepared(20), seed, { reactMs: REACT_MS, modifier }));
@@ -79,11 +80,10 @@ describe('the grotto under each of its modifiers, at the recommended level', () 
     expect(clearTime(runs)).toBeGreaterThan(clearTime(grotto()));
   }, 120_000);
 
-  it('no rations: NOT cleared by the careful player, who eats 18 fish on a plain day', () => {
+  it('a day of no food: NOT cleared by the careful player, who eats 18 fish on a plain day', () => {
     // The grotto is balanced on what is brought to eat (290 to 480 lost a clear). Without it he
-    // falls in the first rooms on every seed, at combat 20 and at 28 alike: lane A's to decide
-    // (this lane's status, Needs). Held here so a change to it is seen.
-    const runs = grotto('no_rations');
+    // falls in the first rooms on every seed. The flag itself, whatever the tables' days are.
+    const runs = grotto({ id: 'no_food', effects: { noFood: true } });
     expect(clears(runs)).toBe(0);
     expect(runs.every((r) => r.eaten === 0)).toBe(true);
     expect(harder(runs)).toBe(true);
