@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
-**Next: Cody's review of wave 17** (the idle dungeon, the day's modifiers, challenges, the
-Dungeons card), and whatever it asks for.
+**Next: Cody's review of wave 18** (the grotto's days as fair trades, Short Rations, idle plays
+trade days plain, the folded Dungeons card), and whatever it asks for.
 
 ## Done
 
@@ -1119,6 +1119,86 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
     mid and all done, the idle run in the strip and on the Combat page, the away report after a
     night, achievements).
 
+- Wave 18, part 1: the grotto's days made fair trades (branch `lane-a/w18-modifier-tuning`).
+  **Save version unchanged (11).**
+  - **Why**: the grotto is balanced on what is brought to eat. Lane C's careful player at combat
+    20 eats 19 of his 20 cod on a plain day (and clears only 40 of 48 seeds on a plain day: his
+    twelve are a lucky dozen), so wave 17's days, each a quarter to a third harder on top, cleared
+    0 to 9 of 12. With 30 cod even wave 17's numbers clear 11 or 12 of 12: the wall was food.
+  - **The trades** (`DUNGEON_MODIFIERS`): each costs one thing and gives most of it back another
+    way, and pays for the difference. Before → after:
+
+    | Id              | Wave 17                           | Wave 18                                                               | Costs               |
+    | --------------- | --------------------------------- | --------------------------------------------------------------------- | ------------------- |
+    | `thick_skulls`  | health 1.3, XP 1.3                | health 1.2, swing 0.8, XP 1.2, loot 1.15                              | a longer clear      |
+    | `angry_crew`    | damage 1.3, loot 1.3              | damage 1.1, health 0.95, loot 1.1                                     | more damage         |
+    | `quick_tempers` | swing 1.25, XP 1.15, loot 1.15    | swing 1.1, health 0.93, XP 1.15                                       | more damage         |
+    | `spring_tide`   | tide 1.5, damage 1.1, loot 1.35   | tide 1.25, loot 1.25                                                  | more damage, longer |
+    | `no_rations`    | no food, XP 1.2, loot 1.25        | **replaced** by `short_rations`: food heals 0.8, health 0.9, loot 1.1 | more food           |
+    | `unlit_lamps`   | darker, hero damage 0.85, XP 1.25 | darker, hero damage 0.85, swing 0.9, XP 1.25, loot 1.1                | a longer clear      |
+
+    Lane C's careful player, combat 20, 20 cod, their twelve seeds (and 48), clears / median clear
+    / median lost to blows: plain 12 (40/48), 8.2 min, 406; thick skulls 12 (42), 9.8, 413; angry
+    crew 11 (42), 7.9, 422; quick tempers 10 (38), 8.0, 441; spring tide 10 (42), 7.9, 447; short
+    rations 11 (39), 7.5, 331 (with the scene feeding him as `foodUnder` says; he eats more fish
+    with 30 carried); unlit lamps 11 (38), 8.9, 416. An hour by hand against a plain day (XP,
+    coins' worth earned after fish, their mean): thick skulls 1.22 / 1.00 / 1.11, angry crew 1.00 /
+    1.15 / 1.08, quick tempers 1.09 / 0.98 / 1.04, spring tide 1.00 / 1.26 / 1.13, short rations
+    0.98 / 1.22 / 1.10, unlit lamps 1.15 / 1.01 / 1.08 (`tests/data/pacing.test.ts`, pinned).
+
+  - **Short rations** (`ModifierEffects.foodHeals`, `foodUnder(heals, effects)` in
+    `src/core/progress.ts`, "Food heals 20% less"): replaces No Rations, which no careful player
+    could clear at any level. The scene must apply `foodUnder` to the food slot's and found food's
+    heals (Needs, below); until it does, the day plays as a plain one with foes 10% weaker and a
+    10% loot bonus: kinder than meant, never impossible. `noFood` stays in the type for a scene
+    that honours it; no row sets it, and a content case forbids a trade from setting it.
+  - **Idle runs on a modifier day** (`idleModifier`, `src/core/idleRun.ts`): a kind day as it
+    comes, a trade day plain, catch and bonus both left out. A run saved under a trade day before
+    this is played plain from its next step. So a night away never ends at midnight, and the
+    idle grotto earns the same on every day: about 8,100 coins' worth an hour net at level 20 in
+    the first hour, 13,000 to 17,000 an hour over six hours at levels 18 to 20 (about 120 cod an
+    hour eaten). Its drop rate stays 50%. Pins unchanged (`IDLE_GROTTO`, `IDLE_CAVE`).
+  - **Challenges**: Hard Tack (`brinebeards_grotto.no_food`) is honest about itself: "One for a
+    seasoned fighter: combat 45 or so." (the careful player clears without eating 4 of 12 at combat
+    40, 9 at 45, 12 at 50). Barely a Scratch becomes Light on the Bandages, 250 hit points lost to
+    blows (was 150 damage; met once at combat 25, 4 times at 30, 8 at 35; 150 was met only from
+    35). Ahead of the Tide unchanged (once at 20, 9 times at 25). Spring Tide Sailor on 10 of 12
+    spring tides at 20. The cave's four, by the cave's novice with the bronze sword its first clear
+    gives (12 seeds, lessons off, stepping out): Brisk 12 of 12 (61 to 75 s), Mostly in One Piece
+    12 (1 to 4 lost), Packed Lunch 12, Out of the Snapper's Way 12 (median 5 step-outs).
+  - **Tests**: content (no trade forbids food; every trade within a quarter of 1; idle plays
+    trades plain), progress (`foodUnder`, `idleModifier`, the new words), idle (every trade day
+    equals the plain day's hour; an old run under a trade day is played plain; a kind day is
+    taken), pacing (the days by hand, the idle grotto never loses money on any day or over a
+    night at 19 and 20).
+
+- Wave 18, part 2: the menus (same branch and PR). **Save version unchanged (11).**
+  - **Results first, notes after**: after a run by hand (`Shell.settleRun`) every toast and
+    achievement note is held while the player is on the Town tab (lane C's results card stays
+    clear on a phone on its side) and said together on the first screen of the menus; several
+    things said at once stay up 4.5 s instead of 3.
+  - **For the card**: `clearRewards(state, spoils, content)` (`src/core/run.ts`): what settling
+    will pay besides the run's own spoils, read before settling: the first-clear reward and each
+    challenge met for the first time with its reward as paid. `settleRun` now pays exactly that
+    (one rule, not two). With `spoilsUnder` the card can show everything the bank gets.
+  - **The Dungeons card folds**: each dungeon is one row to tap (56 px): lane B's
+    `dungeonSeal` once cleared (bronze; gold with every challenge done), the name, and a line
+    "Cleared · 1 of 4 challenges · Today: Thick Skulls" (or "Running idle"), turning at midnight
+    in place. Open, the row is what it was. Folded by default (open while it is running idle);
+    what the player opens is kept on the phone (`Prefs` key `dungeons-open`, not the save).
+    A medal won since the card last showed it plays lane B's `new` sparkle once (six frames at
+    90 ms, in the list and on the folded row); medals done when the app opened never sparkle.
+  - The card says a hero sent alone takes a hard day plain (for a dungeon with trade days).
+  - **Changed expectations**: `tests/ui/shell.test.ts`, three cases (a bounty finished by a run,
+    a first clear, a challenge met): their toasts and the clear's achievement are now looked for
+    after leaving the Town tab, and checked absent before. New: four Dungeons card cases in
+    `tests/ui/dungeonReplay.test.ts` (folding and remembered, seals, the sparkle once, the plain
+    hard day), and a `clearRewards` case in `tests/core/progress.test.ts`.
+  - **Checked** at 390 x 844 and 360 x 740, 3x, production build in headless Chromium:
+    `/home/claude/lane-shots/w18-a/` (folded and open). The class first chosen for the row's
+    title, `.dungeon-title`, is the scene's run title (absolute, transparent): renamed
+    `.dungeon-heading`.
+
 ## Deferred
 
 - Wave 14: greaves and the combat pins. **Done in wave 16** (Cody: "We can rebalance around the
@@ -1145,6 +1225,30 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
 
 ## Needs from another lane
 
+- **For lane C (wave 18)**: (1) **wire short rations**: where `modifiedFighter` builds the hero
+  under the day's effects, take what each thing eaten heals through `foodUnder` from
+  `src/core/progress.ts` (re-export it in `fromLaneA.ts`): the food slot's
+  `food: fighter.food && { ...fighter.food, heals: foodUnder(fighter.food.heals, e) }`, and the
+  same for each kind of found food (`RunSetup.heals`, the battle's `larder`). Until then the day
+  plays plain but for its foes' health. (2) **Two of your expectations name `no_rations`, which
+  is gone** (replaced by `short_rations`), and fail for that alone: `modifierRun.test.ts` "no
+  rations: NOT cleared by the careful player" (now 12 of 12: an unknown id plays plain) and
+  `runStats.test.ts` "forbids eating on a day of no food" (`effectsOf` of an unknown id is
+  `{}`, so no `mods`); the `noFood` flag itself still stands, so a test row of your own
+  (`{ noFood: true }`) keeps that case. (3) The per-modifier bounds in `modifierRun.test.ts`
+  pass on the new numbers as they are (measured above); tighten them to the new figures as you
+  see fit, and add `short_rations` once (1) is in. (4) The grotto's careful player clears a plain
+  day on only 40 of 48 seeds with 20 cod (your twelve are all clears): its margin is the cod, not
+  the modifiers. (5) **The results card**: call `clearRewards(state, spoils, content)` (in
+  `src/core/run.ts`; re-export it) with the state as the run ends, before `shell.settleRun`, and
+  show its first-clear items and each challenge's reward beside `spoilsUnder`'s. The menus now
+  say nothing over the card: toasts and achievement notes wait until the player leaves the Town
+  tab, so the card is the only place a player sees these straight after a run.
+- **For lane B (wave 18)**: `short_rations` replaces `no_rations`; your matcher reads it as
+  `hungry` from "ration" (checked: the content/art id test passes). Its effects are
+  `foodHeals: 0.8` (new), `foeHealth: 0.9` and `loot: 1.1`. Every other id is unchanged.
+  `dungeonSeal` (both tiers) and the `new` medal's sparkle are now used on the Dungeons card,
+  the seal at `round(dpr × 1.5)` device pixels to an art pixel, about 48 CSS px wide.
 - **For lane C (wave 17)**: (1) fill `RunSpoils.stats` (all seven fields), `dungeon` and
   `modifier` in `spoilsOf`, so a kept run carries them too; (2) read `shell.todaysModifier?.(id)`
   once as a run rows out, keep it in the run, apply `foeUnder`/`heroMaxHitUnder` and `noFood`
@@ -1295,6 +1399,29 @@ was picked up with it (nothing is settled until the run ends).
   scene. Reloading to dodge a blow gets the snapshot at most a few seconds old, with the same
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
+
+### Weak list (wave 18)
+
+- Three grotto days (thick skulls aside from luck, quick tempers, spring tide) clear exactly 10
+  of lane C's 12 seeds: on the line. Over 48 seeds every day clears 38 to 42 times against a
+  plain day's 40, so they are as fair as a plain day, but a small change to the scene can tip a
+  12-seed count either way.
+- Each trade is gentle (a tenth to a fifth in any one way). "Harder in its own way" is real but
+  small: a minute and a half longer, or 10 to 40 more hit points, or one more fish. That is
+  what a dungeon run on its last cod allows; a bolder trade needs the player to carry more.
+- Short Rations plays nearly plain until lane C applies `foodUnder` (foes 10% weaker, loot 10%
+  more: briefly kinder than meant). Its food cost is small even when wired (one more fish at
+  the median, with 30 carried), as its foes have less health too. Its balance numbers are
+  measured with the cod's healing set by the test, not by the scene.
+- The spring tide is not monotonic for the bot: 1.3 times as fast is easier than 1.25 (less
+  waiting). 1.25 is the measured value.
+- Hard Tack is a goal for combat 45 or so in iron: real, but far off at tier 1.
+- Idle plays trade days plain, so the grotto's calendar means nothing idle; only the cave's kind
+  days change an idle run.
+- Notes held after a run wait until the player leaves the Town tab: someone who stays in town a
+  long while sees them late. Several held toasts are joined into one.
+- The new-medal sparkle is remembered only while the app is open: a reload before the card is
+  seen loses it (deliberately not in the save).
 
 ### Weak list (wave 17)
 

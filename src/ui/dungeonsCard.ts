@@ -1,4 +1,13 @@
-import { challengeIcon, challengeMedal, modifierIcon } from '../art/dungeonIcons';
+import {
+  CHALLENGE_MEDAL_FRAMES,
+  CHALLENGE_MEDAL_FRAME_MS,
+  challengeIcon,
+  challengeMedal,
+  dungeonSeal,
+  modifierIcon,
+} from '../art/dungeonIcons';
+import { DAY2 } from '../art/town2/ramps';
+import { pixelCanvas2 } from '../art/town2/raster';
 import { maxHp } from '../core/combat';
 import type { ChallengeDef, Content, DungeonDef } from '../core/content';
 import { dungeonStatus, dungeonsInOrder, type DungeonState } from '../core/dungeons';
@@ -19,6 +28,12 @@ export interface DungeonsCardActions {
   stopIdle(): void;
   /** Today's modifier on a dungeon, by the app's clock and the phone's time zone. */
   today(dungeonId: string): string | null;
+  /** Whether the player left a dungeon's row open on this phone; folded if not said. */
+  rowOpen?(dungeonId: string): boolean;
+  /** Keep a dungeon's row open or folded on this phone. */
+  setRowOpen?(dungeonId: string, open: boolean): void;
+  /** True the first time it is asked of a challenge done since the app last showed it: its medal sparkles. */
+  freshMedal?(challengeId: string): boolean;
 }
 
 /** The word for where the character stands with a dungeon, as its row shows it. */
@@ -79,12 +94,41 @@ function todayLine(dungeon: DungeonDef, content: Content, actions: DungeonsCardA
   return { el, update };
 }
 
+/**
+ * A medal, gold once done; a challenge done since the card last showed it
+ * gets lane B's `new` medal, its sparkle played once, which ends as the done
+ * medal for good.
+ */
+function medalOf(done: boolean, fresh: boolean): HTMLElement {
+  const holder = h('span', {
+    class: 'challenge-medal',
+    attrs: {
+      'aria-label': done ? 'Done' : 'Not yet',
+      'data-medal': fresh ? 'new' : done ? 'done' : 'todo',
+    },
+  });
+  if (!fresh) {
+    holder.append(challengeMedal(done ? 'done' : 'todo'));
+    return holder;
+  }
+  let frame = 0;
+  const step = (): void => {
+    holder.replaceChildren(challengeMedal('new', frame));
+    frame += 1;
+    if (frame < CHALLENGE_MEDAL_FRAMES) setTimeout(step, CHALLENGE_MEDAL_FRAME_MS);
+    else holder.setAttribute('data-medal', 'done');
+  };
+  step();
+  return holder;
+}
+
 /** One challenge: its picture, what it asks and pays, and a medal, gold once done. */
 function challengeRow(
   dungeon: DungeonDef,
   challenge: ChallengeDef,
   state: GameState,
   content: Content,
+  fresh: boolean,
 ): HTMLElement {
   const done = challengeDone(state, dungeon.id, challenge.id);
   return h(
@@ -105,11 +149,28 @@ function challengeRow(
           text: done ? 'Done' : rewardWords(challenge.reward, content),
         }),
       ]),
-      h('span', { class: 'challenge-medal', attrs: { 'aria-label': done ? 'Done' : 'Not yet' } }, [
-        challengeMedal(done ? 'done' : 'todo'),
-      ]),
+      medalOf(done, done && fresh),
     ],
   );
+}
+
+/** Every challenge done in a state, as `<dungeon>.<slug>` ids: what the card has nothing new to show of. */
+export function doneChallenges(state: GameState | null): Set<string> {
+  return new Set(Object.values(state?.dungeons ?? {}).flatMap((record) => record.challenges ?? []));
+}
+
+/** A dungeon's seal (lane B's), at about a tap target's size: bronze once cleared, gold with every challenge. */
+function sealOf(dungeon: DungeonDef, allDone: boolean): HTMLElement {
+  const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
+  const tier = allDone ? 'all-challenges' : 'cleared';
+  const seal = pixelCanvas2(
+    dungeonSeal(dungeon.id, tier).picture,
+    DAY2,
+    Math.max(1, Math.round(dpr * 1.5)),
+    dpr,
+  );
+  seal.setAttribute('aria-hidden', 'true');
+  return h('span', { class: 'dungeon-seal', attrs: { 'data-seal': tier } }, [seal]);
 }
 
 /** What a dungeon's first clear opens, honestly: tier 2 is not built yet. */
@@ -176,7 +237,9 @@ export function dungeonsCard(
     const day = todayLine(dungeon, content, actions);
     updates.push(day.update);
     const challenges = dungeon.challenges ?? [];
-    const doneCount = challenges.filter((c) => challengeDone(state, dungeon.id, c.id)).length;
+    const done = challenges.filter((c) => challengeDone(state, dungeon.id, c.id));
+    // Asked of every challenge done, so each is shown as new once only.
+    const fresh = new Set(done.filter((c) => actions.freshMedal?.(c.id) ?? false).map((c) => c.id));
     const running = state.idleRun?.dungeon === dungeon.id;
     const idleButton = !mayIdle(state, dungeon.id, content)
       ? null
@@ -184,46 +247,96 @@ export function dungeonsCard(
         ? button('Call the hero home', actions.stopIdle, 'stop')
         : button('Send the hero through idle', () => actions.sendIdle(dungeon.id), 'primary');
     idleButton?.setAttribute(running ? 'data-idle-stop' : 'data-idle-start', dungeon.id);
-    return [
-      h(
-        'div',
-        {
-          class: 'dungeon-row stack tight',
-          attrs: { 'data-dungeon-row': dungeon.id, 'data-status': status.state },
-        },
-        [
-          h('div', { class: 'card-head' }, [
-            h('h3', { text: dungeon.name }),
-            h('span', { class: `standing ${status.state}`, text: STANDING[status.state] }),
-          ]),
-          h('p', { class: 'small muted', text: dungeon.description }),
-          status.state === 'locked' &&
-            h('p', { class: 'small', attrs: { 'data-unlock': '' }, text: status.unlock }),
-          facts,
-          day.el,
-          challenges.length > 0 &&
-            h('div', { class: 'stack tight' }, [
-              h('h4', {
-                class: 'challenges-head',
-                text: `Challenges · ${doneCount} of ${challenges.length} done`,
-              }),
-              h(
-                'ul',
-                { class: 'challenges', attrs: { 'data-challenges': dungeon.id } },
-                challenges.map((challenge) => challengeRow(dungeon, challenge, state, content)),
-              ),
-            ]),
-          tierLine(state, dungeon),
-          idleButton,
-          mayIdle(state, dungeon.id, content) &&
-            !running &&
-            h('p', {
-              class: 'small muted',
-              text: 'Sent alone he fights his way through again and again, slower than by hand and keeping only some of what falls; never a clear, never a challenge.',
+    // A day that is a trade is played plain by a hero sent alone (`idleModifier`): say so.
+    const trades = (dungeon.modifiers ?? []).some((id) => {
+      const modifier = modifierDef(content, id);
+      return modifier && !modifier.kind;
+    });
+    const body = h(
+      'div',
+      { class: 'stack tight dungeon-body', attrs: { 'data-dungeon-body': dungeon.id } },
+      [
+        h('p', { class: 'small muted', text: dungeon.description }),
+        status.state === 'locked' &&
+          h('p', { class: 'small', attrs: { 'data-unlock': '' }, text: status.unlock }),
+        facts,
+        day.el,
+        challenges.length > 0 &&
+          h('div', { class: 'stack tight' }, [
+            h('h4', {
+              class: 'challenges-head',
+              text: `Challenges · ${done.length} of ${challenges.length} done`,
             }),
-        ],
-      ),
-    ];
+            h(
+              'ul',
+              { class: 'challenges', attrs: { 'data-challenges': dungeon.id } },
+              challenges.map((challenge) =>
+                challengeRow(dungeon, challenge, state, content, fresh.has(challenge.id)),
+              ),
+            ),
+          ]),
+        tierLine(state, dungeon),
+        idleButton,
+        mayIdle(state, dungeon.id, content) &&
+          !running &&
+          h('p', {
+            class: 'small muted',
+            text: `Sent alone he fights his way through again and again, slower than by hand and keeping only some of what falls; never a clear, never a challenge.${trades ? ' A hard day he takes plain: its catch and its bonus both left out.' : ''}`,
+          }),
+      ],
+    );
+    // Folded, the row is one line to tap: the seal once cleared, the name, where things stand.
+    const summary = h('span', { class: 'small muted summary-line', attrs: { 'data-summary': '' } });
+    const allDone = challenges.length > 0 && done.length === challenges.length;
+    const cleared = status.clears > 0;
+    updates.push(() => {
+      const today = actions.today(dungeon.id);
+      const modifier = today ? modifierDef(content, today) : undefined;
+      const parts = [
+        running ? 'Running idle' : STANDING[status.state],
+        challenges.length > 0 ? `${done.length} of ${challenges.length} challenges` : '',
+        modifier ? `Today: ${modifier.name}` : '',
+      ];
+      setText(summary, parts.filter(Boolean).join(' · '));
+    });
+    const toggle = h(
+      'button',
+      {
+        class: 'dungeon-toggle',
+        attrs: { type: 'button', 'data-dungeon-toggle': dungeon.id },
+        on: {
+          click: () => {
+            const open = row.getAttribute('data-open') !== 'true';
+            actions.setRowOpen?.(dungeon.id, open);
+            show(open);
+          },
+        },
+      },
+      [
+        cleared ? sealOf(dungeon, allDone) : h('span', { class: 'dungeon-seal none' }),
+        h('span', { class: 'stack tight dungeon-heading' }, [
+          h('h3', { text: dungeon.name }),
+          summary,
+        ]),
+        // A medal won since last shown sparkles here too, so a folded row still says so.
+        fresh.size > 0 && h('span', { class: 'summary-medal' }, [medalOf(true, true)]),
+      ],
+    );
+    const row = h(
+      'div',
+      {
+        class: 'dungeon-row stack tight',
+        attrs: { 'data-dungeon-row': dungeon.id, 'data-status': status.state },
+      },
+      [toggle, body],
+    );
+    const show = (open: boolean): void => {
+      body.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      row.setAttribute('data-open', String(open));
+    };
+    show(actions.rowOpen?.(dungeon.id) ?? running);
+    return [row];
   });
   if (rows.length === 0) return null;
   const el = h('section', { class: 'panel stack dungeons', attrs: { 'data-dungeons': '' } }, [

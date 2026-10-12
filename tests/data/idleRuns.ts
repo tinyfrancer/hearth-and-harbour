@@ -1,7 +1,9 @@
 import { advance } from '../../src/core/actions';
 import { attackSkill } from '../../src/core/combat';
-import type { Content, DungeonDef } from '../../src/core/content';
+import type { Content, DungeonDef, ModifierEffects } from '../../src/core/content';
 import { startIdleRun } from '../../src/core/idleRun';
+import { foeUnder } from '../../src/core/progress';
+import { regularDrops } from '../../src/core/run';
 import { seedFrom } from '../../src/core/rng';
 import type { GameState } from '../../src/core/state';
 import { CONTENT } from '../../src/data';
@@ -94,26 +96,33 @@ export function idleHourOf(
 /**
  * What one run by hand brings, on average, by the dungeon's own tables: every
  * foe its rooms hold (the scene's own cast, `idle.rooms`) felled once, each
- * drop at its odds, every point of their health dealt once at 5 XP.
+ * drop at its odds, every point of their health dealt once at 5 XP. Under a
+ * day's modifier (`effects`), as settling pays it: foes' health as the fight
+ * has it, the regular drops times `loot`, coins times `coins`, XP times `xp`.
  */
-export function handRunOf(dungeon: DungeonDef): { worth: number; xp: number } {
+export function handRunOf(
+  dungeon: DungeonDef,
+  effects: ModifierEffects = {},
+): { worth: number; xp: number } {
   let total = 0;
   let damage = 0;
+  const regular = regularDrops(dungeon);
   const mean = (drop: { min: number; max: number }): number => (drop.min + drop.max) / 2;
   for (const room of dungeon.idle!.rooms) {
     for (const id of room.foes) {
       const foe = dungeon.cast!.find((row) => row.id === id)!;
-      total += (foe.coins[0] + foe.coins[1]) / 2;
-      for (const drop of foe.always) total += mean(drop) * value(drop.item);
+      total += ((foe.coins[0] + foe.coins[1]) / 2) * (effects.coins ?? 1);
+      for (const drop of foe.always)
+        total += mean(drop) * value(drop.item) * (regular.has(drop.item) ? (effects.loot ?? 1) : 1);
       for (const drop of foe.rare) total += (mean(drop) / drop.oneIn) * value(drop.item);
       if (foe.pick) {
         const each = foe.pick.items.reduce((sum, item) => sum + value(item), 0);
         total += each / foe.pick.items.length / foe.pick.oneIn;
       }
-      damage += foe.hp;
+      damage += foeUnder(foe, effects).hp;
     }
   }
-  return { worth: total, xp: damage * 5 };
+  return { worth: total, xp: damage * 5 * (effects.xp ?? 1) };
 }
 
 export { HOUR, foodAt };

@@ -146,6 +146,30 @@ export function heroMaxHitUnder(maxHit: number, effects: ModifierEffects): numbe
   return damage === 1 ? maxHit : Math.max(1, Math.round(maxHit * damage));
 }
 
+/**
+ * What one thing eaten heals under a modifier (`foodHeals`): rounded, at
+ * least 1; nothing stays nothing. For the food slot and for food found alike.
+ * (`noFood`, which no dungeon draws any more, is the scene's own flag and
+ * not read here.)
+ */
+export function foodUnder(heals: number, effects: ModifierEffects): number {
+  const by = times(effects.foodHeals);
+  if (by === 1 || !(heals > 0)) return heals;
+  return Math.max(1, Math.round(heals * by));
+}
+
+/**
+ * The modifier a hero sent through idle plays under, from the day's: a kind
+ * day as it comes, a trade day plain (null), its catch and its bonus both
+ * left out. Sent alone, he cannot choose to bring more fish or stay away on a
+ * hard day, so idle never risks one: a night away never ends because the
+ * calendar turned.
+ */
+export function idleModifier(content: Content, id: string | null | undefined): string | null {
+  const def = id ? modifierDef(content, id) : undefined;
+  return def && isKind(def.effects) ? def.id : null;
+}
+
 /** A reward multiplier (`loot`, `coins`, `xp`) applied to a whole amount, rounded. */
 export function scaled(amount: number, multiplier: number | undefined): number {
   const by = times(multiplier);
@@ -169,6 +193,7 @@ export function effectWords(effects: ModifierEffects): string[] {
   more(effects.foeDamage, 'Foes hit # harder', 'Foes hit # softer');
   more(effects.foeSpeed, 'Foes strike # more often', 'Foes strike # less often');
   more(effects.heroDamage, 'Your blows land # harder', 'Your blows land # softer');
+  more(effects.foodHeals, 'Food heals # more', 'Food heals # less');
   if (effects.noFood) words.push('Nothing can be eaten');
   more(effects.tideFaster, 'The tide turns # faster', 'The tide turns # slower');
   if (effects.darker) words.push('The rooms are darker');
@@ -185,6 +210,7 @@ export function isKind(effects: ModifierEffects): boolean {
     times(effects.foeDamage) > 1 ||
     times(effects.foeSpeed) > 1 ||
     times(effects.heroDamage) < 1 ||
+    times(effects.foodHeals) < 1 ||
     times(effects.tideFaster) > 1 ||
     Boolean(effects.noFood) ||
     Boolean(effects.darker);

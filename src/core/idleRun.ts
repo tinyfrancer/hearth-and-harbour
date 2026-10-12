@@ -26,7 +26,9 @@ import {
   dailyModifier,
   effectsOf,
   foeUnder,
+  foodUnder,
   heroMaxHitUnder,
+  idleModifier,
   localDay,
   mayIdle,
   modifierOn,
@@ -60,9 +62,12 @@ import { Trained } from './xp';
  * - Between runs the hero rows home and back (`tripMs`), healing a hit point
  *   every `REGEN_MS` of it; a new run starts at once on the far side.
  * - Each run is played under the day's modifier as it sets out
- *   (`modifierOn` the local day of the run's calendar): its fight effects
- *   (`foeUnder`, `heroMaxHitUnder`, `noFood`) and rewards (`loot` on the
- *   regular drops, `coins`, `xp`) through the same effects as a hand run.
+ *   (`modifierOn` the local day of the run's calendar) if that is a kind
+ *   one: its fight effects (`foeUnder`, `heroMaxHitUnder`, `foodUnder`) and
+ *   rewards (`loot` on the regular drops, `coins`, `xp`) through the same
+ *   effects as a hand run. A trade day is played plain, its catch and its
+ *   bonus both left out (`idleModifier`, wave 18): the hero sent alone cannot
+ *   bring more fish for a hard day, so a night away never ends at midnight.
  * - Only a share of what falls is kept (`lootPercent`: each drop, and a
  *   kill's coins, kept on a roll), and the rarest things (`activeOnly`) never
  *   fall idle. No first-clear reward and no challenge is ever paid idle, and
@@ -140,7 +145,7 @@ export function startIdleRun(
         dungeon: dungeonId,
         clock: Math.max(0, Math.floor(now)),
         utcOffset: offset,
-        modifier: dailyModifier(now, dungeonId, content, offset),
+        modifier: idleModifier(content, dailyModifier(now, dungeonId, content, offset)),
         room: 0,
         walkMs: setOutMs(shape.dungeon),
         hp,
@@ -209,9 +214,11 @@ function walkIdle(
   const vitality = new Trained(state.skills[VITALITY] ?? 0);
   const otherAttack = skillLevel(state, attackSkill(ranged ? 'melee' : 'ranged'));
   const dice = new Dice(state.rng);
-  const heals = state.food ? (content.items[state.food.item]?.heals ?? 0) : 0;
+  const healing = state.food ? (content.items[state.food.item]?.heals ?? 0) : 0;
 
-  let { room, walkMs, hp, playerMs, runs, kills, coins, eaten, arrows, modifier } = run;
+  let { room, walkMs, hp, playerMs, runs, kills, coins, eaten, arrows } = run;
+  // A run saved before wave 18 may have set out under a trade day: from now it is played plain.
+  let modifier = idleModifier(content, run.modifier);
   let foes: IdleFoe[] = run.foes.map((foe) => ({ ...foe }));
   let food = state.food?.qty ?? 0;
   let ammo = state.equipment.ammo?.qty ?? 0;
@@ -227,10 +234,12 @@ function walkIdle(
 
   /** The run's foes as its modifier makes them, worked out once a run. */
   let effects: ModifierEffects = effectsOf(content, modifier);
+  let heals = foodUnder(healing, effects);
   const rows = new Map<string, DungeonFoe>();
   const rowsUnder = (): void => {
     rows.clear();
     for (const [id, foe] of cast) rows.set(id, foeUnder(foe, effects));
+    heals = foodUnder(healing, effects);
   };
   rowsUnder();
   const gain = (amount: number): number => scaled(amount, effects.xp);
@@ -320,9 +329,9 @@ function walkIdle(
     room = 0;
     // Rowing home and back: a hit point every REGEN_MS of it, at once.
     hp = Math.min(maxHpFor(vitality.level), hp + Math.floor(idle.tripMs / REGEN_MS));
-    // The next run sets out under its own day's modifier.
+    // The next run sets out under its own day's modifier, if it is a kind one.
     const at = run.clock + (ms - time);
-    modifier = modifierOn(localDay(at, run.utcOffset), dungeon.id, content);
+    modifier = idleModifier(content, modifierOn(localDay(at, run.utcOffset), dungeon.id, content));
     effects = effectsOf(content, modifier);
     rowsUnder();
     walkMs = setOutMs(dungeon);

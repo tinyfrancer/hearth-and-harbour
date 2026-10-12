@@ -3,10 +3,19 @@ import type { DungeonDef, ModifierDef } from '../core/content';
 // What a day can do to a dungeon (S16). Each dungeon draws its days from a
 // pool of these (`DungeonDef.modifiers`), every one in turn, shuffled each
 // time round (`dailyModifier`, src/core/progress.ts). The learning cave draws
-// only kind ones: easier, or more found, never harder. Every other is a trade,
-// harder and paid for it, and each has a catch the idle game feels too (not
-// only the tide or the lamps, which it has none of), so none is a free gift
-// to a hero sent through unattended. tests/data/content.test.ts holds both.
+// only kind ones: easier, or more found, never harder. Every other is a fair
+// trade, harder in a way of its own and paid for it, and a hero sent through
+// idle plays it plain (`idleModifier`). tests/data/content.test.ts holds both.
+//
+// Wave 18: the grotto is balanced on what is brought to eat (its careful
+// player eats 19 of his 20 cod on a plain day), so a day that costs much more
+// health is a wall, not a trade. Each trade now costs one thing (a longer
+// clear, more damage, or more food) and gives most of it back another way;
+// wave 17's were a quarter to a third harder outright and cleared 0 to 9 of
+// 12. Measured by lane C's careful player at combat 20 on its twelve seeds
+// (tests/scene/modifierRun.test.ts) and on 48: each clears about as often as
+// a plain day, and pays 1.0 to 1.3 times a plain day's hour by hand
+// (tests/data/pacing.test.ts).
 export const DUNGEON_MODIFIERS = {
   // Kind: for the Tidepool Cave.
   slack_tide: {
@@ -24,41 +33,48 @@ export const DUNGEON_MODIFIERS = {
     kind: true,
   },
   // Trades: for Brinebeard’s Grotto.
+  // A longer clear: tougher, and slower to swing.
   thick_skulls: {
     id: 'thick_skulls',
     name: 'Thick Skulls',
-    text: 'The crew slept well for once, and it shows.',
-    effects: { foeHealth: 1.3, xp: 1.3 },
+    text: 'The crew slept well for once: hard to put down, and slow to get going.',
+    effects: { foeHealth: 1.2, foeSpeed: 0.8, xp: 1.2, loot: 1.15 },
   },
+  // More damage: harder blows, from a crew too cross to mind itself.
   angry_crew: {
     id: 'angry_crew',
     name: 'An Angry Crew',
-    text: 'Somebody told the crew what you said about their boat.',
-    effects: { foeDamage: 1.3, loot: 1.3 },
+    text: 'Somebody told the crew what you said about their boat. They swing hard and wild.',
+    effects: { foeDamage: 1.1, foeHealth: 0.95, loot: 1.1 },
   },
+  // More damage: more blows, from a crew not quite steady on its feet.
   quick_tempers: {
     id: 'quick_tempers',
     name: 'Quick Tempers',
-    text: 'A double rum went round at breakfast. Everyone is very fast and very loud.',
-    effects: { foeSpeed: 1.25, xp: 1.15, loot: 1.15 },
+    text: 'A double rum went round at breakfast. Everyone is very fast, very loud and a little wobbly.',
+    effects: { foeSpeed: 1.1, foeHealth: 0.93, xp: 1.15 },
   },
+  // More damage and a longer clear: less dry ground, for less long.
   spring_tide: {
     id: 'spring_tide',
     name: 'Spring Tide',
     text: 'The moon is full and the sea is in a hurry.',
-    effects: { tideFaster: 1.5, foeDamage: 1.1, loot: 1.35 },
+    effects: { tideFaster: 1.25, loot: 1.25 },
   },
-  no_rations: {
-    id: 'no_rations',
-    name: 'No Rations',
-    text: 'Gulls got into your pack on the way over. Every last crumb.',
-    effects: { noFood: true, xp: 1.2, loot: 1.25 },
+  // More food: each bite goes less far, but the crew is hungry too. (It
+  // replaces wave 17's No Rations, which no careful player could clear.)
+  short_rations: {
+    id: 'short_rations',
+    name: 'Short Rations',
+    text: 'Gulls got into every larder on the coast. Your food goes less far, and the crew has less fight in it.',
+    effects: { foodHeals: 0.8, foeHealth: 0.9, loot: 1.1 },
   },
+  // A longer clear: softer blows in the dark, from both sides.
   unlit_lamps: {
     id: 'unlit_lamps',
     name: 'Unlit Lamps',
-    text: 'Someone forgot the lamp oil. Mind your swing.',
-    effects: { darker: true, heroDamage: 0.85, xp: 1.25 },
+    text: 'Someone forgot the lamp oil. Mind your swing; they can hardly see you either.',
+    effects: { darker: true, heroDamage: 0.85, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
   },
 } satisfies Record<string, ModifierDef>;
 
@@ -332,12 +348,18 @@ export const DUNGEONS = {
       'angry_crew',
       'quick_tempers',
       'spring_tide',
-      'no_rations',
+      'short_rations',
       'unlit_lamps',
     ],
-    // Real goals: a careful player at the end of tier 1 clears it in seven to
-    // ten minutes, eating everything brought and taking 290 to 480 damage
-    // all told (tests/scene/grottoRun.test.ts), so none comes with a first clear.
+    // Real goals, a ladder of them: a careful player at the end of tier 1
+    // clears it in seven to ten minutes, eating everything brought and losing
+    // 260 to 480 hit points to blows (tests/scene/grottoRun.test.ts), so none
+    // but the Spring Tide comes with a first clear. Lane C's careful player
+    // (twelve seeds, 30 cod; damage is to blows, never the sea's wash) meets
+    // Ahead of the Tide once at combat 20 and 9 times at 25; Light on the
+    // Bandages once at 25, 4 times at 30 and 8 at 35; Hard Tack, which its
+    // text says is for a seasoned fighter, 4 times at 40, 9 at 45 and every
+    // time at 50; the Spring Tide on 10 of 12 such days at 20.
     challenges: [
       {
         id: 'brinebeards_grotto.swift',
@@ -349,15 +371,15 @@ export const DUNGEONS = {
       {
         id: 'brinebeards_grotto.no_food',
         name: 'Hard Tack',
-        text: 'Clear the grotto without eating a thing.',
+        text: 'Clear the grotto without eating a thing. One for a seasoned fighter: combat 45 or so.',
         rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
         reward: { coins: 8000, bountyPoints: 10 },
       },
       {
         id: 'brinebeards_grotto.nearly_unhurt',
-        name: 'Barely a Scratch',
-        text: 'Clear the grotto taking no more than 150 damage.',
-        rule: { kind: 'atMost', stat: 'damageTaken', n: 150 },
+        name: 'Light on the Bandages',
+        text: 'Clear the grotto losing no more than 250 hit points to blows.',
+        rule: { kind: 'atMost', stat: 'damageTaken', n: 250 },
         reward: { coins: 6000, bountyPoints: 10 },
       },
       {

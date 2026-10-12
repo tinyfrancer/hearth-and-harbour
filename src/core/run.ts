@@ -1,6 +1,7 @@
 import { autoHandIn } from './bounty';
 import { comeRound, hurt, maxHp } from './combat';
 import type {
+  ChallengeDef,
   ChallengeReward,
   Content,
   DungeonDef,
@@ -186,6 +187,44 @@ export function rewardOf(
   };
 }
 
+/** What a clear pays on top of what the run picked up: its first-clear reward and new challenges. */
+export interface ClearRewards {
+  /** The dungeon's first-clear reward, if this is its first clear; empty otherwise. */
+  firstClear: { item: string; qty: number }[];
+  /** Each challenge this run meets for the first time, in the dungeon's order, as it will be paid. */
+  challenges: { challenge: ChallengeDef; reward: ReturnType<typeof rewardOf> }[];
+}
+
+/**
+ * What settling `spoils` will pay beyond the run's own (`spoilsUnder`): the
+ * first-clear reward and each challenge met for the first time. Nothing for a
+ * run that did not clear. For the scene's results card, read before settling
+ * (afterwards the clear and the challenges are already counted); `settleRun`
+ * pays exactly this.
+ */
+export function clearRewards(
+  state: GameState,
+  spoils: RunSpoils,
+  content: Content | undefined,
+): ClearRewards {
+  const none: ClearRewards = { firstClear: [], challenges: [] };
+  const cleared = typeof spoils.cleared === 'string' ? spoils.cleared : undefined;
+  const dungeon = content && cleared !== undefined ? dungeonDef(content, cleared) : undefined;
+  if (!content || !dungeon || dungeon.comingSoon) return none;
+  const record = state.dungeons[dungeon.id];
+  const stats = readStats(spoils.stats);
+  const modifier = runModifier(spoils, content);
+  return {
+    firstClear: (record?.clears ?? 0) === 0 ? firstClearOf(dungeon, content) : [],
+    challenges: (dungeon.challenges ?? []).flatMap((challenge) =>
+      (record?.challenges ?? []).includes(challenge.id) ||
+      !challengeMet(challenge.rule, stats, { cleared: true, modifier })
+        ? []
+        : [{ challenge, reward: rewardOf(challenge.reward, content) }],
+    ),
+  };
+}
+
 /**
  * Bring a run's spoils home, as one change: what was eaten and shot is taken
  * from the food and ammunition slots, and the XP, loot and coins are paid in.
@@ -278,6 +317,7 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
   const dungeon = content && cleared !== undefined ? dungeonDef(content, cleared) : undefined;
   // A landing with nothing there yet cannot have been cleared.
   if (cleared !== undefined && dungeon && !dungeon.comingSoon) {
+    const rewards = clearRewards(state, spoils, content);
     const record: DungeonRecord = state.dungeons[cleared] ?? { clears: 0 };
     const stats = readStats(spoils.stats);
     const time = whole(spoils.timeMs) || (stats.timeMs ?? 0);
@@ -294,23 +334,15 @@ export function settleRun(state: GameState, spoils: RunSpoils, content?: Content
       next.modifiers = [...(record.modifiers ?? []), paid.modifier];
     }
     // Each challenge pays once: the first clear that meets it.
-    for (const challenge of dungeon.challenges ?? []) {
-      if ((next.challenges ?? []).includes(challenge.id)) continue;
-      if (!challengeMet(challenge.rule, stats, { cleared: true, modifier: paid.modifier }))
-        continue;
+    for (const { challenge, reward } of rewards.challenges) {
       next.challenges = [...(next.challenges ?? []), challenge.id];
-      const reward = rewardOf(challenge.reward, content!);
       settled.coins += reward.coins;
       settled.bountyPoints += reward.bountyPoints;
       for (const { item, qty } of reward.items) bank[item] = (bank[item] ?? 0) + qty;
     }
     settled.dungeons = { ...state.dungeons, [cleared]: next };
     // The first clear's reward, once: on top of what the run picked up.
-    if (record.clears === 0) {
-      for (const { item, qty } of firstClearOf(dungeon, content!)) {
-        bank[item] = (bank[item] ?? 0) + qty;
-      }
-    }
+    for (const { item, qty } of rewards.firstClear) bank[item] = (bank[item] ?? 0) + qty;
   }
 
   // Read after the XP is in: a Vitality level from the run raises the most there can be.

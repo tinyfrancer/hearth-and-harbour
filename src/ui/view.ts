@@ -116,7 +116,8 @@ export interface Shell {
    * app's clock and the phone's time zone through `dailyModifier`
    * (src/core/progress.ts). Read it once as a run rows out and keep it for
    * the whole run (a run across midnight keeps its day's), apply its fight
-   * effects (`foeUnder`, `heroMaxHitUnder`, `noFood`, and the scene's own
+   * effects (`foeUnder`, `heroMaxHitUnder`, `foodUnder` on what each thing
+   * eaten heals, `noFood` if a row ever sets it, and the scene's own
    * `tideFaster`, `darker`), and report it as `RunSpoils.modifier`;
    * `settleRun` pays its rewards. Optional, like `openBounties`.
    */

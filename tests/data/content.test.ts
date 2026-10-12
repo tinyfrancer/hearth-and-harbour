@@ -4,7 +4,7 @@ import { SLOTS } from '../../src/core/content';
 import { meets } from '../../src/core/achievements';
 import { collectable, collectionSources } from '../../src/core/collection';
 import { equip } from '../../src/core/equipment';
-import { effectWords, isKind } from '../../src/core/progress';
+import { effectWords, idleModifier, isKind } from '../../src/core/progress';
 import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
@@ -462,27 +462,34 @@ describe('the content tables', () => {
       expect(effectWords(modifier.effects).length, modifier.id).toBeGreaterThan(0);
       const { effects } = modifier;
       const pays = (effects.loot ?? 1) > 1 || (effects.coins ?? 1) > 1 || (effects.xp ?? 1) > 1;
-      // A catch the hero sent through idle feels as well: not only the tide or the lamps.
-      const idleCatch =
-        (effects.foeHealth ?? 1) > 1 ||
-        (effects.foeDamage ?? 1) > 1 ||
-        (effects.foeSpeed ?? 1) > 1 ||
-        (effects.heroDamage ?? 1) < 1 ||
-        Boolean(effects.noFood);
       expect(Boolean(modifier.kind), modifier.id).toBe(isKind(effects));
+      // A hero sent through idle takes a kind day as it comes and plays a trade day plain.
+      expect(idleModifier(CONTENT, modifier.id), modifier.id).toBe(
+        modifier.kind ? modifier.id : null,
+      );
       if (!modifier.kind) {
         expect(pays, `${modifier.id} pays for its trouble`).toBe(true);
-        expect(idleCatch, `${modifier.id} is harder idle too`).toBe(true);
+        // No day takes away what the dungeon is balanced on (wave 18: No Rations could not be
+        // cleared): food may go less far, never be forbidden.
+        expect(effects.noFood, modifier.id).toBeUndefined();
+        // Gentle numbers (wave 18): a trade is at most a quarter harder or richer in any one way.
+        for (const value of [
+          effects.foeHealth,
+          effects.foeDamage,
+          effects.foeSpeed,
+          effects.heroDamage,
+          effects.foodHeals,
+          effects.tideFaster,
+          effects.loot,
+          effects.coins,
+          effects.xp,
+        ]) {
+          if (value !== undefined)
+            expect(Math.abs(value - 1), modifier.id).toBeLessThanOrEqual(0.25 + 1e-9);
+        }
       }
-      // Gentle numbers: no day more than a third harder or richer in any one way.
-      for (const value of [
-        effects.foeHealth,
-        effects.foeDamage,
-        effects.foeSpeed,
-        effects.loot,
-        effects.coins,
-        effects.xp,
-      ]) {
+      // And a kind one no more than half again.
+      for (const value of [effects.foeSpeed, effects.loot, effects.coins, effects.xp]) {
         if (value !== undefined) expect(Math.abs(value - 1), modifier.id).toBeLessThanOrEqual(0.5);
       }
     }
