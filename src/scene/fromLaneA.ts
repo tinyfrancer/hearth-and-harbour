@@ -5,7 +5,8 @@
  * `chartOpened`. Built against a stand-in of the same shape while those were
  * not on `main`; now only these re-exports and two small readers.
  */
-import type { Content, DungeonDef } from '../core/content';
+import type { Content, DungeonDef, ModifierEffects } from '../core/content';
+import * as progress from '../core/progress';
 import type { GameState } from '../core/state';
 import type { Shell, ShellRequest } from '../ui/view';
 
@@ -57,6 +58,23 @@ export type {
   ModifierEffects,
   RunStats,
 } from '../core/content';
+
+/**
+ * What one thing eaten heals under a day's modifier (lane A's wave 18
+ * `foodHeals`, `foodUnder`): lane A's rule where it is on `main`, else the
+ * same rule here (a multiplier, rounded, at least 1; nothing stays nothing),
+ * read through a local signature so this scene runs before and after it lands.
+ */
+export function foodHealsUnder(heals: number, effects: ModifierEffects): number {
+  const theirs = (
+    progress as unknown as { foodUnder?: (heals: number, effects: ModifierEffects) => number }
+  ).foodUnder;
+  if (typeof theirs === 'function') return theirs(heals, effects);
+  const by = (effects as { foodHeals?: number }).foodHeals;
+  if (typeof by !== 'number' || !Number.isFinite(by) || by <= 0 || by === 1 || !(heals > 0))
+    return heals;
+  return Math.max(1, Math.round(heals * by));
+}
 
 /** Today's modifier on a dungeon, by the shell's clock and time zone; null without one. */
 export function todaysModifier(shell: Shell | undefined, dungeon: string): string | null {

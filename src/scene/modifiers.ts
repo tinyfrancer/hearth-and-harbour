@@ -7,6 +7,8 @@
  * - foe health, damage and swing: the monsters' rows a run starts with,
  *   by lane A's `foeUnder` (heavy blows are made of a foe's max hit; a cannon's are not);
  * - hero damage: his max hit as he rows out, by `heroMaxHitUnder`;
+ * - what food heals (wave 18's Short Rations): the food slot's and every
+ *   kind found, as the run starts, by lane A's `foodUnder` (`foodHealsUnder`);
  * - the tide's pace, and no food: read by the rules as the fight goes
  *   (`BattleMods`, `battleMods`);
  * - darker: smaller light pools, from the rooms' own light (`dimOf`);
@@ -21,7 +23,13 @@ import type { MonsterDef } from '../core/content';
 import type { RunSpoils } from '../core/run';
 import { spoilsOf, type BattleMods, type Fighter } from './battle';
 import type { Run } from './dungeon';
-import { foeUnder, heroMaxHitUnder, type ModifierEffects, type RunStats } from './fromLaneA';
+import {
+  foeUnder,
+  foodHealsUnder,
+  heroMaxHitUnder,
+  type ModifierEffects,
+  type RunStats,
+} from './fromLaneA';
 
 /** A run's modifier as it keeps it: its id, and what it does (as it did when the boat rowed out). */
 export interface RunModifier {
@@ -42,11 +50,41 @@ export function modifiedMonsters(
   return Object.fromEntries(Object.entries(monsters).map(([id, m]) => [id, foeUnder(m, e)]));
 }
 
-/** The hero as he rows out under the day's hero damage. Unchanged at 1. */
+/** The hero as he rows out under the day's hero damage and what his food heals. Unchanged at 1. */
 export function modifiedFighter(fighter: Fighter, e: ModifierEffects | undefined): Fighter {
   if (!e) return fighter;
   const maxHit = heroMaxHitUnder(fighter.maxHit, e);
-  return maxHit === fighter.maxHit ? fighter : { ...fighter, maxHit };
+  const food = fighter.food;
+  const heals = food ? foodHealsUnder(food.heals, e) : 0;
+  if (maxHit === fighter.maxHit && (!food || heals === food.heals)) return fighter;
+  return {
+    ...fighter,
+    maxHit,
+    ...(food && heals !== food.heals ? { food: { ...food, heals } } : {}),
+  };
+}
+
+/** What each kind of food found heals under the day's modifier. Unchanged (the same object) at 1. */
+export function modifiedHeals(
+  heals: Readonly<Record<string, number>> | undefined,
+  e: ModifierEffects | undefined,
+): Readonly<Record<string, number>> | undefined {
+  if (!heals || !e) return heals;
+  const next = Object.fromEntries(
+    Object.entries(heals).map(([item, h]) => [item, foodHealsUnder(h, e)]),
+  );
+  return Object.entries(next).every(([item, h]) => h === heals[item]) ? heals : next;
+}
+
+/**
+ * How much less (or more) food heals today, as a share (0.8 for a fifth
+ * less), or null on a day it heals as it always does: what the Eat button
+ * says. Read from what a cooked fish heals, so it is the rule's own answer.
+ */
+export function foodShare(e: ModifierEffects | undefined): number | null {
+  if (!e) return null;
+  const share = foodHealsUnder(100, e) / 100;
+  return share === 1 ? null : share;
 }
 
 /** What the rules read as the fight goes; null when nothing of it applies. */

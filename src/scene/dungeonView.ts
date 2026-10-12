@@ -93,6 +93,7 @@ import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { roomScale } from './scale';
 import { resultsCard, trackerView } from './runCard';
+import { foodShare } from './modifiers';
 import { KEYS, remember, remembered } from './remember';
 import { newGame } from '../core/state';
 import {
@@ -670,6 +671,16 @@ export function dungeonView(options: DungeonViewOptions): View {
       .find((item) => (larder[item] ?? 0) > 0) ??
     null;
   const foodButton = foodItem ? fightButton('Eat', itemIcon(foodItem), 'fight-food', eatOne) : null;
+  // A day when food heals less (or more): the button says by how much, in its corner, all run.
+  const share = foodShare(options.run().modifier?.effects);
+  const shareWords =
+    share === null ? null : `${share < 1 ? '−' : '+'}${Math.round(Math.abs(1 - share) * 100)}%`;
+  if (foodButton && shareWords) {
+    foodButton.el.classList.add('fight-food-share');
+    foodButton.el.append(
+      h('span', { class: 'fight-share', text: shareWords, attrs: { 'aria-hidden': 'true' } }),
+    );
+  }
   const bar = h('div', { class: 'fight-bar' }, [
     ...abilityButtons.map((b) => b.el),
     foodButton?.el ?? null,
@@ -1305,7 +1316,11 @@ export function dungeonView(options: DungeonViewOptions): View {
               ? 'idle'
               : 'ready';
       setText(foodButton.name, banned ? 'No food' : 'Eat');
-      const label = banned ? 'Eat: nothing may be eaten today' : 'Eat';
+      const label = banned
+        ? 'Eat: nothing may be eaten today'
+        : share !== null
+          ? `Eat: food heals ${Math.round(Math.abs(1 - share) * 100)}% ${share < 1 ? 'less' : 'more'} today`
+          : 'Eat';
       if (foodButton.el.getAttribute('aria-label') !== label)
         foodButton.el.setAttribute('aria-label', label);
       fill(foodButton.shade, 'Y', fraction(left, FOOD_MS));

@@ -799,6 +799,17 @@
   display: none;
 }
 
+/* A day when food heals less (Short Rations): by how much, in the button's top corner. */
+.fight-share {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--danger);
+  pointer-events: none;
+}
+
 /* The food's count sits in the corner; its cooldown is shown by the shade alone. */
 .fight-food .fight-count {
   inset: auto 4px 1px auto;
