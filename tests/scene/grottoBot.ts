@@ -30,6 +30,7 @@ import {
   type Telegraph,
 } from '../../src/scene/battle';
 import { GROTTO_CAST } from '../../src/scene/cast';
+import type { RunModifier } from '../../src/scene/modifiers';
 import {
   advanceRun,
   buildDungeon,
@@ -97,7 +98,7 @@ export function begin(
   state: GameState,
   seed: number,
   known?: Iterable<string>,
-  modifier?: string,
+  modifier?: string | RunModifier,
 ): Run {
   return startRun(GROTTO_DUNGEON, {
     fighter: fighterOf(state, CONTENT),
@@ -105,8 +106,16 @@ export function begin(
     seed,
     known: known ?? Object.keys(CONTENT.items),
     // Under a day's modifier (S16), as the boat rows out with it; none for every older case.
-    ...(modifier ? { modifier: { id: modifier, effects: effectsOf(CONTENT, modifier) } } : {}),
+    // A modifier by its id is the tables' row; one given whole is played as given (a test's own).
+    ...(modifier ? { modifier: modifierOf(modifier) } : {}),
   });
+}
+
+/** A day's modifier as a run keeps it: the tables' row for an id, or one given whole. */
+export function modifierOf(modifier: string | RunModifier): RunModifier {
+  return typeof modifier === 'string'
+    ? { id: modifier, effects: effectsOf(CONTENT, modifier) }
+    : modifier;
 }
 
 const distance = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -349,8 +358,8 @@ export function playThrough(
     readonly reactMs?: number;
     /** Brace every heavy blow he can, rather than step out (wave 17). */
     readonly brace?: boolean;
-    /** Under this day's modifier (S16). */
-    readonly modifier?: string;
+    /** Under this day's modifier (S16): an id in the tables, or one given whole. */
+    readonly modifier?: string | RunModifier;
   } = {},
 ): Outcome {
   reaction = options.reactMs ?? 0;

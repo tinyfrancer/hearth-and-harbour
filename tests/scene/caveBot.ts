@@ -40,6 +40,7 @@ import {
 } from '../../src/scene/lessons';
 import { clearLine } from '../../src/scene/path';
 import { TIDEPOOL_ID } from '../../src/scene/tidepool';
+import type { RunModifier } from '../../src/scene/modifiers';
 import { cellAt, centreOf, inMap, isSolid, type Point } from '../../src/scene/tileMap';
 
 const T = DUNGEON.tile;
@@ -64,11 +65,18 @@ export function beginCave(
   seed: number,
   lessons = true,
   rows: Readonly<Record<string, MonsterDef>> = {},
-  modifier?: string,
+  modifier?: string | RunModifier,
 ): Run {
   const run = startRun(CAVE, {
-    // Under a day's modifier (S16); none for every older case.
-    ...(modifier ? { modifier: { id: modifier, effects: effectsOf(CONTENT, modifier) } } : {}),
+    // Under a day's modifier (S16), by id or given whole; none for every older case.
+    ...(modifier
+      ? {
+          modifier:
+            typeof modifier === 'string'
+              ? { id: modifier, effects: effectsOf(CONTENT, modifier) }
+              : modifier,
+        }
+      : {}),
     fighter: fighterOf(state, CONTENT),
     monsters: { ...castOf(CONTENT, TIDEPOOL_ID), ...rows },
     seed,
