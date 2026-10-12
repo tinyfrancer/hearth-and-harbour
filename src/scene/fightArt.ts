@@ -690,6 +690,32 @@ function laneSpans(t: Telegraph): Spans {
   return spans;
 }
 
+/** Each lane's edge pixels, all round (long sides as well as ends), worked out once. */
+const laneEdges = new WeakMap<Telegraph, readonly (readonly [x: number, y: number])[]>();
+
+function laneEdge(t: Telegraph): readonly (readonly [x: number, y: number])[] {
+  let edge = laneEdges.get(t);
+  if (edge) return edge;
+  const inside = new Set<string>();
+  const spans = laneSpans(t);
+  for (const [y, x, n] of spans) for (let i = 0; i < n; i++) inside.add(`${x + i},${y}`);
+  const out: [number, number][] = [];
+  for (const [y, x, n] of spans)
+    for (let i = 0; i < n; i++) {
+      const px = x + i;
+      if (
+        !inside.has(`${px - 1},${y}`) ||
+        !inside.has(`${px + 1},${y}`) ||
+        !inside.has(`${px},${y - 1}`) ||
+        !inside.has(`${px},${y + 1}`)
+      )
+        out.push([px, y]);
+    }
+  edge = out;
+  laneEdges.set(t, edge);
+  return edge;
+}
+
 /**
  * A charge's lane: the ground it will run through, red as a slam's, edged,
  * filling from the charger's end as it comes, and chevrons marching along it
@@ -699,14 +725,14 @@ function drawLane(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): v
   const k = telegraphProgress(t, clock);
   const to = t.to ?? t.at;
   const spans = laneSpans(t);
-  ctx.globalAlpha = 0.24;
-  ctx.fillStyle = C.redDark;
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = C.red;
   for (const [y, x, n] of spans) ctx.fillRect(x, y, n, 1);
   // Filling from the charger toward the far end as the charge comes.
   const dx = to.x - t.at.x;
   const dy = to.y - t.at.y;
   const length = Math.hypot(dx, dy) || 1;
-  ctx.globalAlpha = 0.45;
+  ctx.globalAlpha = 0.5;
   ctx.fillStyle = C.red;
   for (const [y, x, n] of spans)
     for (let i = 0; i < n; i++) {
@@ -714,13 +740,13 @@ function drawLane(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): v
       if (along <= k) ctx.fillRect(x + i, y, 1, 1);
     }
   ctx.globalAlpha = 1;
-  // The edge: each row's ends.
+  // The edge, all the way round: dark under, bright on top, so it reads on any floor.
   const late = t.lands - clock <= 300;
+  const edge = laneEdge(t);
+  ctx.fillStyle = C.ink;
+  for (const [x, y] of edge) ctx.fillRect(x, y + 1, 1, 1);
   ctx.fillStyle = late && Math.floor(clock / 75) % 2 === 0 ? C.fire1 : C.fire2;
-  for (const [y, x, n] of spans) {
-    ctx.fillRect(x, y, 1, 1);
-    ctx.fillRect(x + n - 1, y, 1, 1);
-  }
+  for (const [x, y] of edge) ctx.fillRect(x, y, 1, 1);
   // Chevrons along the middle, marching the way it will run.
   const ux = dx / length;
   const uy = dy / length;

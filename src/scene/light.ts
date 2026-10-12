@@ -137,18 +137,22 @@ export function lampOn(ground: Ground, cell: Cell): number | null {
   return i >= 0 ? i : null;
 }
 
+/** The floor round a post, in front of it first: the first three put the hero before the post, not behind it. */
 const STAND: readonly [number, number][] = [
   [0, 1],
-  [-1, 0],
-  [1, 0],
   [-1, 1],
   [1, 1],
+  [-1, 0],
+  [1, 0],
   [0, -1],
 ];
+const IN_FRONT = 3;
 
 /**
  * Where to stand to light a lantern: the open floor beside its post nearest
- * `from` (below it first, as a tie), or null if it is walled in.
+ * `from`, a tile's worth in favour of the floor in front of it (where the
+ * hero is seen at the flame, not hidden behind the post), below it first as a
+ * tie; or null if it is walled in.
  */
 export function lampStand(map: TileMap<RoomTile>, cell: Cell, from?: Point): Point | null {
   let best: Point | null = null;
@@ -158,7 +162,8 @@ export function lampStand(map: TileMap<RoomTile>, cell: Cell, from?: Point): Poi
     if (!inMap(map, c) || isSolid(map, c) || map.tiles[c.row]![c.col] === 'door') return;
     const p = centreOf(c, T);
     // The order breaks a tie, so the same lantern is always stood at from the same side.
-    const d = (from ? Math.hypot(p.x - from.x, p.y - from.y) : 0) + i * 1e-3;
+    const d =
+      (from ? Math.hypot(p.x - from.x, p.y - from.y) : 0) + (i < IN_FRONT ? 0 : T) + i * 1e-3;
     if (d < bestD) {
       best = p;
       bestD = d;
@@ -167,8 +172,21 @@ export function lampStand(map: TileMap<RoomTile>, cell: Cell, from?: Point): Poi
   return best;
 }
 
-/** Where a moth hovers to put a lantern out: over the floor in front of its post. */
+const HOVER: readonly [number, number][] = [
+  [1, 0],
+  [-1, 0],
+];
+
+/**
+ * Where a moth hovers to put a lantern out: over the floor beside its post,
+ * up at the flame, so it is seen at the lantern rather than lost in the post,
+ * and a hero come to light it again has the floor in front free to stand on.
+ */
 export function hoverSpot(map: TileMap<RoomTile>, cell: Cell): Point | null {
+  for (const [dc, dr] of HOVER) {
+    const c = { col: cell.col + dc, row: cell.row + dr };
+    if (inMap(map, c) && !isSolid(map, c) && map.tiles[c.row]![c.col] !== 'door') return centreOf(c, T);
+  }
   return lampStand(map, cell);
 }
 
