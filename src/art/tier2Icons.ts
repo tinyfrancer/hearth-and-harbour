@@ -14,6 +14,7 @@ import type { Legend } from './grid';
 import { recolour, type IconDef } from './iconKit';
 import { FLETCH, IRON_ARROWS } from './gearIcons';
 import { BARBED_ARROWS, GROTTO_L } from './grottoIcons';
+import { TIER2_ITEM_DEFS } from './tier2Items';
 
 const SALT: Legend = {
   R: 'red1',
@@ -329,6 +330,9 @@ export const TIER2_ICON_IDS: Readonly<Record<string, string>> = {
   broadhead_arrows: 'broadhead_arrows',
 };
 
-export const TIER2_ICON_DEFS: Readonly<Record<string, IconDef>> = Object.fromEntries(
-  Object.entries(TIER2_ICON_IDS).map(([id, drawing]) => [id, TIER2_DRAWINGS[drawing]!]),
-);
+export const TIER2_ICON_DEFS: Readonly<Record<string, IconDef>> = {
+  ...Object.fromEntries(
+    Object.entries(TIER2_ICON_IDS).map(([id, drawing]) => [id, TIER2_DRAWINGS[drawing]!]),
+  ),
+  ...TIER2_ITEM_DEFS,
+};

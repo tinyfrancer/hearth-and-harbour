@@ -39,6 +39,46 @@ const TIER2_ICONS = [
   'red_cloak',
   'salt_iron_arrows',
   'broadhead_arrows',
+  // Batch 2.
+  'driftwood',
+  'elm_logs',
+  'yew_logs',
+  'raw_mackerel',
+  'raw_halibut',
+  'raw_swordfish',
+  'silver_ore',
+  'gold_ore',
+  'sea_holly',
+  'nettles',
+  'sea_glass',
+  'duskbloom',
+  'cooked_mackerel',
+  'cooked_halibut',
+  'cooked_swordfish',
+  'silver_bar',
+  'gold_bar',
+  'nettle_cloth',
+  'thick_hide',
+  'thick_leather',
+  'holly_tonic',
+  'forgehand_draught',
+  'duskbloom_tincture',
+  'twilight_elixir',
+  'ranger_hood',
+  'ranger_bracers',
+  'ranger_coat',
+  'driftwood_shortbow',
+  'elm_longbow',
+  'yew_longbow',
+  'silver_bangle',
+  'gold_amulet',
+  'ogre_maul',
+  'briar_charm',
+  'mossback_shield',
+  'amber',
+  'thornwood_bow',
+  'capguard_helm',
+  'badger_crown',
 ];
 
 /** The manifest's wearables, with the layer each is worn as. */
@@ -311,5 +351,34 @@ describe('tier 2’s icons', () => {
     expect(uses(icon('salt_iron_shield'), 'gold')).toBeGreaterThan(20);
     expect(uses(icon('salt_iron_sword'), 'gold')).toBeGreaterThan(8);
     expect(uses(icon('red_cloak'), 'red')).toBeGreaterThan(150);
+  });
+
+  it('draws each tier 2 family beside its tier 1 kin: logs, the ingot, the vial, the bows', () => {
+    const outline = (id: string) =>
+      icon(id)
+        .d.map((c) => (c ? 1 : 0))
+        .join('');
+    // Logs share the logs' drawing, bars the ingot, potions the shell vial (below its stopper).
+    for (const id of ['elm_logs', 'yew_logs']) expect(outline(id), id).toBe(outline('oak_logs'));
+    for (const id of ['silver_bar', 'gold_bar', 'salt_iron_bar'])
+      expect(outline(id), id).toBe(outline('iron_bar'));
+    const vial = (id: string) => outline(id).slice(24 * 9);
+    for (const id of ['holly_tonic', 'forgehand_draught', 'duskbloom_tincture', 'twilight_elixir'])
+      expect(vial(id), id).toBe(vial('sage_tonic'));
+    // Raw fish stay cool, cooked fish warm.
+    for (const id of ['raw_mackerel', 'raw_halibut', 'raw_swordfish'])
+      expect(uses(icon(id), 'cooked'), id).toBe(0);
+    for (const id of ['cooked_mackerel', 'cooked_halibut', 'cooked_swordfish']) {
+      expect(uses(icon(id), 'cooked'), id).toBeGreaterThan(30);
+      for (const raw of ['mackerel', 'halibut', 'swordfish'])
+        expect(uses(icon(id), raw), id).toBe(0);
+    }
+  });
+
+  it('gives each tier 2 potion its own liquid', () => {
+    const liquids = ['holtonic', 'forge', 'dusklight', 'twilight'];
+    ['holly_tonic', 'forgehand_draught', 'duskbloom_tincture', 'twilight_elixir'].forEach((id, i) =>
+      liquids.forEach((l, j) => expect(uses(icon(id), l) > 0, `${id} ${l}`).toBe(i === j)),
+    );
   });
 });

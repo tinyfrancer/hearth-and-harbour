@@ -1312,6 +1312,16 @@ every action card), so they follow the same hand as the town and the figures.
   hue kept), so the open tab reads at a glance as its gold label does; `art.css` shows one or the
   other by `.tab[aria-current='page']`.
 
+- **Tier 2's icons** (B19, `tier2Icons.ts`, `tier2Items.ts`) are drawn beside their tier 1 kin
+  and share a family's drawing where it has one: elm and yew are the logs in their own bark and
+  cut end (yew's an orange heart in pale sapwood), the silver, gold and salt-iron bars the ingot,
+  the potions the shell vial with a liquid and a stopper of their own, the longbows the
+  poacher's, thick hide and leather the hide and the laced sheet. Salt-iron is its own five-step
+  icon ramp, the figures' steps exactly. Raw fish stay cool and cooked fish warm, as tier 1's;
+  the steaks are cut sections (the halibut's seen aslant with its white side and grey skin, the
+  swordfish's round with its spine). A cloak is the back of a mantle hanging in folds with its
+  clasps at the collar (open at the front it read as a tent, or trousers).
+
 ## Portraits
 
 - A bust on a dark tinted disc, in a gold-edged frame (72 × 72 at the C scale, above).
