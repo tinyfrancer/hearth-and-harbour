@@ -188,12 +188,13 @@ describe('the character sheet', () => {
     expect(figure().dataset.worn).toBe('');
   });
 
-  it('puts the eight slots either side of the figure', () => {
+  // Wave 20: nine, the cloak's square under the neck's on the left.
+  it('puts the nine slots either side of the figure', () => {
     geared({});
     const sides = [...root.querySelectorAll('.doll > *')];
     expect(
       sides.map((el) => (el.matches('[data-figure]') ? 'figure' : el.children.length)),
-    ).toEqual([4, 'figure', 4]);
+    ).toEqual([5, 'figure', 4]);
   });
 
   it('dresses the figure in what is equipped, and undresses it', () => {
@@ -346,10 +347,13 @@ describe('the character sheet', () => {
       'Oak shortbow',
       'Neck: nothing',
       'Off hand: nothing',
-      'Body: nothing',
+      'Back: nothing',
       'Wrist: nothing',
-      'Legs: nothing',
+      'Body: nothing',
       'Bronze arrows',
+      'Legs: nothing',
+      // The left column is the longer: its last line has nothing beside it.
+      '',
     ]);
     // Straight under the doll, and dimmed where empty; the squares already say it all to a screen reader.
     expect(q('.doll').nextElementSibling!.matches('.worn-lists')).toBe(true);

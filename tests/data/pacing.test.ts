@@ -729,7 +729,7 @@ const TIER2_EARNED: Record<number, Record<string, number>> = {
     fletching: 221520,
     alchemy: 156000,
     thieving: 166090,
-    brigand: 157773,
+    hobgoblin: 165264,
   },
 };
 
@@ -841,14 +841,17 @@ describe('what an hour of tier 2 earns (S22)', () => {
       expect(fight.earned / best, fight.monster).toBeGreaterThan(1);
       expect(fight.earned, fight.monster).toBeLessThan(thief.coins);
       // Wave 20: the best fight for money is tier 2's own (it was the tier-1 smuggler at 30, and
-      // the ogre 3.5% under Thieving at 40), at least a quarter over gathering and at least a
-      // twentieth under Thieving. A twentieth is about all there is room for: a level-30 or -40
-      // character in tier-2 gear farms the tier-1 marsh troll for 0.92 and 0.91 of Thieving, and
-      // the troll cannot pay less without failing tier 1's limit at 20 (it pays its way there by
-      // 4%), so tier 2's best must sit between the troll and Thieving.
+      // the ogre 3.5% under Thieving at 40), at least a quarter over gathering, and at 30 at least
+      // a twentieth under Thieving. That is about all the room there is: a character in tier-2
+      // gear farms the tier-1 marsh troll for 0.92 of Thieving at 30, and the troll cannot pay
+      // less without failing tier 1's limit at 20 (it pays its way there by 4%), so tier 2's best
+      // must sit between the troll and Thieving.
       expect(CONTENT.monsters![fight.monster]!.tier, fight.monster).toBe(2);
       expect(fight.earned / best, fight.monster).toBeGreaterThan(1.25);
-      expect(fight.earned / thief.coins, fight.monster).toBeLessThan(0.95);
+      // At 40 the knight wears the cloak and the gold amulet together (their own slots since
+      // wave 20), and farms the troll for 0.99 of Thieving (164,631): tier 2's best can only
+      // sit between them, so at 40 the margin is the existing one, under Thieving at all.
+      expect(fight.earned / thief.coins, fight.monster).toBeLessThan(level === 30 ? 0.95 : 1);
       expect({
         ...gathered,
         ...made,
@@ -866,7 +869,8 @@ describe('what an hour of bounties pays in tier 2 (S22)', () => {
   it.each([
     // Combat level, how many monsters are open, and the least and most an hour pays.
     [30, 13, 60, 69],
-    [40, 17, 69, 83],
+    // Wave 20: at 40 the knight wears the cloak and the amulet together (69 to 83 before).
+    [40, 17, 75, 90],
   ])(
     'pays about the same an hour for everything open at level %i (%i open): %i to %i points',
     (level, open, least, most) => {

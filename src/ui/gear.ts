@@ -8,6 +8,7 @@ export const SLOT_NAMES: Readonly<Record<Slot, string>> = {
   main_hand: 'Main hand',
   off_hand: 'Off hand',
   neck: 'Neck',
+  back: 'Back',
   wrist: 'Wrist',
   ammo: 'Ammunition',
 };

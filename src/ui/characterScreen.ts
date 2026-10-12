@@ -163,9 +163,15 @@ function slotPicker(
   ]);
 }
 
-/** The slots down each side of the figure: what is worn on the body on the left, what is held and carried on the right. */
+/**
+ * The slots down each side of the figure: what is worn on the body on the
+ * left, head to foot (the cloak under the neck it hangs from, wave 20), what
+ * is held and carried on the right. Five and four: the right-hand four are
+ * spread down the same height, so both columns start and end level with the
+ * figure's room.
+ */
 const DOLL: readonly (readonly Slot[])[] = [
-  ['head', 'neck', 'body', 'legs'],
+  ['head', 'neck', 'back', 'body', 'legs'],
   ['main_hand', 'off_hand', 'wrist', 'ammo'],
 ];
 
@@ -182,11 +188,13 @@ const slotWord = (slot: Slot): string => (slot === 'ammo' ? 'Ammo' : SLOT_NAMES[
  * hidden from them.
  */
 function wornList(state: GameState, content: Content): HTMLElement {
-  const rows = DOLL[0]!.flatMap((left, at) => [left, DOLL[1]![at]!]);
+  // Row by row, left then right; the left column is the longer, so its last row stands alone.
+  const rows = DOLL[0]!.flatMap((left, at) => [left, DOLL[1]![at] ?? null]);
   return h(
     'ul',
     { class: 'worn-lists', attrs: { 'aria-hidden': 'true' } },
     rows.map((slot) => {
+      if (!slot) return h('li', { class: 'spare' });
       const worn = state.equipment[slot];
       return h('li', {
         class: worn ? '' : 'empty',
@@ -199,7 +207,7 @@ function wornList(state: GameState, content: Content): HTMLElement {
 
 /**
  * The Character tab: the character drawn large in what they wear, breathing,
- * with the eight slots around them like a paper doll and what is worn named
+ * with the nine slots around them like a paper doll and what is worn named
  * beneath. Tap a slot and its choices open right there, under the doll, in
  * place of the names. Then the three totals and a way to change the look.
  *

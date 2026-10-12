@@ -297,7 +297,33 @@ describe('migrateGameState', () => {
       version: GAME_STATE_VERSION,
       idleRun: null,
     });
-    expect(GAME_STATE_VERSION).toBe(11);
+  });
+
+  it('brings a version 11 save (wave 19) up to date with a red cloak worn at the neck moved to the back', () => {
+    const worn = {
+      head: { item: 'salt_iron_helm', qty: 1 },
+      neck: { item: 'red_cloak', qty: 1 },
+      ammo: { item: 'iron_arrows', qty: 40 },
+    };
+    const v11 = { ...newGame('Cody', 5), version: 11, equipment: worn, bank: { gold_amulet: 1 } };
+    const { neck, ...rest } = worn;
+    expect(migrateGameState(structuredClone(v11))).toEqual({
+      ...v11,
+      version: GAME_STATE_VERSION,
+      equipment: { ...rest, back: neck },
+    });
+    // Anything else at the neck stays there, and nothing is put on: the amulet stays banked.
+    const amulet = { ...v11, equipment: { neck: { item: 'gold_amulet', qty: 1 } }, bank: {} };
+    expect(migrateGameState(structuredClone(amulet))).toEqual({
+      ...amulet,
+      version: GAME_STATE_VERSION,
+    });
+    const bare = { ...v11, equipment: {} };
+    expect(migrateGameState(structuredClone(bare))).toEqual({
+      ...bare,
+      version: GAME_STATE_VERSION,
+    });
+    expect(GAME_STATE_VERSION).toBe(12);
   });
 
   it('walks every step in order and stamps the version as it goes', () => {

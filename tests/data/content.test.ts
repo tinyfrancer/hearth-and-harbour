@@ -963,8 +963,8 @@ describe('tier 2', () => {
       expect(ratio, salt).toBeGreaterThan(1.4);
       expect(ratio, salt).toBeLessThan(1.8);
     }
-    // The cloak fastens at the throat: worn in the neck slot, beside no necklace.
-    expect(def('red_cloak').slot).toBe('neck');
+    // Wave 20: the cloak has the back to itself, so a knight wears it and an amulet.
+    expect(def('red_cloak').slot).toBe('back');
     // Each needs a tier 2 level to wear, the plate the most.
     for (const id of T2_ITEMS.filter((id) => id.startsWith('salt_iron_') && def(id) !== undefined))
       if (CONTENT.items[id]!.equip) expect(def(id).requires!.level, id).toBeGreaterThanOrEqual(20);

@@ -163,9 +163,10 @@ const ALL: MonsterDef[] = [
       defence: 44,
       maxHit: 13,
       speedMs: 2400,
-      // Wave 20: 460 to 980 (was 500 to 1050), so a level-30 character past the grotto earns
-      // more from tier 2's brigand than from him (tests/data/pacing.test.ts).
-      coins: [460, 980],
+      // Wave 20: 420 to 900 (was 500 to 1050), so a character past the grotto earns more from
+      // tier 2's brigand at 30, and less than Thieving at 40 in the knight's full kit
+      // (tests/data/pacing.test.ts).
+      coins: [420, 900],
       always: [{ item: 'smuggled_tea', min: 1, max: 1 }],
       rare: [
         { item: 'iron_arrows', min: 10, max: 25, oneIn: 10 },
@@ -273,7 +274,9 @@ const ALL: MonsterDef[] = [
       maxHit: 16,
       speedMs: 2400,
       xpPercent: 270,
-      coins: [1600, 3000],
+      // Wave 20: 1540 to 2880 (was 1600 to 3000): with the cloak and the amulet both worn, a
+      // level-40 knight out-earned Thieving on him.
+      coins: [1540, 2880],
       always: [{ item: 'feathers', min: 2, max: 4 }],
       rare: [
         { item: 'gold_ore', min: 1, max: 3, oneIn: 10 },

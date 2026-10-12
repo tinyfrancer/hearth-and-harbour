@@ -69,10 +69,11 @@ export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee', tier2
  * thing to be about the combat level (as tier 1's ladder does), and only what
  * the level may wear. Melee: iron until salt-iron's pieces come, one by one
  * (axe 21, longsword 24, helm 26, kite shield 29, greaves 31, plate 35), shell
- * jewellery until the silver bangle (28) and the red cloak (31). Ranged:
- * leather until the ranger's pieces (bracers 23, hood 26, coat 34), the
- * driftwood shortbow, then elm (28) and yew (35), salt-iron arrows from 23,
- * and still linen trousers; the gold amulet from 37.
+ * jewellery until the silver bangle (28). Ranged: leather until the
+ * ranger's pieces (bracers 23, hood 26, coat 34), the driftwood shortbow,
+ * then elm (28) and yew (35), salt-iron arrows from 23, and still linen
+ * trousers. Both: the red cloak on the back from 31 (wave 20: its own slot,
+ * so it is worn beside a necklace) and the gold amulet from 37.
  */
 export function tier2GearAt(level: number, style: 'melee' | 'ranged'): Gear {
   const from = (at: number, item: string, otherwise: string): Worn =>
@@ -88,6 +89,7 @@ export function tier2GearAt(level: number, style: 'melee' | 'ranged'): Gear {
       legs: one('linen_trousers'),
       wrist: from(23, 'ranger_bracers', 'leather_bracers'),
       neck: from(37, 'gold_amulet', 'shell_necklace'),
+      ...(level >= 31 ? { back: one('red_cloak') } : {}),
     };
   }
   return {
@@ -96,7 +98,8 @@ export function tier2GearAt(level: number, style: 'melee' | 'ranged'): Gear {
     head: from(26, 'salt_iron_helm', 'iron_helmet'),
     body: from(35, 'salt_iron_plate', 'iron_breastplate'),
     legs: from(31, 'salt_iron_greaves', 'iron_greaves'),
-    neck: from(31, 'red_cloak', 'shell_necklace'),
+    neck: from(37, 'gold_amulet', 'shell_necklace'),
+    ...(level >= 31 ? { back: one('red_cloak') } : {}),
     wrist: from(28, 'silver_bangle', 'shell_bracelet'),
   };
 }

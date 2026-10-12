@@ -2,7 +2,7 @@ import { BOARD_SIZE } from '../core/bounty';
 import { SEEN_MAX, isSeenKey } from '../core/remembered';
 import { SLOTS } from '../core/content';
 import { GAME_STATE_VERSION, nameProblem, type GameState } from '../core/state';
-import { migrateGameState } from './migrations';
+import { MOVED_TO_BACK, migrateGameState } from './migrations';
 
 // Harvested from untitled-boomer-mmo and trimmed to what this game's save holds.
 
@@ -155,6 +155,10 @@ function saveProblem(state: Record<string, unknown>): string | null {
     )
   ) {
     return 'the equipment should be one thing a slot, or a stack of ammunition';
+  }
+  // Version 12 wears the red cloak on the back; at the neck it is an older save's, unmigrated.
+  if (isRecord(equipment.neck) && equipment.neck.item === MOVED_TO_BACK) {
+    return 'the red cloak should be worn on the back';
   }
   const { fight } = state;
   if (fight !== null && !isFight(fight)) {

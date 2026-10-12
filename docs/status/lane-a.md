@@ -5,6 +5,50 @@ cloak's own slot, and opening the Burrow once lane C writes "BURROW READY".
 
 ## Done
 
+- Wave 20, PR 3: the cloak's own slot (branch `lane-a/w20-cloak-slot`). **Save version 12.**
+  - **A ninth slot, `back`** (`SLOTS` in `src/core/content.ts`, after `neck`; named "Back" on
+    the sheet): the red cloak is worn there (`ItemDef.equip.slot`), so a knight wears plate,
+    kite shield, cloak and an amulet. Equip rules unchanged: one thing a slot, back to the bank
+    when replaced; nothing else is a cloak yet. Art already drew the cloak as a layer of its
+    own (`slot: 'cloak'` in lane B's knight), so cloak and amulet draw together.
+  - **The sheet**: nine squares, five down the left (head, neck, back, body, legs: the cloak
+    under the neck it hangs from) and four down the right (main hand, off hand, wrist,
+    ammunition) spread over the same height, so both columns start and end level with the
+    figure's room; the doll is a square taller, which the figure's room takes as air above
+    his head. The names under the doll follow, row by row (the left's last line alone).
+    Checked at 390 × 844 and 360 × 740: `sheet-linen-*.png`, `sheet-knight-*.png`.
+  - **The save, in full**: `GAME_STATE_VERSION` 11 → 12. Migration step 11: a `red_cloak` worn
+    at the neck moves to `back` (empty in every older save); anything else at the neck stays;
+    nothing is put on from the bank. `saveProblem`: `back` is checked as every slot is (one
+    thing, a real slot), and a red cloak at the neck is a problem ("the red cloak should be
+    worn on the back": an unmigrated older save's, edited). The moved id is
+    `MOVED_TO_BACK` in `src/persistence/migrations.ts`. Tests: a v11 save migrated (the cloak
+    moved, an amulet left at the neck, a bare save), a v11 file loaded, a cloak beside an
+    amulet round-tripped, the two broken shapes refused; core: cloak beside a charm, both
+    counting.
+  - **Simulations wear both** (`tests/data/fighting.ts`): melee and ranged wear the cloak on
+    the back from 31 (beside the shell necklace), and the gold amulet from 37. The level-40
+    knight's line is now attack 73, max hit 32, defence 123 (was 68 / 30 / 121).
+  - **Pins moved by that assumption, each**: fish an hour (`duels.test.ts` `TIER2_FISH`)
+    hobgoblin 135 → 130, hill ogre 133 → 127, moss golem 118 → 117; bounty points an hour at
+    40, least and most, 69–83 → 75–90; the best fight for money at 40, brigand 157,773 →
+    hobgoblin 165,264. Every combat hour (20 to 40) is unpinned and stays inside its bounds; no
+    deaths.
+  - **A limit that broke, and what was done**: in the full kit a level-40 knight out-earned
+    Thieving (166,090) on the hobgoblin (172,911) and the smuggler (166,945), and farms the
+    tier-1 troll for 164,631 (0.99). The existing limit (every fight under Thieving) is held by
+    the hobgoblin's coins 1600–3000 → 1540–2880 and the smuggler's 460–980 → 420–900 (at 30 he
+    falls to 104,843). The hobgoblin is the best fight at 40, but only 0.5% under Thieving and
+    0.4% over the troll, so PR 2's "a twentieth under Thieving" now holds at 30 alone. The
+    troll is the floor: it cannot pay less without failing tier 1's limit at 20. **For Cody**:
+    widening that gap at 40 needs a tier-1 change (the troll's coins with something else
+    making up its level-20 hour) or Thieving and gathering at 40 raised together.
+  - **The Burrow by hand at 40 in the full kit**: 13 swordfish a run (was 16), 186,557 coins
+    an hour (1.23 times the grotto re-run's 151,210, 1.13 times the best fight), 74,711 XP
+    (1.49 times the grotto's 50,207). The case holds as it was.
+  - Not changed: `docs/tier2-manifest.md` still says the cloak is worn at the neck (the brief
+    keeps this wave to code and this status file); the tables are the truth.
+
 - Wave 20, PR 2: tier 2's follow-ups (branch `lane-a/w20-tier2-follow-ups`). **Save version
   unchanged (11).**
   - **A tier-aware bounty board** (`boardWeights`, `src/core/bounty.ts`): an earlier tier's
@@ -1420,8 +1464,8 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
 
 - **For lane C (wave 20)**: (1) the cast's numbers and Deep Gloom 0.9 are in the tables, so
   `BURROW_ASKED` and the tables agree; the tier-2 stat line is above (read it from data:
-  `fighterOf(characterAt(40, { tier2: true, food: 20 }), CONTENT)` gives it; once the cloak slot
-  lands the same call wears the gold amulet too). (2) `idle.rooms` for the Burrow are in, from your
+  `fighterOf(characterAt(40, { tier2: true, food: 20 }), CONTENT)` gives it; since PR 3 the same
+  call wears the cloak on the back and the gold amulet: attack 73, max hit 32, defence 123). (2) `idle.rooms` for the Burrow are in, from your
   list; the content test fails if your plan's foes or the king's calls change without them, so
   tell lane A. (3) Amber is worth 450 and falls more; the results card reads it from the tables.
 
@@ -1554,7 +1598,7 @@ DUNGEONS.brinebeards_grotto.cast.map((foe) => [foe.id, { ...foe, area: GROTTO_ID
 
 ## Notes for this lane's next session
 
-- Save is version 11 (wave 17: `idleRun`, dungeon records). The next shape change is 12.
+- Save is version 12 (wave 20: the `back` slot). The next shape change is 13.
 - **Remembered for good, in the save**: `remember`/`remembered` (`src/core/remembered.ts`, the
   Shell's two calls). A one-off a player should not see twice on any phone is a key there; how
   the menus are arranged on one phone is still `Prefs`.
