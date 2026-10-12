@@ -76,6 +76,11 @@ import { abilityPicture, bodyMid, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
   CaveShadow,
+  HeroLight,
+  doorPieces,
+  isDark,
+  lightsOf,
+  shadeAt,
   doorUnder,
   groundOnTheSpot,
   roomLook,
@@ -103,9 +108,17 @@ import {
   type RoomFit,
 } from './hud';
 import { DUNGEON } from './dungeonMetrics';
-import { stage, type Insets, type StageExtra, type StageLook, type StillPicture } from './stage';
+import {
+  stage,
+  type Insets,
+  type Life,
+  type StageExtra,
+  type StageLook,
+  type StillPicture,
+} from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
+import type { Light2 } from '../art/dungeonArt2';
 
 /**
  * Room kept at the screen's edges, in CSS pixels, on a phone with no notch:
@@ -831,6 +844,46 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** The hero's contact shadow, cut from the room's ground under his feet. */
   const heroShadow = new CaveShadow();
+  /** His own pool of light on a darker day (`HeroLight`). */
+  const heroLight = new HeroLight();
+  /**
+   * On a darker day, the hero's pool of light, laid on the ground under
+   * everyone (and under his shadow): drawing only.
+   */
+  const heroLife: Life = {
+    layer: 'ground',
+    at: () => {
+      const run = options.run();
+      const s = tideStateOf(dungeon, run);
+      const open = doorsAreOpen(run);
+      const cells = look.cellsAt(s.level, s.warn, open);
+      if (!cells) return null;
+      return heroLight.at(
+        cells,
+        poolsOf(run),
+        open ? look.openGlows : look.glows,
+        run.play.walker.at,
+        look.theme.palette,
+      );
+    },
+  };
+  /** The pools of light in the run's room as the day leaves them: the lanterns', and its doors' once open. */
+  let pools: { key: string; lights: readonly Light2[] } | null = null;
+  const poolsOf = (run: Run): readonly Light2[] => {
+    const open = doorsAreOpen(run);
+    const key = `${run.room} ${open}`;
+    if (pools?.key !== key) {
+      const room = dungeon.rooms[run.room]!;
+      const lights = lightsOf(room);
+      pools = {
+        key,
+        lights: open
+          ? [...lights, ...doorPieces(room).flatMap((d) => (d.light ? [d.light] : []))]
+          : lights,
+      };
+    }
+    return pools.lights;
+  };
 
   /** A barred door last tapped, and when on the fight's clock: it says it is barred for a moment. */
   let barredTap: { letter: string; at: number } | null = null;
@@ -920,6 +973,8 @@ export function dungeonView(options: DungeonViewOptions): View {
           const open = doorsAreOpen(run);
           const cells = look.cellsAt(s.level, s.warn, open);
           if (!cells) return null;
+          // On a darker day his shadow is as dark as the ground it falls on (in his own light).
+          const lights = isDark(dungeon.rooms[run.room]!) ? poolsOf(run) : null;
           const placed = heroShadow.at(
             cells,
             look.kindsAt(s.level, s.warn),
@@ -927,6 +982,7 @@ export function dungeonView(options: DungeonViewOptions): View {
             feet,
             HERO_SHADOW,
             look.theme.palette,
+            lights ? (x, y) => shadeAt(lights, x, y, feet) : undefined,
           );
           return (
             placed && {
@@ -935,7 +991,8 @@ export function dungeonView(options: DungeonViewOptions): View {
             }
           );
         },
-        life: look.flicker,
+        // On a darker day, his own pool of light goes with him.
+        life: isDark(here) ? [...look.flicker, heroLife] : look.flicker,
       },
       // A sea cave at dusk, lit by its lanterns; or the tide-pool cave by day.
       time: look.theme.figureTime,
