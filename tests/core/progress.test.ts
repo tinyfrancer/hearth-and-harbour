@@ -19,7 +19,7 @@ import {
   readStats,
   tierUnlocked,
 } from '../../src/core/progress';
-import { settleRun, spoilsUnder } from '../../src/core/run';
+import { clearRewards, settleRun, spoilsUnder } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 import { CONTENT } from '../../src/data';
 
@@ -324,6 +324,32 @@ describe('settling a run that meets challenges', () => {
     expect(spoilsUnder({ ...spoils, modifier: 'spring_tide' }, CONTENT).coins).toBe(10);
     expect(spoilsUnder({ ...spoils, dungeon: undefined }, CONTENT).coins).toBe(10);
     expect(spoilsUnder({ ...spoils, modifier: 'rich_pickings' }).coins).toBe(10);
+  });
+
+  it('says before settling what a clear will pay on top of the run, for the results card (wave 18)', () => {
+    const clear = caveClear(STATS);
+    const first = clearRewards(start, clear, CONTENT);
+    expect(first.firstClear).toEqual([
+      { item: 'bronze_sword', qty: 1 },
+      { item: 'cooked_shrimp', qty: 5 },
+    ]);
+    const met = first.challenges.map(({ challenge }) => challenge.id);
+    const after = settleRun(start, clear, CONTENT);
+    // Exactly what settling pays: the challenges it records, their coins and points.
+    expect(met).toEqual(after.dungeons[CAVE]!.challenges);
+    // (The run's own 10 coins besides.)
+    expect(after.coins - start.coins - 10).toBe(
+      first.challenges.reduce((sum, { reward }) => sum + reward.coins, 0),
+    );
+    expect(after.bountyPoints - start.bountyPoints).toBe(
+      first.challenges.reduce((sum, { reward }) => sum + reward.bountyPoints, 0),
+    );
+    // Afterwards nothing more: the first clear and those challenges are counted.
+    expect(clearRewards(after, clear, CONTENT)).toEqual({ firstClear: [], challenges: [] });
+    // A run that did not clear, a landing to come, or no tables: nothing.
+    expect(clearRewards(start, { ...clear, cleared: undefined }, CONTENT).challenges).toEqual([]);
+    expect(clearRewards(start, { ...clear, cleared: 'unknown_1' }, CONTENT).firstClear).toEqual([]);
+    expect(clearRewards(start, clear, undefined)).toEqual({ firstClear: [], challenges: [] });
   });
 
   it('records the modifiers cleared under, each once', () => {

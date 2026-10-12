@@ -2007,6 +2007,64 @@ button.card:active {
   color: var(--text-muted);
 }
 
+/* Wave 18: each dungeon folds to one line to tap, its seal, name and where things stand. */
+.dungeon-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 4px 2px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dungeon-toggle::after {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  margin-left: auto;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.dungeon-toggle[aria-expanded='false']::after {
+  transform: rotate(-90deg);
+}
+
+.dungeon-toggle:focus-visible {
+  outline: var(--px) solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.dungeon-title {
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.dungeon-seal,
+.summary-medal {
+  display: flex;
+  flex: none;
+}
+
+/* Room for a seal not yet won, so the names line up. */
+.dungeon-seal.none {
+  width: 48px;
+}
+
+.dungeon-body {
+  padding-bottom: 6px;
+}
+
 .standing {
   font-size: 15px;
   white-space: nowrap;

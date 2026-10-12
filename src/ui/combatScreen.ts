@@ -53,6 +53,11 @@ export interface CombatActions {
   stopIdle(): void;
   /** Today's modifier on a dungeon, by the app's clock and the phone's time zone. */
   today(dungeonId: string): string | null;
+  /** The Dungeons card's rows: open or folded on this phone (`DungeonsCardActions`). */
+  rowOpen?(dungeonId: string): boolean;
+  setRowOpen?(dungeonId: string, open: boolean): void;
+  /** True once for each challenge done since the card last showed it. */
+  freshMedal?(challengeId: string): boolean;
   fight(monsterId: string): void;
   stop(): void;
   loadFood(itemId: string): void;

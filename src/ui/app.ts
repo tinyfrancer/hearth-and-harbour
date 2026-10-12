@@ -62,6 +62,7 @@ import {
 import { fullLook } from './look';
 import { counted, listed } from './format';
 import { rewardWords } from './dungeonWords';
+import { doneChallenges } from './dungeonsCard';
 import { menuScreen } from './menuScreen';
 import { titleScreen, type TitleScreen } from './titleScreen';
 import { nowDoing, type NowTarget } from './nowDoing';
@@ -96,6 +97,8 @@ export function phoneUtcOffset(now: number): number {
 
 /** The bank's sort, kept on this device across sessions (a preference, never the save). */
 const BANK_SORT_PREF = 'bank-sort';
+/** The Dungeons card's open rows, by dungeon id, comma-separated. */
+const OPEN_ROWS_PREF = 'dungeons-open';
 
 export interface App {
   /** Write the game to storage, stamped with the time. False if it failed or there is no game. */
@@ -203,6 +206,11 @@ export function mountApp(
   }: AppDeps,
 ): App {
   let state: GameState | null = saves.load();
+  /** Challenges the Dungeons card has shown as done: one done since sparkles its medal once. */
+  let medalsSeen = doneChallenges(state);
+  /** The Dungeons card's rows the player left open on this phone (a preference, not the save). */
+  const openRows = (): Set<string> =>
+    new Set((prefs.get(OPEN_ROWS_PREF) ?? '').split(',').filter(Boolean));
   let tab: TabId = 'skills';
   /** The skill whose page is open on the Skills tab, or null for the list. */
   let openSkill: string | null = null;
@@ -274,9 +282,20 @@ export function mountApp(
   // Achievements have notes of their own, above the toasts, so an achievement
   // earned by the same moment as a level or the end of a fight hides neither.
   const awards = h('div', { class: 'awards', attrs: { role: 'status' } });
+  /**
+   * Notes held back while a hand-played run's results are on screen (wave 18:
+   * on a phone on its side they covered most of the card): the toasts' words
+   * and the achievements, said together once the player is back in the menus.
+   * The card shows what the run paid (`clearRewards`, `spoilsUnder`).
+   */
+  let held: { said: string[]; earned: AchievementDef[] } | null = null;
 
   /** Say what was just earned: a note each, stacked, gone after a while. */
   const announce = (earned: readonly AchievementDef[]): void => {
+    if (held) {
+      held.earned.push(...earned);
+      return;
+    }
     const shown = earned.slice(0, AWARDS_SHOWN);
     const more = earned.length - shown.length;
     shown.forEach((def, index) => {
@@ -343,6 +362,8 @@ export function mountApp(
   const adopt = (next: GameState): void => {
     state = next;
     away = null;
+    held = null;
+    medalsSeen = doneChallenges(next);
     openItem = null;
     storeOpen = false;
     records = null;
@@ -356,11 +377,15 @@ export function mountApp(
     render();
   };
 
-  const toast = (text: string): void => {
+  const toast = (text: string, ms = TOAST_MS): void => {
+    if (held) {
+      held.said.push(text);
+      return;
+    }
     const note = h('p', { class: 'toast', text });
     // Toasts sit in one spot, so a new one replaces the last rather than printing over it.
     toasts.replaceChildren(note);
-    setTimeout(() => note.remove(), TOAST_MS);
+    setTimeout(() => note.remove(), ms);
   };
 
   /**
@@ -477,6 +502,18 @@ export function mountApp(
     today: (dungeonId) => {
       const time = now();
       return dailyModifier(time, dungeonId, content, utcOffset(time));
+    },
+    rowOpen: (dungeonId) => openRows().has(dungeonId),
+    setRowOpen: (dungeonId, open) => {
+      const rows = openRows();
+      if (open) rows.add(dungeonId);
+      else rows.delete(dungeonId);
+      prefs.set(OPEN_ROWS_PREF, [...rows].join(','));
+    },
+    freshMedal: (challengeId) => {
+      if (medalsSeen.has(challengeId)) return false;
+      medalsSeen.add(challengeId);
+      return true;
     },
     fight: (monsterId) => {
       const result = startFight(state ?? game, monsterId, content);
@@ -834,7 +871,9 @@ export function mountApp(
       settleRun: (spoils) => {
         if (!state) return;
         // Paid and saved on the spot, without rebuilding the tab: the scene
-        // that called this is still showing its results.
+        // that called this is still showing its results, so what it brings
+        // is said once the player is back in the menus, not over the card.
+        held ??= { said: [], earned: [] };
         const before = state;
         state = settleRun(state, spoils, content);
         const said: string[] = [];
@@ -1004,6 +1043,14 @@ export function mountApp(
     creator = null;
     const current = TABS.find((entry) => entry.id === tab)!;
     view = buildView(state);
+    // Back in the menus after a run by hand: what it brought, said at last.
+    if (held && tab !== 'town') {
+      const { said, earned } = held;
+      held = null;
+      // Several things said at once take longer to read.
+      if (said.length > 0) toast(said.join(' '), said.length > 1 ? AWARD_MS : TOAST_MS);
+      if (earned.length > 0) announce(earned);
+    }
     root.replaceChildren(
       h('header', { class: 'topbar' }, [
         h('h1', { text: current.label }),

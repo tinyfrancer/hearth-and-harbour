@@ -179,10 +179,14 @@ describe('the shell a scene is given', () => {
     });
     // The grotto's cast is kept like any monster; someone in no table or cast counts for nothing.
     expect(saved()!.bestiary.kraken).toBeUndefined();
+    // Nothing is laid over the scene's results card (wave 18)...
+    expect(root.querySelector('.toast')).toBeNull();
+    expect(root.querySelector('[data-award]')).toBeNull();
+    // ...it is all said back in the menus: the bounty, and the clear's achievement.
+    click('.tab[data-tab="bank"]');
     expect(root.querySelector('.toast')?.textContent).toBe(
       'Bounty done: 10 Dock rats. Hand it in.',
     );
-    // A clear is an achievement, said at once.
     expect(root.querySelector('[data-award="grotto_cleared"]')).not.toBeNull();
   });
 
@@ -319,9 +323,13 @@ describe('the harbour chart, asked for from the menus', () => {
     inTown();
     shell!.settleRun({ cleared: 'tidepool_cave', coins: 7, timeMs: 100_000 });
     expect(saved()!.bank).toMatchObject({ bronze_sword: 1, cooked_shrimp: 5 });
+    // Said once back in the menus, not over the results card.
+    expect(root.querySelector('.toast')).toBeNull();
+    click('.tab[data-tab="bank"]');
     expect(root.querySelector('.toast')!.textContent).toBe(
       'First clear of Tidepool Cave! Into the bank: a Bronze sword and 5 Cooked shrimp.',
     );
+    click('.tab[data-tab="town"]');
     shell!.settleRun({ cleared: 'tidepool_cave' });
     expect(saved()!.bank).toMatchObject({ bronze_sword: 1, cooked_shrimp: 5 });
     expect(saved()!.dungeons.tidepool_cave).toEqual({ clears: 2, bestMs: 100_000 });
@@ -378,6 +386,8 @@ describe('the day’s modifier and challenges, for a scene (S16)', () => {
       'tidepool_cave.quick',
       'tidepool_cave.no_food',
     ]);
+    expect(root.querySelector('.toast')).toBeNull();
+    click('.tab[data-tab="bank"]');
     expect(root.querySelector('.toast')!.textContent).toBe(
       'First clear of Tidepool Cave! Into the bank: a Bronze sword and 5 Cooked shrimp. ' +
         'Challenge done: Brisk! 250 coins and 2 bounty points. ' +
@@ -385,7 +395,9 @@ describe('the day’s modifier and challenges, for a scene (S16)', () => {
     );
     expect(saved()!.coins).toBe(350);
     root.querySelector('.toast')!.remove();
+    click('.tab[data-tab="town"]');
     shell!.settleRun(run);
+    click('.tab[data-tab="bank"]');
     expect(saved()!.coins).toBe(350);
     // Nothing new to say.
     expect(root.querySelector('.toast')).toBeNull();

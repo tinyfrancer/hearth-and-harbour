@@ -33,6 +33,15 @@ const q = <T extends HTMLElement>(selector: string): T => {
   return found;
 };
 const tab = (id: string): void => q<HTMLButtonElement>(`.tab[data-tab="${id}"]`).click();
+/** Away to the bank and back to the Combat page: the page built afresh. */
+const backToCombat = (): void => {
+  tab('bank');
+  tab('skills');
+  if (!root.querySelector('[data-dungeons]')) {
+    if (!root.querySelector('[data-combat]')) tab('skills');
+    q<HTMLButtonElement>('[data-combat]').click();
+  }
+};
 
 /** A character of some standing, with fish, on the Combat page. */
 function onCombat(extra: Partial<GameState> = {}): App {
@@ -101,6 +110,83 @@ describe('the Dungeons card (S16)', () => {
     expect(tier.getAttribute('data-unlocked')).toBe('true');
     expect(tier.textContent).toMatch(/^Tier 2 unlocked\. It is still being built; when it comes/);
     expect(root.querySelectorAll('[data-idle-start]')).toHaveLength(2);
+  });
+
+  it('folds each dungeon to one line to tap, and remembers which the player left open (wave 18)', () => {
+    onCombat();
+    const row = q(`[data-dungeon-row="${CAVE}"]`);
+    const toggle = q<HTMLButtonElement>(`[data-dungeon-toggle="${CAVE}"]`);
+    const body = q(`[data-dungeon-body="${CAVE}"]`);
+    // Folded to begin with: the name and a line of where things stand.
+    expect(body.hidden).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    const day = CONTENT.modifiers![modifierOn(localDay(clock), CAVE, CONTENT)!]!.name;
+    expect(row.querySelector('[data-summary]')!.textContent).toBe(
+      `Open · 0 of 4 challenges · Today: ${day}`,
+    );
+    // No seal before a clear: a space that keeps the names lined up.
+    expect(row.querySelector('[data-seal]')).toBeNull();
+    toggle.click();
+    expect(body.hidden).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    // Kept open across a rebuild of the page.
+    backToCombat();
+    expect(q(`[data-dungeon-body="${CAVE}"]`).hidden).toBe(false);
+    expect(q(`[data-dungeon-body="${GROTTO}"]`).hidden).toBe(true);
+  });
+
+  it('seals a cleared dungeon, in gold once every challenge is done', () => {
+    const all = CONTENT.dungeons![CAVE]!.challenges!.map((c) => c.id);
+    onCombat({ dungeons: { [CAVE]: { clears: 4, challenges: all }, [GROTTO]: { clears: 1 } } });
+    expect(q(`[data-dungeon-row="${CAVE}"] [data-seal]`).getAttribute('data-seal')).toBe(
+      'all-challenges',
+    );
+    expect(q(`[data-dungeon-row="${GROTTO}"] [data-seal]`).getAttribute('data-seal')).toBe(
+      'cleared',
+    );
+  });
+
+  it('sparkles a medal won since the card last showed it, once', () => {
+    onCombat({ dungeons: { [CAVE]: { clears: 1, challenges: ['tidepool_cave.quick'] } } });
+    // Done before the app opened: nothing new.
+    expect(
+      q('[data-challenge="tidepool_cave.quick"] [data-medal]').getAttribute('data-medal'),
+    ).toBe('done');
+    // A run by hand meets another.
+    tab('town');
+    shell!.settleRun({
+      cleared: CAVE,
+      dungeon: CAVE,
+      timeMs: 150_000,
+      stats: {
+        timeMs: 150_000,
+        damageTaken: 20,
+        foodEaten: 0,
+        braces: 0,
+        stepOuts: 0,
+        knockedOut: false,
+        kills: 7,
+      },
+    });
+    backToCombat();
+    const medal = (): string | null =>
+      q('[data-challenge="tidepool_cave.no_food"] [data-medal]').getAttribute('data-medal');
+    expect(medal()).toBe('new');
+    expect(
+      q(`[data-dungeon-row="${CAVE}"] .summary-medal [data-medal]`).getAttribute('data-medal'),
+    ).toBe('new');
+    // Shown once: the page built again has it done.
+    backToCombat();
+    expect(medal()).toBe('done');
+  });
+
+  it('says a hero sent alone takes a hard day plain', () => {
+    onCombat({ dungeons: { [CAVE]: { clears: 1 }, [GROTTO]: { clears: 1 } } });
+    expect(q(`[data-dungeon-body="${GROTTO}"]`).textContent).toContain(
+      'A hard day he takes plain: its catch and its bonus both left out.',
+    );
+    // The cave's days are all kind: nothing to say.
+    expect(q(`[data-dungeon-body="${CAVE}"]`).textContent).not.toContain('hard day');
   });
 
   it('turns the day over at local midnight in place, without a rebuild', () => {
