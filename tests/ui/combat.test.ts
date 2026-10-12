@@ -318,13 +318,13 @@ describe('the Dungeons card (wave 15)', () => {
       (el) => `${el.dataset.dungeonRow} ${el.dataset.status}`,
     );
 
-  it("lists the chart's dungeons for a new player: the cave and the grotto open, two to come", () => {
+  it("lists the chart's dungeons for a new player: the cave and the grotto open, the burrow locked, two to come", () => {
     playing();
     q<HTMLButtonElement>('[data-combat]').click();
     expect(rows()).toEqual([
       'tidepool_cave open',
       'brinebeards_grotto open',
-      'thistlewood_burrow soon',
+      'thistlewood_burrow locked',
       'unknown_2 soon',
       'unknown_3 soon',
     ]);
@@ -334,10 +334,15 @@ describe('the Dungeons card (wave 15)', () => {
     expect(q('[data-dungeon-row="brinebeards_grotto"]').textContent).toContain(
       'Recommended combat level 20',
     );
+    // Wave 20: the burrow is charted, named and locked, saying what will open it.
+    const locked = q('[data-dungeon-row="thistlewood_burrow"]');
+    expect(locked.querySelector('h3')!.textContent).toBe('Thistlewood Burrow');
+    expect(locked.textContent).toContain('Clear Brinebeard’s Grotto.');
+    expect(locked.textContent).toContain('Recommended combat level 40');
     // A landing to come keeps its name back, and says what will open it.
-    const soon = q('[data-dungeon-row="thistlewood_burrow"]');
+    const soon = q('[data-dungeon-row="unknown_2"]');
     expect(soon.querySelector('h3')!.textContent).toBe('?');
-    expect(soon.textContent).toContain('Clear Brinebeard’s Grotto.');
+    expect(soon.textContent).toContain('Clear the landing before it.');
     expect(soon.textContent).not.toContain('Uncharted');
     // Above the areas, with its way in.
     const card = q('[data-dungeons]');
@@ -357,7 +362,7 @@ describe('the Dungeons card (wave 15)', () => {
     expect(rows()).toEqual([
       'tidepool_cave cleared',
       'brinebeards_grotto cleared',
-      'thistlewood_burrow soon',
+      'thistlewood_burrow open',
       'unknown_2 soon',
       'unknown_3 soon',
     ]);
@@ -367,6 +372,26 @@ describe('the Dungeons card (wave 15)', () => {
     expect(q('[data-dungeon-row="brinebeards_grotto"]').textContent).toContain(
       'cleared once · best 8:32',
     );
+    // Wave 20: the burrow, open, says honestly what its first clear brings: a tier still to come.
+    expect(q('[data-dungeon-row="thistlewood_burrow"] [data-tier="3"]').textContent).toBe(
+      'Its first clear unlocks tier 3, still being built: levels 40 to 60 in every skill.',
+    );
+  });
+
+  it('says tier 3 is unlocked and still being built once the burrow is cleared', () => {
+    let state = newGame('Cody', clock);
+    state = settleRun(state, { cleared: 'brinebeards_grotto', timeMs: 512_000 }, CONTENT);
+    state = settleRun(state, { cleared: 'thistlewood_burrow', timeMs: 530_000 }, CONTENT);
+    expect(state.bank).toMatchObject({ amber: 10, cooked_swordfish: 10 });
+    playing(state);
+    q<HTMLButtonElement>('[data-combat]').click();
+    const line = q('[data-dungeon-row="thistlewood_burrow"] [data-tier="3"]');
+    expect(line.textContent).toBe(
+      'Tier 3 unlocked. It is still being built; when it comes, it brings levels 40 to 60 in every skill.',
+    );
+    expect(line.dataset.unlocked).toBe('true');
+    // No card for tier 3 on the Skills tab: it has no rows yet.
+    expect(root.querySelector('[data-tier-opened="3"]')).toBeNull();
   });
 
   it("names only the cave's own boss among its cast: its rats and crabs are the shore's", () => {

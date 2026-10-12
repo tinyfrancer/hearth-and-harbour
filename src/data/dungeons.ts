@@ -420,11 +420,10 @@ export const DUNGEONS = {
     ],
   },
   // The second real dungeon (plan S23), opened by the grotto's first clear and
-  // the gate to tier 3. Coming soon this wave: a silhouette on the chart (the
-  // scene lands it on the spare `unknown_1` spot), its name never shown, but
-  // its cast, loot, days and challenges are real rows, so lane C can build and
-  // balance against them. The cast's ids are the shared contract with lanes B
-  // and C (docs/tier2-manifest.md).
+  // the gate to tier 3. Charted since wave 20, when lane C called it ready to
+  // play (it waited a wave as a silhouette, its rows real so lanes B and C
+  // could build against them). The cast's ids are the shared contract with
+  // lanes B and C (docs/tier2-manifest.md).
   //
   // Wave 20: the cast's numbers are lane C's, measured by its careful player
   // against the burrow's own rules (the dark, the guards' blocks, the king's
@@ -440,7 +439,6 @@ export const DUNGEONS = {
     recommended: 40,
     unlock: { kind: 'cleared', dungeon: 'brinebeards_grotto' },
     unlockText: 'Clear Brinebeard’s Grotto.',
-    comingSoon: true,
     firstClear: [
       { item: 'amber', qty: 10 },
       { item: 'cooked_swordfish', qty: 10 },
@@ -541,26 +539,28 @@ export const DUNGEONS = {
     // Run idle once cleared (src/core/idleRun.ts): lane C's five rooms in
     // order (src/scene/burrow.ts), each met as one group, and in the sett the
     // king with those he calls (two puffs, a moth, a hound), dealt with first.
-    // Idle there are no lanterns to light, so a walk is a walk. The crown is a
-    // trophy, only ever found by hand (docs/design.md).
+    // Each walk is slow: he lights the lanterns as he goes (half a minute a
+    // room), and the row up the river and back is three minutes; at 12 s and
+    // two minutes an hour idle out-paid an hour by hand in XP (wave 20). The
+    // crown is a trophy, only ever found by hand (docs/design.md).
     idle: {
       rooms: [
-        { foes: ['spore_puff', 'spore_puff', 'spore_puff'], walkMs: 12_000 },
-        { foes: ['cap_guard', 'cap_guard', 'spore_puff', 'spore_puff'], walkMs: 12_000 },
+        { foes: ['spore_puff', 'spore_puff', 'spore_puff'], walkMs: 30_000 },
+        { foes: ['cap_guard', 'cap_guard', 'spore_puff', 'spore_puff'], walkMs: 30_000 },
         {
           foes: ['lantern_moth', 'lantern_moth', 'spore_puff', 'spore_puff', 'cap_guard'],
-          walkMs: 12_000,
+          walkMs: 30_000,
         },
         {
           foes: ['bramble_hound', 'bramble_hound', 'lantern_moth', 'spore_puff'],
-          walkMs: 12_000,
+          walkMs: 30_000,
         },
         {
           foes: ['spore_puff', 'spore_puff', 'lantern_moth', 'bramble_hound', 'badger_king'],
-          walkMs: 15_000,
+          walkMs: 30_000,
         },
       ],
-      tripMs: 120_000,
+      tripMs: 180_000,
       lootPercent: 50,
       activeOnly: ['badger_crown'],
     },
