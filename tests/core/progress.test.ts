@@ -7,7 +7,9 @@ import {
   dailyModifier,
   effectWords,
   foeUnder,
+  foodUnder,
   heroMaxHitUnder,
+  idleModifier,
   isKind,
   localDay,
   mayIdle,
@@ -147,18 +149,44 @@ describe('what a modifier does', () => {
 
   it('says what it does plainly', () => {
     expect(effectWords(CONTENT.modifiers!.spring_tide!.effects)).toEqual([
-      'Foes hit 10% harder',
-      'The tide turns 50% faster',
-      '35% more of the usual drops',
+      'The tide turns 25% faster',
+      '25% more of the usual drops',
     ]);
     expect(effectWords(CONTENT.modifiers!.slack_tide!.effects)).toEqual([
       'Foes strike 20% less often',
     ]);
-    expect(effectWords(CONTENT.modifiers!.no_rations!.effects)).toEqual([
-      'Nothing can be eaten',
-      '25% more of the usual drops',
+    expect(effectWords(CONTENT.modifiers!.short_rations!.effects)).toEqual([
+      'Foes have 10% less health',
+      'Food heals 20% less',
+      '10% more of the usual drops',
+    ]);
+    expect(effectWords(CONTENT.modifiers!.thick_skulls!.effects)).toEqual([
+      'Foes have 20% more health',
+      'Foes strike 20% less often',
+      '15% more of the usual drops',
       '20% more XP',
     ]);
+    // Kept for a scene that honours it, though no dungeon draws it.
+    expect(effectWords({ noFood: true })).toEqual(['Nothing can be eaten']);
+  });
+
+  it('makes each thing eaten heal less on a day of short rations, never nothing', () => {
+    expect(foodUnder(20, CONTENT.modifiers!.short_rations!.effects)).toBe(16);
+    expect(foodUnder(20, {})).toBe(20);
+    expect(foodUnder(3, { foodHeals: 0.1 })).toBe(1);
+    expect(foodUnder(0, { foodHeals: 0.8 })).toBe(0);
+    expect(foodUnder(20, { foodHeals: Number.NaN })).toBe(20);
+    expect(isKind({ foodHeals: 0.8 })).toBe(false);
+    expect(isKind({ foodHeals: 1.2 })).toBe(true);
+  });
+
+  it('sends the hero through idle under a kind day only', () => {
+    expect(idleModifier(CONTENT, 'slack_tide')).toBe('slack_tide');
+    expect(idleModifier(CONTENT, 'rich_pickings')).toBe('rich_pickings');
+    for (const id of CONTENT.dungeons!.brinebeards_grotto!.modifiers!)
+      expect(idleModifier(CONTENT, id), id).toBeNull();
+    expect(idleModifier(CONTENT, 'no_rations')).toBeNull();
+    expect(idleModifier(CONTENT, null)).toBeNull();
   });
 });
 

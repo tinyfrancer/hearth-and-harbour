@@ -198,19 +198,42 @@ describe('a dungeon run idle, event by event', () => {
     expect(auto.idleRun).not.toBeNull();
   });
 
-  it('eats from the food slot by idle combat’s rule, and nothing on a day without food', () => {
+  it('eats from the food slot by idle combat’s rule', () => {
     const fed = advance(
       sent(cleared(20, GROTTO, { food: 100 }), GROTTO),
       20 * 60_000,
       withDay(GROTTO, null),
     );
     expect(fed.food!.qty).toBeLessThan(100);
-    const start = sent(cleared(20, GROTTO, { food: 100 }), GROTTO, withDay(GROTTO, 'no_rations'));
-    const hungry = advance(start, 20 * 60_000, withDay(GROTTO, 'no_rations'));
-    expect(hungry.food!.qty).toBe(100);
-    // ...and goes down for it.
-    expect(hungry.idleRun).toBeNull();
-    expect(idleRunEnded(start, hungry, withDay(GROTTO, 'no_rations'))).toBe('died');
+    expect(fed.idleRun).not.toBeNull();
+  });
+
+  it('plays every trade day plain, catch and bonus both left out (wave 18)', () => {
+    const plainDay = withDay(GROTTO, null);
+    const plain = advance(
+      sent(cleared(20, GROTTO, { food: 100 }), GROTTO, plainDay),
+      HOUR,
+      plainDay,
+    );
+    for (const id of CONTENT.dungeons![GROTTO]!.modifiers!) {
+      const day = withDay(GROTTO, id);
+      const start = sent(cleared(20, GROTTO, { food: 100 }), GROTTO, day);
+      expect(start.idleRun!.modifier, id).toBeNull();
+      // Run for run, fish for fish, the plain day's hour.
+      expect(advance(start, HOUR, day), id).toEqual(plain);
+    }
+    // A run saved under a trade day before wave 18 is played plain from then on.
+    const begun = sent(cleared(20, GROTTO, { food: 100 }), GROTTO, plainDay);
+    const old = { ...begun, idleRun: { ...begun.idleRun!, modifier: 'angry_crew' } };
+    expect(advance(old, HOUR, withDay(GROTTO, 'angry_crew'))).toEqual(plain);
+  });
+
+  it('takes a kind day as it comes', () => {
+    for (const id of CONTENT.dungeons![CAVE]!.modifiers!) {
+      const day = withDay(CAVE, id);
+      const later = advance(sent(cleared(1, CAVE), CAVE, day), HOUR, day);
+      expect(later.idleRun!.modifier, id).toBe(id);
+    }
   });
 
   it('is over at a knock-out: the hero comes round as from any other', () => {

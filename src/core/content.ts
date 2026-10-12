@@ -412,7 +412,11 @@ export interface ChallengeDef {
  * - `foeDamage`: foes' max hit (so their heavy blows, made of it, too), rounded, at least 1.
  * - `foeSpeed`: foes strike this many times as often (every wait divided by it), rounded.
  * - `heroDamage`: the hero's max hit, rounded, at least 1.
- * - `noFood`: nothing is eaten, from the food slot or found.
+ * - `foodHeals`: what each thing eaten heals, rounded, at least 1 (`foodUnder`), from the food
+ *   slot or found. A scene that does not know it yet eats as on a plain day.
+ * - `noFood`: nothing is eaten, from the food slot or found. (Wave 17's No Rations; no
+ *   dungeon draws it since wave 18, as a dungeon balanced on eating cannot be cleared
+ *   without. Kept so a scene that honours it still does.)
  * Applied by the scene alone (the idle game has no tide and no lamps):
  * - `tideFaster`: the tide's cycle runs this many times as fast (a dungeon with a tide).
  * - `darker`: the rooms are lit less; how much is the scene's to say. No number changes.
@@ -422,13 +426,16 @@ export interface ChallengeDef {
  * - `coins`, `xp`: the run's coins and each skill's XP, rounded.
  *
  * A modifier on a dungeon meant for learning is `kind`: easier, or a reward
- * with no catch. Every other one is a trade: harder, and paid for it.
+ * with no catch. Every other one is a trade: harder, and paid for it. A hero
+ * sent through idle takes a kind day as it comes and plays a trade day plain,
+ * catch and bonus both left out (`idleModifier`, src/core/progress.ts).
  */
 export interface ModifierEffects {
   foeHealth?: number;
   foeDamage?: number;
   foeSpeed?: number;
   heroDamage?: number;
+  foodHeals?: number;
   noFood?: true;
   tideFaster?: number;
   darker?: true;

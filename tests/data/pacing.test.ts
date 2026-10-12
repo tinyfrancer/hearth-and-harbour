@@ -20,7 +20,8 @@ import { CAVE, ROOMS as CAVE_ROOMS, many as manyCaveRuns } from './cave';
 import { characterAt, fight, hourOf, hoursToLevel as hoursOfFighting } from './fighting';
 import { handRunOf, idleHourOf } from './idleRuns';
 import { novice, playCave } from '../scene/caveBot';
-import { playThrough, prepared } from '../scene/grottoBot';
+import { begin, playThrough, prepared } from '../scene/grottoBot';
+import { foodUnder } from '../../src/core/progress';
 
 /** The pins of the idle dungeon cases, measured (S16). */
 const HAND_CAVE_XP = 11530;
@@ -31,6 +32,15 @@ const IDLE_CAVE: number[][] = [
 ];
 const HAND_GROTTO_XP = 22631;
 const IDLE_GROTTO: number[] = [5, 18750, 8095];
+/** The grotto's days by hand against a plain day (wave 18): XP, coins' worth earned, their mean. */
+const GROTTO_DAYS: Record<string, [number, number, number]> = {
+  thick_skulls: [1.22, 1, 1.11],
+  angry_crew: [1, 1.15, 1.08],
+  quick_tempers: [1.09, 0.98, 1.04],
+  spring_tide: [1, 1.26, 1.13],
+  short_rations: [0.98, 1.22, 1.1],
+  unlit_lamps: [1.15, 1.01, 1.08],
+};
 import {
   bountyChoices,
   bountyPoints,
@@ -575,7 +585,83 @@ describe('a dungeon run idle (S16)', () => {
       expect(day.xp, String(modifier)).toBeLessThan(bestXp);
       expect(day.allXp, String(modifier)).toBeLessThan(bestAll);
       expect(day.earned, String(modifier)).toBeLessThan(bestEarned);
+      // Wave 18: every one of its days is a trade, played plain idle, so none costs money.
+      expect(day, String(modifier)).toEqual(plain);
+      expect(day.earned, String(modifier)).toBeGreaterThan(0);
     }
+    // Nor at the level a careful player first clears it, over a night's worth of runs: the cod
+    // eaten (about 120 an hour) is paid for by the half of the doubloons kept.
+    for (const first of [19, 20]) {
+      const night = idleHourOf(first, 'brinebeards_grotto', { hours: 6 });
+      expect(night.knockedOut, String(first)).toBe(false);
+      expect(night.earned, String(first)).toBeGreaterThan(night.food / 2);
+    }
+  }, 240_000);
+});
+
+// The grotto's days by hand (wave 18): every trade is worth choosing and none
+// is a must. An hour by hand on a modifier day pays between 1.0 and 1.3 times
+// a plain day's, by the mean of its two measures, XP and coins' worth earned
+// (what falls, as settling pays it, less the cod eaten as sold instead), and
+// neither measure falls below 0.9 or passes 1.3. An hour is lane C's careful
+// player at combat 20 (tests/scene/grottoBot.ts), twelve seeds, with fish to
+// spare (30 cod: on 20 he eats all but one even on a plain day, so the fish a
+// harder day costs only show with more), the median clear plus fifteen
+// seconds of round trip; what falls is the tables' average (`handRunOf`).
+// Whether each day can be cleared on the ordinary 20 is lane C's measure
+// (tests/scene/modifierRun.test.ts).
+describe('the grotto’s days by hand (wave 18)', () => {
+  const ROUND_TRIP_MS = 15_000;
+  const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
+  const median = (xs: readonly number[]): number =>
+    [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+  const grotto = CONTENT.dungeons!.brinebeards_grotto!;
+  const cod = CONTENT.items.cooked_cod! as { heals?: number; value: number };
+
+  /** XP and coins' worth earned an hour by hand, on a day of `modifier` (or none). */
+  const handHour = (modifier: string | null): { xp: number; earned: number; clears: number } => {
+    const effects = (modifier && CONTENT.modifiers![modifier]!.effects) || {};
+    // Short rations' food is the scene's to apply (lane C's `foodUnder`): until it does, the
+    // careful player is fed as it will feed him, so the day is measured as it is meant.
+    const heals = cod.heals!;
+    const meant = foodUnder(heals, effects);
+    const fed = begin(prepared(20), 1, undefined, modifier ?? undefined).battle!.fighter.food!
+      .heals;
+    if (fed !== meant) cod.heals = meant;
+    try {
+      const runs = SEEDS.map((seed) =>
+        playThrough(prepared(20, 30), seed, { reactMs: 400, modifier: modifier ?? undefined }),
+      );
+      const cleared = runs.filter((run) => run.cleared);
+      const hours = (median(cleared.map((run) => run.ms)) + ROUND_TRIP_MS) / HOUR;
+      const run = handRunOf(grotto, effects);
+      const eaten = median(runs.map((r) => r.eaten)) * cod.value;
+      return { xp: run.xp / hours, earned: (run.worth - eaten) / hours, clears: cleared.length };
+    } finally {
+      cod.heals = heals;
+    }
+  };
+
+  it('pays each trade 1.0 to 1.3 times a plain day’s hour by hand', () => {
+    const plain = handHour(null);
+    const ratios: Record<string, [number, number, number]> = {};
+    for (const modifier of grotto.modifiers!) {
+      const day = handHour(modifier);
+      expect(day.clears, modifier).toBe(12);
+      const xp = day.xp / plain.xp;
+      const earned = day.earned / plain.earned;
+      const mean = (xp + earned) / 2;
+      expect(mean, modifier).toBeGreaterThanOrEqual(1);
+      expect(mean, modifier).toBeLessThanOrEqual(1.3);
+      for (const each of [xp, earned]) {
+        expect(each, modifier).toBeGreaterThanOrEqual(0.9);
+        expect(each, modifier).toBeLessThanOrEqual(1.3);
+      }
+      const round = (n: number): number => Math.round(n * 100) / 100;
+      ratios[modifier] = [round(xp), round(earned), round(mean)];
+    }
+    // Pinned so a change is seen: XP, earned and their mean against a plain day.
+    expect(ratios).toEqual(GROTTO_DAYS);
   }, 240_000);
 });
 
