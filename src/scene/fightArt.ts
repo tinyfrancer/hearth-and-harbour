@@ -61,7 +61,19 @@ import { DUNGEON, far } from './dungeonMetrics';
 import { breathFrame, type Pose2 } from './figures2';
 import { bodyMid, foeKind, type FoeKind } from './foes';
 import { tileAt } from './ground';
-import { CaveShadow, glowsIn, paintCells, perchLift, type RoomLook } from './grottoArt';
+import {
+  CaveShadow,
+  doorPieces,
+  glowsIn,
+  lightsOf,
+  litness,
+  paintCells,
+  shadeAt,
+  IN_THE_DARK,
+  NIGHT_RGB,
+  perchLift,
+  type RoomLook,
+} from './grottoArt';
 import { sayingOf } from './dungeons';
 import { foeArtId } from './fromLaneB';
 import type { Facing } from './play';
@@ -1234,6 +1246,43 @@ export function fightApart(dungeon: Dungeon, run: Run): Map<string, number> {
   return shownApart(fightFigures(dungeon, run));
 }
 
+const dimmed = new WeakMap<object, Partial<Record<1 | 2, HTMLCanvasElement>>>();
+
+/**
+ * A figure as a darker day shows it beyond the light: its own pixels, each
+ * taken toward the cave's night as the ground is (`IN_THE_DARK`), its shape and outline
+ * whole, so it reads as something there in the dark. Kept for each picture.
+ * Where nothing can paint (tests), the picture as it is.
+ */
+export function inTheDark<T extends CanvasImageSource & { width: number; height: number }>(
+  image: T,
+  how: 1 | 2,
+): T | HTMLCanvasElement {
+  let made = dimmed.get(image);
+  if (made?.[how]) return made[how]!;
+  if (typeof document === 'undefined' || !(image.width > 0)) return image;
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return image;
+  ctx.drawImage(image, 0, 0);
+  const px = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const k = IN_THE_DARK[how];
+  const d = px.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    d[i] = Math.round(d[i]! * k + NIGHT_RGB[0] * (1 - k));
+    d[i + 1] = Math.round(d[i + 1]! * k + NIGHT_RGB[1] * (1 - k));
+    d[i + 2] = Math.round(d[i + 2]! * k + NIGHT_RGB[2] * (1 - k));
+  }
+  ctx.putImageData(px, 0, 0);
+  made ??= {};
+  made[how] = canvas;
+  dimmed.set(image, made);
+  return canvas;
+}
+
 /**
  * Everything a run's fight adds to the stage this frame: the cast standing,
  * their shadows, what lies on the ground, what is over them in art pixels,
@@ -1270,6 +1319,14 @@ export function fightExtra(
   const shadows: Placed[] = [];
   const fuses: Point[] = [];
   const boxes: Box[] = [];
+  // A darker day: the lanterns' pools (and an open door's light) as the day leaves them, and his own.
+  const dark = (room.dim ?? 1) < 1;
+  const pools = dark
+    ? [
+        ...lightsOf(room),
+        ...(opening > 0 ? doorPieces(room).flatMap((d) => (d.light ? [d.light] : [])) : []),
+      ]
+    : [];
   for (const foe of here) {
     // A fallen foe blinks out at the last.
     if (!alive(foe) && clock - foe.diedAt! > FALL_MS - 240 && Math.floor(clock / 80) % 2 === 1)
@@ -1284,8 +1341,11 @@ export function fightExtra(
     if (drawn) {
       // A bird on its perch sorts in front of the post it sits on.
       const base = lift > 0 && foe.flight?.mode === 'perch' ? Math.round(foe.at.y) + 11 : feet.y;
+      // Out of every pool of light on a darker day, a dim shape (one carrying a light is lit by
+      // it); what it is about to do is drawn on the ground and over it, never dimmed.
+      const shade = dark && drawn.glows.length === 0 ? litness(pools, hero, foe.at) : 0;
       actors.push({
-        image: drawn.image,
+        image: shade ? inTheDark(drawn.image, shade) : drawn.image,
         x: feet.x - drawn.feet.x,
         y: feet.y - drawn.feet.y,
         base,
@@ -1312,7 +1372,17 @@ export function fightExtra(
       }
       // Under the middle of its body, not its front feet (`bodyMid`).
       const under = { x: Math.round(midX(foe)), y: feet.y };
-      const placed = shadow.at(cells, kinds, look.glows, under, size.shadow, look.theme.palette);
+      // On a darker day as dark as the ground it falls on.
+      const placed = shadow.at(
+        cells,
+        kinds,
+        look.glows,
+        under,
+        size.shadow,
+        look.theme.palette,
+        dark ? (x, y) => shadeAt(pools, x, y, hero) : undefined,
+        dark ? `${Math.round(hero.x)} ${Math.round(hero.y)} ${opening > 0}` : '',
+      );
       if (placed) {
         shadows.push(placed);
         boxes.push({

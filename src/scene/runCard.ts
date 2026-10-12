@@ -15,8 +15,10 @@ import {
   challengeDone,
   challengeMet,
   challengesOf,
+  chartRow,
   effectWords,
   modifierDef,
+  rewardOf,
   spoilsUnder,
   type ChallengeDef,
 } from './fromLaneA';
@@ -25,6 +27,7 @@ import {
   CHALLENGE_MEDAL_FRAMES,
   challengeIcon,
   challengeMedal,
+  modifierIcon,
 } from './fromLaneB';
 import { runSpoils, runStats } from './modifiers';
 
@@ -102,6 +105,35 @@ export function trackerLines(
     });
 }
 
+/** The most lines the tracker shows at once: what can still be had first, what is lost last. */
+export const TRACKER_LINES = 3;
+
+/** The order the tracker shows its lines in: still to be had, waiting, met, then lost. */
+const TRACKER_ORDER: Readonly<Record<ChallengeState, number>> = {
+  open: 0,
+  waiting: 1,
+  met: 2,
+  lost: 3,
+};
+
+/**
+ * The tracker's lines as it shows them: what can still be had first (one
+ * against the clock first of those), then those waiting, then those met,
+ * the lost last; `TRACKER_LINES` at the most.
+ */
+export function trackerShown(lines: readonly TrackerLine[]): TrackerLine[] {
+  return lines
+    .map((l, at) => ({ l, at }))
+    .sort(
+      (a, b) =>
+        TRACKER_ORDER[a.l.state] - TRACKER_ORDER[b.l.state] ||
+        Number(!a.l.clock) - Number(!b.l.clock) ||
+        a.at - b.at,
+    )
+    .slice(0, TRACKER_LINES)
+    .map(({ l }) => l);
+}
+
 /** The tracker in the corner of a run: a line a challenge, or folded to one button. */
 export interface Tracker {
   readonly el: HTMLElement;
@@ -164,7 +196,9 @@ export function trackerView(
       const show = shown && lines.size > 0;
       if (el.hidden === show) el.hidden = !show;
       if (!show || folded) return;
-      for (const line of trackerLines(challenges, runStats(run), run.modifier?.id ?? null, done)) {
+      const all = trackerLines(challenges, runStats(run), run.modifier?.id ?? null, done);
+      const visible = trackerShown(all);
+      for (const line of all) {
         const at = lines.get(line.id);
         if (!at) continue;
         if (at.state !== line.state) {
@@ -173,6 +207,12 @@ export function trackerView(
         }
         const text = line.clock ?? '';
         if (at.clock.textContent !== text) at.clock.textContent = text;
+        // Three lines at the most, in their order (a flex column's `order`, so nothing is rebuilt).
+        const place = visible.indexOf(line);
+        const hide = place < 0;
+        if (at.li.hidden !== hide) at.li.hidden = hide;
+        const order = String(Math.max(0, place));
+        if (at.li.style.order !== order) at.li.style.order = order;
       }
     },
   };
@@ -190,6 +230,54 @@ export function statLines(stats: RunStats): string[] {
   ];
 }
 
+/** One reward the run earns besides its spoils: the first clear's, or a challenge's. */
+export interface RunReward {
+  /** What earned it: `first` for the first clear, else the challenge's id. */
+  readonly for: string;
+  /** Its name for the card: "First clear", or the challenge's. */
+  readonly name: string;
+  readonly coins: number;
+  readonly bountyPoints: number;
+  readonly items: readonly { readonly item: string; readonly qty: number }[];
+}
+
+/**
+ * What settling will pay a run on top of its spoils, as lane A pays it: a
+ * first clear's items (`DungeonDef.firstClear`, once), and the reward of
+ * each challenge met for the first time (`rewardOf`). Nothing for a run that
+ * did not clear. Read from the character as the run ended, before settling.
+ */
+export function runRewards(content: Content, run: Run, state: GameState): RunReward[] {
+  if (run.ending !== 'cleared') return [];
+  const out: RunReward[] = [];
+  const def = chartRow(content, run.dungeon);
+  const first = (state.dungeons[run.dungeon]?.clears ?? 0) === 0;
+  const items = (def?.firstClear ?? []).filter(
+    (r) => Object.hasOwn(content.items, r.item) && r.qty > 0,
+  );
+  if (first && items.length)
+    out.push({ for: 'first', name: 'First clear', coins: 0, bountyPoints: 0, items });
+  const stats = runStats(run);
+  for (const c of challengesOf(content, run.dungeon)) {
+    if (challengeDone(state, run.dungeon, c.id)) continue;
+    if (!challengeMet(c.rule, stats, { cleared: true, modifier: run.modifier?.id ?? null }))
+      continue;
+    out.push({ for: c.id, name: c.name, ...rewardOf(c.reward, content) });
+  }
+  return out;
+}
+
+/** A reward's amounts, short: "250 coins, 2 bounty points, 5 Cooked shrimp". */
+export function rewardWords(r: RunReward, content: Content): string {
+  const parts: string[] = [];
+  if (r.coins > 0) parts.push(`${r.coins} coins`);
+  if (r.bountyPoints > 0)
+    parts.push(`${r.bountyPoints} bounty point${r.bountyPoints === 1 ? '' : 's'}`);
+  for (const { item, qty } of r.items)
+    parts.push(`${qty > 1 ? `${qty} ` : ''}${content.items[item]?.name ?? item}`);
+  return parts.join(', ');
+}
+
 export interface ResultsOptions {
   readonly content: Content;
   readonly run: Run;
@@ -202,10 +290,14 @@ export interface ResultsOptions {
 }
 
 /**
- * The end of a run: its heading and line, its time and statistics, each
- * challenge it met (new ones with a medal that glints, once), the day's
- * modifier and what it paid, and what comes home as settling will pay it
- * (`spoilsUnder`), with Row out again and Back to town.
+ * The end of a run, laid out for a phone on its side (wave 18): along the
+ * top its heading and time; on the left how it went (its line, its
+ * statistics three to a row, each challenge met, new ones with lane B's
+ * medal glinting once); on the right what it earns (the first clear's and
+ * the challenges' rewards, the day's modifier and what it added, what comes
+ * home as settling will pay it, `spoilsUnder`), scrolling in its own column
+ * if it must; along the foot Row out again and Back to town, always whole,
+ * 48 pixels at the least, clear of the card's edge.
  */
 export function resultsCard(o: ResultsOptions): {
   readonly el: HTMLElement;
@@ -220,19 +312,10 @@ export function resultsCard(o: ResultsOptions): {
   const plain = spoilsUnder({ ...spoils, modifier: null }, content);
   const modifier = run.modifier ? modifierDef(content, run.modifier.id) : undefined;
 
-  const head: (HTMLElement | null)[] = [
+  const top = h('div', { class: 'run-top' }, [
     h('h2', { text: o.title }),
-    h('p', { class: 'muted', text: o.line }),
     h('p', { class: 'dungeon-time', text: `Time taken: ${runTime(stats.timeMs)}` }),
-    // Two to a line: the card fits a phone on its side.
-    h(
-      'ul',
-      { class: 'run-stats', attrs: { 'aria-label': 'How it went' } },
-      statLines(stats)
-        .slice(1)
-        .map((t) => h('li', { text: t })),
-    ),
-  ];
+  ]);
 
   // Challenges met this run, new ones first noticed: a medal that glints once.
   const met = challengesOf(content, run.dungeon).filter((c) =>
@@ -252,30 +335,80 @@ export function resultsCard(o: ResultsOptions): {
           return h('li', { attrs: { 'data-new': String(fresh) } }, [
             slot,
             h('span', { class: 'run-icon' }, [challengeIcon(c.id)]),
-            h('span', { class: 'run-what', text: fresh ? `${c.name} — new!` : c.name }),
+            h('span', { class: 'run-what', text: c.name }),
+            fresh ? h('span', { class: 'run-new', text: 'New!' }) : null,
           ]);
         }),
       )
     : null;
 
+  const head = h('div', { class: 'run-head' }, [
+    h('p', { class: 'muted run-line', text: o.line }),
+    h(
+      'ul',
+      { class: 'run-stats', attrs: { 'aria-label': 'How it went' } },
+      statLines(stats)
+        .slice(1)
+        .map((t) => {
+          const [name, value] = t.split(': ');
+          return h('li', { attrs: { 'aria-label': t } }, [
+            h('span', { class: 'run-stat-name', text: `${name}: ` }),
+            h('span', { class: 'run-stat-value', text: value ?? '' }),
+          ]);
+        }),
+    ),
+    challengeList,
+  ]);
+
+  // What settling pays on top: the first clear's and each new challenge's (lane A's rewards).
+  const rewards = runRewards(content, run, state);
+  const rewardList = rewards.length
+    ? h(
+        'ul',
+        { class: 'run-rewards', attrs: { 'aria-label': 'Rewards' } },
+        rewards.map((r) =>
+          h('li', { attrs: { 'data-for': r.for } }, [
+            h('span', { class: 'run-medal' }, [
+              r.for === 'first' ? null : challengeMedal('done', 0),
+            ]),
+            h('span', { class: 'run-reward-body' }, [
+              h('span', { class: 'run-reward-name', text: r.name }),
+              h('span', { class: 'run-reward-what', text: rewardWords(r, content) }),
+            ]),
+          ]),
+        ),
+      )
+    : null;
+
   const bonus: string[] = [];
   if (modifier) {
-    const more = (a: number, b: number): number => a - b;
     const sum = (r: Record<string, number>): number => Object.values(r).reduce((x, y) => x + y, 0);
-    const coins = more(paid.coins, plain.coins);
-    const xp = more(sum(paid.xp), sum(plain.xp));
-    const loot = more(sum(paid.loot), sum(plain.loot));
+    const coins = paid.coins - plain.coins;
+    const xp = sum(paid.xp) - sum(plain.xp);
+    const loot = sum(paid.loot) - sum(plain.loot);
     if (coins) bonus.push(`+${coins} coins`);
     if (xp) bonus.push(`+${xp} XP`);
     if (loot) bonus.push(`+${loot} of the usual drops`);
   }
+  // The day's modifier on a line of its own in the right column: its icon, its name and what
+  // it added; what it does, in full, to a screen reader and on a long press (title).
+  const effects = modifier ? effectWords(modifier.effects).join(', ').toLowerCase() : '';
   const day = modifier
-    ? h('p', { class: 'run-modifier' }, [
-        h('span', { class: 'run-modifier-name', text: modifier.name }),
-        ` (${effectWords(modifier.effects).join(', ').toLowerCase()})${
-          bonus.length ? `: ${bonus.join(', ')}` : ''
-        }`,
-      ])
+    ? h(
+        'p',
+        {
+          class: 'run-modifier',
+          attrs: {
+            title: `${modifier.name}: ${effects}`,
+            'aria-label': `${modifier.name}: ${effects}. ${bonus.join(', ')}`,
+          },
+        },
+        [
+          h('span', { class: 'run-modifier-icon' }, [modifierIcon(modifier.id)]),
+          h('span', { class: 'run-modifier-name', text: modifier.name }),
+          bonus.length ? h('span', { class: 'run-modifier-bonus', text: bonus.join(', ') }) : null,
+        ],
+      )
     : null;
 
   const earned: HTMLElement[] = [];
@@ -300,15 +433,15 @@ export function resultsCard(o: ResultsOptions): {
     frame = f;
     for (const slot of medals) slot.replaceChildren(challengeMedal('new', f));
   };
-  // Two columns on a phone on its side: how it went on the left; what it paid and the way on on
-  // the right, its buttons always at the foot of the card.
   const el = h('div', { class: 'dungeon-card run-card run-card-s16' }, [
-    h('div', { class: 'run-head' }, [...head, challengeList]),
+    top,
+    head,
     h('div', { class: 'run-side' }, [
+      rewardList,
       day,
       h('ul', { class: 'run-earned', attrs: { 'aria-label': 'Earned' } }, earned),
-      h('div', { class: 'run-buttons' }, [again, button('Back to town', o.home, 'primary')]),
     ]),
+    h('div', { class: 'run-buttons' }, [again, button('Back to town', o.home, 'primary')]),
   ]);
   return { el, step };
 }

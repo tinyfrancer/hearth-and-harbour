@@ -799,6 +799,17 @@
   display: none;
 }
 
+/* A day when food heals less (Short Rations): by how much, in the button's top corner. */
+.fight-share {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--danger);
+  pointer-events: none;
+}
+
 /* The food's count sits in the corner; its cooldown is shown by the shade alone. */
 .fight-food .fight-count {
   inset: auto 4px 1px auto;
@@ -874,7 +885,7 @@
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  width: 220px;
+  width: 264px;
   height: 64px;
   padding: 4px 4px 4px 8px;
   background: var(--scrim);
@@ -901,14 +912,16 @@
 }
 
 .run-tracker-list {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
-  /* Four lines at the most in its 64-pixel box. */
-  font-size: 13px;
-  line-height: 14px;
+  /* Three lines at the most in its 64-pixel box (`TRACKER_LINES`), in a hand to read mid-fight. */
+  font-size: 16px;
+  line-height: 18px;
   color: var(--text);
 }
 
@@ -917,6 +930,10 @@
   gap: 6px;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.run-tracker-list li[hidden] {
+  display: none;
 }
 
 .run-tracker-name {
@@ -953,56 +970,105 @@
   border: var(--px) solid var(--line);
   color: var(--text-muted);
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   cursor: pointer;
 }
 
-/* The S16 card: compact, two columns, its buttons always in view at the foot of the right. */
-.run-card-s16 {
-  max-width: 680px;
-  padding: 12px 14px;
+/*
+ * The S16 card (wave 18): its heading and time along the top, how it went on the left, what it
+ * earns on the right (each column scrolls on its own if it must), and its buttons along the foot,
+ * always whole, clear of the edge. Laid out for 844 x 390, 932 x 430 and 667 x 375.
+ */
+.dungeon-card.run-card-s16 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'top top'
+    'head side'
+    'buttons buttons';
+  gap: 6px 16px;
+  max-width: 720px;
+  max-height: 100%;
+  padding: 10px 14px 12px;
+  overflow: hidden;
 }
 
-.run-card-s16 .run-head {
-  gap: 4px;
+.run-top {
+  grid-area: top;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
-.run-card-s16 h2 {
+.run-top h2 {
+  min-width: 0;
+  overflow: hidden;
   font-size: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .run-card-s16 .dungeon-time {
+  flex: none;
+  margin: 0;
   font-size: 17px;
 }
 
+.run-card-s16 .run-head {
+  grid-area: head;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.run-line {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
 .run-side {
+  grid-area: side;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 0;
-}
-
-.run-card-s16 .run-earned {
-  flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
 
 .run-card-s16 .run-earned li {
-  min-height: 26px;
+  min-height: 28px;
 }
 
+/* How it went, as many to a row as fit, the numbers in the light. */
 .run-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.run-challenges {
+.run-stats li {
+  white-space: nowrap;
+}
+
+.run-stat-name {
+  color: var(--text-muted);
+}
+
+.run-stat-value {
+  color: var(--text);
+}
+
+.run-challenges,
+.run-rewards {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1013,12 +1079,15 @@
 }
 
 /* A medal and an icon a line, at a CSS pixel an art pixel. */
-.run-challenges canvas {
+.run-challenges canvas,
+.run-rewards canvas,
+.run-modifier canvas {
   width: 24px !important;
   height: auto !important;
 }
 
-.run-challenges li {
+.run-challenges li,
+.run-rewards li {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1028,33 +1097,77 @@
   color: var(--gold-bright);
 }
 
+.run-new {
+  flex: none;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--panel);
+  background: var(--gold-bright);
+}
+
 .run-medal {
   display: flex;
   flex: none;
+  width: 24px;
 }
 
 .run-medal > canvas,
-.run-icon > canvas {
+.run-icon > canvas,
+.run-modifier canvas {
   image-rendering: pixelated;
 }
 
+.run-reward-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.run-reward-name {
+  color: var(--gold-bright);
+}
+
+.run-reward-what {
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* The day's modifier: its icon, its name and what it added (what it does in full on a long press). */
 .run-modifier {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  margin: 0;
   font-size: 15px;
   color: var(--text);
 }
 
+.run-modifier-icon {
+  display: flex;
+  flex: none;
+}
+
 .run-modifier-name {
+  flex: none;
   color: var(--gold-bright);
 }
 
+.run-modifier-bonus {
+  min-width: 0;
+}
+
 .run-buttons {
+  grid-area: buttons;
   display: flex;
   gap: 8px;
-  margin-top: auto;
 }
 
 .run-buttons > .btn {
   flex: 1;
+  min-height: 48px;
 }
 
 /* ----- The grotto: the captain's health, the tide, each room's name. ----- */
@@ -1340,26 +1453,31 @@
   padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
     calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
   background: var(--scrim);
-  overflow-y: auto;
 }
 
+/*
+ * Wave 18: the sheet fills the Town tab and never scrolls as a whole. The map gives way first
+ * (cropped round the landing picked, down to its least), then the details' own box, so the
+ * decision (the day, the medals, the level, Row out) is always in view.
+ */
 .chart-sheet {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   max-width: 480px;
-  max-height: 100%;
-  padding: 8px 8px 12px;
-  overflow-y: auto;
+  height: 100%;
+  padding: 2px 8px 8px;
+  overflow: hidden;
   background: var(--panel-raised);
   border: var(--px) solid var(--gold);
 }
 
 .chart-head {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   width: 100%;
@@ -1384,10 +1502,19 @@
   cursor: pointer;
 }
 
+/* Someone's word as the chart opens, laid along the top of the map (the land). */
 .chart-say {
-  width: 100%;
-  padding: 0 6px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 15px;
+  line-height: 1.25;
   color: var(--text);
+  background: var(--scrim);
+  pointer-events: none;
 }
 
 .chart-who {
@@ -1396,12 +1523,13 @@
 
 .chart-map {
   position: relative;
-  flex: none;
+  flex: 0 1 auto;
+  min-height: 132px;
   overflow: hidden;
   border: var(--px) solid var(--line);
 }
 
-/* The map and what is on it, slid to keep the landings in the middle of a narrow phone. */
+/* The map and what is on it, slid to keep the landings in the middle across, the picked one up and down. */
 .chart-slide {
   position: absolute;
   top: 0;
@@ -1453,21 +1581,49 @@
   background: var(--scrim);
 }
 
+/* Under the map: what is always in view, then the details' own scrolling box, then the buttons. */
 .chart-detail {
+  position: relative;
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 
 .chart-detail > * {
+  flex: none;
   margin: 0;
 }
 
-.chart-detail h3 {
+.chart-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.chart-seal {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.chart-name h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
   font-size: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--gold-bright);
+}
+
+.chart-state {
+  flex: none;
+  margin: 0;
+  font-size: 16px;
 }
 
 .chart-state[data-state='open'] {
@@ -1487,12 +1643,12 @@
   color: var(--danger);
 }
 
-/* S16: the day's modifier on the landing, its challenges, and sending him in. */
+/* S16: the day's modifier on the landing, its challenges as medals, and sending him in. */
 .chart-day {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   background: var(--panel);
   border: var(--px) solid var(--line);
 }
@@ -1507,40 +1663,54 @@
   image-rendering: pixelated;
 }
 
-.chart-day-body,
-.chart-goal-body {
+.chart-day-body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  line-height: 1.2;
 }
 
 .chart-day-name {
   color: var(--gold-bright);
 }
 
-.chart-day-words,
-.chart-goal-text {
+.chart-day-words {
   font-size: 15px;
   color: var(--text-muted);
 }
 
+/* The medals in a row, each a thumb's width; the level beside them. */
+.chart-goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+}
+
 .chart-goals {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.chart-goals li {
+.chart-medal {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: none;
+  border: var(--px) solid transparent;
+  cursor: pointer;
 }
 
-.chart-goals li[data-done='true'] .chart-goal-name {
-  color: var(--green);
+.chart-medal[aria-expanded='true'] {
+  border-color: var(--gold);
+  background: var(--panel);
 }
 
 .chart-goal-medal {
@@ -1548,17 +1718,95 @@
   flex: none;
 }
 
+.chart-level {
+  margin: 0;
+  font-size: 15px;
+  text-align: right;
+  color: var(--text);
+}
+
+.chart-level-warn {
+  color: var(--danger);
+}
+
+/* A medal's words, over the day's line while it is tapped: nothing below moves. */
+.chart-said {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 40px;
+  z-index: 1;
+  padding: 6px 8px;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--panel);
+  border: var(--px) solid var(--gold);
+}
+
+.chart-said[hidden] {
+  display: none;
+}
+
+.chart-said[data-done='true'] {
+  border-color: var(--green);
+}
+
+/* The rest: its own scrolling box, at least a line and the cue, fading at its foot while there is more. */
+.chart-more-box {
+  position: relative;
+  display: flex;
+  flex: 1 1 0 !important;
+  min-height: 44px;
+}
+
+.chart-more {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  font-size: 15px;
+  overscroll-behavior: contain;
+}
+
+.chart-more > p {
+  margin: 0;
+}
+
+.chart-more[data-more='true'] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+}
+
+.chart-more-cue {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  padding: 0 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--gold-bright);
+  background: var(--panel-raised);
+  pointer-events: none;
+}
+
+.chart-more-cue[hidden] {
+  display: none;
+}
+
 .chart-away {
   color: var(--gold-bright);
 }
 
-.chart-row {
+.chart-go {
+  display: flex;
+  gap: 8px;
+}
+
+.chart-go > .btn {
+  flex: 1;
   min-height: 56px;
   font-size: 20px;
-  /* Always in reach of the thumb: held at the foot of the sheet while the rest scrolls. */
-  position: sticky;
-  bottom: 0;
-  box-shadow: 0 -8px 0 var(--panel-raised);
 }
 
 @media (prefers-reduced-motion: reduce) {

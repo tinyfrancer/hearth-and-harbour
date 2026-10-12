@@ -27,7 +27,13 @@ import {
   type RoomTile,
 } from './ground';
 import type { LessonsState } from './lessons';
-import { battleMods, modifiedFighter, modifiedMonsters, type RunModifier } from './modifiers';
+import {
+  battleMods,
+  modifiedFighter,
+  modifiedHeals,
+  modifiedMonsters,
+  type RunModifier,
+} from './modifiers';
 import { advancePlay, startPlay, type Facing, type Play } from './play';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
 
@@ -311,7 +317,8 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
         {
           ...(setup.known ? { known: setup.known } : {}),
           ...(dungeon.finds ? { finds: dungeon.finds } : {}),
-          ...(setup.heals ? { heals: setup.heals } : {}),
+          // Food found heals under the day's modifier too (Short Rations).
+          ...(setup.heals ? { heals: modifiedHeals(setup.heals, effects)! } : {}),
         },
       )
     : null;

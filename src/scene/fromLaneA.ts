@@ -45,11 +45,13 @@ export {
   effectsOf,
   effectWords,
   foeUnder,
+  // What one thing eaten heals under a day's modifier (wave 18, Short Rations' `foodHeals`).
+  foodUnder as foodHealsUnder,
   heroMaxHitUnder,
   mayIdle,
   modifierDef,
 } from '../core/progress';
-export { spoilsUnder } from '../core/run';
+export { rewardOf, spoilsUnder } from '../core/run';
 export type {
   ChallengeDef,
   ChallengeRule,

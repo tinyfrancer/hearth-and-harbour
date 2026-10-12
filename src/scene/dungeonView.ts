@@ -76,6 +76,11 @@ import { abilityPicture, bodyMid, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
   CaveShadow,
+  HeroLight,
+  doorPieces,
+  isDark,
+  lightsOf,
+  shadeAt,
   doorUnder,
   groundOnTheSpot,
   roomLook,
@@ -88,9 +93,11 @@ import { centreOf, type Point } from './tileMap';
 import type { Box } from './things';
 import { roomScale } from './scale';
 import { resultsCard, trackerView } from './runCard';
+import { foodShare } from './modifiers';
 import { KEYS, remember, remembered } from './remember';
 import { newGame } from '../core/state';
 import {
+  framedFocus,
   hudBands,
   hudBoxes,
   hudLayout,
@@ -103,9 +110,17 @@ import {
   type RoomFit,
 } from './hud';
 import { DUNGEON } from './dungeonMetrics';
-import { stage, type Insets, type StageExtra, type StageLook, type StillPicture } from './stage';
+import {
+  stage,
+  type Insets,
+  type Life,
+  type StageExtra,
+  type StageLook,
+  type StillPicture,
+} from './stage';
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
+import type { Light2 } from '../art/dungeonArt2';
 
 /**
  * Room kept at the screen's edges, in CSS pixels, on a phone with no notch:
@@ -414,6 +429,29 @@ export function dungeonCamera(): { camera: Point; cssPerArt: number } | null {
   return lastLook;
 }
 
+/** How fast the camera turns to keep the foe being fought in view, art pixels a millisecond. */
+export const FRAME_SPEED = 0.25;
+
+/**
+ * The foe a run's hero is fighting, as a box in art pixels (its body and
+ * what is drawn over it, a bird up on its perch where it sits), or null: for
+ * keeping it in view (`framedFocus`).
+ */
+export function targetBox(dungeon: Dungeon, run: Run): Box | null {
+  const b = run.battle;
+  if (!b || run.doorway) return null;
+  const foe = b.foes.find((f) => f.key === b.target && f.room === run.room && alive(f));
+  if (!foe || held(b, placeOf(dungeon, run), foe)) return null;
+  const room = dungeon.rooms[run.room];
+  const size = foeSize2(foeArtId(foe.monster));
+  const kind = foeKind(foe.monster).box;
+  const w = Math.max(kind.w, size?.box.w ?? 0);
+  const h = Math.max(kind.h, size?.tall ?? 0) + OVERHEAD;
+  const lift = room ? liftOf(room, foe) : 0;
+  const mid = foe.at.x + bodyMid(foe.monster, foe.facing);
+  return { x: mid - w / 2, y: foe.at.y - lift - h, w, h: h + 4 };
+}
+
 /** How long a lesson's ring takes to pulse out and fade, on the page's clock. */
 export const LESSON_PULSE_MS = 1100;
 
@@ -657,6 +695,16 @@ export function dungeonView(options: DungeonViewOptions): View {
       .find((item) => (larder[item] ?? 0) > 0) ??
     null;
   const foodButton = foodItem ? fightButton('Eat', itemIcon(foodItem), 'fight-food', eatOne) : null;
+  // A day when food heals less (or more): the button says by how much, in its corner, all run.
+  const share = foodShare(options.run().modifier?.effects);
+  const shareWords =
+    share === null ? null : `${share < 1 ? '−' : '+'}${Math.round(Math.abs(1 - share) * 100)}%`;
+  if (foodButton && shareWords) {
+    foodButton.el.classList.add('fight-food-share');
+    foodButton.el.append(
+      h('span', { class: 'fight-share', text: shareWords, attrs: { 'aria-hidden': 'true' } }),
+    );
+  }
   const bar = h('div', { class: 'fight-bar' }, [
     ...abilityButtons.map((b) => b.el),
     foodButton?.el ?? null,
@@ -831,6 +879,46 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** The hero's contact shadow, cut from the room's ground under his feet. */
   const heroShadow = new CaveShadow();
+  /** His own pool of light on a darker day (`HeroLight`). */
+  const heroLight = new HeroLight();
+  /**
+   * On a darker day, the hero's pool of light, laid on the ground under
+   * everyone (and under his shadow): drawing only.
+   */
+  const heroLife: Life = {
+    layer: 'ground',
+    at: () => {
+      const run = options.run();
+      const s = tideStateOf(dungeon, run);
+      const open = doorsAreOpen(run);
+      const cells = look.cellsAt(s.level, s.warn, open);
+      if (!cells) return null;
+      return heroLight.at(
+        cells,
+        poolsOf(run),
+        open ? look.openGlows : look.glows,
+        run.play.walker.at,
+        look.theme.palette,
+      );
+    },
+  };
+  /** The pools of light in the run's room as the day leaves them: the lanterns', and its doors' once open. */
+  let pools: { key: string; lights: readonly Light2[] } | null = null;
+  const poolsOf = (run: Run): readonly Light2[] => {
+    const open = doorsAreOpen(run);
+    const key = `${run.room} ${open}`;
+    if (pools?.key !== key) {
+      const room = dungeon.rooms[run.room]!;
+      const lights = lightsOf(room);
+      pools = {
+        key,
+        lights: open
+          ? [...lights, ...doorPieces(room).flatMap((d) => (d.light ? [d.light] : []))]
+          : lights,
+      };
+    }
+    return pools.lights;
+  };
 
   /** A barred door last tapped, and when on the fight's clock: it says it is barred for a moment. */
   let barredTap: { letter: string; at: number } | null = null;
@@ -870,11 +958,14 @@ export function dungeonView(options: DungeonViewOptions): View {
   const showRoom = (): void => {
     const run = options.run();
     const here = dungeon.rooms[run.room]!;
-    // Rooms behind are let go; this one and the next are kept and painted ahead.
+    // Rooms behind are let go; this one and the next are kept and painted ahead, and the first
+    // always (wave 18): Row out again from the results goes straight back to it, never to a room
+    // painted again behind the card.
     const at = order.indexOf(run.room);
     const next = order[at + 1];
     for (const id of order)
-      if (id !== run.room && id !== next) roomLook(dungeon.rooms[id]!).forget();
+      if (id !== run.room && id !== next && id !== dungeon.first)
+        roomLook(dungeon.rooms[id]!).forget();
     look = lookOf(run.room);
     // Painted ahead only where a worker paints them: on the spot, each is worked out when shown.
     if (painter.offThread) {
@@ -920,6 +1011,8 @@ export function dungeonView(options: DungeonViewOptions): View {
           const open = doorsAreOpen(run);
           const cells = look.cellsAt(s.level, s.warn, open);
           if (!cells) return null;
+          // On a darker day his shadow is as dark as the ground it falls on (in his own light).
+          const lights = isDark(dungeon.rooms[run.room]!) ? poolsOf(run) : null;
           const placed = heroShadow.at(
             cells,
             look.kindsAt(s.level, s.warn),
@@ -927,6 +1020,7 @@ export function dungeonView(options: DungeonViewOptions): View {
             feet,
             HERO_SHADOW,
             look.theme.palette,
+            lights ? (x, y) => shadeAt(lights, x, y, feet) : undefined,
           );
           return (
             placed && {
@@ -935,7 +1029,8 @@ export function dungeonView(options: DungeonViewOptions): View {
             }
           );
         },
-        life: look.flicker,
+        // On a darker day, his own pool of light goes with him.
+        life: isDark(here) ? [...look.flicker, heroLife] : look.flicker,
       },
       // A sea cave at dusk, lit by its lanterns; or the tide-pool cave by day.
       time: look.theme.figureTime,
@@ -952,6 +1047,12 @@ export function dungeonView(options: DungeonViewOptions): View {
         return fit.scale === scale ? fit.offset : { x: 0, y: 0 };
       },
       focusRise: FOCUS_RISE_DUNGEON,
+      // The foe being fought kept in view, clear of the controls (a room the camera travels).
+      lookAt: () => {
+        if (framed.x === 0 && framed.y === 0) return null;
+        const feet = options.run().play.walker.at;
+        return { x: feet.x + framed.x, y: feet.y - FOCUS_RISE_DUNGEON + framed.y };
+      },
       pixelated: true,
       overlay: true,
       insets: bandsNow,
@@ -1046,6 +1147,41 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** Where the camera was for the last frame drawn, and the size of an art pixel on screen. */
   let lookedAt: { camera: Point; cssPerArt: number } | null = null;
+
+  /**
+   * How far the camera is moved off the hero (art pixels) to keep the foe he
+   * fights in view clear of the controls, in a room the camera travels:
+   * eased there at `FRAME_SPEED`, and back as the foe falls. Drawing only:
+   * the fight never reads the camera.
+   */
+  let framed: Point = { x: 0, y: 0 };
+  const frameWanted = (run: Run): Point => {
+    const box = seenWhole || !lookedAt ? null : targetBox(dungeon, run);
+    const per = lookedAt?.cssPerArt ?? 0;
+    if (!box || !(per > 0) || !(size.width > 0)) return { x: 0, y: 0 };
+    const bands = bandsNow();
+    const inner = {
+      width: (size.width - bands.left - bands.right) / per,
+      height: (size.height - bands.top - bands.bottom) / per,
+    };
+    const feet = run.play.walker.at;
+    const focus = { x: feet.x, y: feet.y - FOCUS_RISE_DUNGEON };
+    const hero = {
+      x: feet.x - HERO_BOX.w / 2,
+      y: feet.y - HERO_BOX.h,
+      w: HERO_BOX.w,
+      h: HERO_BOX.h,
+    };
+    const want = framedFocus(focus, hero, box, inner);
+    return { x: want.x - focus.x, y: want.y - focus.y };
+  };
+  const stepFrame = (run: Run, ms: number): void => {
+    const want = frameWanted(run);
+    const most = FRAME_SPEED * ms;
+    const toward = (now: number, to: number): number =>
+      now + Math.max(-most, Math.min(most, to - now));
+    framed = { x: toward(framed.x, want.x), y: toward(framed.y, want.y) };
+  };
 
   /** Keeps the room's name, while it shows, in a slot where it covers nobody in the fight. */
   const placeTitle = (run: Run): void => {
@@ -1248,7 +1384,11 @@ export function dungeonView(options: DungeonViewOptions): View {
               ? 'idle'
               : 'ready';
       setText(foodButton.name, banned ? 'No food' : 'Eat');
-      const label = banned ? 'Eat: nothing may be eaten today' : 'Eat';
+      const label = banned
+        ? 'Eat: nothing may be eaten today'
+        : share !== null
+          ? `Eat: food heals ${Math.round(Math.abs(1 - share) * 100)}% ${share < 1 ? 'less' : 'more'} today`
+          : 'Eat';
       if (foodButton.el.getAttribute('aria-label') !== label)
         foodButton.el.setAttribute('aria-label', label);
       fill(foodButton.shade, 'Y', fraction(left, FOOD_MS));
@@ -1308,6 +1448,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       const before = options.run();
       if (safe === NO_EDGES && size.width > 0) safe = paddingOf(safeProbe);
       placeHud();
+      // The camera eased toward keeping the foe being fought in view, before this frame is drawn.
+      if (sideways(size)) stepFrame(before, ms);
       const ready = sideways(size);
       prompt.hidden = ready || before.finished;
       promptLine.textContent =

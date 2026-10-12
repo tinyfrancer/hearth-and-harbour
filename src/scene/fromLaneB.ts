@@ -20,6 +20,7 @@ import {
   type ChartPiece2,
 } from '../art/chart';
 import type { Picture2 } from '../art/town2/cells';
+import { dungeonSeal } from '../art/dungeonIcons';
 import { foeSize2 } from '../art/dungeonArt2';
 import * as markers2 from '../art/town2/markers';
 import {
@@ -29,7 +30,13 @@ import {
   type TownMarker2,
   type TownMarker2Kind,
 } from '../art/town2/markers';
-import { ROWBOAT_LANTERN_AT, town2Facts, town2Piece } from '../art/town2/pieces';
+import {
+  ROWBOAT_LANTERN_AT,
+  TOWN2_PIECE_FRAMES,
+  town2Facts,
+  town2Piece,
+  town2PieceFrame,
+} from '../art/town2/pieces';
 import type { TimeOfDay } from './daylight';
 import type { Townsfolk2 } from './figures2';
 import { cellPixels, palette2 } from './town2Paint';
@@ -240,7 +247,8 @@ export interface StandInPiece {
   readonly id: string;
   /** Where its foot is, in town pixels: the middle of its foot on its base line. */
   readonly foot: Point;
-  picture(time: TimeOfDay): HTMLCanvasElement | null;
+  /** Its picture at a time of day and, for one that stirs (the lantern's pennant), at `now` (ms). */
+  picture(time: TimeOfDay, now?: number): HTMLCanvasElement | null;
   readonly w: number;
   readonly h: number;
   /** The line it is sorted by among those standing. */
@@ -250,6 +258,13 @@ export interface StandInPiece {
 }
 
 const pieces = new Map<string, HTMLCanvasElement | null>();
+
+/** Which of lane B's frames a stirring piece shows at `now` (ms); 0 for one that keeps still, or no time. */
+export function pieceFrameAt(id: 'boat_sign' | 'boat_lantern', now?: number): number {
+  const loop = TOWN2_PIECE_FRAMES[id];
+  if (!loop || now === undefined || !Number.isFinite(now)) return 0;
+  return ((Math.floor(now / loop.frameMs) % loop.frames) + loop.frames) % loop.frames;
+}
 function placed(id: 'boat_sign' | 'boat_lantern', foot: Point, base: number): StandInPiece {
   const facts = town2Facts(id);
   return {
@@ -259,10 +274,15 @@ function placed(id: 'boat_sign' | 'boat_lantern', foot: Point, base: number): St
     h: facts.h,
     base,
     offset: { x: facts.foot, y: facts.base },
-    picture: (time) => {
-      const key = `${id} ${time}`;
+    picture: (time, now) => {
+      // Lane B's frames for a piece that stirs (B17c: the lantern's pennant), by the time passed in.
+      const frame = pieceFrameAt(id, now);
+      const key = `${id} ${time} ${frame}`;
       if (!pieces.has(key) || (!pieces.get(key) && canPaint()))
-        pieces.set(key, painted(town2Piece(id).picture, time));
+        pieces.set(
+          key,
+          painted((frame ? town2PieceFrame(id, frame) : town2Piece(id)).picture, time),
+        );
       return pieces.get(key)!;
     },
   };
@@ -313,4 +333,9 @@ export const PENNANT_FRAME_MS = CHART_PENNANT2_FRAME_MS;
 export function chartPennant(frame = 0): ChartPiece | null {
   const f = ((frame % CHART_PENNANT2_FRAMES) + CHART_PENNANT2_FRAMES) % CHART_PENNANT2_FRAMES;
   return chartPiece(`pennant ${f}`, () => chartPennant2(f));
+}
+
+/** A dungeon's seal (lane B's `dungeonSeal`, B17a): bronze once cleared, gold with every challenge done. */
+export function chartSeal(id: string, tier: 'cleared' | 'all-challenges'): ChartPiece | null {
+  return chartPiece(`seal ${id} ${tier}`, () => dungeonSeal(id, tier));
 }

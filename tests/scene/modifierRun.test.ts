@@ -1,16 +1,20 @@
 /*
- * The day's modifiers in play (S16), held by playing them: the grotto's six
+ * The day's modifiers in play (S16), held by playing them: the grotto's days
  * by its scripted careful player at the recommended level (combat 20), the
- * cave's two by its scripted novice. A modifier of rewards alone plays
- * exactly as a plain run; every harder one is harder in the play (fewer
- * clears, longer, or more hit points lost), and lane A's rewards pay for it.
- * Measured on these seeds; a number that breaks one is a decision.
+ * cave's two by its scripted novice. Since wave 18 every grotto day is held
+ * to lane A's target, not a snapshot of its numbers: cleared on at least 10
+ * of 12 seeds, and harder than a plain day in the way its effects say
+ * (a longer clear, more lost, or more eaten). A modifier of rewards alone
+ * plays exactly as a plain run. A number that breaks one is a decision.
  */
 import { describe, expect, it } from 'vitest';
+import type { ModifierEffects } from '../../src/core/content';
+import { effectsOf, isKind } from '../../src/core/progress';
+import { CONTENT } from '../../src/data';
 import { advanceRun, type Run } from '../../src/scene/dungeon';
 import { novice, playCave } from './caveBot';
 import { begin, decide, GROTTO_DUNGEON, playThrough, prepared, type Outcome } from './grottoBot';
-import type { RunModifier } from '../../src/scene/modifiers';
+import { runStats, type RunModifier } from '../../src/scene/modifiers';
 
 const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
 const REACT_MS = 400;
@@ -42,6 +46,50 @@ const harder = (runs: readonly Outcome[]): boolean => {
   );
 };
 
+/** Every grotto day that costs something (lane A's trades; a kind day pays only), by id. */
+const TRADES = (CONTENT.dungeons!.brinebeards_grotto!.modifiers ?? []).filter(
+  (id) => !isKind(effectsOf(CONTENT, id)),
+);
+
+const times = (k: number | undefined): number =>
+  typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1;
+
+/**
+ * How a day says it is harder, from its effects alone (never its name):
+ * a longer clear (foes with more health, or the hero's blows softer), more
+ * hit points lost (foes hitting harder or oftener, a faster tide), or more
+ * food eaten (food healing less).
+ */
+function stated(e: ModifierEffects): { longer: boolean; hurt: boolean; food: boolean } {
+  return {
+    longer: times(e.foeHealth) > 1 || times(e.heroDamage) < 1,
+    hurt: times(e.foeDamage) > 1 || times(e.foeSpeed) > 1 || times(e.tideFaster) > 1,
+    food: times(e.foodHeals) < 1,
+  };
+}
+
+/** Food eaten in a run, from the slot and found (`runStats`), and on the whole, per hit point lost. */
+const eaten = (runs: readonly Outcome[]): number =>
+  runs.reduce((n, r) => n + runStats(r.run).foodEaten, 0) / runs.length;
+const eatenPerHurt = (runs: readonly Outcome[]): number =>
+  runs.reduce((n, r) => n + runStats(r.run).foodEaten, 0) /
+  Math.max(
+    1,
+    runs.reduce((n, r) => n + runStats(r.run).damageTaken, 0),
+  );
+
+/**
+ * The margins each stated cost is held to against a plain day, set under what
+ * was measured (`docs/status/lane-c.md`, wave 18): a longer median clear by a
+ * twenty-fifth (measured 8 to 20 per cent), more lost to blows by a fiftieth
+ * (measured 4 to 10), a fish more for every hit point lost by a seventh
+ * (measured 28 per cent: food runs out at 19 or 20 eaten either way, so it
+ * shows per hit point, and on the whole a little).
+ */
+const LONGER = 1.04;
+const HURT = 1.02;
+const FOOD_PER_HURT = 1.15;
+
 describe('the grotto under each of its modifiers, at the recommended level', () => {
   it('is cleared on every seed on a plain day (the measure the others are held to)', () => {
     expect(clears(grotto())).toBe(12);
@@ -49,40 +97,32 @@ describe('the grotto under each of its modifiers, at the recommended level', () 
     expect(minutes(clearTime(grotto()))).toBeLessThanOrEqual(10);
   }, 120_000);
 
-  it('thick skulls: still cleared, slower (measured: 4 of 12, median 10.2 minutes against 8.2)', () => {
-    const runs = grotto('thick_skulls');
-    expect(clears(runs)).toBeGreaterThanOrEqual(2);
-    expect(clearTime(runs)).toBeGreaterThan(clearTime(grotto()));
-    expect(harder(runs)).toBe(true);
-  }, 120_000);
+  it('draws only days that cost something, every one of them with a stated cost', () => {
+    expect(TRADES.length).toBeGreaterThan(0);
+    for (const id of TRADES) {
+      const s = stated(effectsOf(CONTENT, id));
+      expect(s.longer || s.hurt || s.food, id).toBe(true);
+    }
+  });
 
-  it('angry crew: still cleared, at more cost (measured: 3 of 12, 482 lost against 406)', () => {
-    const runs = grotto('angry_crew');
-    expect(clears(runs)).toBeGreaterThanOrEqual(1);
-    expect(lost(runs)).toBeGreaterThan(lost(grotto()));
-  }, 120_000);
-
-  it('quick tempers: still cleared, at more cost (measured: 5 of 12, 475 lost against 406)', () => {
-    const runs = grotto('quick_tempers');
-    expect(clears(runs)).toBeGreaterThanOrEqual(2);
-    expect(lost(runs)).toBeGreaterThan(lost(grotto()));
-  }, 120_000);
-
-  it('spring tide: still cleared on most seeds, harder (measured: 9 of 12, 428 lost)', () => {
-    const runs = grotto('spring_tide');
-    expect(clears(runs)).toBeGreaterThanOrEqual(6);
-    expect(harder(runs)).toBe(true);
-  }, 120_000);
-
-  it('unlit lamps: still cleared on most seeds, slower (measured: 8 of 12, median 8.8 minutes)', () => {
-    const runs = grotto('unlit_lamps');
-    expect(clears(runs)).toBeGreaterThanOrEqual(5);
-    expect(clearTime(runs)).toBeGreaterThan(clearTime(grotto()));
-  }, 120_000);
+  for (const id of TRADES)
+    it(`${id}: cleared on at least 10 of 12 seeds, and harder than a plain day in its stated way`, () => {
+      const runs = grotto(id);
+      const plain = grotto();
+      // Lane A's target for wave 18: a fair trade, not a wall.
+      expect(clears(runs)).toBeGreaterThanOrEqual(10);
+      const s = stated(effectsOf(CONTENT, id));
+      if (s.longer) expect(clearTime(runs)).toBeGreaterThanOrEqual(clearTime(plain) * LONGER);
+      if (s.hurt) expect(lost(runs)).toBeGreaterThanOrEqual(lost(plain) * HURT);
+      if (s.food) {
+        expect(eaten(runs)).toBeGreaterThan(eaten(plain));
+        expect(eatenPerHurt(runs)).toBeGreaterThanOrEqual(eatenPerHurt(plain) * FOOD_PER_HURT);
+      }
+    }, 120_000);
 
   it('a day of no food: NOT cleared by the careful player, who eats 18 fish on a plain day', () => {
     // The grotto is balanced on what is brought to eat (290 to 480 lost a clear). Without it he
-    // falls in the first rooms on every seed. The flag itself, whatever the tables' days are.
+    // falls in the first rooms on every seed. The flag itself: no day of the tables sets it now.
     const runs = grotto({ id: 'no_food', effects: { noFood: true } });
     expect(clears(runs)).toBe(0);
     expect(runs.every((r) => r.eaten === 0)).toBe(true);
