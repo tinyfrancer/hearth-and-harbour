@@ -2,7 +2,30 @@
 
 **Next session:** B19 continues (tier 2 art, in batches; see below for what is on `main`).
 
-## Tier 2, batch 2: every other icon in the manifest, for lane A (B19, second PR)
+## Tier 2, batch 3: every other wearable's figure layer, for lane A (B19, third PR)
+
+**Layers on `main` once this PR merges** (an `ITEM_LAYERS2` row each, by the item's own id as the
+layer id): `ranger_hood`, `ranger_coat`, `ranger_bracers`, `driftwood_shortbow`, `elm_longbow`,
+`yew_longbow`, `thornwood_bow`, `silver_bangle`, `gold_amulet`, `briar_charm`, `ogre_maul`,
+`mossback_shield`, `capguard_helm`. With batches 1 and 2, **every wearable in the manifest now
+has its icon and its layer**; lane A may merge any of its rows.
+
+- Each is drawn front-on, in profile and from behind, walks, breathes, strikes (bows draw and
+  loose, the maul swings) and turns, and shows in the portrait where a portrait shows it (head,
+  body, neck). New module `src/art/figure2/tier2Gear.ts` (`TIER2_GEAR2`, `dyePart`), spread into
+  `WARDROBE2`. The ranger's hood is the villager's cut in dark leather (`ranger`), worn as a hood
+  (hair falls out of it as out of the linen one); his coat the captain's cut in leather, edged in
+  leather (`coat()` in `sideDress.ts` and `heroFace.ts` now draw both); his bracers laced to the
+  elbow with a stitched guard. The bows are `bowParts` in new woods (`drift`, `elm`, `yew` with
+  horn tips, `thorn` with thorns along its back). The maul hangs from the fist like the anchor.
+  The cap-guard helm is a brimmed hat in the portrait (`BRIMMED`).
+- New C-scale ramps appended to `town2/ramps.ts`: `ranger`, `drift`, `elm`, `yew`, `thorn`,
+  `silver`. New `CARRY` rows for the four bows and the maul.
+- Tests: the wearables list (`figure2.test.ts`), the held list, `tier2.test.ts` (every facing
+  and blow inside the canvas, the hood a hood, the coat without brass, the longbows' height,
+  the thorns); one slow walk test given the suite's slow timeout.
+
+## Tier 2, batch 2: every other icon in the manifest, for lane A (B19, second PR, merged #84)
 
 **Icons on `main` once this PR merges**, for every id below (`itemIcon` answers each):
 `driftwood`, `elm_logs`, `yew_logs`, `raw_mackerel`, `raw_halibut`, `raw_swordfish`,

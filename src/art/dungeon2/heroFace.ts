@@ -61,7 +61,9 @@ const HEAD: Pts = [
 ];
 
 /** Head gear that leaves the hair at the temples showing under a brim. */
-const BRIMMED = new Set(['feathered_hat', 'tricorn', 'velvet_cap']);
+const BRIMMED = new Set(['feathered_hat', 'tricorn', 'velvet_cap', 'capguard_helm']);
+/** Hoods: the villager's and (B19) the ranger's, the same cut. */
+const HOODS = new Set(['linen_hood', 'ranger_hood']);
 
 const shoulders = (top = 54): Inside =>
   blob([
@@ -144,44 +146,9 @@ const BODY: Readonly<Record<string, (g: TGrid, shirt: Mat) => void>> = {
     ]);
     form(g, collar, shirt, { cx: 28, cy: 55, rx: 10, ry: 4, base: 2.6, k: 1, rim: 1 });
   },
-  captains_coat: (g) => {
-    tunic(g, 'cream');
-    for (const pts of [
-      [
-        [-4, 74],
-        [-3, 64],
-        [8, 57],
-        [24, 54],
-        [33, 72],
-      ],
-      [
-        [39, 72],
-        [48, 54],
-        [64, 57],
-        [75, 64],
-        [76, 74],
-      ],
-    ] as const)
-      form(g, blob(pts), 'midnight', { cx: 22, cy: 54, rx: 40, ry: 18, base: 2.4, k: 1.3, rim: 2 });
-    stroke(
-      g,
-      [
-        [24, 55],
-        [32, 72],
-      ],
-      'bronze',
-      1,
-    );
-    stroke(
-      g,
-      [
-        [48, 55],
-        [40, 72],
-      ],
-      'bronze',
-      2,
-    );
-  },
+  captains_coat: (g) => coat(g, 'midnight', 'bronze', 'cream'),
+  // B19: the ranger's coat, the captain's cut in dark leather, edged in leather.
+  ranger_coat: (g, shirt) => coat(g, 'ranger', 'umber', shirt),
   knight_plate: (g) => {
     form(g, shoulders(), 'saltiron', { cx: 22, cy: 54, rx: 40, ry: 18, base: 2.2, k: 1.4, rim: 3 });
     for (const [x0, x1] of [
@@ -539,65 +506,20 @@ function hang(g: TGrid, o: HeroBust, under: boolean): void {
 const RIM = 19;
 
 const HATS: Readonly<Record<string, (g: TGrid, o: HeroBust) => void>> = {
-  linen_hood: (g, o) => {
-    const shell = blob([
-      [8, 66],
-      [9, 36],
-      [13, 18],
-      [24, 7],
-      [37, 4],
-      [50, 7],
-      [60, 18],
-      [64, 36],
-      [64, 66],
-      [50, 62],
-      [24, 62],
-    ]);
-    const opening = blob([
-      [19, 34],
-      [21, 22],
-      [28, 15],
-      [37, 13],
-      [46, 15],
-      [53, 22],
-      [55, 34],
-      [53, 46],
-      [46, 54],
-      [36, 57],
-      [26, 54],
-      [20, 46],
-    ]);
-    form(g, (x, y) => shell(x, y) && !opening(x, y), 'linen', {
-      cx: 22,
-      cy: 10,
-      rx: 30,
-      ry: 30,
-      base: 2.3,
-      k: 1.5,
-      rim: 3,
-    });
-    // The opening's edge folded back, lit on the near side.
-    const lip = (x: number, y: number) =>
-      opening(x, y) === false && (opening(x + 1, y) || opening(x, y + 1) || opening(x - 1, y));
-    tone(g, (x, y) => lip(x, y) && x < 36, -1, ['linen']);
-    // Shadow inside the hood over the brow.
-    tone(g, (x, y) => opening(x, y) && y < 21 + Math.abs(x - 37) * 0.25, 1, [o.skin]);
-    locks(g, [
+  linen_hood: (g, o) => hood(g, o, 'linen'),
+  // B19: the ranger's hood, the same cut in dark leather, a seam over the crown.
+  ranger_hood: (g, o) => {
+    hood(g, o, 'ranger');
+    stroke(
+      g,
       [
-        [14, 40],
-        [16, 52],
-        [14, 62],
+        [37, 4],
+        [37, 13],
       ],
-      [
-        [58, 40],
-        [58, 52],
-        [60, 62],
-      ],
-    ]);
-    function locks(gr: TGrid, list: Pts[]) {
-      for (const pts of list) stroke(gr, pts, 'linen', 4);
-    }
-    if (o.style === 'braid') hang(g, o, true);
+      'ranger',
+      4,
+    );
+    for (let y = 5; y <= 12; y += 3) put(g, 36, y, cell('ranger', 1));
   },
   leather_cap: (g) => {
     const cap = blob([
@@ -876,6 +798,60 @@ const HATS: Readonly<Record<string, (g: TGrid, o: HeroBust) => void>> = {
     ] as const)
       put(g, x, y, cell('saltiron', s));
   },
+  // B19: the cap-guard helm, a broad red mushroom cap with white spots over pale gills, a strap
+  // down both cheeks and under the chin.
+  capguard_helm: (g, o) => {
+    const strap = (pts: Pts) => stroke(g, pts, 'leather', 4);
+    strap([
+      [16, 22],
+      [17, 36],
+      [22, 46],
+      [30, 53],
+      [36, 54],
+    ]);
+    strap([
+      [57, 22],
+      [56, 36],
+      [51, 46],
+      [43, 53],
+      [36, 54],
+    ]);
+    const gills = blob([
+      [6, 20],
+      [36, 17],
+      [66, 20],
+      [60, 24],
+      [36, 22],
+      [12, 24],
+    ]);
+    form(g, gills, 'cream', { cx: 30, cy: 18, rx: 34, ry: 6, base: 2.4, k: 1.1, rim: 1 });
+    for (let x = 10; x < 64; x += 3)
+      put(g, x, 22 - (Math.abs(x - 36) < 20 ? 1 : 0), cell('cream', 4));
+    const dome = blob([
+      [2, 21],
+      [6, 10],
+      [18, 2],
+      [36, -2],
+      [54, 2],
+      [66, 10],
+      [70, 21],
+      [36, 19],
+    ]);
+    form(g, dome, 'tile', { cx: 24, cy: 2, rx: 34, ry: 18, base: 2.2, k: 1.6, rim: 3 });
+    for (const [x, y, r] of [
+      [16, 9, 3],
+      [30, 5, 2.4],
+      [45, 8, 3.2],
+      [58, 14, 2.4],
+      [24, 15, 2],
+      [8, 16, 1.6],
+    ] as const)
+      for (let j = -3; j <= 3; j++)
+        for (let i = -4; i <= 4; i++)
+          if (Math.hypot(i, j * 1.2) < r && dome(x + i, y + j))
+            put(g, x + i, y + j, cell('sail', i + j < 0 ? 0 : 2));
+    void o;
+  },
   feathered_hat: (g) => {
     const brim = blob([
       [6, 20],
@@ -986,6 +962,108 @@ const HATS: Readonly<Record<string, (g: TGrid, o: HeroBust) => void>> = {
   },
 };
 
+/** A hood framing the face, its cape on the shoulders: the villager's linen, the ranger's leather (B19). */
+function hood(g: TGrid, o: HeroBust, mat: Mat): void {
+  const shell = blob([
+    [8, 66],
+    [9, 36],
+    [13, 18],
+    [24, 7],
+    [37, 4],
+    [50, 7],
+    [60, 18],
+    [64, 36],
+    [64, 66],
+    [50, 62],
+    [24, 62],
+  ]);
+  const opening = blob([
+    [19, 34],
+    [21, 22],
+    [28, 15],
+    [37, 13],
+    [46, 15],
+    [53, 22],
+    [55, 34],
+    [53, 46],
+    [46, 54],
+    [36, 57],
+    [26, 54],
+    [20, 46],
+  ]);
+  form(g, (x, y) => shell(x, y) && !opening(x, y), mat, {
+    cx: 22,
+    cy: 10,
+    rx: 30,
+    ry: 30,
+    base: 2.3,
+    k: 1.5,
+    rim: 3,
+  });
+  // The opening's edge folded back, lit on the near side.
+  const lip = (x: number, y: number) =>
+    opening(x, y) === false && (opening(x + 1, y) || opening(x, y + 1) || opening(x - 1, y));
+  tone(g, (x, y) => lip(x, y) && x < 36, -1, [mat]);
+  // Shadow inside the hood over the brow.
+  tone(g, (x, y) => opening(x, y) && y < 21 + Math.abs(x - 37) * 0.25, 1, [o.skin]);
+  locks(g, [
+    [
+      [14, 40],
+      [16, 52],
+      [14, 62],
+    ],
+    [
+      [58, 40],
+      [58, 52],
+      [60, 62],
+    ],
+  ]);
+  function locks(gr: TGrid, list: Pts[]) {
+    for (const pts of list) stroke(gr, pts, mat, 4);
+  }
+  if (o.style === 'braid') hang(g, o, true);
+}
+
+/** A long coat open over the shirt: the captain's purple and brass, the ranger's leather (B19). */
+function coat(g: TGrid, mat: Mat, trim: Mat, shirt: Mat): void {
+  tunic(g, shirt);
+  for (const pts of [
+    [
+      [-4, 74],
+      [-3, 64],
+      [8, 57],
+      [24, 54],
+      [33, 72],
+    ],
+    [
+      [39, 72],
+      [48, 54],
+      [64, 57],
+      [75, 64],
+      [76, 74],
+    ],
+  ] as const)
+    form(g, blob(pts), mat, { cx: 22, cy: 54, rx: 40, ry: 18, base: 2.4, k: 1.3, rim: 2 });
+  stroke(
+    g,
+    [
+      [24, 55],
+      [32, 72],
+    ],
+    trim,
+    1,
+  );
+  stroke(
+    g,
+    [
+      [48, 55],
+      [40, 72],
+    ],
+    trim,
+    2,
+  );
+}
+
 /** The hero's bust drawn into `g`: shoulders, neck, head, face, hair, head gear. */
 export function drawHero(g: TGrid, o: HeroBust): void {
   // Brows take the hair's colour at the steps that stand clear of the skin, as the figures' do.
@@ -995,12 +1073,12 @@ export function drawHero(g: TGrid, o: HeroBust): void {
     browShift: browShift(o.skin as TownMat, o.hair as TownMat),
   });
   const helmed = !!o.head && !BRIMMED.has(o.head);
-  const hooded = o.head === 'linen_hood';
+  const hooded = !!o.head && HOODS.has(o.head);
   const fresh = o.style in NEW_CROWN ? (o.style as NewStyle) : null;
   // The ponytail swings out behind the head and shoulders (tucked under a hood).
   if (!hooded) drawBehind(g, o.style, o.hair);
   // Long hair falls behind the shoulders' line; the braid in front of it.
-  if (o.style === 'long' && o.head !== 'linen_hood') hang(g, { ...o }, helmed);
+  if (o.style === 'long' && !hooded) hang(g, { ...o }, helmed);
   (BODY[o.body ?? ''] ?? BODY.shirt!)(g, o.shirt === 'linen_tunic' ? 'linen' : 'teal');
   const neck = blob([
     [28, 44],
@@ -1010,6 +1088,31 @@ export function drawHero(g: TGrid, o: HeroBust): void {
     [28, 57],
   ]);
   form(g, neck, o.skin, { cx: 30, cy: 46, rx: 10, ry: 12, base: 2.8, k: 1, rim: 2 });
+  if (o.neck === 'gold_amulet' || o.neck === 'briar_charm') {
+    // B19: the gold amulet on its chain, the briar charm's thorn wreath and berry on a cord.
+    const gold = o.neck === 'gold_amulet';
+    stroke(
+      g,
+      [
+        [29, 55],
+        [33, 59],
+        [36, 60],
+        [40, 59],
+        [43, 55],
+      ],
+      gold ? 'gold' : 'leather',
+      gold ? 2 : 4,
+    );
+    marks(
+      g,
+      34,
+      59,
+      gold ? ['.aab.', 'abccb', 'acddb', '.bbe.'] : ['.x.x.', 'x.r.x', '.rRr.', 'x.R.x', '.x.x.'],
+      gold
+        ? { a: ['gold', 1], b: ['gold', 3], c: ['blue', 0], d: ['blue', 2], e: ['gold', 4] }
+        : { x: ['thorn', 4], r: ['crimson', 1], R: ['crimson', 3] },
+    );
+  }
   if (o.neck === 'shell_necklace' || o.neck === 'hunters_charm' || o.neck === 'trollstone') {
     stroke(
       g,
@@ -1042,7 +1145,7 @@ export function drawHero(g: TGrid, o: HeroBust): void {
   form(g, ear, o.skin, { cx: 14, cy: 28, rx: 5, ry: 8, base: 2.2, k: 1.2, rim: 2 });
   marks(g, 15, 30, ['3', '4', '3'], P);
   // The braid comes from behind the head, over the near shoulder.
-  if (o.style === 'braid' && o.head !== 'linen_hood') hang(g, o, false);
+  if (o.style === 'braid' && !hooded) hang(g, o, false);
   const head = blob(HEAD);
   form(g, head, o.skin, { cx: 32, cy: 24, rx: 20, ry: 24, base: 1.9, k: 1.4, rim: 3 });
   cast(g, head, { n: 1, dx: 0, dy: 2, on: [o.skin] });

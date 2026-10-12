@@ -259,7 +259,7 @@ const BRASS: Pins = { b: ['bronze', 1], B: ['bronze', 3], g: ['bronze', 0] };
  * braided in brass along its edges and at the cuffs, its skirts to the knee.
  * The belt goes over it.
  */
-const CAPTAINS_COAT: Gear2 = {
+export const CAPTAINS_COAT: Gear2 = {
   id: 'captains_coat',
   slot: 'body',
   parts: [

@@ -92,7 +92,7 @@ const IRON_NASAL_HELM: Gear2 = {
  * opening with the forehead in its shadow, the cowl closed under the chin and
  * a short cape over the shoulders.
  */
-const LINEN_HOOD: Gear2 = {
+export const LINEN_HOOD: Gear2 = {
   id: 'linen_hood',
   slot: 'head',
   parts: [

@@ -16,6 +16,7 @@ import { TRINKETS2 } from './trinkets';
 import { HELD2 } from './held';
 import { GREAVES2 } from './greaves';
 import { BEARDS2 } from './beard';
+import { TIER2_GEAR2 } from './tier2Gear';
 
 export interface Wardrobe2 {
   readonly bodies: readonly Body2[];
@@ -34,6 +35,7 @@ export const WARDROBE2: Wardrobe2 = {
     ...TRINKETS2,
     ...GREAVES2,
     ...BEARDS2,
+    ...TIER2_GEAR2,
   ],
 };
 
