@@ -122,8 +122,8 @@ const DRIFTWOOD_SHORTBOW = bowGear('driftwood_shortbow', bowParts('drift', 22, 6
 const ELM_LONGBOW = bowGear('elm_longbow', bowParts('elm', 12, 68, 3, 'leather'));
 /** The yew longbow: taller, its belly the orange heartwood and its back the pale sapwood, horn tips. */
 const YEW_LONGBOW = bowGear('yew_longbow', [
-  ...bowParts('yew', 11, 69, 3.5, 'leather'),
-  hornTips(11, 69, 3.5),
+  ...bowParts('yew', 12, 68, 3.5, 'leather'),
+  hornTips(12, 68, 3.5),
 ]);
 /** The thornwood bow: dark and grown rather than carved, thorns along its back, green-bound. */
 const THORNWOOD_BOW = bowGear('thornwood_bow', [

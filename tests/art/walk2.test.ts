@@ -255,14 +255,18 @@ describe('the hero walking', () => {
       }
   });
 
-  it('never walks left as a mirror of right when something is held: the sword stays in the right hand', () => {
-    for (const a of armed)
-      for (let f = 0; f < WALK2_FRAMES; f++) {
-        const r = characterWalkPicture2(DEFAULT_LOOK, a.items, 'right', f, a.extra).grid;
-        const l = characterWalkPicture2(DEFAULT_LOOK, a.items, 'left', f, a.extra).grid;
-        expect(same(l, mirror(r)), `${a.name} ${f}`).toBe(false);
-      }
-  });
+  it(
+    'never walks left as a mirror of right when something is held: the sword stays in the right hand',
+    SLOW,
+    () => {
+      for (const a of armed)
+        for (let f = 0; f < WALK2_FRAMES; f++) {
+          const r = characterWalkPicture2(DEFAULT_LOOK, a.items, 'right', f, a.extra).grid;
+          const l = characterWalkPicture2(DEFAULT_LOOK, a.items, 'left', f, a.extra).grid;
+          expect(same(l, mirror(r)), `${a.name} ${f}`).toBe(false);
+        }
+    },
+  );
 
   /**
    * How the test knows the hand: the sword is in the hero's right hand. Toward

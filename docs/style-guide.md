@@ -810,6 +810,25 @@ The knight's rung, the look the guide was built toward, drawn in a metal of its 
   gold). At true size the knight is the brightest, most coloured figure on the street, by day and
   at dusk.
 
+#### Tier 2 beside the knight (B19)
+
+- **The ranger** (the leather line's tier 2): the villager's hood cut deep in a dark green-brown
+  thick leather (`ranger`) with a seam over the crown, the face in its shadow but never hidden;
+  the captain's long coat in the same leather, split at the front, edged in leather, never brass;
+  bracers laced to the elbow with a stitched guard on the bow arm. A rung of the hunter's line,
+  so no metal and no gold.
+- **The bows grow**: shortbow to longbow is a head of height, and each wood shows: driftwood
+  bleached silver-grey bound in tarred cord, elm a warm brown, yew its orange heart on the belly
+  and pale sapwood on the back with horn tips, the thornwood near-black with thorns along its
+  back.
+- **Jewellery is findable**: silver bright against any sleeve with a green stone; the amulet a gold
+  disc with a pale blue glass on a gold chain; the briar charm a ring of thorns round one red berry
+  on a dark cord.
+- **What a monster drops wears its monster**: the ogre's maul a banded trunk hanging from the fist
+  like the anchor; the mossback shield a rough slab of stone grown with moss and bound in roots;
+  the cap-guard helm a broad red mushroom cap with white spots over pale gills, a strap down both
+  cheeks, its gills above the brows.
+
 ## Portraits at the C scale (B10a, redrawn in B11)
 
 Cody, on B10a's faces: "Honestly the character portraits freak me out." They were one built head
