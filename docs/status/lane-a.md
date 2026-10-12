@@ -1691,6 +1691,27 @@ was picked up with it (nothing is settled until the run ends).
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
 
+### Weak list (wave 20)
+
+- **Money at 40 is tight**: in the full kit (cloak and amulet) the best fight for money, the
+  hobgoblin, is 0.5% under Thieving and 0.4% over the tier-1 troll. The pins are exact (fixed
+  dice), so it holds, but any change to the troll, the hobgoblin, tier-2 gear or Thieving can
+  tip it. Widening it needs a decision on tier 1's troll or on Thieving and gathering at 40.
+- **Fights stay far above by-hand dungeons in XP**: the Burrow by hand pays 0.43 of the best
+  idle fight's XP an hour (the grotto at 20 paid 0.73). It is the best paid active content in
+  coins, not in XP; its rooms are walked and lit.
+- **The by-hand economy reads lane C's bot**: the Burrow's case asserts margins on its median
+  clear; a lane C re-tune that slows the bot by more than about a tenth would fail the case
+  (only the run's worth and XP are pinned).
+- **Idle walks are a number, not a measure**: half a minute a room for lighting lanterns is a
+  guess sized to keep idle under by hand, not lane C's measured walk.
+- **Tier-1 bounty targets still turn up for a tier-2 player** (5% of the weight at 40) by
+  design; someone who wants only tier 2 still meets one now and then.
+- **The sheet's right column** spreads four squares down a five-square height: level at top
+  and bottom, wider gaps between than the left's. Looked at and kept; a fifth right-hand
+  square (the food slot, say) would make it symmetrical.
+- `docs/tier2-manifest.md` still says the cloak is worn at the neck.
+
 ### Weak list (wave 18)
 
 - Three grotto days (thick skulls aside from luck, quick tempers, spring tide) clear exactly 10
