@@ -8,6 +8,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { rasterize2 } from '../../src/art/town2/raster';
+import { burrowLevel2, burrowNight } from '../../src/art/dungeonArt2';
+import { dimDungeon } from '../../src/scene/dungeons';
+import { DARKER_LIGHT } from '../../src/scene/modifiers';
 import type { Telegraph } from '../../src/scene/battle';
 import { castIn, laneFill } from '../../src/scene/fightArt';
 import {
@@ -18,6 +21,9 @@ import {
   groundPixels,
   groundWithDoors,
   heroLightPixels,
+  nightRule,
+  BURROW_NIGHT,
+  SHIFTED,
   lampMask,
   lightsOf,
   litRoom,
@@ -62,24 +68,49 @@ describe('a dark room’s layers, worked out with its ground', () => {
   const dark = painted.dark!;
   const lights = lightsOf(room);
 
-  it('has every pixel’s shade, the ground lit, and the ground darkened by them exactly', () => {
+  it('has every pixel’s level, the ground lit, and the ground painted by its level (lane B’s night ramp)', () => {
     expect(dark.w).toBe(painted.cells.w);
+    expect(nightRule(room)).toBe(BURROW_NIGHT);
     const { cells } = groundWithDoors(room, 0, false);
-    const plain = rasterize2({ grid: cells, glows: steadyGlows(room) }, themeOf(room).palette, 1);
+    const steady = steadyGlows(room);
+    const plain = rasterize2({ grid: cells, glows: steady }, themeOf(room).palette, 1);
     expect(dark.lit).toEqual(plain.data);
     let seen = 0;
+    let darker = 0;
     for (let y = 0; y < dark.h; y += 7)
       for (let x = 0; x < dark.w; x += 5) {
         const i = y * dark.w + x;
-        const s = shadeAt(lights, x, y);
-        expect(dark.shade[i]).toBe(s);
-        if (!dark.lit[i * 4 + 3]) continue;
-        const k = s === 0 ? 1 : IN_THE_DARK[s];
-        const want = Math.round(dark.lit[i * 4]! * k + NIGHT_RGB[0] * (1 - k));
-        expect(Math.abs(painted.data[i * 4]! - want)).toBeLessThanOrEqual(1);
-        seen += 1;
+        const level = burrowLevel2(lights, x, y);
+        expect(dark.shade[i]).toBe(level);
+        const c = cells.d[i]!;
+        // The level's palette for the cell, with the light the glows add on top (as lit has it).
+        const pal = themeOf(room).palette.rgb;
+        const want = burrowNight(level).rgb[c * 3]! + (dark.lit[i * 4]! - pal[c * 3]!);
+        if (dark.lit[i * 4]! < 250)
+          expect(Math.abs(painted.data[i * 4]! - Math.min(255, want))).toBeLessThanOrEqual(1);
+        if (level >= 2 && painted.data[i * 4]! < dark.lit[i * 4]!) darker += 1;
+        if (level >= 2) seen += 1;
       }
-    expect(seen).toBeGreaterThan(1000);
+    expect(seen).toBeGreaterThan(500);
+    expect(darker / seen).toBeGreaterThan(0.9);
+  }, 60_000);
+
+  it('keeps the grotto’s darker day as it was: colours taken toward the night by two bands', () => {
+    const grotto = dimDungeon(GROTTO_DUNGEON, DARKER_LIGHT).rooms.pools!;
+    expect(nightRule(grotto)).toBe(SHIFTED);
+    const out = groundPixels(grotto, 0, false);
+    const layers = out.dark!;
+    const at = lightsOf(grotto);
+    for (let y = 0; y < layers.h; y += 9)
+      for (let x = 0; x < layers.w; x += 7) {
+        const i = y * layers.w + x;
+        const s = shadeAt(at, x, y);
+        expect(layers.shade[i]).toBe(s);
+        const k = s === 0 ? 1 : IN_THE_DARK[s];
+        const want = Math.round(layers.lit[i * 4]! * k + NIGHT_RGB[0] * (1 - k));
+        expect(Math.abs(out.data[i * 4]! - want)).toBeLessThanOrEqual(1);
+      }
+    expect(layers.edge).toBeNull();
   }, 60_000);
 
   it('keeps the ground’s own cells and palette beside them (no second copy of either)', () => {
@@ -127,6 +158,11 @@ describe('a dark room’s layers, worked out with its ground', () => {
           const sum = (d: Uint8ClampedArray, i: number) => d[i]! + d[i + 1]! + d[i + 2]!;
           expect(sum(into, o)).toBeGreaterThanOrEqual(sum(dark.lit, p) - 3);
           if (sum(into, o) > sum(dark.lit, p) + 3) lifted += 1;
+        } else if (mine === 1 && dark.edge) {
+          // At its edge, the edge's palette for the cell, its glows' light on top.
+          const c = dark.cells[y * dark.w + x]!;
+          const want = dark.edge.rgb[c * 3]! + (dark.lit[p]! - dark.palette.rgb[c * 3]!);
+          expect(Math.abs(into[o]! - Math.min(255, Math.max(0, want)))).toBeLessThanOrEqual(1);
         } else
           expect(
             Math.abs(into[o]! - (dark.lit[p]! * k + NIGHT_RGB[0] * (1 - k))),

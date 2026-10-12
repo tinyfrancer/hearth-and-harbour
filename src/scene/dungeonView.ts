@@ -81,6 +81,7 @@ import { foeSize2 } from '../art/dungeonArt2';
 import {
   CaveShadow,
   HeroLight,
+  nightRule,
   themeOf,
   ownLight,
   shadeIn,
@@ -1106,6 +1107,8 @@ export function dungeonView(options: DungeonViewOptions): View {
               : lights
                 ? (x, y) => shadeAt(lights, x, y, feet, heroPoolIn(look.room))
                 : undefined,
+            '',
+            nightRule(look.room),
           );
           return (
             placed && {

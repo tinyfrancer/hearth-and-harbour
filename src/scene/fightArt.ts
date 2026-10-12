@@ -36,6 +36,7 @@ import {
   foeSize2,
   type Foe2Pose,
   type Foe2Size,
+  type Light2,
 } from '../art/dungeonArt2';
 import { STRIKE2_FRAMES, STRIKE2_HIT_FRAME, WALK2_STRIDE, type Facing2 } from '../art/character2';
 import { addGlow, type Glow } from '../art/raster';
@@ -72,11 +73,12 @@ import {
   isDark,
   lightsOf,
   glowSig,
+  HERO_POOL_RISE,
   litness,
+  nightRule,
   ownLight,
   shadeIn,
   paintCells,
-  shadeAt,
   IN_THE_DARK,
   NIGHT_RGB,
   perchLift,
@@ -395,31 +397,33 @@ export class FoePictures {
     key: string,
     shown: FoeShown,
     feet: Point,
+    // A level of the dark's own palette (a room painted by palettes, `NightRule`): its own pictures.
+    inPalette: CavePalette = this.palette,
   ): { image: HTMLCanvasElement; feet: Point; glows: readonly Glow[] } | null {
     const art = foeArtId(monster);
     const pic = foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
     if (!pic) return null;
-    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, this.palette);
+    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, inPalette);
     if (!plain) return null;
     const qx = Math.round(feet.x / LIGHT_STEP) * LIGHT_STEP;
     const qy = Math.round(feet.y / LIGHT_STEP) * LIGHT_STEP;
     const { w, h } = pic.picture.grid;
     const box = { x: qx - pic.feet.x, y: qy - pic.feet.y, w, h };
-    const local = glowsIn(this.glows, box, this.palette);
+    const local = glowsIn(this.glows, box, inPalette);
     if (local.length === 0) return { image: plain, feet: pic.feet, glows: pic.picture.glows };
     let mine = this.lit.get(key);
     if (!mine) {
       mine = new Map();
       this.lit.set(key, mine);
     }
-    const k = `${monster} ${shown.pose} ${shown.facing} ${shown.frame} ${shown.phase} ${qx} ${qy} ${glowSig(local)}`;
+    const k = `${monster} ${shown.pose} ${shown.facing} ${shown.frame} ${shown.phase} ${qx} ${qy} ${glowSig(local)} ${inPalette.key ?? inPalette.name}`;
     let image = mine.get(k);
     if (image === undefined) {
       if (mine.size >= LIT_KEPT) mine.delete(mine.keys().next().value!);
       image = paintCells(
         { grid: pic.picture.grid, glows: [...pic.picture.glows, ...local] },
         undefined,
-        this.palette,
+        inPalette,
       );
       mine.set(k, image);
     } else {
@@ -466,6 +470,12 @@ export function castIn(room: Room): string[] {
     }
   }
   return [...out];
+}
+
+/** Whether a foe drawn so carries a light of its own (the powder monkey's fuse): it is lit by it. */
+function carriesLight(monster: string, shown: FoeShown): boolean {
+  const pic = foePicture2(foeArtId(monster), shown.pose, shown.facing, shown.frame, shown.phase);
+  return !!pic && pic.picture.glows.length > 0;
 }
 
 /* ----- Drawing in whole art pixels ----- */
@@ -1779,6 +1789,22 @@ export function fightExtra(
         ...(opening > 0 ? doorPieces(seenRoom).flatMap((d) => (d.light ? [d.light] : [])) : []),
       ]
     : [];
+  // The room's rule for its dark, and its pools with his own light among them (for a figure's level).
+  const rule = nightRule(seenRoom);
+  const poolsAndHero: Light2[] = dark
+    ? [
+        ...pools,
+        {
+          x: hero.x,
+          y: hero.y - HERO_POOL_RISE,
+          drop: 0,
+          pool: heroPool,
+          radius: 0,
+          strength: 0,
+          flicker: 0,
+        },
+      ]
+    : [];
   // The room's dark layers (shut doors only: an open door's light is not in them) and his own light.
   const layers = dark && opening === 0 ? look.darkAt(state.level, state.warn) : null;
   const own = layers ? ownLight(heroPool) : null;
@@ -1800,14 +1826,29 @@ export function fightExtra(
     const shown = foePose(foe, clock, def?.speedMs ?? 2000, kind);
     const lift = liftOf(room, foe);
     const feet = { x: Math.round(shownX(foe)), y: Math.round(foe.at.y) - lift };
-    const drawn = art.foes.at(foe.monster, foe.key, shown, feet);
+    // In a room painted by palettes (the Burrow), a figure is drawn in the palette of the level of
+    // the dark at its feet (its own light, if it carries one, keeps it lit).
+    const level =
+      dark && rule.palette(1) && !carriesLight(foe.monster, shown)
+        ? Math.min(rule.levelAt(poolsAndHero, foe.at.x, foe.at.y), 3)
+        : 0;
+    const drawn = art.foes.at(
+      foe.monster,
+      foe.key,
+      shown,
+      feet,
+      level > 0 ? rule.palette(level)! : look.theme.palette,
+    );
     const size = sizeOf(foe.monster);
     if (drawn) {
       // A bird on its perch sorts in front of the post it sits on.
       const base = lift > 0 && foe.flight?.mode === 'perch' ? Math.round(foe.at.y) + 11 : feet.y;
       // Out of every pool of light on a darker day, a dim shape (one carrying a light is lit by
       // it); what it is about to do is drawn on the ground and over it, never dimmed.
-      const shade = dark && drawn.glows.length === 0 ? litness(pools, hero, foe.at, heroPool) : 0;
+      const shade =
+        dark && !rule.palette(1) && drawn.glows.length === 0
+          ? litness(pools, hero, foe.at, heroPool)
+          : 0;
       actors.push({
         image: shade ? inTheDark(drawn.image, shade) : drawn.image,
         x: feet.x - drawn.feet.x,
@@ -1857,13 +1898,14 @@ export function fightExtra(
         layers && own
           ? (x, y) => shadeIn(layers, own, x, y)
           : dark
-            ? (x, y) => shadeAt(pools, x, y, hero, heroPool)
+            ? (x, y) => Math.min(rule.levelAt(poolsAndHero, x, y), 3)
             : undefined,
         layers
           ? `${near ? `${Math.round(hero.x)} ${Math.round(hero.y)}` : '-'} ${seenRoom.lit ?? ''}`
           : dark
             ? `${Math.round(hero.x)} ${Math.round(hero.y)} ${opening > 0} ${seenRoom.lit ?? ''}`
             : '',
+        rule,
       );
       if (placed) {
         shadows.push(placed);
