@@ -19,6 +19,7 @@ import type { Thing } from './things';
 import { chartPanel, type ChartPanel } from './chartPanel';
 import {
   canSendIn,
+  chartRow,
   idleRunOf,
   sendIn,
   chartOpened,
@@ -29,6 +30,7 @@ import {
   todaysModifier,
 } from './fromLaneA';
 import { dimOf, runSpoils, type RunModifier } from './modifiers';
+import { withBurrowRow } from './preview';
 import { BOAT_LANDING2, BOAT_TAP, STROLLERS2, TOWNSFOLK2_AT, personTap, town2Scene } from './town2';
 import { townExtra } from './townExtras';
 import { diagonalPointersIn, largeMarkersIn } from './fromLaneB';
@@ -229,7 +231,9 @@ function loadingCard(): { el: HTMLElement; update(): void } {
  * knows nothing else about scenes, so everything behind it can change without
  * touching the shell.
  */
-export function townView(state: GameState, content: Content, shell?: Shell): View {
+export function townView(state: GameState, tables: Content, shell?: Shell): View {
+  // TEMPORARY (`preview.ts`): the Burrow's row on the chart until lane A's is on `main`.
+  const content = withBurrowRow(tables);
   prepareTown(now());
   // One-off things remembered (the pan, lessons learned) go in the save through this shell.
   rememberWith(shell);
@@ -628,8 +632,11 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     kept = null;
     // A clear is the boss down and the end reached: the run ended by itself, cleared. With what
     // the run did (its time to the boss's fall is the dungeon's best time), and the day's bonus.
-    // Its modifier's rewards are paid by settling, never here.
-    shell?.settleRun(runSpoils(run, run.ending === 'cleared'));
+    // Its modifier's rewards are paid by settling, never here. A landing still to come, rowed to
+    // by `?burrow=1` for its review (`preview.ts`), is never counted cleared: a review save is not
+    // moved on a tier by it.
+    const soon = !!chartRow(content, run.dungeon)?.comingSoon;
+    shell?.settleRun(runSpoils(run, run.ending === 'cleared' && !soon));
     shell?.keepRun?.(null);
   };
 

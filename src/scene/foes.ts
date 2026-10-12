@@ -21,10 +21,11 @@ import { foeArtId } from './fromLaneB';
  */
 export interface Heavy {
   /**
-   * Round itself (a slam), at where the hero stood when it began (thrown), or
-   * swung out in front of it towards him (a sweep).
+   * Round itself (a slam), at where the hero stood when it began (thrown),
+   * swung out in front of it towards him (a sweep), or a charge straight
+   * through where he stood to the wall beyond (a lane, `stuckMs`).
    */
-  readonly aim: 'self' | 'thrown' | 'sweep';
+  readonly aim: 'self' | 'thrown' | 'sweep' | 'charge';
   /** The mark's radius in art pixels. A hero whose feet are nearer its middle than this is hit. */
   readonly radius: number;
   /** A sweep's width, in radians, centred on where the hero stood when it began. */
@@ -43,6 +44,12 @@ export interface Heavy {
   readonly douse?: boolean;
   /** Only from this phase of a boss's fight. */
   readonly fromPhase?: number;
+  /** A charge: how long it is stuck where it ends (in the wall, or a lantern's post) before it moves again. */
+  readonly stuckMs?: number;
+  /** Leaves a cloud of spores where it lands, hanging this long (`light.ts`). */
+  readonly spores?: number;
+  /** Puts out any lantern whose post is in its mark when it lands. */
+  readonly smashes?: boolean;
 }
 
 /** A boss's cannon volleys: lines marked straight down the room, each landing on whoever is in it. */
@@ -72,6 +79,30 @@ export interface BossRules {
   readonly volleys: Volleys;
   /** Who comes to help when the second phase begins. */
   readonly calls: { readonly monster: string; readonly count: number };
+  /** More help, by the phase it comes at (the Burrow's king calls his court more than once). */
+  readonly more?: readonly {
+    readonly phase: number;
+    readonly monster: string;
+    readonly count: number;
+  }[];
+  /**
+   * Going under the ground in these phases: out of reach and out of sight,
+   * coming up every `everyMs` (the first after `firstMs`) under ground marked
+   * `warnMs` before: where the hero stands if he is in the dark, under the
+   * lantern lighting him if he is not (which it puts out). Up again for
+   * `upMs`, and fought as anything else, before it goes back under.
+   */
+  readonly burrow?: {
+    readonly phases: readonly number[];
+    readonly firstMs: number;
+    readonly everyMs: number;
+    readonly warnMs: number;
+    readonly radius: number;
+    readonly times: number;
+    readonly upMs: number;
+  };
+  /** From this phase its blows and heavy blows come this many times as fast. */
+  readonly rage?: { readonly phase: number; readonly pace: number };
 }
 
 /** Something that flies: it sits out of reach on a perch, comes down to peck, and goes back up. */
@@ -111,7 +142,147 @@ export interface FoeKind {
   readonly flies?: Flight;
   readonly rally?: Rally;
   readonly boss?: BossRules;
+  /**
+   * Walks only in the dark (`light.ts`): in a lantern's pool it holds still,
+   * and still fights whatever comes into its reach.
+   */
+  readonly creeps?: boolean;
+  /** Flies to the nearest burning lantern and puts it out after `snuffMs` (`light.ts`). */
+  readonly seeksLight?: { readonly snuffMs: number };
+  /** Drawn this high over where it is (art pixels): a moth on the wing. Drawing and tapping only. */
+  readonly hovers?: number;
+  /**
+   * Its front blocks every blow (a shield-like cap): it is struck only from
+   * behind, or while staggered by a braced blow. It turns to face the hero
+   * `turnMs` after he gets behind it, and not at all for `recoverMs` after
+   * its own heavy blow lands (committed to it).
+   */
+  readonly guard?: { readonly turnMs: number; readonly recoverMs: number };
+  /** Bursts into a cloud of spores where it falls, this wide and hanging this long. */
+  readonly bursts?: { readonly radius: number; readonly ms: number };
 }
+
+/* ----- Thistlewood Burrow (wave 19; `docs/status/lane-c.md` has the design) ----- */
+
+/**
+ * The Burrow's cast, each built round one thing to do about it: spore puffs
+ * creep in the dark and leave clouds; cap guards are flanked or braced; a
+ * bramble hound's charge is walked out of its lane, and it sticks in the
+ * wall; a lantern moth is caught before it reaches a light; and the badger
+ * king fights round the lanterns.
+ */
+export const BURROW_KINDS: Readonly<Record<string, FoeKind>> = {
+  // Small and slow, and only on the move in the dark. Swells and puffs a cloud round itself
+  // (marked green: it leaves spores), and bursts into one more when it falls.
+  spore_puff: {
+    speed: 26,
+    notice: 90,
+    reach: 20,
+    keep: 18,
+    heavy: {
+      aim: 'self',
+      radius: 30,
+      warnMs: 1400,
+      everyMs: 6500,
+      firstMs: 2600,
+      range: 28,
+      times: 1,
+      spores: 6000,
+    },
+    box: { w: 20, h: 22 },
+    creeps: true,
+    bursts: { radius: 24, ms: 5000 },
+  },
+  // A mushroom soldier behind its cap: blows from the front glance off. It bashes with the cap
+  // in front of it; step round behind it as it does (it cannot turn while committed), or brace.
+  cap_guard: {
+    speed: 30,
+    notice: 100,
+    reach: 26,
+    keep: 24,
+    heavy: {
+      aim: 'sweep',
+      radius: 44,
+      spread: (140 * Math.PI) / 180,
+      warnMs: 1500,
+      everyMs: 5200,
+      firstMs: 2000,
+      range: 34,
+      times: 2,
+    },
+    box: { w: 24, h: 40 },
+    guard: { turnMs: 900, recoverMs: 1300 },
+  },
+  // A thorny beast that charges in a straight line through where you stood, to the wall: its
+  // lane is marked; out of it, it sticks fast for a moment, open to a blow. A charge that ends
+  // at a lantern's post knocks the lantern out.
+  bramble_hound: {
+    speed: 46,
+    notice: 130,
+    reach: 24,
+    keep: 22,
+    heavy: {
+      aim: 'charge',
+      radius: 12,
+      warnMs: 1300,
+      everyMs: 5600,
+      firstMs: 1800,
+      range: 150,
+      times: 3,
+      stuckMs: 2600,
+    },
+    box: { w: 40, h: 28 },
+  },
+  // Drawn to light: flies to a burning lantern and puts it out, unless a blow lands on it.
+  lantern_moth: {
+    speed: 70,
+    notice: 160,
+    reach: 22,
+    keep: 20,
+    heavy: null,
+    box: { w: 26, h: 22 },
+    hovers: 14,
+    seeksLight: { snuffMs: 4000 },
+  },
+  // The boss: in person with a slam that puts out what it lands on; then under the ground,
+  // coming up where you stand in the dark or under the lantern you stand by; then all fury.
+  badger_king: {
+    speed: 30,
+    notice: 220,
+    reach: 30,
+    keep: 28,
+    heavy: {
+      aim: 'self',
+      radius: 46,
+      warnMs: 1800,
+      everyMs: 6500,
+      firstMs: 3000,
+      range: 40,
+      times: 2,
+      smashes: true,
+    },
+    box: { w: 40, h: 52 },
+    boss: {
+      phases: [2 / 3, 1 / 3],
+      volleys: { half: 0, damage: 0, firstMs: 0, gap: 0, phases: [] },
+      calls: { monster: 'spore_puff', count: 2 },
+      more: [
+        { phase: 2, monster: 'lantern_moth', count: 1 },
+        { phase: 3, monster: 'bramble_hound', count: 1 },
+      ],
+      burrow: {
+        phases: [2],
+        firstMs: 2500,
+        everyMs: 4000,
+        warnMs: 1700,
+        radius: 34,
+        times: 2,
+        upMs: 5000,
+      },
+      rage: { phase: 3, pace: 1.35 },
+    },
+  },
+};
 
 /**
  * The monsters a dungeon uses, at the first scale: what the rows below were
@@ -286,6 +457,8 @@ export const FIRST_KINDS: Readonly<Record<string, FoeKind>> = {
       calls: { monster: 'dock_rat', count: 0 },
     },
   },
+
+  ...BURROW_KINDS,
 };
 
 /**
@@ -312,6 +485,8 @@ export function kindAtScale(kind: FoeKind, k: number): FoeKind {
     ...(kind.shy !== undefined ? { shy: kind.shy * k } : {}),
     ...(kind.flies ? { flies: { ...kind.flies, speed: kind.flies.speed * k } } : {}),
     ...(kind.rally ? { rally: { ...kind.rally, radius: kind.rally.radius * k } } : {}),
+    ...(kind.hovers !== undefined ? { hovers: kind.hovers * k } : {}),
+    ...(kind.bursts ? { bursts: { ...kind.bursts, radius: kind.bursts.radius * k } } : {}),
     ...(kind.boss
       ? {
           boss: {
@@ -321,6 +496,9 @@ export function kindAtScale(kind: FoeKind, k: number): FoeKind {
               half: kind.boss.volleys.half * k,
               gap: kind.boss.volleys.gap * k,
             },
+            ...(kind.boss.burrow
+              ? { burrow: { ...kind.boss.burrow, radius: kind.boss.burrow.radius * k } }
+              : {}),
           },
         }
       : {}),

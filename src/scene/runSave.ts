@@ -24,10 +24,13 @@ import type { Run } from './dungeon';
 /**
  * The version of the shape a snapshot is in. 2 (wave 17): the fight counts
  * what the run has done (`Battle.count`) and may carry the day's modifier
- * (`Run.modifier`, `Battle.mods`); a version-1 run is settled from its
- * spoils, as any other this cannot take up.
+ * (`Run.modifier`, `Battle.mods`). 3 (wave 19): a dungeon of light keeps its
+ * lanterns (`Battle.lamps`), its clouds of spores (`clouds`, `sporeAt`), a
+ * lantern being lit (`tend`) and its foes' new states (stuck, snuffing,
+ * staggered, turning, committed, under the ground). A run of an earlier
+ * version is settled from its spoils, as any other this cannot take up.
  */
-export const RUN_SCENE_VERSION = 2;
+export const RUN_SCENE_VERSION = 3;
 
 /** A JSON value. */
 export type Plain = null | boolean | number | string | Plain[] | { [key: string]: Plain };

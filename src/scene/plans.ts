@@ -4,12 +4,14 @@
  * the words or the tables. `dungeons.ts` holds the rest of each dungeon.
  */
 import type { DungeonPlan } from './dungeon';
+import { BURROW } from './burrow';
 import { GROTTO } from './grotto';
 import { TIDEPOOL } from './tidepool';
 
 export const DUNGEON_PLANS: Readonly<Record<string, DungeonPlan>> = {
   [GROTTO.id]: GROTTO,
   [TIDEPOOL.id]: TIDEPOOL,
+  [BURROW.id]: BURROW,
 };
 
 /** A dungeon's plan by id; null for one not known. */

@@ -11,7 +11,11 @@
  *   kind found, as the run starts, by lane A's `foodUnder`;
  * - the tide's pace, and no food: read by the rules as the fight goes
  *   (`BattleMods`, `battleMods`);
- * - darker: smaller light pools, from the rooms' own light (`dimOf`);
+ * - darker: less light. Every light pool smaller, from the rooms' own light
+ *   (`dimOf`): drawing only where light is only drawn (the grotto's
+ *   lanterns); where light is a rule (the Burrow's lanterns on posts,
+ *   `light.ts`), every lantern lights `DARKER_REACH` as far, in the rules and
+ *   in the pools drawn alike, and the hero's own light is as much smaller;
  * - loot, coins and XP: paid by `settleRun`, never here (the results card
  *   reads `spoilsUnder` for what the bank will get).
  *
@@ -23,6 +27,7 @@ import type { MonsterDef } from '../core/content';
 import type { RunSpoils } from '../core/run';
 import { spoilsOf, type BattleMods, type Fighter } from './battle';
 import type { Run } from './dungeon';
+import { lightShare } from './light';
 import {
   foeUnder,
   foodHealsUnder,
@@ -87,12 +92,17 @@ export function foodShare(e: ModifierEffects | undefined): number | null {
   return share === 1 ? null : share;
 }
 
-/** What the rules read as the fight goes; null when nothing of it applies. */
-export function battleMods(e: ModifierEffects | undefined): BattleMods | null {
+/**
+ * What the rules read as the fight goes; null when nothing of it applies.
+ * `light`: the dungeon's light is a rule (it has lanterns on posts), so a
+ * darker day's is one too.
+ */
+export function battleMods(e: ModifierEffects | undefined, light = false): BattleMods | null {
   if (!e) return null;
-  const mods: { tidePace?: number; noFood?: boolean } = {};
+  const mods: { tidePace?: number; noFood?: boolean; light?: number } = {};
   if (factor(e.tideFaster) !== 1) mods.tidePace = factor(e.tideFaster);
   if (e.noFood) mods.noFood = true;
+  if (light && e.darker) mods.light = lightShare(dimOf(e));
   return Object.keys(mods).length ? mods : null;
 }
 

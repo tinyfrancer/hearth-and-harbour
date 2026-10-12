@@ -13,8 +13,9 @@ import type { Content } from '../core/content';
 import type { SayLine } from './battle';
 import { GROTTO_CAST, GROTTO_ID, type CastDef } from './cast';
 import { buildDungeon, type Dungeon, type DungeonPlan } from './dungeon';
+import { BADGER_SAYS, BURROW_ID, BURROW_STAND_IN_CAST } from './burrow';
 import { CAPTAIN_SAYS } from './grottoWords';
-import { CAVE_LESSONS, type Lesson } from './lessons';
+import { BURROW_LESSONS, CAVE_LESSONS, type Lesson } from './lessons';
 import { DUNGEON_PLANS } from './plans';
 import { TIDEPOOL_ID, TIDEPOOL_SAYS } from './tidepool';
 
@@ -41,6 +42,12 @@ export interface DungeonScene {
   readonly cast?: Readonly<Record<string, CastDef>>;
   /** What a new player is shown the first time each thing is useful (`lessons.ts`). */
   readonly lessons?: readonly Lesson[];
+  /**
+   * Drawn with stand-ins until the art lane draws it (`fromLaneB.ts`): said
+   * in a small tag in a corner of the screen, so nobody takes them for the
+   * real thing. Absent once its own pictures are in.
+   */
+  readonly standIn?: string;
 }
 
 export const DUNGEON_SCENES: Readonly<Record<string, DungeonScene>> = {
@@ -82,6 +89,30 @@ export const DUNGEON_SCENES: Readonly<Record<string, DungeonScene>> = {
       },
       label: 'A little sea cave. Tap the ground to walk there, or something to fight it.',
       says: TIDEPOOL_SAYS,
+    },
+  },
+  [BURROW_ID]: {
+    plan: DUNGEON_PLANS[BURROW_ID]!,
+    // Until lane A's rows are on `main`; theirs win from the moment they are (`castOf`).
+    cast: BURROW_STAND_IN_CAST,
+    lessons: BURROW_LESSONS,
+    standIn: 'Stand-in art',
+    words: {
+      cleared: {
+        title: 'The burrow is quiet',
+        line: 'The king has been seen off, crown and all. His court has gone to ground, and the lanterns are yours.',
+      },
+      fell: {
+        title: 'Carried out by the roots',
+        line: 'Something large and polite put you back on the shore. Everything you picked up came with you.',
+      },
+      turn: {
+        before: 'The burrow is wide and low. Mind your head on the way in.',
+        during: 'The burrow will wait. It is very good at waiting in the dark.',
+      },
+      label:
+        'An overgrown burrow, dark but for its lanterns. Tap the ground to walk there, something to fight it, or a lantern to light it.',
+      says: { badger_king: BADGER_SAYS },
     },
   },
 };

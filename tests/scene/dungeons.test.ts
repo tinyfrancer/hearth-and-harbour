@@ -23,13 +23,14 @@ import {
 import { CAPTAIN_SAYS } from '../../src/scene/grottoWords';
 import { DUNGEON_PLANS } from '../../src/scene/plans';
 import { TIDEPOOL } from '../../src/scene/tidepool';
+import { withBurrowRow } from '../../src/scene/preview';
 
 // Dungeons by id: every plan the scene can play, its words and cast, and food
 // found in a run (the cave's crate) eaten there without touching the food slot.
 
 describe('the dungeons the scene can play', () => {
-  it('holds the grotto and the cave, each built from its plan, by id', () => {
-    expect(DUNGEON_IDS).toEqual(['brinebeards_grotto', 'tidepool_cave']);
+  it('holds the grotto, the cave and the Burrow, each built from its plan, by id', () => {
+    expect(DUNGEON_IDS).toEqual(['brinebeards_grotto', 'tidepool_cave', 'thistlewood_burrow']);
     for (const id of DUNGEON_IDS) {
       const dungeon = dungeonById(id)!;
       expect(dungeon.id).toBe(id);
@@ -37,8 +38,9 @@ describe('the dungeons the scene can play', () => {
       expect(DUNGEON_PLANS[id]!.id).toBe(id);
       // Each room knows its dungeon, so a worker can paint it by both ids.
       for (const room of Object.values(dungeon.rooms)) expect(room.dungeon).toBe(id);
-      // Every dungeon the tables know is one the scene can play.
-      expect(CONTENT.dungeons![id]).toBeDefined();
+      // Every dungeon the scene can play is one the tables know (the Burrow's row: lane A's, and
+      // until it is on `main` the chart's stand-in, `withBurrowRow`).
+      expect(withBurrowRow(CONTENT).dungeons![id]).toBeDefined();
     }
     expect(dungeonById('nowhere')).toBeNull();
   });

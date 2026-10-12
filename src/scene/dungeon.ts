@@ -68,6 +68,13 @@ export interface DungeonPlan {
    * grotto's when not given.
    */
   readonly theme?: string;
+  /**
+   * What the dungeon is about, beside the fight: the sea's tide (`tide.ts`:
+   * its rooms' sand has heights, `0`-`3`), or light (`light.ts`: its rooms
+   * have lanterns on posts, `Q`/`Y`). What changes is read from the rooms'
+   * own ground; this says which, so a plan is checked against it.
+   */
+  readonly mechanic?: 'tide' | 'light';
 }
 
 /** Something lying on a room's floor from the start: where, and what is in it. */
@@ -117,6 +124,13 @@ export interface Room {
    * `dimOf`) lights lay pools this much as wide. Drawing only; absent is all.
    */
   readonly dim?: number;
+  /**
+   * Which of its lanterns on posts burn, as it is shown (bit `i` for the
+   * ground's lantern `i`): a room whose light is a rule is drawn once for
+   * each way its lanterns stand (`litRoom`). Drawing only; absent is as the
+   * room is written.
+   */
+  readonly lit?: number;
 }
 
 export interface Dungeon {
@@ -208,6 +222,10 @@ export function buildDungeon(plan: DungeonPlan): Dungeon {
       if (!standable(tile) || tile === 'door')
         throw new Error(`Something found in ${id} is not lying on floor.`);
     }
+    if (plan.mechanic === 'light' && ground.tidal)
+      throw new Error(`Room ${id} has a tide in a dungeon of light.`);
+    if (plan.mechanic === 'tide' && ground.lamps.length > 0)
+      throw new Error(`Room ${id} has lanterns on posts in a dungeon of the tide.`);
     rooms[id] = {
       id,
       dungeon: plan.id,
@@ -301,6 +319,13 @@ export interface RunSetup {
 export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
   const room = dungeon.rooms[dungeon.first]!;
   const effects = setup?.modifier?.effects;
+  // Each room's lanterns on posts as written (`light.ts`): those rooms only.
+  const lamps = Object.fromEntries(
+    Object.values(dungeon.rooms)
+      .filter((r) => r.ground.lamps.length > 0)
+      .map((r) => [r.id, r.ground.lamps.map((l) => l.lit)]),
+  );
+  const lightRule = Object.keys(lamps).length > 0;
   const fought = setup
     ? startBattle(
         modifiedFighter(setup.fighter, effects),
@@ -319,10 +344,11 @@ export function startRun(dungeon: Dungeon, setup?: RunSetup): Run {
           ...(dungeon.finds ? { finds: dungeon.finds } : {}),
           // Food found heals under the day's modifier too (Short Rations).
           ...(setup.heals ? { heals: modifiedHeals(setup.heals, effects)! } : {}),
+          ...(lightRule ? { lamps } : {}),
         },
       )
     : null;
-  const mods = battleMods(effects);
+  const mods = battleMods(effects, lightRule);
   const battle = fought && mods ? { ...fought, mods } : fought;
   return {
     ...(setup?.modifier ? { modifier: setup.modifier } : {}),

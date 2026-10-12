@@ -30,6 +30,7 @@ import {
   held,
   stopChasing,
   targetFoe,
+  tendLamp,
   tideOf,
   useAbility,
   type Battle,
@@ -44,6 +45,7 @@ import {
   runTime,
   sideways,
   type Dungeon,
+  type Room,
   type Run,
 } from './dungeon';
 import {
@@ -78,7 +80,11 @@ import {
   CaveShadow,
   HeroLight,
   doorPieces,
+  heroPoolIn,
   isDark,
+  lampMask,
+  litRoom,
+  litRooms,
   lightsOf,
   shadeAt,
   doorUnder,
@@ -121,6 +127,7 @@ import {
 import { HIGH_WATER, gaugeLevel, rising, type TideNow } from './tide';
 import { FIGURE2_FEET, type Hero2 } from './town2Art';
 import type { Light2 } from '../art/dungeonArt2';
+import { lampUnder } from './light';
 
 /**
  * Room kept at the screen's edges, in CSS pixels, on a phone with no notch:
@@ -337,7 +344,7 @@ export function combatantBoxes(
   const boxes = [toCss(run.play.walker.at, HERO_BOX.w, HERO_BOX.h)];
   const room = dungeon.rooms[run.room];
   for (const foe of run.battle?.foes ?? []) {
-    if (foe.room !== run.room || !alive(foe)) continue;
+    if (foe.room !== run.room || !alive(foe) || foe.under) continue;
     const size = foeSize2(foeArtId(foe.monster));
     const box = foeKind(foe.monster).box;
     const lift = room ? liftOf(room, foe) : 0;
@@ -753,9 +760,15 @@ export function dungeonView(options: DungeonViewOptions): View {
     ]),
   ]);
 
+  // Drawn with stand-ins until the art lane's own are in: said in a corner, so nobody takes them
+  // for the real thing (`DungeonScene.standIn`). Laid under the hero's health, in the top band.
+  const standIn = own?.standIn
+    ? h('p', { class: 'dungeon-standin', text: own.standIn, attrs: { 'aria-hidden': 'true' } })
+    : null;
   const root = h('div', { class: 'dungeon' }, [
     room,
     hud,
+    standIn,
     fade,
     waiting ? resume : null,
     prompt,
@@ -801,6 +814,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     const layout = layoutNow();
     if (!layout) return;
     placeAt(heroPanel, layout.hero);
+    if (standIn) placeAt(standIn, { ...layout.hero, y: layout.hero.y + layout.hero.h + 2 });
     placeAt(targetPanel, layout.target);
     placeAt(bossPanel, layout.target);
     if (layout.tide) placeAt(tidePanel, layout.tide);
@@ -836,12 +850,21 @@ export function dungeonView(options: DungeonViewOptions): View {
   let given: Play = options.run().play;
   let roomView: View | null = null;
   const painter = options.painter ?? groundOnTheSpot;
-  const lookOf = (id: string): RoomLook => {
-    const l = roomLook(dungeon.rooms[id]!, painter);
+  /**
+   * The run's room as it is to be drawn: in a room whose light is a rule,
+   * the look of it with the lanterns burning that burn now (`litRoom`).
+   */
+  const shownRoomOf = (run: Run): Room => {
+    const room = dungeon.rooms[run.room]!;
+    const lit = run.battle?.lamps?.[run.room];
+    return lit ? litRoom(room, lampMask(lit)) : room;
+  };
+  const lookOf = (room: Room): RoomLook => {
+    const l = roomLook(room, painter);
     l.paintWith(painter);
     return l;
   };
-  let look = lookOf(options.run().room);
+  let look = lookOf(shownRoomOf(options.run()));
   let art: FightArt = fightArtFor(look);
   /** The room's ground as last shown: kept on screen while the tide's next one is still being painted. */
   let lastStill: StillPicture | null = null;
@@ -879,7 +902,7 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** The hero's contact shadow, cut from the room's ground under his feet. */
   const heroShadow = new CaveShadow();
-  /** His own pool of light on a darker day (`HeroLight`). */
+  /** His own pool of light on a darker day, and in a room of lanterns (`HeroLight`). */
   const heroLight = new HeroLight();
   /**
    * On a darker day, the hero's pool of light, laid on the ground under
@@ -899,6 +922,7 @@ export function dungeonView(options: DungeonViewOptions): View {
         open ? look.openGlows : look.glows,
         run.play.walker.at,
         look.theme.palette,
+        heroPoolIn(look.room),
       );
     },
   };
@@ -906,9 +930,9 @@ export function dungeonView(options: DungeonViewOptions): View {
   let pools: { key: string; lights: readonly Light2[] } | null = null;
   const poolsOf = (run: Run): readonly Light2[] => {
     const open = doorsAreOpen(run);
-    const key = `${run.room} ${open}`;
+    const key = `${run.room} ${open} ${look.room.lit ?? ''}`;
     if (pools?.key !== key) {
-      const room = dungeon.rooms[run.room]!;
+      const room = look.room;
       const lights = lightsOf(room);
       pools = {
         key,
@@ -955,6 +979,47 @@ export function dungeonView(options: DungeonViewOptions): View {
   /** Whether its rooms are seen whole, the camera still (the cave's), or travelled (the grotto's). */
   const seenWhole = biggestRoom.width <= ONE_SCREEN;
 
+  /**
+   * The looks of the room by its lanterns kept beside the one shown: the one
+   * shown before (on screen until the next is in) and those a lantern lit or
+   * put out would turn to, painted ahead where a worker paints them.
+   */
+  const warmLamps = (run: Run): void => {
+    const room = dungeon.rooms[run.room]!;
+    const lit = run.battle?.lamps?.[run.room];
+    if (!lit || !painter.offThread) return;
+    const mask = lampMask(lit);
+    for (let i = 0; i < lit.length; i++) lookOf(litRoom(room, mask ^ (1 << i))).warm();
+  };
+  /** Lets go of every look of a room by its lanterns but those wanted. */
+  const forgetLamps = (room: Room, keep: readonly Room[]): void => {
+    for (const r of litRooms(room)) if (!keep.includes(r)) roomLook(r).forget();
+  };
+  /**
+   * A lantern lit or put out: the look of the room with it so is shown as
+   * soon as its ground is in (asked for at once); until then the one before.
+   */
+  const followLamps = (run: Run): void => {
+    if (run.room !== roomShown) return;
+    const want = shownRoomOf(run);
+    if (want === look.room) return;
+    const next = lookOf(want);
+    const s = tideStateOf(dungeon, run);
+    next.stillAt(s.level, s.warn);
+    if (!next.ready(s.level, s.warn)) return;
+    const was = look.room;
+    look = next;
+    art = fightArtFor(look);
+    lastStill = null;
+    hero.lightBy(look.glows);
+    // Kept: the look shown, the one before, and those one lantern away.
+    const base = dungeon.rooms[run.room]!;
+    const lit = run.battle?.lamps?.[run.room] ?? [];
+    const mask = lampMask(lit);
+    forgetLamps(base, [want, was, ...lit.map((_, i) => litRoom(base, mask ^ (1 << i)))]);
+    warmLamps(run);
+  };
+
   const showRoom = (): void => {
     const run = options.run();
     const here = dungeon.rooms[run.room]!;
@@ -964,13 +1029,16 @@ export function dungeonView(options: DungeonViewOptions): View {
     const at = order.indexOf(run.room);
     const next = order[at + 1];
     for (const id of order)
-      if (id !== run.room && id !== next && id !== dungeon.first)
+      if (id !== run.room && id !== next && id !== dungeon.first) {
         roomLook(dungeon.rooms[id]!).forget();
-    look = lookOf(run.room);
+        forgetLamps(dungeon.rooms[id]!, []);
+      }
+    look = lookOf(shownRoomOf(run));
     // Painted ahead only where a worker paints them: on the spot, each is worked out when shown.
     if (painter.offThread) {
       look.warm();
-      if (next) lookOf(next).warm();
+      if (next) lookOf(shownRoomOf({ ...run, room: next })).warm();
+      warmLamps(run);
     }
     art = fightArtFor(look);
     lastStill = null;
@@ -983,7 +1051,14 @@ export function dungeonView(options: DungeonViewOptions): View {
     roomShown = run.room;
     hero.lightBy(look.glows);
     roomView = stage({
-      scene: look.scene,
+      // The ground to walk on as the look shown has it: a lantern lit changes the look, not the room.
+      scene: {
+        get map() {
+          return look.lock.map;
+        },
+        things: [],
+        speed: look.scene.speed,
+      },
       art: {
         still: () => stillFor(options.run()),
         heroFeet: FIGURE2_FEET,
@@ -1012,7 +1087,7 @@ export function dungeonView(options: DungeonViewOptions): View {
           const cells = look.cellsAt(s.level, s.warn, open);
           if (!cells) return null;
           // On a darker day his shadow is as dark as the ground it falls on (in his own light).
-          const lights = isDark(dungeon.rooms[run.room]!) ? poolsOf(run) : null;
+          const lights = isDark(look.room) ? poolsOf(run) : null;
           const placed = heroShadow.at(
             cells,
             look.kindsAt(s.level, s.warn),
@@ -1020,7 +1095,7 @@ export function dungeonView(options: DungeonViewOptions): View {
             feet,
             HERO_SHADOW,
             look.theme.palette,
-            lights ? (x, y) => shadeAt(lights, x, y, feet) : undefined,
+            lights ? (x, y) => shadeAt(lights, x, y, feet, heroPoolIn(look.room)) : undefined,
           );
           return (
             placed && {
@@ -1029,8 +1104,11 @@ export function dungeonView(options: DungeonViewOptions): View {
             }
           );
         },
-        // On a darker day, his own pool of light goes with him.
-        life: isDark(here) ? [...look.flicker, heroLife] : look.flicker,
+        // On a darker day, and in a room of lanterns, his own pool of light goes with him; the
+        // lanterns' flicker is the look's shown now (one that is out does not flicker).
+        get life() {
+          return isDark(look.room) ? [...look.flicker, heroLife] : look.flicker;
+        },
       },
       // A sea cave at dusk, lit by its lanterns; or the tide-pool cave by day.
       time: look.theme.figureTime,
@@ -1071,6 +1149,17 @@ export function dungeonView(options: DungeonViewOptions): View {
         // Being carried by the sea, or paused to be resumed, a tap does nothing.
         if (run.battle.wash || waiting) return from;
         const foe = foeAt(run.battle, run.room, point, min, tapLift(dungeon.rooms[run.room]!));
+        // A lantern not burning, tapped: he goes to light it (a foe in front of it comes first).
+        const lamp =
+          !foe && run.battle.lamps?.[run.room]
+            ? lampUnder(dungeon.rooms[run.room]!.ground, point, min)
+            : null;
+        if (lamp !== null && !run.battle.lamps![run.room]![lamp]) {
+          const tended = tendLamp(run.battle, placeOf(dungeon, run), from, lamp);
+          options.keep({ ...run, battle: tended.battle, play: tended.play });
+          given = tended.play;
+          return tended.play;
+        }
         if (!foe || held(run.battle, placeOf(dungeon, run), foe)) {
           // A barred door says so; the walk (to the door, wherever on it the tap was) is the stage's.
           const door = doorUnder(dungeon.rooms[run.room]!, point, min);
@@ -1463,8 +1552,12 @@ export function dungeonView(options: DungeonViewOptions): View {
       roomView?.update?.(state);
       const after = options.run();
       if (after.room !== roomShown) showRoom();
-      // And again after the frame, so a tap before the next one walks on the ground as it is now.
-      else look.lock.map = groundNow(dungeon, after);
+      else {
+        // A lantern lit or put out: the room drawn as its lanterns now stand, once that is in.
+        followLamps(after);
+        // And again after the frame, so a tap before the next one walks on the ground as it is now.
+        look.lock.map = groundNow(dungeon, after);
+      }
       if (after.finished && !before.finished) {
         showResults();
         options.finished();

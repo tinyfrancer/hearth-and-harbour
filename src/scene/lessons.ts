@@ -29,6 +29,8 @@ import {
   cooldownLeft,
   foodProblem,
   held,
+  inFrontOf,
+  inLight,
   inMark,
   inSight,
   mapOf,
@@ -39,6 +41,7 @@ import {
 import { placeOf, type Dungeon, type Run } from './dungeon';
 import { DUNGEON } from './dungeonMetrics';
 import { bodyMid, foeKind } from './foes';
+import { lampFoot } from './light';
 import { forgetRemembered, KEYS, remember, remembered } from './remember';
 import { centreOf, type Point } from './tileMap';
 
@@ -79,7 +82,10 @@ export const LESSON_PLAIN_MS = 8000;
 export const LESSON_GO_ON_MS = 20_000;
 
 /** What a run's lessons are called in what is remembered: short and plain. */
-const SHORT_NAMES: Readonly<Record<string, string>> = { tidepool_cave: 'cave' };
+const SHORT_NAMES: Readonly<Record<string, string>> = {
+  tidepool_cave: 'cave',
+  thistlewood_burrow: 'burrow',
+};
 const shortName = (dungeon: string): string => SHORT_NAMES[dungeon] ?? dungeon;
 const learnedKey = (dungeon: string, id: string): string => KEYS.lesson(shortName(dungeon), id);
 const offKey = (dungeon: string): string => KEYS.tipsOff(shortName(dungeon));
@@ -370,6 +376,119 @@ export const CAVE_LESSONS: readonly Lesson[] = [
     ring: (_dungeon, run) => {
       const boss = bossOf(run.battle!, run.room);
       return boss ? ringFoe(boss) : null;
+    },
+  },
+];
+
+/* ----- The Burrow's hints (wave 19): its light, its moths and its guards, once each ----- */
+
+/** The lanterns in the run's room that do not burn, by the ground's order. */
+function unlit(dungeon: Dungeon, run: Run): number[] {
+  const lit = run.battle!.lamps?.[run.room];
+  if (!lit) return [];
+  return dungeon.rooms[run.room]!.ground.lamps.flatMap((_, i) => (lit[i] ? [] : [i]));
+}
+
+/** A moth in the room making for a lantern that burns, or putting one out. */
+function mothAtWork(dungeon: Dungeon, run: Run): Foe | null {
+  const b = run.battle!;
+  const lit = b.lamps?.[run.room] ?? [];
+  if (!lit.some(Boolean)) return null;
+  return (
+    standing(dungeon, run).find((f) => foeKind(f.monster).seeksLight && f.aware && !f.under) ?? null
+  );
+}
+
+/** The cap guards standing in the room. */
+const guards = (dungeon: Dungeon, run: Run): Foe[] =>
+  standing(dungeon, run).filter((f) => foeKind(f.monster).guard);
+
+export const BURROW_LESSONS: readonly Lesson[] = [
+  {
+    id: 'lantern',
+    blocks: true,
+    text: () =>
+      'It is dark down here. Tap a lantern to light it: creepers keep still in its light, and you fight better in it.',
+    plain: () => 'Tap the lantern in the gold ring. You light it standing beside it.',
+    // Once he steps out of the light he came in by, or something comes for him.
+    due: (dungeon, run) => {
+      const b = run.battle!;
+      if (unlit(dungeon, run).length === 0) return false;
+      const place = placeOf(dungeon, run);
+      return !inLight(b, place, run.play.walker.at) || standing(dungeon, run).some((f) => f.aware);
+    },
+    done: (dungeon, run) => {
+      const b = run.battle!;
+      if (b.tend) return true;
+      const written = dungeon.rooms[run.room]!.ground.lamps;
+      const lit = b.lamps?.[run.room] ?? [];
+      return written.some((l, i) => !l.lit && lit[i]) || unlit(dungeon, run).length === 0;
+    },
+    ring: (dungeon, run) => {
+      const hero = run.play.walker.at;
+      const lamps = dungeon.rooms[run.room]!.ground.lamps;
+      const near = unlit(dungeon, run).sort(
+        (a, c) =>
+          distance(lampFoot(lamps[a]!.cell), hero) - distance(lampFoot(lamps[c]!.cell), hero),
+      )[0];
+      if (near === undefined) return null;
+      const foot = lampFoot(lamps[near]!.cell);
+      return { kind: 'at', at: { x: foot.x, y: foot.y - 20 }, r: 28 };
+    },
+  },
+  {
+    id: 'moth',
+    blocks: true,
+    text: () =>
+      'A lantern moth! It flies to a burning lantern and puts it out. Tap it to stop it; a blow makes it start again.',
+    plain: (dungeon, run) => {
+      const moth = mothAtWork(dungeon, run);
+      const name = moth ? run.battle!.monsters[moth.monster]?.name.toLowerCase() : null;
+      return `Tap right on the ${name ?? 'moth'}, inside the gold ring, to go after it.`;
+    },
+    due: (dungeon, run) => mothAtWork(dungeon, run) !== null,
+    done: (dungeon, run) => {
+      const b = run.battle!;
+      const moth = mothAtWork(dungeon, run);
+      return !moth || b.target === moth.key;
+    },
+    ring: (dungeon, run) => {
+      const moth = mothAtWork(dungeon, run);
+      if (!moth) return null;
+      const ring = ringFoe(moth);
+      // Up on the wing, where it is drawn.
+      return ring && ring.kind === 'at'
+        ? { ...ring, at: { x: ring.at.x, y: ring.at.y - (foeKind(moth.monster).hovers ?? 0) } }
+        : ring;
+    },
+  },
+  {
+    id: 'guard',
+    blocks: false,
+    text: (_dungeon, run) =>
+      melee(run)
+        ? 'Its cap blocks blows from the front. Step round behind it as it bashes, or Brace the bash.'
+        : 'Its cap blocks shots from the front. Step round behind it as it bashes, then shoot.',
+    // Once a blow of his has glanced off one.
+    due: (dungeon, run) =>
+      guards(dungeon, run).length > 0 && run.battle!.effects.some((e) => e.kind === 'blocked'),
+    done: (dungeon, run) => {
+      const b = run.battle!;
+      const here = guards(dungeon, run);
+      const hero = run.play.walker.at;
+      return (
+        here.length === 0 ||
+        here.some(
+          (g) =>
+            (g.staggered ?? -Infinity) > b.clock || (b.target === g.key && !inFrontOf(g, hero)),
+        )
+      );
+    },
+    ring: (dungeon, run) => {
+      const b = run.battle!;
+      const target = guards(dungeon, run).find((g) => g.key === b.target);
+      if (melee(run) && cooldownLeft(b, 'second') === 0) return { kind: 'button', which: 'second' };
+      return target ? ringFoe(target) : null;
     },
   },
 ];
