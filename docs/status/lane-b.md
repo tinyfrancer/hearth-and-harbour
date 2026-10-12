@@ -3,6 +3,49 @@
 **Next session:** after B20 (Thistlewood Burrow's art, in batches below). Start with Cody's verdict
 on the Burrow and the weak lists below.
 
+## Thistlewood Burrow, batch 2: lanterns, light pieces, clouds, props (B20, second PR)
+
+**For lane C, on `main` once this PR merges** (no export renamed or re-signed):
+
+```ts
+// dungeonArt2.ts: props by id (dungeonProp2, dungeonPropSprite2; all in PROP2_IDS and BURROW2_PROP_IDS)
+'post_lantern', 'post_lantern_out'        // your LAMP_ART ids: your stand-in goes by itself
+'toadstools', 'root_tangle', 'bramble_patch', 'mossy_stone', 'fallen_log', 'root_throne'  // M O U V F J
+'badger_throne', 'mushroom_dwelling', 'larder', 'court_bench', 'sett_banner'               // new
+// the lantern's states, in place
+POST_LANTERN2_STATES = ['out', 'lighting', 'lit', 'snuffed']; type PostLanternState
+POST_LANTERN2_FRAMES = { out: 1, lighting: 4, lit: 4, snuffed: 4 }
+POST_LANTERN2_FRAME_MS = { out: 1000, lighting: 300, lit: 130, snuffed: 160 }
+postLanternFrame2(state, frame = 0): PropPicture2      // post_lantern's canvas, base and foot
+postLanternShines(state, frame): boolean               // lit, and lighting from its third frame
+POST_LANTERN2_LIGHT = { radius: 70, strength: 0.55, pool: 66, flicker: 0.12 }
+// ground effects: { picture, anchor } (draw at x - anchor.x, y - anchor.y; anchor its middle on the floor)
+sporeCloud2(radius, frame = 0): BurrowPiece2; SPORE_CLOUD2_FRAMES = 6; SPORE_CLOUD2_FRAME_MS = 140
+burrowMound2(frame = 0); BURROW_MOUND2_FRAMES = 3
+burrowEruption2(frame = 0); BURROW_ERUPTION2_FRAMES = 4; BURROW_ERUPTION2_FRAME_MS = 110
+HERO_LIGHT2 = { x: 0, y: -26, radius: 34, strength: 0.22, drop: 22, pool: 36, flicker: 0.06 }  // at his feet
+```
+
+- **The lantern on a post** stands as you stand it (foot two above its tile's bottom; `foot` is the
+  post's middle, the lantern hangs to its right from a crook). `post_lantern`'s `light` is the
+  rules' pool exactly (`pool` 66, `y + drop` = its base + 4). Its picture is 30 x 76; flame and
+  smoke keep their colours in the dark. To animate it, draw `postLanternFrame2(state, frame)` over
+  the painted room where the lamp is (the frames are the same canvas as the painted prop): `lighting`
+  while he tends it (1.2 s in four frames), `lit` looping, `snuffed` once when a moth or a slam puts
+  it out, then `out`.
+- **The throne**: your `JJJJ` gives four `root_throne`s, so that id is a tile-wide segment of a woven
+  root wall that runs on from its neighbours. The whole throne, chair and cushion and all, is
+  `badger_throne` (98 wide, its foot at its middle): stand one at the middle of the run instead, if
+  you would rather (row 2 of the sett, cols 15 to 18: foot at (17 x 24, 2 x 24 + 22)).
+- **Spore clouds** are drawn for your cloud's radius (`sporeCloud2(radius, frame)`; the puff's 45
+  and the burst's 36 look right); the floor shows through at least two pixels in five, so your marks
+  and telegraphs read over them. Their spores are a new ramp, `spore`, which glows faintly and keeps
+  its colour in the dark (it is in `NIGHT_EXEMPT`), so a cloud in the dark still says "not here".
+- **The mound and the eruption** are yours to place where the rules put the king under and up; the
+  eruption's last frame is the hole he leaves.
+- **Ramps** changed before anything used them: `puff` and `stalk` paler and cooler, `mothwing`
+  paler (they read orange at dusk); `spore` appended.
+
 ## Thistlewood Burrow, batch 1: the `burrow` theme, its doors and the night ramp (B20, first PR)
 
 **For lane C, on `main` once this PR merges** (no export renamed or re-signed; every older call

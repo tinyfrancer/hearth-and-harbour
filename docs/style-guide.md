@@ -1038,6 +1038,21 @@ lantern light against a cold blue-green dark.
   the night ramp; **3** the far dark, a step further down. Lights (`fire`, `lamp`, `ember`,
   `glowcap`) keep their colour at every level. A figure is painted whole in the level at its feet.
   The Burrow's `lightGround2` darkens nothing beyond a pool: its dark is the ramp's.
+- **The lantern on a post**: a crooked post of root-wood on a cairn of mossy stones, an iron lantern
+  hanging from a crook at its top, one tile wide. Its states are frames on one canvas: out (dark
+  `pane`s, never `glass`, which lights up at dusk), lighting (a spark, the flame catching, the panes
+  warming), burning (four flame shapes), snuffed (a wisp of smoke leaning off the cap, the wick
+  glowing a moment). Its pool is the rules', drawn to their numbers, never the other way round.
+- **Spore clouds are never filled**: puffs of spores in clumps with the floor between them, denser
+  at their rims, a low haze over the footprint, motes rising; the spores (`spore`, a sulphur green)
+  glow faintly, so a cloud reads in the dark and never hides a mark drawn over it.
+- **Props belong to the warren**: toadstools (tawny caps, one or two little glowing ones), roots
+  arching out of the floor, a bramble mound, a mossy stone, a fallen log with a shelf of glowing
+  fungus, the throne's woven root wall (a tile-wide segment that runs on from the next) and the whole
+  throne (a chair grown of roots, a faded cushion, a moth-eaten fur), a mushroom-folk dwelling with
+  a lit window, the larder dug under a root, the court's bench, the king's banner (a crowned badger's
+  head on purple). Each is lit from the upper left, outlined in its own darkest steps, and stands on
+  its own base.
 
 ### The harbour chart (B15)
 
