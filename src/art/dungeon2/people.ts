@@ -493,7 +493,7 @@ const HOBGOBLIN: Person = {
     return part;
   },
   own: [b(HOBGOBLIN_HEAD, 'head'), ...HOBGOBLIN_EARS],
-  swing: { kind: 'cudgel', sleeve: { upper: 'hide', fore: 'skin' } },
+  swing: { kind: 'cleaver', sleeve: { upper: 'hide', fore: 'skin' } },
   skin: 'hobgob',
   hair: 'hairblack',
 };
@@ -598,7 +598,7 @@ const BRIAR_HAG: Person = {
     return part;
   },
   own: [b(HAG_HEAD, 'head'), b(HAG_TANGLE, 'head'), ...HAG_STAFF],
-  swing: { kind: 'cudgel', sleeve: { upper: 'mossdye', fore: 'mossdye' } },
+  swing: { kind: 'staff', sleeve: { upper: 'mossdye', fore: 'mossdye' } },
   skin: 'skinpale',
   hair: 'hairgrey',
   // Stooped: a head shorter, taken out of her back and her legs.
