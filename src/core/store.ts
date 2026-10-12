@@ -1,6 +1,7 @@
 import { held } from './bounty';
 import type { Content, PerkDef, PerkPlace, StoreEntry } from './content';
 import { bankCount, stat, type GameState } from './state';
+import { tierLock, tierOf } from './tiers';
 
 /**
  * The general store: it buys anything at its sale value (`sell` in
@@ -15,7 +16,13 @@ const grouped = (amount: number): string => Math.floor(amount).toLocaleString('e
 export type StoreResult = { ok: true; state: GameState } | { ok: false; reason: string };
 
 /** Why the store will not sell this entry now, or null if it will. */
-export function storeProblem(state: GameState, entry: StoreEntry): string | null {
+export function storeProblem(
+  state: GameState,
+  entry: StoreEntry,
+  content?: Content,
+): string | null {
+  const locked = content ? tierLock(state, tierOf(entry), content) : null;
+  if (locked) return locked;
   if (entry.perk && state.perks.includes(entry.id)) return 'Yours already.';
   if (entry.item && entry.once && held(state, entry.item) > 0) return 'You have one already.';
   if (state.coins < entry.price) {
@@ -28,7 +35,7 @@ export function storeProblem(state: GameState, entry: StoreEntry): string | null
 export function buyFromStore(state: GameState, entryId: string, content: Content): StoreResult {
   const entry = content.store && Object.hasOwn(content.store, entryId) && content.store[entryId];
   if (!entry) return { ok: false, reason: 'The store has no such thing.' };
-  const problem = storeProblem(state, entry);
+  const problem = storeProblem(state, entry, content);
   if (problem) return { ok: false, reason: problem };
   const paid: GameState = {
     ...state,

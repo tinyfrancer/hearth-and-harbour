@@ -59,6 +59,7 @@ import {
   newLanding,
   putFirstStepsAway,
 } from './hints';
+import { tierCardDue, tierOpenedCard, tierSeenKey } from './tierCard';
 import { fullLook } from './look';
 import { counted, listed } from './format';
 import { rewardWords } from './dungeonWords';
@@ -690,6 +691,17 @@ export function mountApp(
             turnTo();
           },
         );
+        // A tier just opened (S22): what it brings, at the very top, until put away for good.
+        const opened = tierCardDue(game, content);
+        if (opened !== null) {
+          list.el.prepend(
+            tierOpenedCard(opened, content, () => {
+              if (state) state = remember(state, tierSeenKey(opened));
+              save();
+              redrawInPlace();
+            }),
+          );
+        }
         // A new character's pointer to the learning dungeon, at the top, until put away.
         const learning = firstStepsDungeon(game, content);
         if (learning && firstStepsDue(game, content, prefs)) {

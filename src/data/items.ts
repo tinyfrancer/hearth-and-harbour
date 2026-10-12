@@ -618,6 +618,398 @@ export const ITEMS = {
     value: 240,
     equip: { slot: 'body', style: 'ranged', attack: 2, armour: 6 },
   },
+  // Tier 2 (S22, docs/tier2-manifest.md), opened by Brinebeard's Grotto. Gathered
+  // things pay more the further up a skill; made things are priced as tier 1's
+  // are, by the chain behind them (tests/data/pacing.test.ts).
+  driftwood: {
+    id: 'driftwood',
+    name: 'Driftwood',
+    description:
+      'Bleached, salted and smooth as bone. It has been somewhere, and it is not telling.',
+    value: 67,
+  },
+  elm_logs: {
+    id: 'elm_logs',
+    name: 'Elm logs',
+    description: 'Dark bark, wild grain, and no intention of splitting where you want it to.',
+    value: 110,
+  },
+  yew_logs: {
+    id: 'yew_logs',
+    name: 'Yew logs',
+    description: 'Orange at the heart and pale at the rim. Every bowyer in the land wants a word.',
+    value: 170,
+  },
+  raw_mackerel: {
+    id: 'raw_mackerel',
+    name: 'Raw mackerel',
+    description: 'Striped like the sea on a windy day, and twice as lively on the line.',
+    value: 85,
+  },
+  raw_halibut: {
+    id: 'raw_halibut',
+    name: 'Raw halibut',
+    description: 'Flat, vast and looking at you with both eyes from the same side.',
+    value: 135,
+  },
+  raw_swordfish: {
+    id: 'raw_swordfish',
+    name: 'Raw swordfish',
+    description: 'It came up fighting and has not entirely stopped. Mind the pointy end.',
+    value: 200,
+  },
+  salt_iron_ore: {
+    id: 'salt_iron_ore',
+    name: 'Salt-iron ore',
+    description:
+      'Blue-grey rock with salt in every crack. The sea put it there; the smiths want it out.',
+    value: 105,
+  },
+  silver_ore: {
+    id: 'silver_ore',
+    name: 'Silver ore',
+    description:
+      'Pale rock threaded with bright veins. It catches the lamplight and holds on to it.',
+    value: 160,
+  },
+  gold_ore: {
+    id: 'gold_ore',
+    name: 'Gold ore',
+    description:
+      'Buttery nuggets in grey rock. Miners whistle more when they find it, and talk less.',
+    value: 230,
+  },
+  sea_holly: {
+    id: 'sea_holly',
+    name: 'Sea holly',
+    description: 'Spiky, blue and thoroughly unfriendly. Alchemists love it anyway.',
+    value: 68,
+  },
+  nettles: {
+    id: 'nettles',
+    name: 'Nettles',
+    description: 'A stinging armful, picked with care and a certain amount of language.',
+    value: 90,
+  },
+  sea_glass: {
+    id: 'sea_glass',
+    name: 'Sea-glass',
+    description:
+      'Old bottles, tumbled soft and frosted by the tide. Green, blue and once, rarely, red.',
+    value: 120,
+  },
+  duskbloom: {
+    id: 'duskbloom',
+    name: 'Duskbloom',
+    description:
+      'Opens only as the sun goes down, and glows faintly while it is open. Picked in a hurry.',
+    value: 175,
+  },
+  cooked_mackerel: {
+    id: 'cooked_mackerel',
+    name: 'Cooked mackerel',
+    description:
+      'Oily, smoky and gone before it cools. Best eaten off the grill with your fingers.',
+    value: 138,
+    heals: 26,
+  },
+  cooked_halibut: {
+    id: 'cooked_halibut',
+    name: 'Cooked halibut',
+    description:
+      'A thick white steak that flakes into big clean pieces. Feeds a crew, or one hero.',
+    value: 230,
+    heals: 33,
+  },
+  cooked_swordfish: {
+    id: 'cooked_swordfish',
+    name: 'Cooked swordfish',
+    description: 'Seared, meaty and very satisfying, given the trouble it gave.',
+    value: 358,
+    heals: 40,
+  },
+  salt_iron_bar: {
+    id: 'salt_iron_bar',
+    name: 'Salt-iron bar',
+    description:
+      'Blue-black steel with a pale bloom of salt along its edges that no polish quite removes.',
+    value: 170,
+  },
+  silver_bar: {
+    id: 'silver_bar',
+    name: 'Silver bar',
+    description: 'Bright, soft and very nearly too nice to cut.',
+    value: 260,
+  },
+  gold_bar: {
+    id: 'gold_bar',
+    name: 'Gold bar',
+    description: 'Heavy enough to be suspicious of. Everyone in the room knows where it is.',
+    value: 394,
+  },
+  salt_iron_arrowheads: {
+    id: 'salt_iron_arrowheads',
+    name: 'Salt-iron arrowheads',
+    description: 'Long, narrow points that go through a hide like it owed them money.',
+    value: 23,
+  },
+  nettle_cloth: {
+    id: 'nettle_cloth',
+    name: 'Nettle cloth',
+    description: 'Rough, grey-green and astonishingly strong. It no longer stings, mostly.',
+    value: 250,
+  },
+  thick_hide: {
+    id: 'thick_hide',
+    name: 'Thick hide',
+    description:
+      'Shaggy, heavy and smelling powerfully of the woods. A tanner rolls up her sleeves.',
+    value: 60,
+  },
+  thick_leather: {
+    id: 'thick_leather',
+    name: 'Thick leather',
+    description: 'Dark, dense and stiff as a door. It softens in a month and lasts a lifetime.',
+    value: 100,
+  },
+  // The knight's set (style guide's gear ladder, tier 2), salt-iron from the
+  // anvil: about one and a half times iron, needing 20 to 30 to wear.
+  salt_iron_axe: {
+    id: 'salt_iron_axe',
+    name: 'Salt-iron axe',
+    description:
+      'A long bright bit, a back spike and a gilt collar. Built for doors, shields and opinions.',
+    value: 228,
+    equip: {
+      slot: 'main_hand',
+      style: 'melee',
+      attack: 11,
+      strength: 16,
+      requires: { skill: 'melee', level: 20 },
+    },
+  },
+  salt_iron_sword: {
+    id: 'salt_iron_sword',
+    name: 'Salt-iron longsword',
+    description:
+      'A long, bright blade with a gilt guard. It makes you stand up straighter just holding it.',
+    value: 428,
+    equip: {
+      slot: 'main_hand',
+      style: 'melee',
+      attack: 16,
+      strength: 14,
+      requires: { skill: 'melee', level: 20 },
+    },
+  },
+  salt_iron_helm: {
+    id: 'salt_iron_helm',
+    name: 'Salt-iron helm',
+    description:
+      'Polished plate with a visor that lifts for talking and drops for everything else.',
+    value: 434,
+    equip: { slot: 'head', armour: 11, requires: { skill: 'defence', level: 20 } },
+  },
+  salt_iron_shield: {
+    id: 'salt_iron_shield',
+    name: 'Salt-iron kite shield',
+    description:
+      'Long, blue and gold-crossed, from chin to shin. Arrows look at it and reconsider.',
+    value: 645,
+    equip: { slot: 'off_hand', armour: 16, requires: { skill: 'defence', level: 25 } },
+  },
+  salt_iron_greaves: {
+    id: 'salt_iron_greaves',
+    name: 'Salt-iron greaves',
+    description: 'Knee cops and shin plates, shaped to the leg. Stairs are now a formal occasion.',
+    value: 654,
+    equip: { slot: 'legs', armour: 13, requires: { skill: 'defence', level: 25 } },
+  },
+  salt_iron_plate: {
+    id: 'salt_iron_plate',
+    name: 'Salt-iron plate',
+    description:
+      'A ridged breastplate, three-lamed pauldrons and a fauld, polished till it hurts to look at. This is what knights look like.',
+    value: 882,
+    equip: { slot: 'body', armour: 24, requires: { skill: 'defence', level: 30 } },
+  },
+  // Worn in the neck slot: a cloak fastens at the throat, so it takes the
+  // place of a necklace or charm (docs/tier2-manifest.md).
+  red_cloak: {
+    id: 'red_cloak',
+    name: 'Red cloak',
+    description:
+      'Nettle cloth dyed the red of a good fire. It swirls on its own whenever anyone is looking.',
+    value: 1191,
+    equip: { slot: 'neck', armour: 7, requires: { skill: 'defence', level: 25 } },
+  },
+  salt_iron_arrows: {
+    id: 'salt_iron_arrows',
+    name: 'Salt-iron arrows',
+    description:
+      'Long, narrow, blue-headed and white-fletched. They whistle on the way out and not on the way in.',
+    value: 28,
+    equip: {
+      slot: 'ammo',
+      style: 'ranged',
+      strength: 10,
+      requires: { skill: 'ranged', level: 20 },
+    },
+  },
+  // The ranger's leathers: the archer's rung beside the knight's, from thick hide.
+  ranger_hood: {
+    id: 'ranger_hood',
+    name: 'Ranger’s hood',
+    description:
+      'Deep, dark and weatherproof, with a short cape. Your face is in shadow and you feel mysterious.',
+    value: 300,
+    equip: {
+      slot: 'head',
+      style: 'ranged',
+      attack: 2,
+      armour: 6,
+      requires: { skill: 'ranged', level: 20 },
+    },
+  },
+  ranger_bracers: {
+    id: 'ranger_bracers',
+    name: 'Ranger’s bracers',
+    description:
+      'Elbow-long and stitched for the bow arm. A string has never once slapped you since.',
+    value: 160,
+    equip: {
+      slot: 'wrist',
+      style: 'ranged',
+      attack: 5,
+      armour: 2,
+      requires: { skill: 'ranged', level: 20 },
+    },
+  },
+  ranger_coat: {
+    id: 'ranger_coat',
+    name: 'Ranger’s coat',
+    description:
+      'Knee-long, split for striding, belted at the waist. It has a pocket for everything and one for luck.',
+    value: 560,
+    equip: {
+      slot: 'body',
+      style: 'ranged',
+      attack: 4,
+      armour: 12,
+      requires: { skill: 'ranged', level: 25 },
+    },
+  },
+  driftwood_shortbow: {
+    id: 'driftwood_shortbow',
+    name: 'Driftwood shortbow',
+    description:
+      'Silver-grey and knotted, bound in tarred cord. The sea seasoned it better than any bowyer could.',
+    value: 254,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'ranged',
+      attack: 14,
+      strength: 11,
+      requires: { skill: 'ranged', level: 20 },
+    },
+  },
+  elm_longbow: {
+    id: 'elm_longbow',
+    name: 'Elm longbow',
+    description: 'A head taller than you and stubborn to draw. What it lets go of keeps going.',
+    value: 545,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'ranged',
+      attack: 17,
+      strength: 14,
+      requires: { skill: 'ranged', level: 25 },
+    },
+  },
+  yew_longbow: {
+    id: 'yew_longbow',
+    name: 'Yew longbow',
+    description:
+      'Heartwood on the belly, sapwood on the back, horn at the tips. The real thing, at last.',
+    value: 844,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'ranged',
+      attack: 21,
+      strength: 17,
+      requires: { skill: 'ranged', level: 30 },
+    },
+  },
+  silver_bangle: {
+    id: 'silver_bangle',
+    name: 'Silver bangle',
+    description:
+      'A bright band set with a green sea-glass stone. It clinks against the hilt in a heroic sort of way.',
+    value: 632,
+    equip: { slot: 'wrist', attack: 2, strength: 4 },
+  },
+  gold_amulet: {
+    id: 'gold_amulet',
+    name: 'Gold amulet',
+    description:
+      'A gold disc on a gold chain, a pale sea-glass at its heart. It sits warm against the chest.',
+    value: 1383,
+    equip: { slot: 'neck', attack: 5, strength: 5, armour: 2 },
+  },
+  // What tier 2's monsters drop rarely, and the bounty shop sells.
+  ogre_maul: {
+    id: 'ogre_maul',
+    name: 'Ogre’s maul',
+    description:
+      'Most of a tree, bound in three rusty bands. Swinging it is less a technique than a decision.',
+    value: 3500,
+    equip: {
+      slot: 'main_hand',
+      twoHanded: true,
+      style: 'melee',
+      attack: 18,
+      strength: 30,
+      requires: { skill: 'melee', level: 35 },
+    },
+  },
+  briar_charm: {
+    id: 'briar_charm',
+    name: 'Briar charm',
+    description:
+      'A ring of thorns round a single red berry, on a cord. Nothing that bites likes to get close.',
+    value: 2000,
+    equip: {
+      slot: 'neck',
+      attack: 3,
+      strength: 3,
+      armour: 8,
+      requires: { skill: 'defence', level: 28 },
+    },
+  },
+  mossback_shield: {
+    id: 'mossback_shield',
+    name: 'Mossback shield',
+    description:
+      'A slab of grey stone grown green, bound to the arm with roots. Heavy, soft-edged and nearly unbreakable.',
+    value: 2400,
+    equip: { slot: 'off_hand', armour: 22, requires: { skill: 'defence', level: 35 } },
+  },
+  broadhead_arrows: {
+    id: 'broadhead_arrows',
+    name: 'Broadhead arrows',
+    description:
+      'Wide salt-iron heads and dark green fletchings, for the big things at the edge of the wood.',
+    value: 25,
+    equip: {
+      slot: 'ammo',
+      style: 'ranged',
+      strength: 13,
+      requires: { skill: 'ranged', level: 30 },
+    },
+  },
   // Potions: what each does is in its `potion`, and the screens describe it from there.
   sage_tonic: {
     id: 'sage_tonic',
@@ -649,6 +1041,42 @@ export const ITEMS = {
       charges: 200,
       skills: skillsIn('Gathering', 'Artisan'),
       effect: { kind: 'xp', percent: 15 },
+    },
+  },
+  // Tier 2's potions: tier 1's four kinds, stronger and longer.
+  holly_tonic: {
+    id: 'holly_tonic',
+    name: 'Sea-holly tonic',
+    description:
+      'Pale blue and prickly on the tongue. Your hands are somewhere else before you are.',
+    value: 144,
+    potion: { charges: 200, skills: skillsIn('Gathering'), effect: { kind: 'speed', percent: 15 } },
+  },
+  forgehand_draught: {
+    id: 'forgehand_draught',
+    name: 'Forgehand draught',
+    description:
+      'Orange, warm and faintly smoky. The work goes quicker, and so does the talk at the bench.',
+    value: 247,
+    potion: { charges: 200, skills: skillsIn('Artisan'), effect: { kind: 'speed', percent: 10 } },
+  },
+  duskbloom_tincture: {
+    id: 'duskbloom_tincture',
+    name: 'Duskbloom tincture',
+    description: 'Glows violet in the vial. Everything you gather seems to have brought a friend.',
+    value: 363,
+    potion: { charges: 200, skills: skillsIn('Gathering'), effect: { kind: 'extra', every: 4 } },
+  },
+  twilight_elixir: {
+    id: 'twilight_elixir',
+    name: 'Twilight elixir',
+    description:
+      'Deep blue with gold drifting in it. The day’s lessons settle in like they mean to stay.',
+    value: 461,
+    potion: {
+      charges: 250,
+      skills: skillsIn('Gathering', 'Artisan'),
+      effect: { kind: 'xp', percent: 20 },
     },
   },
 } satisfies Record<string, ItemDef>;

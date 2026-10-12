@@ -1,9 +1,92 @@
 # Lane A: idle rules
 
-**Now: S22, tier 2 content** (wave 19, branch `lane-a/s22-tier2`). PR 1 (the manifest and the
-burrow's row) first; PR 2 (tier 2's rows, pacing, menus) once lane B's art is on `main`.
+**Next: Cody's review of tier 2** (S22, wave 19), then the burrow's idle rooms and numbers from
+lane C's S23, and whatever the review asks for.
 
 ## Done
+
+- Wave 19, PR 2: tier 2 itself (branch `lane-a/s22-tier2-rows`). **Save version unchanged
+  (11)**: tier 2 needs no state but its rows (bank, mastery and bestiary are keyed by id; a tier
+  is read from clears; the unlock card's flag is a `seen` key).
+  - **The tier rule** (`src/core/tiers.ts`): a row's `tier` (actions, monsters, areas, store and
+    shop entries; left out, 1); `tierUnlocked` (moved here from `progress.ts`, re-exported there);
+    `tierLock` gives the reason in words ("Clear Brinebeard’s Grotto."; a tier whose dungeon is
+    still to come says "Not open yet." and names nothing); `actionLock` (tier, then level) is
+    what `startAction` refuses with; `monsterLock` what `startFight` refuses with (a monster's
+    level stays advice, as in tier 1); the bounty board, the store and the bounty shop leave out
+    or refuse a closed tier (`openTo`, `storeProblem`/`shopProblem` with `content`). A level-30
+    save that clears the grotto can use what its levels allow at once; nothing closes again.
+    `itemTier` (the lowest tier of anything that gives an item) for the menus.
+  - **Monsters' XP rate** (`MonsterDef.xpPercent`, `foeXp` in `src/core/combat.ts`): tier 2's
+    monsters pay 270% of the usual XP per blow (attacking skill, Defence, Vitality), rounded once a
+    blow, in the fight walk and idle runs. Why: combat XP is damage dealt, which grows only with
+    the level, while the curve grows as the 2.5th power; without it Melee took 7.05 h from 20 to
+    40 (Defence 6.3, Vitality 6.7, Ranged 6.0). Tier 1's monsters are unchanged.
+  - **The rows** (`docs/tier2-manifest.md` has every id): three gathering actions a skill at 20,
+    27, 34 (Foraging four at 20, 25, 30, 35); cooking three; Smithing's salt-iron set (bar 20, axe
+    21, arrowheads 22, longsword 24, helm 26, kite shield 29, greaves 31, plate 35) and silver and
+    gold bars (27, 34) under groups "Salt-iron" and "Silver and gold"; Crafting eight (thick
+    leather 20, nettle cloth 21, ranger's bracers 23, hood 26, silver bangle 28, red cloak 31,
+    ranger's coat 34, gold amulet 37); Fletching four (driftwood shortbow 20, salt-iron arrows 23,
+    elm longbow 28, yew longbow 35); Alchemy four potions (sea-holly tonic 20: Gathering 15%
+    quicker, 200 charges; forgehand draught 26: Artisan 10% quicker, 200; duskbloom tincture 32:
+    Gathering an extra every 4th, 200; twilight elixir 37: Gathering and Artisan 20% more XP,
+    250); five marks (20, 24, 28, 32, 37); seven monsters in Thistlewood's Edge (brigand 23,
+    black bear 27, hobgoblin 31, dire wolf 35, hill ogre 39) and the Deepthorn (bounty only:
+    briar hag 29, moss golem 37); store stock (cooked mackerel ×10, salt-iron arrows ×50) and a
+    bounty-shop arrow (broadhead ×150); the burrow's drops now tier 2's (duskbloom, thick hide,
+    ten cooked swordfish on its first clear).
+  - **Pacing held by simulation**, tier 2 from level 20 with the grotto cleared (pinned in
+    `tests/data/pacing.test.ts` and `duels.test.ts`): gathering 2.93 to 2.97 h, Thieving 2.92,
+    artisan 1.88 to 2.00; combat Melee 3.00, Defence 3.38 (3.45 with a bow), Vitality 3.18 (2.95),
+    Ranged 2.62, no deaths. Every monster fair at its level with either weapon (70%+ won, a third
+    of health or more lost); bounties 10 to 20 minutes with either weapon; fish an hour pinned.
+    An hour at 30 and 40: gathering 82,740 to 90,430 and 96,000 to 105,000 (within 1.3 of each
+    other); artisan over materials 1.5 to 2.1 times gathering; Thieving 1.41 and 1.58 (127,457
+    and 166,090); the best fight for money between them (smuggler 120,244 at 30, hill ogre
+    160,311 at 40). Bounty points an hour 60 to 69 at 30 (13 open), 69 to 83 at 40 (17 open).
+    Each tier 2 potion's gain over an hour pinned.
+  - **A limit that would not fit, decided**: ten levels early a tier 2 monster is won under 20%
+    of duels, not under 5% as in tier 1 (measured worst about 15%). Tier 2 is one rung of gear
+    (the knight) where tier 1 had two, so ten levels early is not far enough behind; getting
+    under 5% needed max hits of 6 to 8 on level-30 monsters, which read as toothless and would
+    have starved Defence's XP (paid by max hit). Also not asserted: from combat level 33 the
+    "trivial seldom" share of bounty offers is about 0.37 (tier 1's limit is a third): tier 1's
+    ten monsters each keep the board's floor weight of 1.
+  - **Menus**: a skill page with rows of two tiers lists each under a heading that folds (the
+    tier's chip, its levels or "Locked", how many rows; a closed tier keeps its reason in sight
+    while folded); the tier with the running action, else the highest with something to start,
+    is open; groups (Smithing's) sit inside their tier; a locked row says "Locked: Clear
+    Brinebeard’s Grotto." Thieving's marks the same. The Combat page gives tier 2's areas a chip
+    and the reason; their monsters are listed, locked, saying why (a tap toasts it). The store
+    heads tier 2's stock "Past the grotto" with its chip and reason; the bounty shop's broadhead
+    arrows carry the chip and the reason. The bank's type sort puts a later tier's things after
+    tier 1's of each kind under "Resources · Tier 2" and so on, and the card says "Resources ·
+    Tier 2". The Dungeons card's grotto line now says what tier 2 brings, not "still being built".
+  - **The unlock moment** (`src/ui/tierCard.ts`): on the Skills tab, once tier 2 is open, a card
+    "Tier 2 is open" with each skill's new actions (a long list told as "10 new, levels 20 to
+    35"), the two areas and the shops, until "Got it", remembered as `seen` key
+    `tier.2.opened`. A save that cleared the grotto before this (Cody's) sees it once.
+  - **Achievements** (eight, 50 in all; the bound 48 → 60): Deep Water, Salt in the Blood (made),
+    Arise (the knight's set and cloak worn), Into the Green (the ranger's set), Over the Hill (any
+    40), Shore to Forest (every gathering 40), The Bigger They Are (25 hill ogres), Most of a Tree
+    (hidden: the maul).
+  - **Long lists**: card text and bars are written only when they change. Under a 4× CPU throttle
+    at 390 × 844 (production build), Smithing with every heading open scrolls at a median 16.7 ms
+    a frame (p95 41), Crafting 18.0 (40), the bank 16.8 (19); before the change Smithing was 32.8
+    (60). The in-place tests hold.
+  - **Art gate**: a new content case wants an icon (`ITEM_ICON_IDS`) for every item reachable and
+    a figure layer (`ITEM_LAYERS2`) for every wearable; the existing face cases want a portrait
+    for every monster. PR 2 merges only when lane B's art is on `main`.
+  - **Tests changed on purpose**: tier 1's content cases read tier 1's rows (monsters, areas,
+    marks, bounty hunters, "the anchor the strongest blow so far" among tier 1's weapons); the
+    smithing groups list gains two; duels' generic cases read tier 1's monsters; the Combat
+    page's counts (areas 4 → 6, monsters 10 → 17); the faces test's marks are tier 1's; the
+    collection log's Gathering count 13 → 26; the Dungeons card's tier line; the bestiary
+    in-place case's timeout 20 s; the burrow's challenge case uses tier 2's gathering hour. New:
+    `tests/core/tiers.test.ts`, `tests/ui/tiers.test.ts`, tier 2 cases in content, duels and
+    pacing.
+  - **Checked** at 390 × 844 and 360 × 740, 3x: `/home/claude/lane-shots/w19-a/`.
 
 - Wave 19, PR 1: S22's manifest and Thistlewood Burrow's row (branch `lane-a/s22-tier2`).
   **Save version unchanged (11).**
@@ -1261,7 +1344,13 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
   eating tier 2's fish (cooked swordfish, heals 40, from PR 2), aimed at 8 to 10 minutes. Send
   back the numbers your scripted player needs, and the room plan, so lane A can add
   `idle.rooms`. (3) Its regular drop is `amber` (what the day's `loot` multiplies).
-- **For lane B (wave 19)**: everything in `docs/tier2-manifest.md`: icons for every new item;
+  (4) **XP rate**: the burrow's cast rows carry `xpPercent: 270` (tier 2's rate; PR 2). The
+  idle run pays it; the scene's `battle.ts` pays `XP_PER_DAMAGE`/`DEFENCE_XP_PER_MAX_HIT`
+  directly and should wrap each in `foeXp(base, foe)` from `src/core/combat.ts`.
+- **For lane B (wave 19)**: PR 2 is held until these are on `main`. Blocking first: foes and
+  portraits for the seven monsters (`brigand`, `black_bear`, `hobgoblin`, `dire_wolf`,
+  `hill_ogre`, `briar_hag`, `moss_golem`), since `tests/art/dungeonArt2` wants every monster in
+  `FOE2_IDS`. Then everything in `docs/tier2-manifest.md`: icons for every new item;
   figure layers for the fifteen new wearables and `ITEM_LAYERS2` rows for the seven mapped ones;
   foes and portraits for the seven monsters and the burrow's five; faces for the five marks if
   there is time. The new modifier and challenge ids already match your matcher.

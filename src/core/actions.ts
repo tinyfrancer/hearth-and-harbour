@@ -3,8 +3,9 @@ import type { ActionDef, Content, PotionDef } from './content';
 import { advanceFight } from './fight';
 import { advanceIdleRun } from './idleRun';
 import { extrasIn, potionFor } from './potions';
-import { bankCount, masteryLevel, masteryXp, skillLevel, type GameState } from './state';
+import { bankCount, masteryLevel, masteryXp, type GameState } from './state';
 import { advanceTheft } from './thieving';
+import { actionLock } from './tiers';
 import { MAX_LEVEL, masteryXpPer, xpForLevel } from './xp';
 
 export { masteryXpPer };
@@ -60,10 +61,8 @@ export function startAction(state: GameState, actionId: string, content: Content
   if (!action) {
     return { ok: false, reason: 'There is no such thing to do.' };
   }
-  if (skillLevel(state, action.skill) < action.level) {
-    const skill = content.skills[action.skill]?.name ?? action.skill;
-    return { ok: false, reason: `Needs ${skill} level ${action.level}.` };
-  }
+  const locked = actionLock(state, action, content);
+  if (locked) return { ok: false, reason: locked };
   if (state.action?.id === actionId) {
     return { ok: true, state };
   }

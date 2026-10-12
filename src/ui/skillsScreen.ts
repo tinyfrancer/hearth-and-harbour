@@ -27,6 +27,8 @@ import { totalLevel } from '../core/achievements';
 import { combatLevel } from '../core/bounty';
 import type { View } from './view';
 import { workStage, type WorkStage } from './atWork';
+import { actionLock, tierLock, tierOf, tierUnlocked, tiersIn } from '../core/tiers';
+import { tierChip, tierLockLine } from './tierMarks';
 
 /** CSS pixels to an art pixel for the hero at work on the running action's card. */
 const CARD_STAGE_SCALE = 1.34;
@@ -162,7 +164,7 @@ function recipeNeeds(
     ]);
     updates.push((now) => {
       const have = bankCount(now, item);
-      held.textContent = formatNumber(have);
+      setText(held, formatNumber(have));
       el.classList.toggle('short', have < qty);
     });
     return el;
@@ -212,10 +214,11 @@ function firstOpen(
   state: GameState,
   table: ActionDef[],
   byLevel: ActionDef[],
-  level: number,
+  content: Content,
 ): Set<string> {
   const running = byLevel.find((action) => action.id === state.action?.id);
-  const newest = byLevel.filter((action) => action.level <= level).at(-1);
+  // The newest thing that can be started: its level reached and its tier open (S22).
+  const newest = byLevel.filter((action) => actionLock(state, action, content) === null).at(-1);
   return new Set([table[0]?.group ?? '', (running ?? newest)?.group ?? '']);
 }
 
@@ -299,7 +302,9 @@ export function skillPageView(
   });
 
   const card = (action: ActionDef): HTMLElement => {
-    if (level >= action.level && action.steal) {
+    // Closed for want of its tier (S22) or its level: shown, with why.
+    const lock = actionLock(state, action, content);
+    if (!lock && action.steal) {
       const mark = markCard(state, action, content, updates, actions);
       if (state.action?.id === action.id) {
         atWork = workStage(content, CARD_STAGE_SCALE, true, { left: 8 });
@@ -307,12 +312,14 @@ export function skillPageView(
       }
       return mark;
     }
-    if (level < action.level) {
+    if (lock) {
+      const tierClosed = tierLock(state, tierOf(action), content);
       return h('div', { class: 'panel card locked', attrs: { 'data-action': action.id } }, [
         h('div', { class: 'card-head' }, [
           h('h2', { text: action.name }),
           h('span', { class: 'muted', text: `Level ${action.level}` }),
         ]),
+        tierClosed && tierLockLine(tierClosed),
       ]);
     }
     const active = state.action?.id === action.id;
@@ -333,20 +340,26 @@ export function skillPageView(
       progress.set(now.action?.id === action.id ? now.action.progressMs / duration : 0);
       mastery.set(levelProgress(masteryXp(now, action.id)));
       // A number a potion changes is shown changed, in the potion's colour.
-      time.textContent = formatSeconds(duration);
+      setText(time, formatSeconds(duration));
       time.classList.toggle('potion-helped', potion?.effect.kind === 'speed');
-      xpEach.textContent = `${xpPerCompletion(action, potion)} XP`;
+      setText(xpEach, `${xpPerCompletion(action, potion)} XP`);
       xpEach.classList.toggle('potion-helped', potion?.effect.kind === 'xp');
       const level = masteryLevel(now, action.id);
       const quicker = Number(((level - 1) * MASTERY_SPEED_PER_LEVEL * 100).toFixed(1));
-      masteryText.textContent =
-        level > 1 ? `Mastery ${level} · ${quicker}% quicker` : `Mastery ${level}`;
-      owned.textContent = action.gives
-        .map(
-          ({ item }) =>
-            `${content.items[item]?.name ?? item}: ${formatNumber(bankCount(now, item))}`,
-        )
-        .join(' · ');
+      // Written only when changed: a long page (S22's tiers) has many cards updated each frame.
+      setText(
+        masteryText,
+        level > 1 ? `Mastery ${level} · ${quicker}% quicker` : `Mastery ${level}`,
+      );
+      setText(
+        owned,
+        action.gives
+          .map(
+            ({ item }) =>
+              `${content.items[item]?.name ?? item}: ${formatNumber(bankCount(now, item))}`,
+          )
+          .join(' · '),
+      );
     });
     const el = h(
       'button',
@@ -374,25 +387,36 @@ export function skillPageView(
       const short = !active && (needs?.short(now) ?? false);
       el.classList.toggle('short', short);
       el.setAttribute('aria-disabled', String(short));
-      hint.textContent = active ? 'Tap to stop' : short ? '' : 'Tap to start';
+      setText(hint, active ? 'Tap to stop' : short ? '' : 'Tap to start');
     });
     return el;
   };
 
   const table = Object.values(content.actions).filter((action) => action.skill === skill.id);
-  const rows = [...table].sort((a, b) => a.level - b.level);
-  let cards: HTMLElement[];
-  if (rows.length > GROUP_OVER && rows.some((action) => action.group)) {
-    let open = openGroups.get(skill.id);
-    if (!open) {
-      open = firstOpen(state, table, rows, level);
-      openGroups.set(skill.id, open);
+  /** One tier's cards (or all of them): under group headings if many and grouped, else by level. */
+  const cardsOf = (actionsHere: ActionDef[]): HTMLElement[] => {
+    const rows = [...actionsHere].sort((a, b) => a.level - b.level);
+    if (rows.length > GROUP_OVER && rows.some((action) => action.group)) {
+      let open = openGroups.get(skill.id);
+      if (!open) {
+        open = firstOpen(
+          state,
+          table,
+          [...table].sort((a, b) => a.level - b.level),
+          content,
+        );
+        openGroups.set(skill.id, open);
+      }
+      const running = rows.find((action) => action.id === state.action?.id);
+      return groupedCards(actionsHere, card, open, running && (running.group ?? ''));
     }
-    const running = rows.find((action) => action.id === state.action?.id);
-    cards = groupedCards(table, card, open, running && (running.group ?? ''));
-  } else {
-    cards = rows.map(card);
-  }
+    return rows.map(card);
+  };
+  const tiers = tiersIn(table);
+  const cards =
+    tiers.length > 1
+      ? tierSections(state, content, skill, table, tiers, cardsOf, openGroups)
+      : cardsOf(table);
 
   const potion = potionPanel(state, content, skill.id);
   if (potion?.update) updates.push(potion.update);
@@ -427,6 +451,80 @@ export function skillPageView(
     stale: (before, after) =>
       skillLevel(before, skill.id) !== skillLevel(after, skill.id) ||
       before.action?.id !== after.action?.id ||
-      helps(before) !== helps(after),
+      helps(before) !== helps(after) ||
+      tiers.some(
+        (tier) => tierUnlocked(before, tier, content) !== tierUnlocked(after, tier, content),
+      ),
   };
+}
+
+/**
+ * A skill page with rows of more than one tier (S22) lists each tier under a
+ * heading that folds: its chip, how many rows, and, while closed, why. First
+ * shown, the tier with the running action is open, or else the highest with
+ * something to start; the others are folded, a closed one still saying why.
+ * Taps are remembered with the page's other headings.
+ */
+function tierSections(
+  state: GameState,
+  content: Content,
+  skill: SkillDef,
+  table: ActionDef[],
+  tiers: number[],
+  cardsOf: (actions: ActionDef[]) => HTMLElement[],
+  openGroups: Map<string, Set<string>>,
+): HTMLElement[] {
+  const key = `${skill.id}:tiers`;
+  let open = openGroups.get(key);
+  const running = table.find((action) => action.id === state.action?.id);
+  if (!open) {
+    const startable = table.filter((action) => actionLock(state, action, content) === null);
+    const newest = Math.max(1, ...startable.map(tierOf));
+    open = new Set([String(running ? tierOf(running) : newest)]);
+    openGroups.set(key, open);
+  }
+  // The running action's tier is never folded out of sight.
+  if (running) open.add(String(tierOf(running)));
+  const shut = open;
+  return tiers.map((tier) => {
+    const rows = table.filter((action) => tierOf(action) === tier);
+    const closed = tierLock(state, tier, content);
+    const levels = rows.map((action) => action.level);
+    const id = String(tier);
+    const body = h('div', { class: 'stack' }, cardsOf(rows));
+    const toggle = h(
+      'button',
+      {
+        class: 'group-toggle tier-toggle',
+        attrs: { type: 'button', 'data-tier-toggle': id },
+        on: {
+          click: () => {
+            if (shut.has(id)) shut.delete(id);
+            else shut.add(id);
+            show();
+          },
+        },
+      },
+      [
+        h('span', { class: 'tier-head' }, [
+          tierChip(tier, !closed),
+          h('span', {
+            class: 'group-heading',
+            text: closed ? 'Locked' : `Levels ${Math.min(...levels)}–${Math.max(...levels)}`,
+          }),
+        ]),
+        h('span', { class: 'muted small', text: String(rows.length) }),
+      ],
+    );
+    const show = (): void => {
+      toggle.setAttribute('aria-expanded', String(shut.has(id)));
+      body.hidden = !shut.has(id);
+    };
+    show();
+    return h('section', { class: 'stack action-group tier-section', attrs: { 'data-tier': id } }, [
+      toggle,
+      closed && tierLockLine(closed),
+      body,
+    ]);
+  });
 }

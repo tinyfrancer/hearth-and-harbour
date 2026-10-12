@@ -5,12 +5,15 @@ import { meets } from '../../src/core/achievements';
 import { collectable, collectionSources } from '../../src/core/collection';
 import { dungeonName } from '../../src/core/dungeons';
 import { foeDrops } from '../../src/core/run';
+import { itemTier, tierOf } from '../../src/core/tiers';
 import { equip } from '../../src/core/equipment';
 import { effectWords, idleModifier, isKind } from '../../src/core/progress';
 import { newGame, type GameState } from '../../src/core/state';
 import { MAX_LEVEL, xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import { PORTRAIT2_IDS } from '../../src/art/portraits2';
+import { ITEM_LAYERS2 } from '../../src/art/character2';
+import { ITEM_ICON_IDS } from '../../src/art/icons';
 import { foeKind } from '../../src/scene/foes';
 import { DUNGEON_PLANS } from '../../src/scene/plans';
 
@@ -174,6 +177,8 @@ describe('the content tables', () => {
       'Bars',
       'Bronze',
       'Iron',
+      'Salt-iron',
+      'Silver and gold',
     ]);
   });
 
@@ -196,7 +201,9 @@ describe('the content tables', () => {
   });
 
   it('has the monsters of tier 1 by the ids art draws them by, in real areas, with sane numbers', () => {
-    expect(Object.keys(CONTENT.monsters!)).toEqual([
+    const tier1 = (rows: Record<string, { tier?: number }>): string[] =>
+      Object.entries(rows).flatMap(([id, row]) => (row.tier ? [] : [id]));
+    expect(tier1(CONTENT.monsters!)).toEqual([
       'dock_rat',
       'sand_crab',
       'thieving_gull',
@@ -208,12 +215,7 @@ describe('the content tables', () => {
       'goblin_poacher',
       'bramble_wyrm',
     ]);
-    expect(Object.keys(CONTENT.areas!)).toEqual([
-      'docks',
-      'north_road',
-      'saltmarsh',
-      'blackthorn_wood',
-    ]);
+    expect(tier1(CONTENT.areas!)).toEqual(['docks', 'north_road', 'saltmarsh', 'blackthorn_wood']);
     for (const monster of Object.values(CONTENT.monsters!)) {
       expect(CONTENT.areas![monster.area], monster.id).toBeDefined();
       for (const amount of [
@@ -241,7 +243,9 @@ describe('the content tables', () => {
   });
 
   it('has marks for Thieving across tier 1, each with a description and sane numbers', () => {
-    const marks = Object.values(CONTENT.actions).filter((action) => action.skill === 'thieving');
+    const marks = Object.values(CONTENT.actions).filter(
+      (action) => action.skill === 'thieving' && !action.tier,
+    );
     expect(CONTENT.skills.thieving).toMatchObject({ group: 'Roguery' });
     expect(marks.length).toBeGreaterThanOrEqual(4);
     expect(marks.map((mark) => mark.level)[0]).toBe(1);
@@ -279,7 +283,9 @@ describe('the content tables', () => {
       );
       expect(Number.isInteger(points) && points > 0, monster.id).toBe(true);
     }
-    const hunted = Object.values(CONTENT.monsters!).filter((monster) => monster.bountyOnly);
+    const hunted = Object.values(CONTENT.monsters!).filter(
+      (monster) => monster.bountyOnly && !monster.tier,
+    );
     expect(hunted.map((monster) => [monster.id, monster.level])).toEqual([
       ['goblin_poacher', 10],
       ['bramble_wyrm', 18],
@@ -373,8 +379,12 @@ describe('the content tables', () => {
     expect(def('spyglass').armour ?? 0).toBe(0);
     // The anchor out-hits every melee weapon in the tables, and out-strengths
     // any one-handed weapon even with the best shield's armour beside it.
+    // So far: tier 1's (tier 2's salt-iron and the ogre's maul climb past it, S22).
     const melee = Object.values(CONTENT.items).filter(
-      (item) => item.equip?.slot === 'main_hand' && item.equip.style === 'melee',
+      (item) =>
+        item.equip?.slot === 'main_hand' &&
+        item.equip.style === 'melee' &&
+        itemTier(CONTENT, item.id) === 1,
     );
     for (const weapon of melee) {
       if (weapon.id === 'brinebeards_anchor') continue;
@@ -712,7 +722,8 @@ describe('the content tables', () => {
   it('has about forty achievements over real things, with names and lines', () => {
     const all = Object.values(CONTENT.achievements!);
     expect(all.length).toBeGreaterThanOrEqual(22);
-    expect(all.length).toBeLessThanOrEqual(48);
+    // Fifty since S22's eight for tier 2 (wave 19); raised on purpose as the content grows.
+    expect(all.length).toBeLessThanOrEqual(60);
     expect(all.some((def) => def.hidden)).toBe(true);
     const names = new Set<string>();
     for (const def of all) {
@@ -828,6 +839,183 @@ describe('the content tables', () => {
     for (const item of Object.values(CONTENT.items)) {
       const requires = item.equip?.requires;
       if (requires) expect(CONTENT.skills[requires.skill], item.id).toBeDefined();
+    }
+  });
+});
+
+// Tier 2 (S22): every id is docs/tier2-manifest.md's, fixed, since lane B's
+// art keys on them. Its rows follow tier 1's shape, a tier up.
+describe('tier 2', () => {
+  const T2_ITEMS = [
+    'driftwood',
+    'elm_logs',
+    'yew_logs',
+    'raw_mackerel',
+    'raw_halibut',
+    'raw_swordfish',
+    'salt_iron_ore',
+    'silver_ore',
+    'gold_ore',
+    'sea_holly',
+    'nettles',
+    'sea_glass',
+    'duskbloom',
+    'cooked_mackerel',
+    'cooked_halibut',
+    'cooked_swordfish',
+    'salt_iron_bar',
+    'silver_bar',
+    'gold_bar',
+    'salt_iron_arrowheads',
+    'nettle_cloth',
+    'thick_hide',
+    'thick_leather',
+    'salt_iron_axe',
+    'salt_iron_sword',
+    'salt_iron_helm',
+    'salt_iron_shield',
+    'salt_iron_greaves',
+    'salt_iron_plate',
+    'red_cloak',
+    'salt_iron_arrows',
+    'ranger_hood',
+    'ranger_bracers',
+    'ranger_coat',
+    'driftwood_shortbow',
+    'elm_longbow',
+    'yew_longbow',
+    'silver_bangle',
+    'gold_amulet',
+    'ogre_maul',
+    'briar_charm',
+    'mossback_shield',
+    'broadhead_arrows',
+    'holly_tonic',
+    'forgehand_draught',
+    'duskbloom_tincture',
+    'twilight_elixir',
+  ];
+  const actions = Object.values(CONTENT.actions).filter((action) => tierOf(action) === 2);
+
+  it('holds every id of the manifest, each of tier 2', () => {
+    for (const id of T2_ITEMS) {
+      expect(CONTENT.items[id], id).toBeDefined();
+      expect(itemTier(CONTENT, id), id).toBe(2);
+    }
+    expect(
+      Object.values(CONTENT.monsters!)
+        .filter((monster) => monster.tier === 2)
+        .map((monster) => monster.id),
+    ).toEqual([
+      'brigand',
+      'black_bear',
+      'hobgoblin',
+      'dire_wolf',
+      'hill_ogre',
+      'briar_hag',
+      'moss_golem',
+    ]);
+    expect(actions.filter((action) => action.steal).map((action) => action.id)).toEqual([
+      'steal_spice_merchant',
+      'steal_customs_house',
+      'steal_noble',
+      'steal_guild_coffer',
+      'steal_counting_house',
+    ]);
+  });
+
+  it('gives every skill with actions something from 20 to 39, in tier 1’s shape', () => {
+    const count = (skill: string): number => actions.filter((a) => a.skill === skill).length;
+    for (const skill of ['woodcutting', 'fishing', 'mining']) expect(count(skill), skill).toBe(3);
+    expect(count('foraging')).toBe(4);
+    expect(count('cooking')).toBe(3);
+    expect(count('alchemy')).toBe(4);
+    expect(count('thieving')).toBe(5);
+    for (const action of actions) {
+      expect(action.level, action.id).toBeGreaterThanOrEqual(20);
+      expect(action.level, action.id).toBeLessThan(40);
+    }
+    // Each skill's first opens at 20, on the tier's first day.
+    for (const skill of Object.values(CONTENT.skills)) {
+      if (skill.group === 'Combat') continue;
+      expect(Math.min(...actions.filter((a) => a.skill === skill.id).map((a) => a.level))).toBe(20);
+    }
+  });
+
+  it('makes salt-iron about half as good again as iron, the knight’s set', () => {
+    const def = (id: string) => CONTENT.items[id]!.equip!;
+    const offence = (id: string) => (def(id).attack ?? 0) + (def(id).strength ?? 0);
+    for (const piece of ['sword', 'axe'])
+      expect(offence(`salt_iron_${piece}`) / offence(`iron_${piece}`), piece).toBeGreaterThan(1.4);
+    for (const [salt, iron] of [
+      ['salt_iron_helm', 'iron_helmet'],
+      ['salt_iron_shield', 'iron_shield'],
+      ['salt_iron_greaves', 'iron_greaves'],
+      ['salt_iron_plate', 'iron_breastplate'],
+    ] as const) {
+      const ratio = def(salt).armour! / def(iron).armour!;
+      expect(ratio, salt).toBeGreaterThan(1.4);
+      expect(ratio, salt).toBeLessThan(1.8);
+    }
+    // The cloak fastens at the throat: worn in the neck slot, beside no necklace.
+    expect(def('red_cloak').slot).toBe('neck');
+    // Each needs a tier 2 level to wear, the plate the most.
+    for (const id of T2_ITEMS.filter((id) => id.startsWith('salt_iron_') && def(id) !== undefined))
+      if (CONTENT.items[id]!.equip) expect(def(id).requires!.level, id).toBeGreaterThanOrEqual(20);
+  });
+
+  it('fights in two areas of its own, at its rate of XP, two for bounty hunters alone', () => {
+    const monsters = Object.values(CONTENT.monsters!).filter((monster) => monster.tier === 2);
+    for (const monster of monsters) {
+      expect(CONTENT.areas![monster.area]!.tier, monster.id).toBe(2);
+      expect(monster.level, monster.id).toBeGreaterThanOrEqual(22);
+      expect(monster.level, monster.id).toBeLessThanOrEqual(40);
+      expect(monster.xpPercent, monster.id).toBe(270);
+    }
+    const hunted = monsters.filter((monster) => monster.bountyOnly);
+    expect(hunted.map((monster) => monster.area)).toEqual(['the_deepthorn', 'the_deepthorn']);
+    for (const monster of hunted)
+      expect(
+        monster.rare.some(({ item }) => CONTENT.items[item]?.equip),
+        monster.id,
+      ).toBe(true);
+    // Tier 1's monsters pay XP as they always have.
+    for (const monster of Object.values(CONTENT.monsters!).filter((m) => !m.tier))
+      expect(monster.xpPercent, monster.id).toBeUndefined();
+  });
+
+  it('sells tier 2’s things only once tier 2 is open', () => {
+    expect(
+      Object.values(CONTENT.store!)
+        .filter((entry) => entry.tier === 2)
+        .map((entry) => entry.id),
+    ).toEqual(['cooked_mackerel', 'salt_iron_arrows']);
+    expect(
+      Object.values(CONTENT.shop!)
+        .filter((entry) => entry.tier === 2)
+        .map((entry) => entry.id),
+    ).toEqual(['broadhead_arrows']);
+  });
+});
+
+// Nothing reaches the menus half-drawn (S22): every item has an icon from the
+// art's door and every wearable a figure layer, so a new row waits for its
+// art, not the other way round.
+describe('art for every row', () => {
+  it('has an icon for every item and a figure layer for every wearable', () => {
+    // What only a landing still to come gives can wait for that dungeon's art pass.
+    const charted = new Set(
+      collectionSources({
+        ...CONTENT,
+        dungeons: Object.fromEntries(
+          Object.entries(CONTENT.dungeons!).filter(([, dungeon]) => !dungeon.comingSoon),
+        ),
+      }).flatMap((source) => source.items),
+    );
+    for (const item of Object.values(CONTENT.items)) {
+      if (!charted.has(item.id)) continue;
+      expect(ITEM_ICON_IDS, `${item.id} has an icon`).toContain(item.id);
+      if (item.equip) expect(ITEM_LAYERS2[item.id], `${item.id} has a layer`).toBeDefined();
     }
   });
 });

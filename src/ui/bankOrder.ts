@@ -1,5 +1,18 @@
 import type { Content, ItemDef } from '../core/content';
 import { bankCount, type GameState } from '../core/state';
+import { itemTier } from '../core/tiers';
+
+const tiers = new WeakMap<Content, Map<string, number>>();
+
+/** An item's tier (S22), read once per set of tables: what the bank's type sort heads it under. */
+export function tierOfItem(item: ItemDef, content: Content): number {
+  let table = tiers.get(content);
+  if (!table) {
+    table = new Map(Object.keys(content.items).map((id) => [id, itemTier(content, id)]));
+    tiers.set(content, table);
+  }
+  return table.get(item.id) ?? 1;
+}
 
 /**
  * What kind of thing an item is, for the bank's sort and filter: read off
@@ -102,7 +115,9 @@ export function bankOrder(
     CATEGORIES.findIndex((entry) => entry.id === categoryOf(item, content));
   const found = new Map(state.collection.map((id, index) => [id, index]));
   const by: Record<BankSort, (a: ItemDef, b: ItemDef) => number> = {
-    type: (a, b) => kind(a) - kind(b) || tie(a, b),
+    // Within a kind, tier 1's things before tier 2's (S22), each in the tables' order.
+    type: (a, b) =>
+      kind(a) - kind(b) || tierOfItem(a, content) - tierOfItem(b, content) || tie(a, b),
     name: (a, b) => a.name.localeCompare(b.name, 'en-GB') || tie(a, b),
     value: (a, b) => b.value - a.value || tie(a, b),
     stack: (a, b) => b.value * count(b) - a.value * count(a) || tie(a, b),

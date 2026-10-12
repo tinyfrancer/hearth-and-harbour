@@ -969,7 +969,8 @@ describe('the app shell', () => {
       const headings = [...root.querySelectorAll('[data-group-toggle] .group-heading')].map(
         (el) => el.textContent,
       );
-      expect(headings).toEqual(['Bars', 'Bronze', 'Iron']);
+      // Tier 2's groups (S22) sit under their own tier's heading, folded for a new smith.
+      expect(headings).toEqual(['Bars', 'Bronze', 'Iron', 'Salt-iron', 'Silver and gold']);
       expect(opened()).toEqual([true, true, false]);
       expect(q('[data-group="Bars"]').contains(q('[data-action="smelt_iron"]'))).toBe(true);
     });

@@ -309,19 +309,8 @@ export function newChallenges(
 
 /* ----- What a clear opens ----- */
 
-/**
- * Whether a tier of idle content is open: tier 1 always; a later one once
- * the dungeon that opens it (`DungeonDef.opens`) has been cleared.
- */
-export function tierUnlocked(state: GameState, tier: number, content: Content): boolean {
-  if (tier <= 1) return true;
-  return Object.values(content.dungeons ?? {}).some(
-    (dungeon) =>
-      !dungeon.comingSoon &&
-      dungeon.opens?.tier === tier &&
-      (state.dungeons[dungeon.id]?.clears ?? 0) >= 1,
-  );
-}
+// The rule lives with the other tier rules (src/core/tiers.ts); exported here too, where S16 put it.
+export { tierUnlocked } from './tiers';
 
 /** Whether the hero may be sent through a dungeon unattended: cleared by hand, and the row says how. */
 export function mayIdle(state: GameState, dungeonId: string, content: Content): boolean {

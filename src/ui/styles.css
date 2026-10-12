@@ -689,6 +689,62 @@ button.card:active {
   outline-offset: 2px;
 }
 
+/* Tiers (S22): a chip beside a heading, gold once open, dull while closed; and why it is closed. */
+.tier-chip {
+  flex: none;
+  padding: 1px 6px;
+  border: var(--px) solid var(--gold);
+  color: var(--gold);
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tier-chip.closed {
+  border-color: var(--line);
+  color: var(--text-muted);
+}
+
+.tier-lock {
+  color: var(--text-muted);
+}
+
+/* A tier's heading on a skill page: the chip, the count, and its lock line under it. */
+.tier-toggle .tier-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tier-section > .tier-lock {
+  margin: 0 4px;
+}
+
+.area-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The card a tier's opening shows once: what it brings, skill by skill. */
+.panel.tier-opened {
+  border-color: var(--gold);
+}
+
+.tier-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tier-list-head {
+  color: var(--gold);
+}
+
 /*
  * The character, drawn: standing on a lit floor in a dark room, framed like a
  * portrait. The canvas keeps the size it was drawn at (whole device pixels

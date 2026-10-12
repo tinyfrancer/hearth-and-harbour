@@ -1,4 +1,4 @@
-import { combatLevelOf, payBounty, type BountyBook } from './bounty';
+import { combatLevelOf, openTo, payBounty, type BountyBook } from './bounty';
 import {
   DEFENCE,
   DEFENCE_XP_PER_MAX_HIT,
@@ -6,6 +6,7 @@ import {
   REGEN_MS,
   VITALITY,
   XP_PER_DAMAGE,
+  foeXp,
   attackRating,
   attackSkill,
   comeRound,
@@ -264,6 +265,7 @@ function walkIdle(
       level,
       dice,
       true,
+      openTo(state, content),
     );
     hunting = book.bounty;
     hunted = 0;
@@ -349,8 +351,9 @@ function walkIdle(
       const most = heroMaxHitUnder(maxHitFor(attacking.level, totals.strength), effects);
       const dealt = Math.min(dice.between(1, most), target.hp);
       target.hp -= dealt;
-      attacking.add(gain(XP_PER_DAMAGE * dealt));
-      vitality.add(gain(Math.floor((XP_PER_DAMAGE * dealt) / 2)));
+      const earned = foeXp(XP_PER_DAMAGE * dealt, row);
+      attacking.add(gain(earned));
+      vitality.add(gain(Math.floor(earned / 2)));
     }
     if (target.hp === 0) {
       foes.shift();
@@ -362,7 +365,7 @@ function walkIdle(
   const struck = (foe: IdleFoe): void => {
     const row = rows.get(foe.id)!;
     foe.ms = row.speedMs;
-    const earned = DEFENCE_XP_PER_MAX_HIT * row.maxHit;
+    const earned = foeXp(DEFENCE_XP_PER_MAX_HIT * row.maxHit, row);
     if (dice.next() < hitChance(row.attack, defenceRating(defence.level, totals.armour))) {
       hp -= dice.between(1, row.maxHit);
     }

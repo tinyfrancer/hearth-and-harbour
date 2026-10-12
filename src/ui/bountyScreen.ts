@@ -17,6 +17,8 @@ import { button, h, setText, titled } from './dom';
 import { counted, formatNumber } from './format';
 import { gearText, slotText } from './gear';
 import type { View } from './view';
+import { tierOf } from '../core/tiers';
+import { tierChip } from './tierMarks';
 
 export interface BountyActions {
   /** Back to the list of skills. */
@@ -197,7 +199,7 @@ function shopRow(
   buyButton.setAttribute('data-buy', entry.id);
   const why = h('p', { class: 'small muted' });
   updates.push((now) => {
-    const problem = shopProblem(now, entry);
+    const problem = shopProblem(now, entry, content);
     buyButton.disabled = problem !== null;
     buyButton.classList.toggle('primary', problem === null);
     setText(why, problem ?? '');
@@ -206,6 +208,7 @@ function shopRow(
   return h('section', { class: 'panel stack tight', attrs: { 'data-shop': entry.id } }, [
     h('div', { class: 'card-head' }, [
       titled(itemIcon(entry.item), entry.qty > 1 ? `${name} ×${entry.qty}` : name),
+      tierOf(entry) > 1 && tierChip(tierOf(entry)),
       h('span', { class: 'level', text: `${entry.cost} pts` }),
     ]),
     item && h('p', { class: 'small muted', text: item.description }),

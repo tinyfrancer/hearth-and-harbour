@@ -107,6 +107,11 @@ export interface ActionDef {
   name: string;
   /** Skill level needed to start it. */
   level: number;
+  /**
+   * The tier of content it belongs to (S22): left out, tier 1. A row of a
+   * later tier is shown but closed until that tier opens (src/core/tiers.ts).
+   */
+  tier?: number;
   /** How long one completion takes. */
   durationMs: number;
   /** Skill XP per completion. */
@@ -153,6 +158,11 @@ export interface AreaDef {
   id: string;
   name: string;
   description: string;
+  /**
+   * The tier of content it belongs to (S22): left out, tier 1. A row of a
+   * later tier is shown but closed until that tier opens (src/core/tiers.ts).
+   */
+  tier?: number;
 }
 
 /** Something a monster leaves behind: between `min` and `max` of an item, each equally likely. */
@@ -194,6 +204,19 @@ export interface MonsterDef {
   bounty?: BountyDef;
   /** Only to be fought while the bounty held names it. */
   bountyOnly?: boolean;
+  /**
+   * How much XP fighting it pays, in percent of the usual (100 if left out):
+   * every blow's XP to the attacking skill, Defence and Vitality, rounded
+   * once a blow (`foeXp`, src/core/combat.ts). Damage per second grows only
+   * with the level while the curve grows faster, so a later tier's monsters
+   * pay more for each point, as its actions pay more XP each.
+   */
+  xpPercent?: number;
+  /**
+   * The tier of content it belongs to (S22): left out, tier 1. A row of a
+   * later tier is shown but closed until that tier opens (src/core/tiers.ts).
+   */
+  tier?: number;
 }
 
 export interface BountyDef {
@@ -210,13 +233,23 @@ export interface ShopEntry {
   cost: number;
   /** Sold only to a character who holds none, in the bank or worn. */
   once?: boolean;
+  /**
+   * The tier of content it belongs to (S22): left out, tier 1. A row of a
+   * later tier is shown but closed until that tier opens (src/core/tiers.ts).
+   */
+  tier?: number;
 }
 
 /**
  * Something the general store sells for coins: either `qty` of an item at a
  * time, or a lasting `perk` that is bought once and kept.
  */
-export type StoreEntry = { id: string; price: number } & (
+export type StoreEntry = {
+  id: string;
+  price: number;
+  /** Its tier (S22): sold only once that tier is open. Left out, tier 1. */
+  tier?: number;
+} & (
   | {
       item: string;
       qty: number;

@@ -1,10 +1,11 @@
 import { advance, startAction } from '../../src/core/actions';
 import type { ActionDef } from '../../src/core/content';
 import { markChance } from '../../src/core/thieving';
-import { newGame, skillLevel, type GameState } from '../../src/core/state';
+import { newGame, type GameState } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
-import { HOUR, characterAt, fight, foodAt, monsterFor } from './fighting';
+import { actionLock } from '../../src/core/tiers';
+import { GROTTO_CLEARED, HOUR, characterAt, fight, foodAt, monsterFor } from './fighting';
 
 // What an hour of each way of earning brings in, in coins, played as a
 // sensible player would: the best-paying thing open, looked at again once a
@@ -37,11 +38,16 @@ export const addedPerMs = (action: ActionDef): number =>
 const actionsOf = (skill: string): ActionDef[] =>
   Object.values(CONTENT.actions).filter((action) => action.skill === skill);
 
-/** A fresh character with one skill at a level. */
-export const at = (skill: string, level: number): GameState => ({
+/** A fresh character with one skill at a level (and tier 2 open, if asked: S22). */
+export const at = (skill: string, level: number, tier2 = false): GameState => ({
   ...newGame('Sim', 0),
   skills: level > 1 ? { [skill]: xpForLevel(level) } : {},
+  ...(tier2 ? { dungeons: GROTTO_CLEARED } : {}),
 });
+
+/** The actions a character may start now: open in tier and level. */
+const startable = <T extends ActionDef>(state: GameState, actions: T[]): T[] =>
+  actions.filter((action) => actionLock(state, action, CONTENT) === null);
 
 export interface SkillHour {
   /** What was made or gathered, by item id. */
@@ -59,17 +65,17 @@ export interface SkillHour {
  * action that adds the most coins, with whatever an artisan's recipes use on
  * hand (as its pacing assumes).
  */
-export function skillHour(skill: string, level: number): SkillHour {
+export function skillHour(skill: string, level: number, tier2 = false): SkillHour {
   const actions = actionsOf(skill);
   const plenty = 1_000_000;
   const inputs = [...new Set(actions.flatMap((action) => action.uses ?? []).map((u) => u.item))];
-  let state = at(skill, level);
+  let state = at(skill, level, tier2);
   const made: Record<string, number> = {};
   let used = 0;
   for (let minute = 0; minute < 60; minute += 1) {
     const stocked = { ...state.bank };
     for (const item of inputs) stocked[item] = plenty;
-    const open = actions.filter((action) => action.level <= skillLevel(state, skill));
+    const open = startable(state, actions);
     const best = open.sort((a, b) => addedPerMs(b) - addedPerMs(a))[0]!;
     const started = startAction({ ...state, bank: stocked }, best.id, CONTENT);
     if (!started.ok) throw new Error(started.reason);
@@ -87,8 +93,8 @@ export function skillHour(skill: string, level: number): SkillHour {
 }
 
 /** An hour of the gathering skill that pays best from a level, all of it sold. */
-export function bestGatheringHour(level: number): number {
-  return Math.max(...GATHERING.map((skill) => skillHour(skill, level).gross));
+export function bestGatheringHour(level: number, tier2 = false): number {
+  return Math.max(...GATHERING.map((skill) => skillHour(skill, level, tier2).gross));
 }
 
 /** A mark's expected pay a millisecond, in coins, at the thief's chance now. */
@@ -102,11 +108,11 @@ function markPay(state: GameState, mark: ActionDef): number {
 }
 
 /** An hour of Thieving from a level on the mark that pays best: coins, and the loot sold. */
-export function thievingHour(level: number): { coins: number; loot: number } {
+export function thievingHour(level: number, tier2 = false): { coins: number; loot: number } {
   const marks = actionsOf('thieving');
-  let state = at('thieving', level);
+  let state = at('thieving', level, tier2);
   for (let minute = 0; minute < 60; minute += 1) {
-    const open = marks.filter((mark) => mark.level <= skillLevel(state, 'thieving'));
+    const open = startable(state, marks);
     const best = open.sort((a, b) => markPay(state, b) - markPay(state, a))[0]!;
     const started = startAction(state, best.id, CONTENT);
     if (!started.ok) throw new Error(started.reason);
@@ -138,9 +144,10 @@ export function fightHour(
   level: number,
   style: 'melee' | 'ranged' = 'melee',
   monster = monsterFor(level),
+  tier2 = false,
 ): FightHour {
   const plenty = 100_000;
-  const fresh = characterAt(level, { style, seed: 3, food: plenty });
+  const fresh = characterAt(level, { style, seed: 3, food: plenty, tier2 });
   let state = fight(fresh, monster);
   for (let minute = 0; minute < 60; minute += 1) {
     state = advance(state, MINUTE, CONTENT);
@@ -149,7 +156,7 @@ export function fightHour(
   const eaten = plenty - (state.food?.qty ?? 0);
   const coins = state.coins;
   const loot = worth(state.bank);
-  const food = eaten * value(foodAt(level));
+  const food = eaten * value(foodAt(level, tier2));
   const quiver = fresh.equipment.ammo;
   const arrows = quiver ? (quiver.qty - (state.equipment.ammo?.qty ?? 0)) * value(quiver.item) : 0;
   return {
@@ -170,12 +177,12 @@ export { HOUR };
  * monsters anyone may fight at or below the level, the one whose hour, fought
  * with melee, earns most after the fish eaten.
  */
-export function bestFightHour(level: number): FightHour {
+export function bestFightHour(level: number, tier2 = false): FightHour {
   const open = Object.values(CONTENT.monsters!).filter(
-    (monster) => monster.level <= level && !monster.bountyOnly,
+    (monster) => monster.level <= level && !monster.bountyOnly && (tier2 || !monster.tier),
   );
   return open
-    .map((monster) => fightHourOf(level, monster.id))
+    .map((monster) => fightHourOf(level, monster.id, 'melee', tier2))
     .sort((a, b) => b.earned - a.earned)[0]!;
 }
 
@@ -184,8 +191,9 @@ export function fightHourOf(
   level: number,
   monster: string,
   style: 'melee' | 'ranged' = 'melee',
+  tier2 = false,
 ): FightHour {
-  return fightHour(level, style, monster);
+  return fightHour(level, style, monster, tier2);
 }
 
 /**

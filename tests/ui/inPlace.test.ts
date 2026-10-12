@@ -249,7 +249,8 @@ describe('while idle combat runs, a kill leaves every other screen alone', () =>
     killsLeaveAlone(app, 5);
     expect(q('[data-monster="dock_rat"]').textContent).toContain(`Killed ${kills()}`);
     expect(q('[data-monster="dock_rat"] .drops').textContent).toContain('Hide');
-  });
+    // Tier 2's seven monsters (S22) make the list longer: drawing every face takes seconds in jsdom.
+  }, 20_000);
 
   it('the fight screen itself, which moves in place', () => {
     const app = playing(fighting());
