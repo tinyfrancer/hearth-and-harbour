@@ -17,6 +17,10 @@
  *   P  a rock pool   G  kelp   S  starfish   E  anemones   W  driftwood   H  a boat's ribs
  *   (each stands on its tile, which is solid)
  *   L  a lantern hung on the rock
+ *   Q  a lantern on a post, standing on the floor, unlit (the Burrow's: lit by hand)
+ *   Y  the same, burning from the start
+ *   M  toadstools   O  a tangle of roots   U  brambles   V  a mossy stone
+ *   F  a fallen log   J  a throne of roots   (the Burrow's props; solid, as above)
  *   any other lower-case letter: a door, joined to the door with the same
  *   letter in exactly one other room.
  */
@@ -62,7 +66,23 @@ export const PROP_LETTERS: Readonly<Record<string, string>> = {
   E: 'anemone_rock',
   W: 'driftwood',
   H: 'boat_ribs',
+  // Thistlewood Burrow's (wave 19). Drawn with stand-ins until lane B draws them (`propArtId`).
+  M: 'toadstools',
+  O: 'root_tangle',
+  U: 'bramble_patch',
+  V: 'mossy_stone',
+  F: 'fallen_log',
+  J: 'root_throne',
 };
+
+/** A lantern on a post, by its letter: whether it burns from the start (`Ground.lamps`). */
+export const LAMP_LETTERS: Readonly<Record<string, boolean>> = { Q: false, Y: true };
+
+/** A lantern on a post standing on a room's floor: its tile, and whether it burns as the room is written. */
+export interface LampSpot {
+  readonly cell: Cell;
+  readonly lit: boolean;
+}
 
 const FIXED: Readonly<Record<string, RoomTile>> = {
   '#': 'rock',
@@ -98,6 +118,11 @@ export interface Ground {
   readonly under: readonly (readonly RoomTile[])[];
   readonly props: readonly PropSpot[];
   readonly lanterns: readonly Cell[];
+  /**
+   * Lanterns on posts (the Burrow's), in reading order: each is lit or put
+   * out as a run goes (`Battle.lamps`), by its place in this list. Solid.
+   */
+  readonly lamps: readonly LampSpot[];
   /** The bars of each wave's cells, first wave first. */
   readonly bars: readonly (readonly Cell[])[];
   /** Whether the room keeps its own tide (the captain's), not the shared one. */
@@ -116,6 +141,7 @@ export function readGround(rows: readonly string[], ownTide = false, stone = fal
   const cols = rows[0]!.length;
   const props: PropSpot[] = [];
   const lanterns: Cell[] = [];
+  const lamps: LampSpot[] = [];
   const bars: Cell[][] = BAR_LETTERS.map(() => []);
   let tidal = false;
   const heights: number[][] = [];
@@ -131,6 +157,10 @@ export function readGround(rows: readonly string[], ownTide = false, stone = fal
         height[col] = Number(ch);
         tidal = true;
         return 'sand';
+      }
+      if (ch in LAMP_LETTERS) {
+        lamps.push({ cell: { col, row }, lit: LAMP_LETTERS[ch]! });
+        return 'prop';
       }
       if (ch in PROP_LETTERS) {
         props.push({ id: PROP_LETTERS[ch]!, cell: { col, row } });
@@ -177,6 +207,7 @@ export function readGround(rows: readonly string[], ownTide = false, stone = fal
     under,
     props,
     lanterns,
+    lamps,
     bars,
     ownTide,
     stone,

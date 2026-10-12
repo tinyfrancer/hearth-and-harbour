@@ -10,6 +10,7 @@ import type { GameState } from '../core/state';
 import { dungeonScene } from './dungeons';
 import { chartRow, dungeonsInOrder, dungeonStatus, mayEnter, type DungeonState } from './fromLaneA';
 import type { HarbourChart } from './fromLaneB';
+import { previewOpen } from './preview';
 import type { Point } from './tileMap';
 
 /** A landing on the chart, as the panel shows it. */
@@ -45,10 +46,12 @@ export function landings(state: GameState, content: Content, map: HarbourChart):
     const at = map.landings[row.id] ?? (status.state === 'soon' ? spare.shift() : undefined);
     const place = typeof at === 'string' ? map.landings[at] : at;
     if (!place) continue;
-    const soon = status.state === 'soon';
+    // TEMPORARY (`preview.ts`): the Burrow open to a page opened with `?burrow=1`, and only that.
+    const preview = status.state === 'soon' && previewOpen(row.id);
+    const soon = status.state === 'soon' && !preview;
     out.push({
       id: row.id,
-      state: status.state,
+      state: preview ? 'open' : status.state,
       name: soon ? null : (chartRow(content, row.id)?.name ?? row.name),
       description: soon ? null : row.description,
       recommended: status.recommended,
@@ -56,7 +59,7 @@ export function landings(state: GameState, content: Content, map: HarbourChart):
       clears: status.clears,
       ...(status.bestMs !== undefined ? { bestMs: status.bestMs } : {}),
       at: place,
-      rowable: mayEnter(state, row.id, content) && dungeonScene(row.id) !== null,
+      rowable: (preview || mayEnter(state, row.id, content)) && dungeonScene(row.id) !== null,
     });
   }
   return out;

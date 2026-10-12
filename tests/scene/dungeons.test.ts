@@ -28,8 +28,8 @@ import { TIDEPOOL } from '../../src/scene/tidepool';
 // found in a run (the cave's crate) eaten there without touching the food slot.
 
 describe('the dungeons the scene can play', () => {
-  it('holds the grotto and the cave, each built from its plan, by id', () => {
-    expect(DUNGEON_IDS).toEqual(['brinebeards_grotto', 'tidepool_cave']);
+  it('holds the grotto, the cave and the Burrow, each built from its plan, by id', () => {
+    expect(DUNGEON_IDS).toEqual(['brinebeards_grotto', 'tidepool_cave', 'thistlewood_burrow']);
     for (const id of DUNGEON_IDS) {
       const dungeon = dungeonById(id)!;
       expect(dungeon.id).toBe(id);
@@ -37,7 +37,7 @@ describe('the dungeons the scene can play', () => {
       expect(DUNGEON_PLANS[id]!.id).toBe(id);
       // Each room knows its dungeon, so a worker can paint it by both ids.
       for (const room of Object.values(dungeon.rooms)) expect(room.dungeon).toBe(id);
-      // Every dungeon the tables know is one the scene can play.
+      // Every dungeon the scene can play is one the tables know.
       expect(CONTENT.dungeons![id]).toBeDefined();
     }
     expect(dungeonById('nowhere')).toBeNull();

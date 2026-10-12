@@ -54,6 +54,8 @@ import type { Box, Scene } from './things';
 import { HIGH_WATER } from './tide';
 import { cellAt, type Cell, type Point, type TileMap } from './tileMap';
 import { WALK_SPEED } from './walker';
+import { lampPicture, propArtId } from './fromLaneB';
+import { DARKER_HERO, LAMP_POOL, lampFoot, poolMiddle } from './light';
 
 /** A tile's side, in art pixels. */
 const T = DUNGEON.tile;
@@ -187,8 +189,15 @@ export function propsOf(room: Room): PropAt[] {
   const known = placings.get(room);
   if (known) return known;
   const made: PropAt[] = [];
-  const add = (id: string, key: string, x: number, y: number): void => {
-    const art = dungeonProp2(id);
+  const add = (
+    id: string,
+    key: string,
+    x: number,
+    y: number,
+    given?: PropPicture2 | null,
+  ): void => {
+    // A prop lane B has not drawn yet stands in another's picture (`propArtId`); its id is its own.
+    const art = given === undefined ? dungeonProp2(propArtId(id)) : given;
     if (!art) return;
     const w = art.picture.grid.w;
     // As the art lane's sample room has it: nothing under a lantern's post or a coil of rope.
@@ -218,8 +227,62 @@ export function propsOf(room: Room): PropAt[] {
     const c = cellAt(p, T);
     add('perch', `perch ${i}`, c.col * T + T / 2, c.row * T + T - 2);
   });
+  // Lanterns on posts (the Burrow's), burning or out as this look of the room has them.
+  room.ground.lamps.forEach((l, i) => {
+    const foot = lampFoot(l.cell);
+    const lit = lampLit(room, i);
+    add(lit ? 'post_lantern' : 'post_lantern_out', `lamp ${i}`, foot.x, foot.y, lampPicture(lit));
+  });
   placings.set(room, made);
   return made;
+}
+
+/** Whether a room's lantern on a post burns as this look of the room shows it (`Room.lit`). */
+export function lampLit(room: Room, i: number): boolean {
+  return room.lit === undefined
+    ? (room.ground.lamps[i]?.lit ?? false)
+    : (room.lit & (1 << i)) !== 0;
+}
+
+/** Which of a room's lanterns on posts burn, as a look's key: bit `i` for lantern `i`. */
+export function lampMask(lit: readonly boolean[]): number {
+  return lit.reduce((m, on, i) => (on ? m | (1 << i) : m), 0);
+}
+
+const litLooks = new WeakMap<Room, Map<number, Room>>();
+
+/**
+ * A room as it looks with these of its lanterns burning (`lampMask`): the
+ * same room, ground and doors, drawn with only those lit. Made once each.
+ */
+export function litRoom(room: Room, mask: number): Room {
+  if (room.ground.lamps.length === 0) return room;
+  let byMask = litLooks.get(room);
+  if (!byMask) {
+    byMask = new Map();
+    litLooks.set(room, byMask);
+  }
+  let made = byMask.get(mask);
+  if (!made) {
+    made = { ...room, lit: mask };
+    byMask.set(mask, made);
+  }
+  return made;
+}
+
+/** Every look of a room by its lanterns made so far: for letting their pictures go. */
+export function litRooms(room: Room): readonly Room[] {
+  return [...(litLooks.get(room)?.values() ?? [])];
+}
+
+/**
+ * How much of its light a room has as it is drawn: a darker day's share
+ * (`Room.dim`); in a room whose light is a rule, all of it (a darker day
+ * there makes lanterns slow to light, not dim: `DARKER_LIGHTING`), so what is drawn
+ * lit is what the rules call lit.
+ */
+export function lightKeptIn(room: Room): number {
+  return room.ground.lamps.length > 0 ? 1 : (room.dim ?? 1);
 }
 
 /**
@@ -237,19 +300,29 @@ export function perchLift(room: Room, perch: Point): number {
   return perch.y - (post.topLeft.y + seat.y);
 }
 
-/** Each lantern's light, placed in the room: the pool it lays and the glow it gives. */
+/**
+ * Each lantern's light, placed in the room: the pool it lays and the glow it
+ * gives. A lantern on a post that burns lays exactly the pool the rules call
+ * lit (`light.ts`): its middle by its foot, its half-width the rules' (lit
+ * out to its edge band, as a darker day's pools are); one that is out, none.
+ */
 export function lightsOf(room: Room): Light2[] {
-  const lights = propsOf(room).flatMap((p) =>
-    p.art.light ? [lightAt(p.art.light, p.topLeft.x, p.topLeft.y)] : [],
-  );
-  const k = room.dim ?? 1;
-  // A darker day: every pool smaller, so more of the room lies beyond them, in the dark.
-  return k === 1 ? lights : lights.map((l) => ({ ...l, radius: l.radius * k, pool: l.pool * k }));
+  const k = lightKeptIn(room);
+  return propsOf(room).flatMap((p) => {
+    if (!p.art.light) return [];
+    const placed = lightAt(p.art.light, p.topLeft.x, p.topLeft.y);
+    if (p.key.startsWith('lamp ')) {
+      const middle = poolMiddle(room.ground.lamps[Number(p.key.slice(5))]!.cell);
+      return [{ ...placed, drop: middle.y - placed.y, pool: LAMP_POOL }];
+    }
+    // A darker day: every pool smaller, so more of the room lies beyond them, in the dark.
+    return [k === 1 ? placed : { ...placed, radius: placed.radius * k, pool: placed.pool * k }];
+  });
 }
 
 /** Every glow in a room, in its pixels: what lights whoever stands near a lantern. */
 export function glowsOf(room: Room): Glow[] {
-  const k = room.dim ?? 1;
+  const k = lightKeptIn(room);
   return propsOf(room).flatMap((p) =>
     p.art.picture.glows.map((g) => ({
       ...g,
@@ -297,11 +370,11 @@ function intoPools(lights: readonly Light2[], x: number, y: number): number {
   return t;
 }
 
-/** How far into the hero's own pool a point is. */
-function intoHero(hero: Point, x: number, y: number): number {
+/** How far into the hero's own pool (`pool` its half-width) a point is. */
+function intoHero(hero: Point, x: number, y: number, pool = HERO_POOL): number {
   return Math.hypot(
-    (x - hero.x) / HERO_POOL,
-    (y - (hero.y - HERO_POOL_RISE)) / (HERO_POOL * DUNGEON2_LIGHT.squash),
+    (x - hero.x) / pool,
+    (y - (hero.y - HERO_POOL_RISE)) / (pool * DUNGEON2_LIGHT.squash),
   );
 }
 
@@ -310,10 +383,16 @@ const ragged = (x: number, y: number): number =>
   (noise(x, y, 4, 211) - 0.5) * 2 * DUNGEON2_LIGHT.ragged + (hash(x, y, 7) - 0.5) * 0.04;
 
 /** A pixel's shade on a darker day: in, at the edge of, or beyond every pool, edges ragged. */
-export function shadeAt(lights: readonly Light2[], x: number, y: number, hero?: Point): Shade {
+export function shadeAt(
+  lights: readonly Light2[],
+  x: number,
+  y: number,
+  hero?: Point,
+  pool = HERO_POOL,
+): Shade {
   const t = Math.min(
     intoPools(lights, x + 0.5, y + 0.5),
-    hero ? intoHero(hero, x + 0.5, y + 0.5) : Infinity,
+    hero ? intoHero(hero, x + 0.5, y + 0.5, pool) : Infinity,
   );
   return shadeOf(t + ragged(x, y));
 }
@@ -323,8 +402,15 @@ export function shadeAt(lights: readonly Light2[], x: number, y: number, hero?: 
  * and by the hero's own when he is given): a figure is shaded whole, by
  * where its feet are.
  */
-export function litness(lights: readonly Light2[], hero: Point | null, p: Point): Shade {
-  return shadeOf(Math.min(intoPools(lights, p.x, p.y), hero ? intoHero(hero, p.x, p.y) : Infinity));
+export function litness(
+  lights: readonly Light2[],
+  hero: Point | null,
+  p: Point,
+  pool = HERO_POOL,
+): Shade {
+  return shadeOf(
+    Math.min(intoPools(lights, p.x, p.y), hero ? intoHero(hero, p.x, p.y, pool) : Infinity),
+  );
 }
 
 /** A colour taken toward the night by a shade. */
@@ -369,8 +455,15 @@ export function darkenCanvas(
   ctx.putImageData(px, 0, 0);
 }
 
-/** Whether a room is seen on a darker day. */
-export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1;
+/**
+ * Whether a room is drawn dark beyond its pools: on a darker day, and always
+ * in a room whose light is a rule (it has lanterns on posts).
+ */
+export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1 || room.ground.lamps.length > 0;
+
+/** The hero's own pool's half-width in a room: in a room of lanterns on a darker day, smaller. */
+export const heroPoolIn = (room: Room): number =>
+  room.ground.lamps.length > 0 && (room.dim ?? 1) < 1 ? HERO_POOL * DARKER_HERO : HERO_POOL;
 
 /* ----- Doors ----- */
 
@@ -848,6 +941,8 @@ export interface DoorShown {
 
 /** What a dungeon room needs to be shown on the stage, made once a page and kept. */
 export interface RoomLook {
+  /** The room as this look draws it (a look of it by its lanterns, `litRoom`, has its own). */
+  readonly room: Room;
   /** The ground to walk on as the run has it now (set by the view each frame), and nothing tappable. */
   readonly scene: Scene;
   readonly lock: { map: TileMap<RoomTile> };
@@ -1078,6 +1173,7 @@ export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): 
     if (tidal && l < HIGH_WATER) states.push({ level: l, warn: true });
   }
   made = {
+    room,
     theme: themeOf(room),
     scene: {
       get map() {
@@ -1301,15 +1397,16 @@ export class HeroLight {
     glows: readonly Glow[],
     feet: Point,
     palette: CavePalette = CAVE_DUSK,
+    pool = HERO_POOL,
   ): Placed | null {
     const L = DUNGEON2_LIGHT;
     const hero = { x: Math.round(feet.x), y: Math.round(feet.y) };
-    const key = `${hero.x} ${hero.y} ${lights.length}`;
+    const key = `${hero.x} ${hero.y} ${lights.length} ${pool}`;
     if (key === this.key && cells === this.lastCells) return this.placed;
     this.key = key;
     this.lastCells = cells;
-    const rx = Math.ceil(HERO_POOL * POOL_EDGE) + 2;
-    const ry = Math.ceil(HERO_POOL * POOL_EDGE * L.squash) + 2;
+    const rx = Math.ceil(pool * POOL_EDGE) + 2;
+    const ry = Math.ceil(pool * POOL_EDGE * L.squash) + 2;
     const cy = hero.y - HERO_POOL_RISE;
     const box = { x: hero.x - rx, y: cy - ry, w: 2 * rx + 1, h: 2 * ry + 1 };
     const out = tgrid(box.w, box.h);
@@ -1323,10 +1420,10 @@ export class HeroLight {
         const c = cells.d[y * cells.w + x]!;
         if (!c) continue;
         const rag = ragged(x, y);
-        const own = shadeOf(intoHero(hero, x + 0.5, y + 0.5) + rag);
+        const own = shadeOf(intoHero(hero, x + 0.5, y + 0.5, pool) + rag);
         const ground = shadeOf(intoPools(lights, x + 0.5, y + 0.5) + rag);
         if (own >= ground) continue;
-        const u = intoHero(hero, x + 0.5, y + 0.5) + rag;
+        const u = intoHero(hero, x + 0.5, y + 0.5, pool) + rag;
         out.d[j * box.w + i] =
           u < L.heart && (c & 7) !== 6 && !isMat(c, 'wood')
             ? (c & ~7) | Math.max(0, (c & 7) - L.heartSteps)

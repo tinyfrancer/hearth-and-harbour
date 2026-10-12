@@ -34,11 +34,29 @@ import { Dice } from '../core/rng';
 import type { RunSpoils } from '../core/run';
 import type { GameState } from '../core/state';
 import type { CastDef } from './cast';
-import { bodyMid, foeKind, type FoeKind } from './foes';
+import { bodyMid, foeKind, type BossRules, type FoeKind } from './foes';
 import { groundMap, standable, wading, type Ground, type RoomTile } from './ground';
 import { clearLine, route } from './path';
 import { advancePlay, facingToward, type Facing, type Play } from './play';
 import { cycleTide, surgeTide, type TideNow } from './tide';
+import {
+  CLOUD_BURN_MS,
+  CLOUD_EVERY_MS,
+  DARK_AIM,
+  DARK_GUARD,
+  DAZZLE_MS,
+  LIGHT_MS,
+  LIT_WARN_MS,
+  TEND_REACH,
+  hoverSpot,
+  inCloud,
+  inPool,
+  lampFoot,
+  lampOn,
+  lampStand,
+  litBy,
+  type Cloud,
+} from './light';
 import { stepBy, WALK_SPEED } from './walker';
 import { DUNGEON, far } from './dungeonMetrics';
 import { cellAt, centreOf, inMap, isSolid, type Cell, type Point, type TileMap } from './tileMap';
@@ -150,7 +168,7 @@ export interface Placement {
 }
 
 /** The shape of ground a heavy attack marks. */
-export type MarkShape = 'circle' | 'line' | 'arc';
+export type MarkShape = 'circle' | 'line' | 'arc' | 'lane';
 
 /** A heavy attack on its way: the marked ground, and when it lands. */
 export interface Telegraph {
@@ -161,6 +179,18 @@ export interface Telegraph {
   readonly shape: MarkShape;
   /** A line's bottom end (its y). */
   readonly bottom?: number;
+  /** A lane's far end: it runs from `at` to here, `radius` either side (a charge). */
+  readonly to?: Point;
+  /** The lantern a charge ends at, by the room's order: it goes out as the charge lands. */
+  readonly lamp?: number;
+  /** Leaves a cloud of spores where it lands, hanging this long. */
+  readonly spores?: number;
+  /** Puts out every lantern whose post is in it as it lands. */
+  readonly smashes?: true;
+  /** A boss coming up out of the ground here as it lands. */
+  readonly erupt?: true;
+  /** ...into a lantern's light, where it is dazzled (`DAZZLE_MS`). */
+  readonly dazzles?: true;
   /** An arc's direction (radians, from +x towards +y) and its width (radians). */
   readonly facing?: number;
   readonly spread?: number;
@@ -181,6 +211,7 @@ export interface Telegraph {
 
 /** Whether feet at `p` are in a mark's ground when it lands. */
 export function inMark(t: Telegraph, p: Point): boolean {
+  if (t.shape === 'lane') return under(laneDistance(t, p), t.radius);
   if (t.shape === 'line') {
     return under(Math.abs(p.x - t.at.x), t.radius) && p.y >= t.at.y && p.y <= (t.bottom ?? t.at.y);
   }
@@ -191,6 +222,17 @@ export function inMark(t: Telegraph, p: Point): boolean {
   const off = Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)));
   // On the wedge's edge is in it, to a hair of angle (as `within` has distances).
   return off <= (t.spread ?? Math.PI * 2) / 2 + 1e-9;
+}
+
+/** How far a point is from a lane's middle line (a charge's), in art pixels. */
+export function laneDistance(t: Telegraph, p: Point): number {
+  const to = t.to ?? t.at;
+  const dx = to.x - t.at.x;
+  const dy = to.y - t.at.y;
+  const length = dx * dx + dy * dy;
+  const k =
+    length > 0 ? Math.max(0, Math.min(1, ((p.x - t.at.x) * dx + (p.y - t.at.y) * dy) / length)) : 0;
+  return Math.hypot(p.x - (t.at.x + dx * k), p.y - (t.at.y + dy * k));
 }
 
 /** Where a flier is in its round. */
@@ -243,6 +285,20 @@ export interface Foe {
    * timed by when it is drawn. Nothing in the rules reads it.
    */
   readonly walked: number;
+  /** A charger stuck fast where its charge ended, until this time on the clock. */
+  readonly stuck?: number;
+  /** A moth putting a lantern out: which (the room's order), and when it goes out. */
+  readonly snuff?: { readonly lamp: number; readonly until: number };
+  /** A guard staggered by a braced blow until this time: its front blocks nothing. */
+  readonly staggered?: number;
+  /** A guard turning to face him, done at this time. */
+  readonly turnAt?: number;
+  /** A guard committed to its own heavy blow until this time: it does not turn. */
+  readonly committed?: number;
+  /** A boss gone under the ground: not seen, struck, tapped or in anyone's reach. */
+  readonly under?: boolean;
+  /** A boss come up out of the ground, until this time, when it goes under again. */
+  readonly upUntil?: number;
 }
 
 /** Loot on the floor where something fell. */
@@ -253,7 +309,11 @@ export interface Pile {
   readonly coins: number;
 }
 
-/** Who says what, by the id of the line: the words themselves are the view's. */
+/**
+ * Who says what, by the id of the line: the words themselves are the view's.
+ * Named by the grotto's captain, who said them first, but any boss's: `tide`
+ * as its second phase begins, `anchor` its third, `down` as it falls.
+ */
 export type SayLine = 'tide' | 'anchor' | 'down';
 
 /** Something to show for a moment: a number, a miss, a heal, a flash. Not rules; drawn by `fightArt.ts`. */
@@ -291,6 +351,19 @@ export type Effect =
   | { readonly kind: 'released'; readonly at: Point; readonly from: number }
   /** A heavy blow taken braced, answered: its maker reels (`BRACE_REEL_MS`), over its head here. */
   | { readonly kind: 'reel'; readonly at: Point; readonly from: number }
+  /** A blow glanced off a guard's front, over its head here. */
+  | { readonly kind: 'blocked'; readonly at: Point; readonly from: number }
+  /** A lantern caught (at its foot), or was put out (by a moth, a smash, a charge). */
+  | { readonly kind: 'lit'; readonly at: Point; readonly from: number }
+  | { readonly kind: 'snuffed'; readonly at: Point; readonly from: number }
+  /** Lighting a lantern, stopped by a blow: over his head. */
+  | { readonly kind: 'interrupted'; readonly at: Point; readonly from: number }
+  /** A charge: from where it began to where it stuck. */
+  | { readonly kind: 'charge'; readonly at: Point; readonly to: Point; readonly from: number }
+  /** A boss coming up out of the ground, here. */
+  | { readonly kind: 'erupt'; readonly at: Point; readonly from: number }
+  /** A burrower come up into the light, dazzled: over its head. */
+  | { readonly kind: 'dazzled'; readonly at: Point; readonly from: number }
   | { readonly kind: 'say'; readonly who: string; readonly line: SayLine; readonly from: number };
 
 /** What the run has earned so far: paid in by `settleRun` however it ends. */
@@ -380,6 +453,20 @@ export interface Battle {
   readonly count?: BattleCount;
   /** The day's modifier, as far as the rules need it (`BattleMods`); absent for a plain run. */
   readonly mods?: BattleMods;
+  /**
+   * Each room's lanterns on posts (the Burrow's, `light.ts`), burning or not,
+   * by the ground's order. Absent in a dungeon without any.
+   */
+  readonly lamps?: Readonly<Record<string, readonly boolean[]>>;
+  /** Spore clouds hanging in the air; absent while there are none. */
+  readonly clouds?: readonly Cloud[];
+  /**
+   * A lantern he is going to light (the room's order), and when it catches:
+   * null while he walks to it; a time once he stands lighting it.
+   */
+  readonly tend?: { readonly lamp: number; readonly until: number | null };
+  /** When spores may next hurt him: once a `CLOUD_EVERY_MS`, however many clouds he stands in. */
+  readonly sporeAt?: number;
 }
 
 /** What a battle counts as it goes (`Battle.count`). */
@@ -398,6 +485,8 @@ export interface BattleCount {
 export interface BattleMods {
   readonly tidePace?: number;
   readonly noFood?: boolean;
+  /** A darker day where light is a rule: lighting a lantern takes this many times as long. */
+  readonly lighting?: number;
 }
 
 /** Where the battle is being fought: the room, its ground, whether it is the last, and its perches and landings. */
@@ -424,6 +513,8 @@ export interface BattleOptions {
   }[];
   /** How much each kind of food heals, by item id: what of it is found can be eaten in the run. */
   readonly heals?: Readonly<Record<string, number>>;
+  /** Each room's lanterns on posts as it is written, lit or not (`Ground.lamps`): rooms without any left out. */
+  readonly lamps?: Readonly<Record<string, readonly boolean[]>>;
 }
 
 export function startBattle(
@@ -481,6 +572,13 @@ export function startBattle(
     tally: { xp: {}, loot: {}, coins: 0, kills: 0, killed: {}, dropped: {}, eaten: 0, shot: 0 },
     ...(larder && piles.length ? { larder } : {}),
     over: null,
+    ...(options.lamps && Object.keys(options.lamps).length > 0
+      ? {
+          lamps: Object.fromEntries(
+            Object.entries(options.lamps).map(([room, lit]) => [room, [...lit]]),
+          ),
+        }
+      : {}),
   };
 }
 
@@ -598,10 +696,38 @@ export function inSight(map: TileMap, a: Point, b: Point): boolean {
 
 /** Whether the hero at `hero` can strike `foe`: near enough, and for a bow, in sight. */
 export function inReach(battle: Battle, map: TileMap, hero: Point, foe: Foe): boolean {
-  if (!alive(foe)) return false;
+  // A boss under the ground is in nobody's reach.
+  if (!alive(foe) || foe.under) return false;
   const reach = reachOf(battle.fighter);
   if (!within(distance(hero, foe.at), reach)) return false;
   return battle.fighter.style !== 'ranged' || inSight(map, hero, foe.at);
+}
+
+/* ----- The light (`light.ts`), as the rules read it ----- */
+
+/** Whether the room's light is a rule: it has lanterns on posts. */
+const lightHere = (place: Place): boolean => place.ground.lamps.length > 0;
+
+/** Whether a point in the room is in a burning lantern's light, clouds aside. */
+export function litAt(b: Battle, place: Place, p: Point): boolean {
+  return litBy(place.ground.lamps, b.lamps?.[place.room], p);
+}
+
+/** Whether a point in the room is lit: in a burning lantern's light, and not in a cloud of spores. */
+export function inLight(b: Battle, place: Place, p: Point): boolean {
+  if (!litAt(b, place, p)) return false;
+  return !(b.clouds ?? []).some((c) => c.room === place.room && inCloud(c, p));
+}
+
+/** Whether the hero is on the side a foe faces (level with it counts as in front). */
+export function inFrontOf(foe: Foe, hero: Point): boolean {
+  return foe.facing === 'right' ? hero.x >= foe.at.x - far(2) : hero.x <= foe.at.x + far(2);
+}
+
+/** Whether a guard's front is to the hero, and up (not staggered): a blow from there glances off. */
+export function blocks(b: Battle, foe: Foe, hero: Point): boolean {
+  if (!foeKind(foe.monster).guard || (foe.staggered ?? -Infinity) > b.clock) return false;
+  return inFrontOf(foe, hero);
 }
 
 export function arrowsLeft(battle: Battle): number {
@@ -656,7 +782,8 @@ export function foeAt(
   let best: Foe | null = null;
   let bestDistance = Infinity;
   for (const foe of battle.foes) {
-    if (foe.room !== room || !alive(foe)) continue;
+    // Under the ground there is nothing to tap.
+    if (foe.room !== room || !alive(foe) || foe.under) continue;
     const { w, h } = foeKind(foe.monster).box;
     const width = Math.max(w, min);
     const height = Math.max(h, min);
@@ -711,9 +838,21 @@ export function bossOf(battle: Battle, room: string): Foe | null {
 interface Work extends Writable<
   Omit<
     Battle,
-    'foes' | 'tally' | 'ready' | 'piles' | 'effects' | 'opened' | 'released' | 'volleys' | 'count'
+    | 'foes'
+    | 'tally'
+    | 'ready'
+    | 'piles'
+    | 'effects'
+    | 'opened'
+    | 'released'
+    | 'volleys'
+    | 'count'
+    | 'lamps'
+    | 'clouds'
   >
 > {
+  lamps?: Record<string, boolean[]>;
+  clouds?: Cloud[];
   count?: Writable<BattleCount>;
   opened: Record<string, number>;
   released: Record<string, number>;
@@ -730,7 +869,8 @@ interface Work extends Writable<
   effects: Effect[];
 }
 
-function working(b: Battle): Work {
+function working(battle: Battle): Work {
+  const { lamps, clouds, ...b } = battle;
   return {
     ...b,
     foes: b.foes.map((f) => ({ ...f })),
@@ -748,6 +888,10 @@ function working(b: Battle): Work {
     volleys: [...b.volleys],
     effects: [...b.effects],
     ...(b.count ? { count: { ...b.count } } : {}),
+    ...(lamps
+      ? { lamps: Object.fromEntries(Object.entries(lamps).map(([r, l]) => [r, [...l]])) }
+      : {}),
+    ...(clouds ? { clouds: [...clouds] } : {}),
   };
 }
 
@@ -777,13 +921,23 @@ function strike(w: Work, dice: Dice, foe: Writable<Foe>, hero: Point, place: Pla
   foe.aware = true;
   // Numbers over a foe rise from the top of its head.
   const top = { x: foe.at.x, y: foe.at.y - foeKind(foe.monster).box.h };
-  if (dice.next() < hitChance(me.attack, def.defence)) {
+  // A guard's front: the blow glances off, no dice rolled.
+  if (blocks(w, foe, hero)) {
+    effect(w, { kind: 'blocked', at: top, from: w.clock });
+    return;
+  }
+  // In the dark he sees less of what he swings at (`light.ts`).
+  const aim = lightHere(place) && !inLight(w, place, hero) ? DARK_AIM : 1;
+  if (dice.next() < hitChance(me.attack, def.defence) * aim) {
     const dealt = Math.min(dice.between(1, me.maxHit), foe.hp);
     foe.hp -= dealt;
     foe.struckAt = w.clock;
     earn(w, me.skill, XP_PER_DAMAGE * dealt);
     earn(w, VITALITY, Math.floor((XP_PER_DAMAGE * dealt) / 2));
     effect(w, { kind: 'hit', at: top, amount: dealt, on: 'foe', from: w.clock });
+    // A moth struck as it puts a lantern out starts over.
+    const moth = foeKind(foe.monster).seeksLight;
+    if (moth && foe.snuff) foe.snuff = { ...foe.snuff, until: w.clock + moth.snuffMs };
   } else {
     effect(w, { kind: 'miss', at: top, on: 'foe', from: w.clock });
   }
@@ -833,6 +987,10 @@ function fall(w: Work, dice: Dice, foe: Writable<Foe>, place: Place): void {
     w.target = null;
     w.chase = false;
   }
+  delete foe.snuff;
+  // A spore puff bursts as it falls.
+  const bursts = foeKind(foe.monster).bursts;
+  if (bursts) cloud(w, foe.room, foe.at, bursts.radius, bursts.ms, def);
   if (foeKind(foe.monster).boss) {
     effect(w, { kind: 'say', who: foe.key, line: 'down', from: w.clock });
     w.volleys = [];
@@ -848,14 +1006,25 @@ function fall(w: Work, dice: Dice, foe: Writable<Foe>, place: Place): void {
 }
 
 /** A foe's blow at the hero: Defence and Vitality earn from every attack, hit or miss. */
-function struck(w: Work, dice: Dice, def: MonsterDef, damage: number | null, hero: Point): void {
+function struck(
+  w: Work,
+  dice: Dice,
+  def: MonsterDef,
+  damage: number | null,
+  hero: Point,
+  place: Place,
+): void {
   const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
   earn(w, DEFENCE, earned);
   earn(w, VITALITY, Math.floor(earned / 2));
   let dealt = damage;
   if (dealt === null) {
+    // In the dark he does not see it coming (`light.ts`).
+    const guard = lightHere(place) && !inLight(w, place, hero) ? DARK_GUARD : 1;
     dealt =
-      dice.next() < hitChance(def.attack, w.fighter.defence) ? dice.between(1, def.maxHit) : 0;
+      dice.next() < hitChance(def.attack, w.fighter.defence * guard)
+        ? dice.between(1, def.maxHit)
+        : 0;
     if (dealt === 0) {
       effect(w, { kind: 'miss', at: hero, on: 'hero', from: w.clock });
       return;
@@ -864,13 +1033,19 @@ function struck(w: Work, dice: Dice, def: MonsterDef, damage: number | null, her
   hurtHero(w, dealt, hero);
 }
 
-function hurtHero(w: Work, dealt: number, hero: Point, blow = true): void {
+function hurtHero(w: Work, dealt: number, hero: Point, blow = true, jolts = blow): void {
   if (dealt <= 0) return;
   // Hit points lost to blows (`RunStats.damageTaken`); the sea's wash is not a blow.
   if (blow) tallyCount(w, 'damage', Math.min(dealt, w.hp));
   w.hp = Math.max(0, w.hp - dealt);
   w.struckAt = w.clock;
   effect(w, { kind: 'hit', at: hero, amount: dealt, on: 'hero', from: w.clock });
+  // A blow puts out the match: lighting a lantern starts again from nothing (spores sting, but
+  // do not jolt him).
+  if (jolts && w.tend && w.tend.until !== null) {
+    delete w.tend;
+    effect(w, { kind: 'interrupted', at: hero, from: w.clock });
+  }
   if (w.hp === 0 && !w.over) w.over = { why: 'fell', at: w.clock };
 }
 
@@ -882,6 +1057,7 @@ function land(
   hero: Point,
   def: MonsterDef | null,
   by: Writable<Foe> | null = null,
+  place: Place | null = null,
 ): void {
   const under = cellAt(t.at, T);
   const tile = inMap(map, under) ? map.tiles[under.row]![under.col] : undefined;
@@ -898,6 +1074,8 @@ function land(
     w.blowMs = 0;
     if (by) {
       by.blowMs = Math.max(by.blowMs, BRACE_REEL_MS);
+      // A guard staggered: its cap is down as long as it reels.
+      if (foeKind(by.monster).guard) by.staggered = w.clock + BRACE_REEL_MS;
       // Said, so the answer is seen: it was invisible before (wave 17).
       effect(w, {
         kind: 'reel',
@@ -912,6 +1090,44 @@ function land(
     earn(w, VITALITY, Math.floor(earned / 2));
   }
   hurtHero(w, damage, hero);
+  if (place && lightHere(place)) {
+    // What it lands on: lanterns put out, spores left hanging.
+    const lit = w.lamps?.[place.room];
+    if (lit && t.smashes)
+      place.ground.lamps.forEach((l, i) => {
+        if (lit[i] && inMark(t, lampFoot(l.cell))) putOut(w, place, i);
+      });
+    if (lit && t.lamp !== undefined && lit[t.lamp]) putOut(w, place, t.lamp);
+    if (t.spores && def) cloud(w, place.room, t.at, t.radius, t.spores, def);
+  }
+}
+
+/** A cloud of spores where something burst or puffed: it hurts by half its maker's blow, every second. */
+function cloud(
+  w: Work,
+  room: string,
+  at: Point,
+  radius: number,
+  ms: number,
+  def: MonsterDef,
+): void {
+  const made: Cloud = {
+    room,
+    at,
+    radius,
+    from: w.clock,
+    until: w.clock + ms,
+    damage: Math.max(1, Math.ceil(def.maxHit / 2)),
+  };
+  w.clouds = [...(w.clouds ?? []), made];
+}
+
+/** A lantern put out (a moth, a smash, a charge into its post). */
+function putOut(w: Work, place: Place, lamp: number): void {
+  const lit = w.lamps?.[place.room];
+  if (!lit || !lit[lamp]) return;
+  lit[lamp] = false;
+  effect(w, { kind: 'snuffed', at: lampFoot(place.ground.lamps[lamp]!.cell), from: w.clock });
 }
 
 function pickUp(w: Work, pile: Pile): void {
@@ -960,7 +1176,7 @@ function goBack(w: Work, place: Place, here: readonly Foe[], map: TileMap, play:
   // Already fighting something else in reach (it came to him): that is the fight now.
   const other = here.find((f) => f.key === w.target && f !== foe);
   const busy = !!other && !held(w, place, other) && inReach(w, map, play.walker.at, other);
-  if (!foe || busy || w.wash || (foe.flight && foe.flight.mode !== 'down')) {
+  if (!foe || busy || w.wash || foe.under || (foe.flight && foe.flight.mode !== 'down')) {
     delete w.back;
     return;
   }
@@ -1118,7 +1334,9 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       }
     }
     foe.rallied = fastest > 1;
-    pace.set(foe, fastest);
+    // A boss in a rage (the Burrow's king, at the last) swings faster, its heavy blows too.
+    const rage = kind.boss?.rage;
+    pace.set(foe, rage && foe.phase >= rage.phase ? Math.max(fastest, rage.pace) : fastest);
   }
 
   w.blowMs = Math.max(0, w.blowMs - TICK_MS);
@@ -1127,7 +1345,11 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     if (!foe.heavy) {
       // Whole milliseconds, so a rallied blow still lands on a tick.
       foe.blowMs = Math.max(0, foe.blowMs - Math.round(TICK_MS * pace.get(foe)!));
-      foe.heavyMs = Math.max(0, foe.heavyMs - TICK_MS);
+      const rage = foeKind(foe.monster).boss?.rage;
+      foe.heavyMs = Math.max(
+        0,
+        foe.heavyMs - (rage && foe.phase >= rage.phase ? Math.round(TICK_MS * rage.pace) : TICK_MS),
+      );
     }
     if (foeKind(foe.monster).boss && !foe.heavy) foe.volleyMs = Math.max(0, foe.volleyMs - TICK_MS);
   }
@@ -1143,9 +1365,33 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
   for (const foe of here) {
     if (!foe.heavy || foe.heavy.lands > w.clock) continue;
     const t = foe.heavy;
+    const kind = foeKind(foe.monster);
     foe.heavy = null;
-    foe.heavyMs = foeKind(foe.monster).heavy!.everyMs;
-    land(w, t, map, hero, w.monsters[foe.monster]!, foe);
+    foe.heavyMs = kind.heavy?.everyMs ?? 0;
+    land(w, t, map, hero, w.monsters[foe.monster]!, foe, place);
+    if (t.shape === 'lane' && t.to) {
+      // The charge: through the lane to its end, stuck fast there for a moment.
+      effect(w, { kind: 'charge', at: foe.at, to: t.to, from: w.clock });
+      foe.at = t.to;
+      foe.path = [];
+      foe.engaged = false;
+      foe.stuck = w.clock + (kind.heavy?.stuckMs ?? 0);
+    }
+    if (kind.guard) foe.committed = w.clock + kind.guard.recoverMs;
+    if (t.erupt) {
+      // Up out of the ground where it was marked, to be fought a while.
+      foe.at = t.at;
+      foe.path = [];
+      delete foe.under;
+      foe.upUntil = w.clock + (kind.boss?.burrow?.upMs ?? 0);
+      effect(w, { kind: 'erupt', at: t.at, from: w.clock });
+      if (t.dazzles) {
+        // Up into a lantern's light: dazzled, open to blows a while.
+        foe.stuck = w.clock + DAZZLE_MS;
+        foe.upUntil += DAZZLE_MS;
+        effect(w, { kind: 'dazzled', at: { x: t.at.x, y: t.at.y - kind.box.h }, from: w.clock });
+      }
+    }
     if (w.over) return next;
   }
   if (w.volleys.length > 0) {
@@ -1182,10 +1428,15 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     map = mapOf(w, place);
   }
 
+  const burning = lightHere(place) && (w.lamps?.[place.room] ?? []).some(Boolean);
   for (const foe of here) {
     if (foe.aware || held(w, place, foe)) continue;
     const kind = foeKind(foe.monster);
-    if (within(distance(foe.at, hero), kind.notice) && inSight(map, foe.at, hero)) {
+    // A moth wakes to any light in its room.
+    if (
+      (kind.seeksLight && burning) ||
+      (within(distance(foe.at, hero), kind.notice) && inSight(map, foe.at, hero))
+    ) {
       foe.aware = true;
       foe.heavyMs = kind.heavy?.firstMs ?? 0;
     }
@@ -1197,6 +1448,12 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
       pickUp(w, pile);
       w.piles.splice(i, 1);
     }
+  }
+
+  // The light: clouds settling or burning off, spores, a lantern being lit.
+  if (lightHere(place) || w.clouds) {
+    next = lightTurn(w, place, next);
+    if (w.over) return next;
   }
 
   // Back in after stepping out of a heavy blow, if the player has not said otherwise.
@@ -1221,7 +1478,9 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     }
   }
 
-  if (target && w.chase && !w.wash) {
+  /** Lighting a lantern: his hands are full. */
+  const lighting = !!w.tend && w.tend.until !== null;
+  if (target && w.chase && !w.wash && !lighting) {
     if (reachable(target)) {
       if (next.walker.path.length > 0) next = { ...next, walker: { at: hero, path: [] } };
     } else {
@@ -1232,7 +1491,7 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     }
   }
 
-  if (target && w.blowMs === 0 && reachable(target) && !w.wash) {
+  if (target && w.blowMs === 0 && reachable(target) && !w.wash && !lighting) {
     if (w.fighter.style === 'ranged' && arrowsLeft(w) === 0) {
       // Nothing to shoot: said once a swing's length, not every tick.
       w.blowMs = PLAYER_ATTACK_MS;
@@ -1250,10 +1509,14 @@ function tick(w: Work, dice: Dice, place: Place, play: Play): Play {
     if (!alive(foe) || !foe.aware || held(w, place, foe) || foe.wash) continue;
     if (foeKind(foe.monster).boss) bossTurn(w, dice, place, foe, hero);
     if (!alive(foe)) continue;
+    // Under the ground it does nothing else (`bossTurn` marks where it comes up).
+    if (foe.under) continue;
     if (foe.flight) {
       if (fly(w, place, foe, map, hero)) continue;
     }
-    const fell = act(w, dice, map, here, foe, hero);
+    if (foeKind(foe.monster).seeksLight && lightHere(place) && seekLight(w, place, foe, map))
+      continue;
+    const fell = act(w, dice, map, here, foe, hero, place);
     if (fell) return next;
   }
 
@@ -1284,11 +1547,21 @@ function act(
   here: readonly Writable<Foe>[],
   foe: Writable<Foe>,
   hero: Point,
+  place: Place,
 ): boolean {
   const kind = foeKind(foe.monster);
   const def = w.monsters[foe.monster]!;
   const d = distance(foe.at, hero);
   if (foe.heavy) return false;
+  // Stuck fast where its charge ended: open to a blow, and doing nothing.
+  if (foe.stuck !== undefined) {
+    if (w.clock < foe.stuck) {
+      foe.path = [];
+      foe.engaged = false;
+      return false;
+    }
+    delete foe.stuck;
+  }
   const heavy = kind.heavy;
   if (
     heavy &&
@@ -1296,28 +1569,39 @@ function act(
     (heavy.fromPhase ?? 0) <= foe.phase &&
     !(heavy.aim === 'sweep' && w.volleys.length > 0) &&
     within(d, heavy.range) &&
-    (heavy.aim === 'self' || inSight(map, foe.at, hero))
+    (heavy.aim === 'self' || inSight(map, foe.at, hero)) &&
+    // A guard bashes only what is in front of it.
+    (!kind.guard || inFrontOf(foe, hero))
   ) {
     const sweep = heavy.aim === 'sweep';
+    const charge = heavy.aim === 'charge' ? chargeLane(map, place, foe.at, hero) : null;
+    // Made in the light, it is seen coming sooner (`light.ts`); the mark is the same.
+    const seen = lightHere(place) && inLight(w, place, foe.at) ? LIT_WARN_MS : 0;
     foe.heavy = {
       at: heavy.aim === 'thrown' ? hero : foe.at,
       radius: heavy.radius,
-      shape: sweep ? 'arc' : 'circle',
+      shape: sweep ? 'arc' : charge ? 'lane' : 'circle',
       ...(sweep
         ? { facing: Math.atan2(hero.y - foe.at.y, hero.x - foe.at.x), spread: heavy.spread }
         : {}),
+      ...(charge ? { to: charge.to, ...(charge.lamp !== null ? { lamp: charge.lamp } : {}) } : {}),
       from: w.clock,
-      lands: w.clock + heavy.warnMs,
+      lands: w.clock + heavy.warnMs + seen,
       origin: heavy.aim === 'thrown' ? foe.at : null,
       damage: heavy.times * def.maxHit,
       ...(heavy.douse ? { douse: true } : {}),
+      ...(heavy.spores ? { spores: heavy.spores } : {}),
+      ...(heavy.smashes ? { smashes: true as const } : {}),
     };
     foe.path = [];
     foe.engaged = false;
-    foe.facing = turnToward(foe.facing, foe.at, hero.x);
+    face(w, foe, kind, hero);
     return false;
   }
-  if (kind.shy && under(d, kind.shy) && !foe.flight) {
+  if (kind.creeps && lightHere(place) && inLight(w, place, foe.at)) {
+    // Caught in the light: it holds still (and still fights what comes into its reach).
+    foe.path = [];
+  } else if (kind.shy && under(d, kind.shy) && !foe.flight) {
     // Too close: backs off, keeping its distance, while there is room to.
     const away = backOff(map, foe.at, hero, kind.keep - d);
     if (away) {
@@ -1342,19 +1626,180 @@ function act(
     }
   }
   if (within(d, kind.reach)) {
-    foe.facing = turnToward(foe.facing, foe.at, hero.x);
+    face(w, foe, kind, hero);
     if (!foe.engaged) {
       foe.engaged = true;
       foe.blowMs = Math.max(foe.blowMs, WINDUP_MS);
     } else if (foe.blowMs === 0) {
       foe.blowMs = def.speedMs;
-      struck(w, dice, def, null, hero);
+      struck(w, dice, def, null, hero, place);
       if (w.over) return true;
     }
   } else {
     foe.engaged = false;
   }
   return false;
+}
+
+/**
+ * A foe turning to the hero: at once, unless it is a guard, which turns only
+ * `turnMs` after he gets behind it, and not at all while committed to its
+ * own heavy blow.
+ */
+function face(w: Work, foe: Writable<Foe>, kind: FoeKind, hero: Point): void {
+  const want = turnToward(foe.facing, foe.at, hero.x);
+  if (!kind.guard) {
+    foe.facing = want;
+    return;
+  }
+  if (want === foe.facing) {
+    delete foe.turnAt;
+    return;
+  }
+  if (foe.heavy || (foe.committed ?? -Infinity) > w.clock) return;
+  if (foe.turnAt === undefined) foe.turnAt = w.clock + kind.guard.turnMs;
+  else if (w.clock >= foe.turnAt) {
+    foe.facing = want;
+    delete foe.turnAt;
+  }
+}
+
+/** How long a charge may run at the most, art pixels. */
+const CHARGE_MOST = far(400);
+
+/**
+ * A charge's lane: from `from` straight through `hero` until something solid
+ * (rock, a prop, a barred door, deep water, a lantern's post: which lantern,
+ * if so), ending on the last open ground before it.
+ */
+function chargeLane(
+  map: TileMap,
+  place: Place,
+  from: Point,
+  hero: Point,
+): { to: Point; lamp: number | null } {
+  const dx = hero.x - from.x;
+  const dy = hero.y - from.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const ux = dx / length;
+  const uy = dy / length;
+  let to = from;
+  let lamp: number | null = null;
+  for (let d = far(2); d <= CHARGE_MOST; d += far(2)) {
+    const p = { x: from.x + ux * d, y: from.y + uy * d };
+    const cell = cellAt(p, T);
+    if (!inMap(map, cell) || isSolid(map, cell)) {
+      lamp = lampOn(place.ground, cell);
+      break;
+    }
+    to = p;
+  }
+  return { to, lamp };
+}
+
+/**
+ * A moth's turn in a room with lanterns: to the nearest burning one, and
+ * putting it out once there (`snuffMs`; a blow that lands starts it over).
+ * False with nothing burning: it fights as anything else does.
+ */
+function seekLight(w: Work, place: Place, foe: Writable<Foe>, map: TileMap): boolean {
+  const lit = w.lamps?.[place.room];
+  const kind = foeKind(foe.monster);
+  if (!lit || !kind.seeksLight) return false;
+  if (foe.snuff) {
+    if (!lit[foe.snuff.lamp]) delete foe.snuff;
+    else if (w.clock >= foe.snuff.until) {
+      putOut(w, place, foe.snuff.lamp);
+      delete foe.snuff;
+    } else return true;
+  }
+  let lamp = -1;
+  let spot: Point | null = null;
+  let bestD = Infinity;
+  place.ground.lamps.forEach((l, i) => {
+    if (!lit[i]) return;
+    const at = hoverSpot(map as TileMap<RoomTile>, l.cell);
+    if (!at) return;
+    const d = distance(foe.at, at);
+    if (d < bestD) {
+      lamp = i;
+      spot = at;
+      bestD = d;
+    }
+  });
+  if (!spot) return false;
+  const to: Point = spot;
+  foe.engaged = false;
+  if (within(bestD, far(3))) {
+    foe.path = [];
+    foe.snuff = { lamp, until: w.clock + kind.seeksLight.snuffMs };
+    return true;
+  }
+  // On the wing: straight there, over whatever is in the way.
+  const end = foe.path.at(-1);
+  if (!end || end.x !== to.x || end.y !== to.y) foe.path = [to];
+  return true;
+}
+
+/**
+ * The light's turn, once a tick in a room with lanterns (or while clouds
+ * still hang anywhere): clouds settle, or burn off in a pool; spores hurt
+ * whoever stands in them; a lantern he stands lighting catches.
+ */
+function lightTurn(w: Work, place: Place, play: Play): Play {
+  const hero = play.walker.at;
+  const lit = w.lamps?.[place.room];
+  if (w.clouds) {
+    const kept: Cloud[] = [];
+    let changed = false;
+    for (const c of w.clouds) {
+      if (c.until <= w.clock) {
+        changed = true;
+        continue;
+      }
+      if (c.room === place.room && !c.burning && lit && litAt(w, place, c.at)) {
+        kept.push({ ...c, burning: true, until: Math.min(c.until, w.clock + CLOUD_BURN_MS) });
+        changed = true;
+        continue;
+      }
+      kept.push(c);
+    }
+    if (changed) {
+      if (kept.length > 0) w.clouds = kept;
+      else delete w.clouds;
+    }
+  }
+  if (w.clouds && (w.sporeAt ?? -Infinity) <= w.clock) {
+    const on = w.clouds.find((c) => c.room === place.room && inCloud(c, hero));
+    if (on) {
+      w.sporeAt = w.clock + CLOUD_EVERY_MS;
+      hurtHero(w, on.damage, hero, true, false);
+      if (w.over) return play;
+    }
+  }
+  const tend = w.tend;
+  if (!tend) return play;
+  const lamp = place.ground.lamps[tend.lamp];
+  if (!lamp || !lit || lit[tend.lamp]) {
+    delete w.tend;
+    return play;
+  }
+  const foot = lampFoot(lamp.cell);
+  if (tend.until === null) {
+    // Walking to it: once he stops beside it he starts; stopped anywhere else, it is given up.
+    if (play.walker.path.length > 0) return play;
+    if (within(distance(hero, foot), TEND_REACH)) {
+      w.tend = { lamp: tend.lamp, until: w.clock + LIGHT_MS * (w.mods?.lighting ?? 1) };
+      return { ...play, facing: turnToward(play.facing, hero, foot.x) };
+    }
+    delete w.tend;
+    return play;
+  }
+  if (w.clock < tend.until) return play;
+  lit[tend.lamp] = true;
+  delete w.tend;
+  effect(w, { kind: 'lit', at: foot, from: w.clock });
+  return play;
 }
 
 /** Somewhere `by` further from `from`, straight away from it or as near that as the room allows. */
@@ -1427,23 +1872,34 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
     foe.phase += 1;
     if (foe.phase === 2) {
       if (place.ground.ownTide && w.surge === null) w.surge = w.clock;
-      const spawns = place.spawns ?? [];
-      for (let i = 0; i < rules.calls.count && spawns.length > 0; i++) {
-        const helper = w.monsters[rules.calls.monster];
-        if (!helper) break;
-        const kind = foeKind(rules.calls.monster);
-        const at = spawns[i % spawns.length]!;
-        w.foes.push({
-          ...newFoe(`${place.room} ${w.foes.length}`, place.room, helper.id, at, helper.hp, kind),
-          aware: true,
-          heavyMs: kind.heavy?.firstMs ?? 0,
-        });
-      }
+      callHelp(w, place, rules.calls.monster, rules.calls.count);
       effect(w, { kind: 'say', who: foe.key, line: 'tide', from: w.clock });
     }
     if (foe.phase === 3) {
       foe.heavyMs = foeKind(foe.monster).heavy?.firstMs ?? 0;
       effect(w, { kind: 'say', who: foe.key, line: 'anchor', from: w.clock });
+    }
+    for (const more of rules.more ?? [])
+      if (more.phase === foe.phase) callHelp(w, place, more.monster, more.count);
+    // A phase it burrows in: down it goes, to come up under marked ground (`Volleys` aside).
+    if (rules.burrow?.phases.includes(foe.phase) && !foe.under)
+      goUnder(w, foe, rules.burrow.firstMs);
+  }
+  const burrow = rules.burrow;
+  if (burrow) {
+    if (foe.under) {
+      // Its timer runs while nothing is marked (the volley's, which a burrower has no use for).
+      if (!foe.heavy && foe.volleyMs === 0) erupt(w, place, foe, hero, burrow);
+      return;
+    }
+    if (
+      burrow.phases.includes(foe.phase) &&
+      foe.upUntil !== undefined &&
+      w.clock >= foe.upUntil &&
+      !foe.heavy
+    ) {
+      goUnder(w, foe, burrow.everyMs);
+      return;
     }
   }
   // A boss with no cannon behind it (the cave's snapper) has only its own heavy blow.
@@ -1477,6 +1933,80 @@ function bossTurn(w: Work, dice: Dice, place: Place, foe: Writable<Foe>, hero: P
       damage: volleys.damage,
     });
   }
+}
+
+/** Help called by a boss: `count` of a monster, at the room's landings in turn, already fighting. */
+function callHelp(w: Work, place: Place, monster: string, count: number): void {
+  const spawns = place.spawns ?? [];
+  for (let i = 0; i < count && spawns.length > 0; i++) {
+    const helper = w.monsters[monster];
+    if (!helper) break;
+    const kind = foeKind(monster);
+    const at = spawns[i % spawns.length]!;
+    w.foes.push({
+      ...newFoe(`${place.room} ${w.foes.length}`, place.room, helper.id, at, helper.hp, kind),
+      aware: true,
+      heavyMs: kind.heavy?.firstMs ?? 0,
+    });
+  }
+}
+
+/** A boss going under the ground, to come up `ms` from now. */
+function goUnder(w: Work, foe: Writable<Foe>, ms: number): void {
+  foe.under = true;
+  foe.heavy = null;
+  foe.path = [];
+  foe.engaged = false;
+  foe.volleyMs = ms;
+  delete foe.upUntil;
+  if (w.target === foe.key) {
+    w.target = null;
+    w.chase = false;
+  }
+}
+
+/**
+ * Where a burrowing boss comes up, marked: under the hero if he stands in
+ * the dark; if he stands in a lantern's light, in front of that lantern's
+ * post (the nearest of those lighting him), which it puts out. It tunnels
+ * there meanwhile.
+ */
+function erupt(
+  w: Work,
+  place: Place,
+  foe: Writable<Foe>,
+  hero: Point,
+  burrow: NonNullable<BossRules['burrow']>,
+): void {
+  const def = w.monsters[foe.monster]!;
+  const lit = w.lamps?.[place.room];
+  const map = mapOf(w, place);
+  let at = hero;
+  let dazzles = false;
+  let nearest = Infinity;
+  place.ground.lamps.forEach((l, i) => {
+    if (!lit?.[i] || !inPool(l.cell, hero)) return;
+    const spot = lampStand(map, l.cell);
+    const d = distance(lampFoot(l.cell), hero);
+    if (spot && d < nearest) {
+      nearest = d;
+      at = spot;
+      dazzles = true;
+    }
+  });
+  foe.heavy = {
+    at,
+    radius: burrow.radius,
+    shape: 'circle',
+    from: w.clock,
+    lands: w.clock + burrow.warnMs,
+    origin: null,
+    damage: burrow.times * def.maxHit,
+    smashes: true,
+    erupt: true,
+    ...(dazzles ? { dazzles: true as const } : {}),
+  };
+  foe.path = [at];
 }
 
 const bounds = new WeakMap<Ground, { left: number; right: number; top: number; bottom: number }>();
@@ -1640,12 +2170,20 @@ export function targetFoe(
   key: string,
 ): { battle: Battle; play: Play } {
   const foe = battle.foes.find((f) => f.key === key && f.room === place.room && alive(f));
-  if (!foe || battle.over || battle.wash) return { battle, play };
+  if (!foe || foe.under || battle.over || battle.wash) return { battle, play };
   const map = mapOf(battle, place);
   const hero = play.walker.at;
   const there = inReach(battle, map, hero, foe);
   return {
-    battle: { ...battle, target: key, chase: true, dash: null, back: undefined, walked: undefined },
+    battle: {
+      ...battle,
+      target: key,
+      chase: true,
+      dash: null,
+      back: undefined,
+      walked: undefined,
+      tend: undefined,
+    },
     play: {
       ...play,
       walker: {
@@ -1665,13 +2203,54 @@ export function targetFoe(
  * himself once the blow has landed (`RETURN_MS`); anywhere else, he does not.
  */
 export function stopChasing(battle: Battle): Battle {
-  if (!battle.chase && !battle.dash && !battle.back && battle.target === null) return battle;
+  if (!battle.chase && !battle.dash && !battle.back && battle.target === null && !battle.tend)
+    return battle;
   return {
     ...battle,
     chase: false,
     dash: null,
     back: undefined,
     walked: battle.target !== null ? true : undefined,
+    // A lantern he was going to light, or lighting, is left: this walk is an order of its own.
+    ...(battle.tend ? { tend: undefined } : {}),
+  };
+}
+
+/**
+ * A lantern tapped (by the room's order): unlit, he walks beside it (or is
+ * there already) and lights it once he stands there (`LIGHT_MS`); lit, or
+ * walled in, nothing changes. He stops going after whatever he was.
+ */
+export function tendLamp(
+  battle: Battle,
+  place: Place,
+  play: Play,
+  lamp: number,
+): { battle: Battle; play: Play } {
+  const lit = battle.lamps?.[place.room];
+  const at = place.ground.lamps[lamp];
+  if (!lit || !at || lit[lamp] || battle.over || battle.wash) return { battle, play };
+  if (battle.tend?.lamp === lamp) return { battle, play };
+  const map = mapOf(battle, place);
+  const hero = play.walker.at;
+  const spot = lampStand(map, at.cell, hero);
+  if (!spot) return { battle, play };
+  const there = within(distance(hero, lampFoot(at.cell)), TEND_REACH);
+  return {
+    battle: {
+      ...battle,
+      tend: { lamp, until: null },
+      chase: false,
+      dash: null,
+      back: undefined,
+      walked: undefined,
+    },
+    play: {
+      ...play,
+      walker: { at: hero, path: there ? [] : walkPath(map, hero, spot) },
+      heading: null,
+      open: null,
+    },
   };
 }
 
@@ -1686,7 +2265,9 @@ export function abilityProblem(
   if (cooldownLeft(battle, slot === 0 ? 'first' : 'second') > 0) return 'cooling';
   const ability = ABILITIES[battle.fighter.style][slot];
   const hero = play.walker.at;
-  const here = foesIn(battle, place.room).filter((f) => alive(f) && !held(battle, place, f));
+  const here = foesIn(battle, place.room).filter(
+    (f) => alive(f) && !f.under && !held(battle, place, f),
+  );
   if (ability.id === 'sweep' && !here.some((f) => within(distance(f.at, hero), SWEEP_REACH)))
     return 'nobody';
   if (ability.id === 'double') {
@@ -1734,7 +2315,9 @@ export function useAbility(
   const hero = play.walker.at;
   let next = play;
   w.ready[slot === 0 ? 'first' : 'second'] = w.clock + ability.cooldownMs;
-  const here = standing(w, place.room).filter((f) => !held(w, place, f));
+  // Any ability but bracing puts down the match.
+  if (ability.id !== 'brace') delete w.tend;
+  const here = standing(w, place.room).filter((f) => !held(w, place, f) && !f.under);
   if (ability.id === 'sweep') {
     effect(w, { kind: 'swing', at: hero, radius: SWEEP_REACH, from: w.clock });
     for (const foe of here)

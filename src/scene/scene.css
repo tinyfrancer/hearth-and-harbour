@@ -420,6 +420,25 @@
   height: 48px;
 }
 
+/*
+ * A dungeon drawn with stand-ins (wave 19, the Burrow): said quietly under the hero's health so
+ * nobody takes them for its own pictures. Placed by `hudLayout`'s hero box; never tapped.
+ */
+.dungeon-standin {
+  position: absolute;
+  margin: 0;
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  background: var(--panel);
+  border: 1px dashed var(--gold);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
 /* Padded by the safe area and never seen: the run reads the notches' sizes from it. */
 .dungeon-safe {
   position: absolute;

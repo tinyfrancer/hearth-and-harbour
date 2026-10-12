@@ -44,8 +44,10 @@ import {
   SAY_MS,
   TICK_MS,
   alive,
+  blocks,
   held,
   inReach,
+  laneDistance,
   mapOf,
   roomLocked,
   tideOf,
@@ -65,6 +67,8 @@ import {
   CaveShadow,
   doorPieces,
   glowsIn,
+  heroPoolIn,
+  isDark,
   lightsOf,
   litness,
   paintCells,
@@ -75,7 +79,8 @@ import {
   type RoomLook,
 } from './grottoArt';
 import { sayingOf } from './dungeons';
-import { foeArtId } from './fromLaneB';
+import { foeArtId, lampPicture } from './fromLaneB';
+import { LIGHT_MS, lampFoot, type Cloud } from './light';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';
 import type { Box } from './things';
@@ -144,6 +149,15 @@ export const FIGHT_COLOURS = {
   stone: tone('rock', 1),
   hurt: tone('crimson', 1),
   heal: tone('grass', 0),
+  // The Burrow's (wave 19): spores, earth, a moth's dusk, a lantern's flame.
+  spore1: tone('moss', 0),
+  spore2: tone('moss', 2),
+  spore3: tone('moss', 4),
+  dirt1: tone('dirt', 2),
+  dirt2: tone('dirt', 4),
+  moth: tone('violet', 1),
+  mothDark: tone('plum', 3),
+  flame: tone('fire', 0),
 } as const;
 const C = FIGHT_COLOURS;
 
@@ -220,7 +234,8 @@ function sizeOf(monster: string): Foe2Size {
  * comes down; anything else stands where it is.
  */
 export function liftOf(room: Room, foe: Foe): number {
-  if (!foe.flight) return 0;
+  // On the wing all the time (a moth): as high as its row says.
+  if (!foe.flight) return foeKind(foe.monster).hovers ?? 0;
   if (foe.flight.mode === 'down') return 0;
   const perch = room.perches[foe.flight.perch];
   const seat = perch ? perchLift(room, perch) : FLY_RISE;
@@ -624,10 +639,201 @@ function drawArc(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): vo
   }
 }
 
+/**
+ * A puff's cloud coming (a circle that leaves spores): drawn as a slam's is,
+ * in the spores' greens, so what lands there and what it leaves read apart
+ * from a red slam at a glance.
+ */
+function drawSporeCircle(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): void {
+  const k = telegraphProgress(t, clock);
+  ctx.globalAlpha = 0.24;
+  ctx.fillStyle = C.spore3;
+  disc(ctx, t.at.x, t.at.y, t.radius);
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = C.spore2;
+  disc(ctx, t.at.x, t.at.y, t.radius * k);
+  ctx.globalAlpha = 1;
+  const late = t.lands - clock <= 300;
+  ctx.fillStyle = late && Math.floor(clock / 75) % 2 === 0 ? C.spore1 : C.spore2;
+  ring(ctx, t.at.x, t.at.y, t.radius, 2);
+  ctx.fillStyle = C.ink;
+  ring(ctx, t.at.x, t.at.y, t.radius + 1, 1);
+}
+
+/** Each lane's rows, worked out once while it is marked: a charge's ground is the same all along it. */
+const laneRows = new WeakMap<Telegraph, Spans>();
+
+/** A lane's pixels as rows of runs, inside its edge (`radius` either side of its middle line). */
+function laneSpans(t: Telegraph): Spans {
+  let spans = laneRows.get(t);
+  if (spans) return spans;
+  const to = t.to ?? t.at;
+  const r = t.radius;
+  const x0 = Math.floor(Math.min(t.at.x, to.x) - r - 1);
+  const x1 = Math.ceil(Math.max(t.at.x, to.x) + r + 1);
+  const y0 = Math.floor(Math.min(t.at.y, to.y) - r - 1);
+  const y1 = Math.ceil(Math.max(t.at.y, to.y) + r + 1);
+  const out: [number, number, number][] = [];
+  for (let y = y0; y <= y1; y++) {
+    let run: number | null = null;
+    for (let x = x0; x <= x1 + 1; x++) {
+      const inside = x <= x1 && laneDistance(t, { x: x + 0.5, y: y + 0.5 }) <= r;
+      if (inside && run === null) run = x;
+      if (!inside && run !== null) {
+        out.push([y, run, x - run]);
+        run = null;
+      }
+    }
+  }
+  spans = out;
+  laneRows.set(t, spans);
+  return spans;
+}
+
+/** Each lane's edge pixels, all round (long sides as well as ends), worked out once. */
+const laneEdges = new WeakMap<Telegraph, readonly (readonly [x: number, y: number])[]>();
+
+function laneEdge(t: Telegraph): readonly (readonly [x: number, y: number])[] {
+  let edge = laneEdges.get(t);
+  if (edge) return edge;
+  const inside = new Set<string>();
+  const spans = laneSpans(t);
+  for (const [y, x, n] of spans) for (let i = 0; i < n; i++) inside.add(`${x + i},${y}`);
+  const out: [number, number][] = [];
+  for (const [y, x, n] of spans)
+    for (let i = 0; i < n; i++) {
+      const px = x + i;
+      if (
+        !inside.has(`${px - 1},${y}`) ||
+        !inside.has(`${px + 1},${y}`) ||
+        !inside.has(`${px},${y - 1}`) ||
+        !inside.has(`${px},${y + 1}`)
+      )
+        out.push([px, y]);
+    }
+  edge = out;
+  laneEdges.set(t, edge);
+  return edge;
+}
+
+/**
+ * A charge's lane: the ground it will run through, red as a slam's, edged,
+ * filling from the charger's end as it comes, and chevrons marching along it
+ * the way it will go, so which way it comes and where it stops read at once.
+ */
+function drawLane(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): void {
+  const k = telegraphProgress(t, clock);
+  const to = t.to ?? t.at;
+  const spans = laneSpans(t);
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = C.red;
+  for (const [y, x, n] of spans) ctx.fillRect(x, y, n, 1);
+  // Filling from the charger toward the far end as the charge comes.
+  const dx = to.x - t.at.x;
+  const dy = to.y - t.at.y;
+  const length = Math.hypot(dx, dy) || 1;
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = C.red;
+  for (const [y, x, n] of spans)
+    for (let i = 0; i < n; i++) {
+      const along = ((x + i + 0.5 - t.at.x) * dx + (y + 0.5 - t.at.y) * dy) / (length * length);
+      if (along <= k) ctx.fillRect(x + i, y, 1, 1);
+    }
+  ctx.globalAlpha = 1;
+  // The edge, all the way round: dark under, bright on top, so it reads on any floor.
+  const late = t.lands - clock <= 300;
+  const edge = laneEdge(t);
+  ctx.fillStyle = C.ink;
+  for (const [x, y] of edge) ctx.fillRect(x, y + 1, 1, 1);
+  ctx.fillStyle = late && Math.floor(clock / 75) % 2 === 0 ? C.fire1 : C.fire2;
+  for (const [x, y] of edge) ctx.fillRect(x, y, 1, 1);
+  // Chevrons along the middle, marching the way it will run.
+  const ux = dx / length;
+  const uy = dy / length;
+  const shift = (clock / 12) % 24;
+  ctx.fillStyle = C.fire1;
+  for (let s = 12 + shift; s < length - 8; s += 24) {
+    const cx = t.at.x + ux * s;
+    const cy = t.at.y + uy * s;
+    for (let j = -4; j <= 4; j++) {
+      const back = 4 - Math.abs(j);
+      ctx.fillRect(Math.round(cx - ux * back - uy * j), Math.round(cy - uy * back + ux * j), 2, 2);
+    }
+  }
+  // Where it stops: a bar across the far end.
+  ctx.fillStyle = C.ink;
+  for (let j = -t.radius; j <= t.radius; j++)
+    ctx.fillRect(Math.round(to.x + ux * 2 - uy * j), Math.round(to.y + uy * 2 + ux * j), 2, 2);
+}
+
 function drawMark(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): void {
   if (t.shape === 'line') drawLine(ctx, t, clock);
   else if (t.shape === 'arc') drawArc(ctx, t, clock);
+  else if (t.shape === 'lane') drawLane(ctx, t, clock);
+  else if (t.spores) drawSporeCircle(ctx, t, clock);
   else drawCircle(ctx, t, clock);
+}
+
+/**
+ * A cloud of spores where it hangs: a haze over the ground, specks drifting
+ * in it, its edge solid so where it hurts is never in doubt; one burning off
+ * in a lantern's light thins and goes warm at the edge.
+ */
+function drawCloud(ctx: CanvasRenderingContext2D, c: Cloud, clock: number): void {
+  const left = Math.max(0, c.until - clock);
+  const fade = Math.min(1, left / 600);
+  ctx.globalAlpha = (c.burning ? 0.16 : 0.28) * fade;
+  ctx.fillStyle = C.spore2;
+  disc(ctx, c.at.x, c.at.y, c.radius);
+  ctx.globalAlpha = 0.85 * fade;
+  ctx.fillStyle = c.burning ? C.fire2 : C.spore1;
+  ring(ctx, c.at.x, c.at.y, c.radius, 1);
+  // Specks drifting up and round in it, the same few each time.
+  ctx.fillStyle = c.burning ? C.flame : C.spore1;
+  for (let i = 0; i < 14; i++) {
+    const a = i * 2.39996 + (clock - c.from) / (900 + i * 37);
+    const r = c.radius * (0.25 + ((i * 0.37) % 0.7));
+    const x = c.at.x + Math.cos(a) * r;
+    const y = c.at.y + Math.sin(a) * r * 0.8 - ((clock / 40 + i * 7) % 10);
+    ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Where a lantern on a post's flame is, in the room: from its picture's light, over its foot. */
+function flameOf(cell: Cell): Point {
+  const foot = lampFoot(cell);
+  const pic = lampPicture(true);
+  if (!pic?.light) return { x: foot.x, y: foot.y - 44 };
+  return { x: foot.x - pic.foot + pic.light.x, y: foot.y - pic.base + pic.light.y };
+}
+
+/** A boss under the ground: a mound of earth heaving where it is, a few clods flying off it. */
+function drawMound(ctx: CanvasRenderingContext2D, at: Point, clock: number): void {
+  const heave = Math.floor(clock / 140) % 3;
+  const x = Math.round(at.x);
+  const y = Math.round(at.y);
+  ctx.fillStyle = C.ink;
+  oval(ctx, x, y - 2, 17, 6);
+  ctx.fillStyle = C.dirt2;
+  for (let dy = 0; dy < 7 + heave; dy++) {
+    const half = Math.round(16 * Math.sqrt(1 - (dy / (8 + heave)) ** 2));
+    ctx.fillRect(x - half, y - 2 - dy, 2 * half + 1, 1);
+  }
+  ctx.fillStyle = C.dirt1;
+  for (let dy = 3; dy < 7 + heave; dy++) {
+    const half = Math.round(9 * Math.sqrt(1 - (dy / (8 + heave)) ** 2));
+    ctx.fillRect(x - half - 3, y - 2 - dy, 2 * half, 1);
+  }
+  for (let i = 0; i < 3; i++) {
+    const t = (((clock / 500 + i / 3) % 1) + 1) % 1;
+    ctx.fillRect(
+      Math.round(x + (i - 1) * 9 * t),
+      Math.round(y - 10 - Math.sin(Math.PI * t) * 12),
+      2,
+      2,
+    );
+  }
 }
 
 /** A blow landing: the shape flashing, a keg's blast or its hiss, a volley's splashes down its line. */
@@ -841,6 +1047,21 @@ function drawEffectOver(
     case 'reel':
       label(ctx, 'Staggered!', e.at.x, e.at.y - 22 - rise, 14, C.gold, k, WORDS);
       break;
+    case 'blocked':
+      label(ctx, 'Blocked', e.at.x, e.at.y - 12 - rise, 14, C.metal2, k, WORDS);
+      break;
+    case 'dazzled':
+      label(ctx, 'Dazzled!', e.at.x, e.at.y - 12 - rise, 15, C.flame, k, WORDS);
+      break;
+    case 'interrupted':
+      label(ctx, 'Put out!', hero.x, overHero - 4 - rise, 14, C.hurt, k, WORDS);
+      break;
+    case 'lit':
+      label(ctx, 'Lit', e.at.x, e.at.y - 70 - rise, 14, C.flame, k, WORDS);
+      break;
+    case 'snuffed':
+      label(ctx, 'Out', e.at.x, e.at.y - 70 - rise, 14, C.smoke, k, WORDS);
+      break;
     default:
       break;
   }
@@ -889,6 +1110,60 @@ function drawEffectArt(ctx: CanvasRenderingContext2D, e: Effect, clock: number):
       ring(ctx, e.at.x, e.at.y, 3 + t * 12, 1);
       break;
     }
+    case 'lit': {
+      // A lantern catching: a ring of light spreading from its flame.
+      const at = { x: e.at.x, y: e.at.y - 44 };
+      ctx.globalAlpha = Math.max(0, 1 - t);
+      ctx.fillStyle = C.flame;
+      ring(ctx, at.x, at.y, 4 + t * 30, 1);
+      ring(ctx, at.x, at.y, 2 + t * 16, 1);
+      break;
+    }
+    case 'snuffed': {
+      // Put out: a curl of smoke from where the flame was.
+      ctx.globalAlpha = Math.max(0, 1 - t);
+      ctx.fillStyle = C.smoke;
+      for (const [dx, dy, r] of [
+        [0, -44, 3],
+        [-4, -50, 2],
+        [3, -56, 2],
+      ] as const)
+        disc(ctx, e.at.x + dx + Math.sin(t * 6 + dy) * 2, e.at.y + dy - t * 14, r + t * 2);
+      break;
+    }
+    case 'charge': {
+      // The charge itself, a streak down its lane in the first moment after it lands.
+      if (age > 260) break;
+      const k = age / 260;
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = C.wood;
+      for (let i = 0; i < 24; i++) {
+        const f = Math.max(0, k - i / 60);
+        ctx.fillRect(
+          Math.round(e.at.x + (e.to.x - e.at.x) * f),
+          Math.round(e.at.y + (e.to.y - e.at.y) * f) - 10 + (i % 3) * 4,
+          3,
+          1,
+        );
+      }
+      break;
+    }
+    case 'erupt': {
+      // Up out of the ground: clods thrown out and falling.
+      ctx.globalAlpha = Math.max(0, 1 - t);
+      ctx.fillStyle = C.dirt1;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const d = 6 + t * 30;
+        ctx.fillRect(
+          Math.round(e.at.x + Math.cos(a) * d),
+          Math.round(e.at.y + Math.sin(a) * d * 0.6 - Math.sin(Math.PI * t) * 16),
+          3,
+          3,
+        );
+      }
+      break;
+    }
     case 'released': {
       ctx.globalAlpha = Math.max(0, 1 - t);
       ctx.fillStyle = C.stone;
@@ -917,6 +1192,18 @@ const around = (at: Point, r: number): Box => ({
 });
 
 function markBox(t: Telegraph): Box {
+  if (t.shape === 'lane') {
+    const to = t.to ?? t.at;
+    const r = t.radius + 6;
+    const x = Math.floor(Math.min(t.at.x, to.x) - r);
+    const y = Math.floor(Math.min(t.at.y, to.y) - r);
+    return {
+      x,
+      y,
+      w: Math.ceil(Math.max(t.at.x, to.x) + r) - x + 1,
+      h: Math.ceil(Math.max(t.at.y, to.y) + r) - y + 1,
+    };
+  }
   if (t.shape === 'line') {
     const top = Math.floor(t.at.y) - 2;
     return {
@@ -1218,7 +1505,7 @@ export function fightFigures(dungeon: Dungeon, run: Run): Figure[] {
   const place = placeOf(dungeon, run);
   const out: Figure[] = [hero];
   for (const foe of battle.foes) {
-    if (foe.room !== run.room || foe.fled || held(battle, place, foe)) continue;
+    if (foe.room !== run.room || foe.fled || foe.under || held(battle, place, foe)) continue;
     if (foe.flight && foe.flight.mode !== 'down') continue;
     const weight = alive(foe) ? 1 : Math.max(0, 1 - (battle.clock - foe.diedAt!) / FALL_MS);
     if (weight <= 0) continue;
@@ -1319,15 +1606,26 @@ export function fightExtra(
   const shadows: Placed[] = [];
   const fuses: Point[] = [];
   const boxes: Box[] = [];
-  // A darker day: the lanterns' pools (and an open door's light) as the day leaves them, and his own.
-  const dark = (room.dim ?? 1) < 1;
+  // A darker day, or a room of lanterns: the lanterns' pools as the look shown has them (those
+  // burning; an open door's light too), and his own.
+  const seenRoom = look.room;
+  const dark = isDark(seenRoom);
+  const heroPool = heroPoolIn(seenRoom);
   const pools = dark
     ? [
-        ...lightsOf(room),
-        ...(opening > 0 ? doorPieces(room).flatMap((d) => (d.light ? [d.light] : [])) : []),
+        ...lightsOf(seenRoom),
+        ...(opening > 0 ? doorPieces(seenRoom).flatMap((d) => (d.light ? [d.light] : [])) : []),
       ]
     : [];
+  // A boss under the ground is a heaving mound, not a body; what it is about to do is marked.
+  const mounds: Point[] = [];
   for (const foe of here) {
+    if (foe.under && alive(foe)) {
+      mounds.push(foe.at);
+      boxes.push(around(foe.at, 30));
+      if (foe.heavy) boxes.push(markBox(foe.heavy));
+      continue;
+    }
     // A fallen foe blinks out at the last.
     if (!alive(foe) && clock - foe.diedAt! > FALL_MS - 240 && Math.floor(clock / 80) % 2 === 1)
       continue;
@@ -1343,7 +1641,7 @@ export function fightExtra(
       const base = lift > 0 && foe.flight?.mode === 'perch' ? Math.round(foe.at.y) + 11 : feet.y;
       // Out of every pool of light on a darker day, a dim shape (one carrying a light is lit by
       // it); what it is about to do is drawn on the ground and over it, never dimmed.
-      const shade = dark && drawn.glows.length === 0 ? litness(pools, hero, foe.at) : 0;
+      const shade = dark && drawn.glows.length === 0 ? litness(pools, hero, foe.at, heroPool) : 0;
       actors.push({
         image: shade ? inTheDark(drawn.image, shade) : drawn.image,
         x: feet.x - drawn.feet.x,
@@ -1380,8 +1678,10 @@ export function fightExtra(
         under,
         size.shadow,
         look.theme.palette,
-        dark ? (x, y) => shadeAt(pools, x, y, hero) : undefined,
-        dark ? `${Math.round(hero.x)} ${Math.round(hero.y)} ${opening > 0}` : '',
+        dark ? (x, y) => shadeAt(pools, x, y, hero, heroPool) : undefined,
+        dark
+          ? `${Math.round(hero.x)} ${Math.round(hero.y)} ${opening > 0} ${seenRoom.lit ?? ''}`
+          : '',
       );
       if (placed) {
         shadows.push(placed);
@@ -1411,8 +1711,34 @@ export function fightExtra(
       }
     }
     if (kind.rally) boxes.push(around({ x: midX(foe), y: feet.y - 12 }, 54));
+    // Stuck fast after a charge: stars wheeling over it.
+    if (foe.stuck !== undefined && foe.stuck > clock)
+      boxes.push(around({ x: midX(foe), y: feet.y - standsOf(foe.monster) - 6 }, 14));
   }
   for (const t of battle.volleys) boxes.push(markBox(t));
+  // Clouds of spores hanging in the room, and the Burrow's lanterns being lit or put out.
+  const clouds = (battle.clouds ?? []).filter((c) => c.room === run.room);
+  for (const c of clouds) boxes.push(around(c.at, c.radius + 12));
+  const lamps = room.ground.lamps;
+  /** A lantern with a ring on it: being lit (gold, filling), or a moth at it (violet, emptying). */
+  const rings: { at: Point; k: number; how: 'lighting' | 'snuff' }[] = [];
+  const tend = battle.tend;
+  if (tend && tend.until !== null && lamps[tend.lamp])
+    rings.push({
+      at: flameOf(lamps[tend.lamp]!.cell),
+      k: 1 - Math.max(0, tend.until - clock) / LIGHT_MS,
+      how: 'lighting',
+    });
+  for (const foe of here) {
+    const s = foe.snuff;
+    const moth = foeKind(foe.monster).seeksLight;
+    if (!s || !moth || !alive(foe) || !lamps[s.lamp]) continue;
+    rings.push({
+      at: flameOf(lamps[s.lamp]!.cell),
+      k: Math.max(0, s.until - clock) / moth.snuffMs,
+      how: 'snuff',
+    });
+  }
   for (const e of battle.effects) {
     if (e.kind === 'landed')
       boxes.push(
@@ -1421,7 +1747,19 @@ export function fightExtra(
           : markBox(e.mark),
       );
     else if (e.kind === 'swing') boxes.push(around(e.at, e.radius + 3));
-    else if (e.kind === 'splash') boxes.push(around(e.at, 30));
+    else if (e.kind === 'lit' || e.kind === 'snuffed')
+      boxes.push(around({ x: e.at.x, y: e.at.y - 44 }, 36));
+    else if (e.kind === 'erupt') boxes.push(around(e.at, 40));
+    else if (e.kind === 'charge') {
+      const x = Math.floor(Math.min(e.at.x, e.to.x)) - 6;
+      const y = Math.floor(Math.min(e.at.y, e.to.y)) - 16;
+      boxes.push({
+        x,
+        y,
+        w: Math.ceil(Math.abs(e.at.x - e.to.x)) + 13,
+        h: Math.ceil(Math.abs(e.at.y - e.to.y)) + 22,
+      });
+    } else if (e.kind === 'splash') boxes.push(around(e.at, 30));
     else if (e.kind === 'released') boxes.push(around(e.at, 30));
     else if (e.kind === 'shot') {
       const x = Math.floor(Math.min(e.at.x, e.to.x)) - 14;
@@ -1494,8 +1832,12 @@ export function fightExtra(
       over.push({ x: x - 70, y: y - 48, w: 140, h: 58 });
     } else if (e.kind === 'splash') {
       over.push({ x: e.at.x - 50, y: e.at.y - HERO_TALL - 60, w: 100, h: 56 });
-    } else if (e.kind === 'reel') {
+    } else if (e.kind === 'reel' || e.kind === 'blocked' || e.kind === 'dazzled') {
       over.push({ x: e.at.x - 60, y: e.at.y - 70, w: 120, h: 60 });
+    } else if (e.kind === 'interrupted') {
+      over.push({ x: hero.x - 60, y: hero.y - HERO_TALL - 60, w: 120, h: 56 });
+    } else if (e.kind === 'lit' || e.kind === 'snuffed') {
+      over.push({ x: e.at.x - 50, y: e.at.y - 110, w: 100, h: 56 });
     } else if (e.kind === 'landed' && e.doused) {
       over.push({ x: e.at.x - 40, y: e.at.y - 70, w: 80, h: 56 });
     } else if (e.kind === 'say' && clock - e.from < SAY_MS) {
@@ -1506,6 +1848,7 @@ export function fightExtra(
       }
     }
   }
+  for (const r of rings) over.push({ x: r.at.x - 30, y: r.at.y - 30, w: 60, h: 60 });
   // The way onward, once the doors open; and a barred door that was tapped, saying so.
   const way = wayMarks(dungeon, run, options.view);
   over.push(...way.boxes);
@@ -1586,6 +1929,7 @@ export function fightExtra(
           oval(ctx, midX(foe), feet, rx + 2, 5);
         }
       }
+      for (const at of mounds) drawMound(ctx, at, clock);
       for (const foe of here)
         if (foe.heavy && foe.heavy.shape !== 'circle') drawMark(ctx, foe.heavy, clock);
       for (const t of battle.volleys) drawMark(ctx, t, clock);
@@ -1643,6 +1987,18 @@ export function fightExtra(
           ctx.fillRect(x, y - 3, 1, 1);
         }
       }
+      for (const c of clouds) drawCloud(ctx, c, clock);
+      for (const foe of here) {
+        if (foe.stuck === undefined || foe.stuck <= clock || !alive(foe)) continue;
+        // Stuck fast: three stars wheeling over its head.
+        const cx = midX(foe);
+        const cy = foe.at.y - standsOf(foe.monster) - 6;
+        ctx.fillStyle = C.gold;
+        for (let i = 0; i < 3; i++) {
+          const a = clock / 180 + (i * Math.PI * 2) / 3;
+          ctx.fillRect(Math.round(cx + Math.cos(a) * 10), Math.round(cy + Math.sin(a) * 4), 2, 2);
+        }
+      }
       for (const e of battle.effects) drawEffectArt(ctx, e, clock);
       if (battle.braceUntil > clock) {
         // Braced: a small shield over his head.
@@ -1665,8 +2021,35 @@ export function fightExtra(
         label(ctx, 'Barred', x + shake, barredSay.cell.row * T - 14, 15, C.white, k, WORDS);
       }
       for (const foe of here)
-        if (alive(foe) && !held(battle, place, foe))
+        if (alive(foe) && !held(battle, place, foe) && !foe.under) {
           drawFoeOver(ctx, battle, foe, midX(foe), liftOf(room, foe), foe.key === battle.target, k);
+          // A guard's cap up toward him: a small shield on the side it faces, over its bar.
+          if (blocks(battle, foe, hero)) {
+            const side = foe.facing === 'right' ? 1 : -1;
+            const top = Math.round(foe.at.y - standsOf(foe.monster) - 8);
+            const x =
+              midX(foe) +
+              side * (Math.max(24, Math.min(54, foeKind(foe.monster).box.w)) / 2 + 6 * k);
+            ctx.fillStyle = C.ink;
+            ctx.fillRect(x - 5 * k, top - 2 * k, 10 * k, 11 * k);
+            ctx.fillStyle = C.metal2;
+            ctx.fillRect(x - 4 * k, top - k, 8 * k, 6 * k);
+            ctx.fillRect(x - 2 * k, top + 5 * k, 4 * k, 3 * k);
+          }
+        }
+      // A lantern being lit (gold, filling round) or put out by a moth (violet, running down).
+      for (const r of rings) {
+        ctx.save();
+        ctx.lineWidth = 5 * k;
+        ctx.strokeStyle = C.ink;
+        ctx.beginPath();
+        ctx.arc(r.at.x, r.at.y, 13, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * r.k);
+        ctx.stroke();
+        ctx.lineWidth = 3 * k;
+        ctx.strokeStyle = r.how === 'lighting' ? C.flame : C.moth;
+        ctx.stroke();
+        ctx.restore();
+      }
       // Numbers landing together on one spot (a double shot) stand side by side.
       const together = new Map<string, number>();
       for (const e of battle.effects) {

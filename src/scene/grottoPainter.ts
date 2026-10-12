@@ -84,6 +84,7 @@ export function groundInAWorker(): WorkerPainter {
           id: next++,
           ...(room.dungeon ? { dungeon: room.dungeon } : {}),
           ...(room.dim !== undefined && room.dim !== 1 ? { dim: room.dim } : {}),
+          ...(room.lit !== undefined ? { lit: room.lit } : {}),
           room: room.id,
           level: state.level,
           warn: state.warn,
