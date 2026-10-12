@@ -934,11 +934,14 @@ export function dungeonView(options: DungeonViewOptions): View {
   const showRoom = (): void => {
     const run = options.run();
     const here = dungeon.rooms[run.room]!;
-    // Rooms behind are let go; this one and the next are kept and painted ahead.
+    // Rooms behind are let go; this one and the next are kept and painted ahead, and the first
+    // always (wave 18): Row out again from the results goes straight back to it, never to a room
+    // painted again behind the card.
     const at = order.indexOf(run.room);
     const next = order[at + 1];
     for (const id of order)
-      if (id !== run.room && id !== next) roomLook(dungeon.rooms[id]!).forget();
+      if (id !== run.room && id !== next && id !== dungeon.first)
+        roomLook(dungeon.rooms[id]!).forget();
     look = lookOf(run.room);
     // Painted ahead only where a worker paints them: on the spot, each is worked out when shown.
     if (painter.offThread) {
