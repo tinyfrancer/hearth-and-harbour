@@ -716,7 +716,7 @@ const TIER2_EARNED: Record<number, Record<string, number>> = {
     fletching: 181359,
     alchemy: 140134,
     thieving: 127457,
-    smuggler: 120244,
+    brigand: 118387,
   },
   40: {
     woodcutting: 102000,
@@ -729,7 +729,7 @@ const TIER2_EARNED: Record<number, Record<string, number>> = {
     fletching: 221520,
     alchemy: 156000,
     thieving: 166090,
-    hill_ogre: 160311,
+    brigand: 157773,
   },
 };
 
@@ -840,6 +840,15 @@ describe('what an hour of tier 2 earns (S22)', () => {
       expect(thief.coins / best).toBeLessThan(1.6);
       expect(fight.earned / best, fight.monster).toBeGreaterThan(1);
       expect(fight.earned, fight.monster).toBeLessThan(thief.coins);
+      // Wave 20: the best fight for money is tier 2's own (it was the tier-1 smuggler at 30, and
+      // the ogre 3.5% under Thieving at 40), at least a quarter over gathering and at least a
+      // twentieth under Thieving. A twentieth is about all there is room for: a level-30 or -40
+      // character in tier-2 gear farms the tier-1 marsh troll for 0.92 and 0.91 of Thieving, and
+      // the troll cannot pay less without failing tier 1's limit at 20 (it pays its way there by
+      // 4%), so tier 2's best must sit between the troll and Thieving.
+      expect(CONTENT.monsters![fight.monster]!.tier, fight.monster).toBe(2);
+      expect(fight.earned / best, fight.monster).toBeGreaterThan(1.25);
+      expect(fight.earned / thief.coins, fight.monster).toBeLessThan(0.95);
       expect({
         ...gathered,
         ...made,

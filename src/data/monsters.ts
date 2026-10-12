@@ -163,7 +163,9 @@ const ALL: MonsterDef[] = [
       defence: 44,
       maxHit: 13,
       speedMs: 2400,
-      coins: [500, 1050],
+      // Wave 20: 460 to 980 (was 500 to 1050), so a level-30 character past the grotto earns
+      // more from tier 2's brigand than from him (tests/data/pacing.test.ts).
+      coins: [460, 980],
       always: [{ item: 'smuggled_tea', min: 1, max: 1 }],
       rare: [
         { item: 'iron_arrows', min: 10, max: 25, oneIn: 10 },
@@ -305,7 +307,9 @@ const ALL: MonsterDef[] = [
       maxHit: 27,
       speedMs: 3600,
       xpPercent: 270,
-      coins: [2800, 4900],
+      // Wave 20: 2600 to 4600 (was 2800 to 4900): he paid within 3.5% of Thieving at 40. The
+      // best fight for money there is now the brigand, a twentieth under it.
+      coins: [2600, 4600],
       always: [{ item: 'thick_hide', min: 2, max: 4 }],
       rare: [
         { item: 'gold_ore', min: 2, max: 5, oneIn: 6 },

@@ -16,7 +16,7 @@ import type { FightEnd } from '../core/fight';
 import { foeDrops } from '../core/run';
 import { bankCount, type Fight, type GameState } from '../core/state';
 import { monsterLock, tierLock, tierOf, tierUnlocked } from '../core/tiers';
-import { tierChip, tierLockLine } from './tierMarks';
+import { lockedTitle, tierChip, tierLockLine } from './tierMarks';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
 import { button, h, setText, titled } from './dom';
@@ -287,7 +287,7 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
         face(monster, 'small'),
         h('div', { class: 'stack tight monster-text' }, [
           h('div', { class: 'card-head' }, [
-            h('h2', { text: monster.name }),
+            locked ? lockedTitle(monster.name) : h('h2', { text: monster.name }),
             h('span', { class: 'level', text: `Level ${monster.level}` }),
           ]),
           h('p', {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advance } from '../../src/core/actions';
-import { bountyChoices, bountyWeight } from '../../src/core/bounty';
+import { boardWeights, bountyChoices, bountyWeight } from '../../src/core/bounty';
 import { CONTENT } from '../../src/data';
 import { HOUR, characterAt, duels, fight, hourOf } from './fighting';
 
@@ -190,6 +190,44 @@ describe('tier 2: food and bounties', () => {
       ).toBeGreaterThanOrEqual(0.7);
     },
   );
+
+  // Wave 20: the board is tier-aware. Tier 1's ten monsters each kept the floor weight of one, so
+  // from combat level 33 a tier-2 player's offers were about 0.37 trivial (more than six levels
+  // below the strongest open); an earlier tier's now fade as the later tier is climbed
+  // (`boardWeights`), never to nothing. At every level 1 to 40, with the grotto cleared from 20
+  // and without: the trivial under a third of what is posted, and from 30 a tier-2 player's
+  // offers mostly tier 2's (seven in ten or more); tier 1's ten are all still in the pool, so the
+  // board always has its three.
+  it.each(Array.from({ length: 40 }, (_, i) => i + 1))(
+    'posts the trivial under a third of the time at combat level %i, tier 2 open or not',
+    (level) => {
+      for (const tier2 of level >= 20 ? [false, true] : [false]) {
+        const choices = bountyChoices(characterAt(level, { tier2 }), CONTENT);
+        // Below level 5 tier 1's board has only the first monster or two to post, as ever.
+        expect(choices.length, String(tier2)).toBeGreaterThanOrEqual(tier2 ? 10 : 1);
+        const weigh = boardWeights(choices);
+        const hardest = choices.at(-1)!;
+        const weight = (list: typeof choices): number =>
+          list.reduce((sum, monster) => sum + weigh(monster), 0);
+        const trivial = choices.filter((monster) => monster.level < hardest.level - 6);
+        expect(weight(trivial) / weight(choices), String(tier2)).toBeLessThan(1 / 3);
+        for (const monster of choices) expect(weigh(monster), monster.id).toBeGreaterThan(0);
+        if (tier2 && level >= 30) {
+          const second = choices.filter((monster) => monster.tier === 2);
+          expect(weight(second) / weight(choices)).toBeGreaterThan(0.7);
+        }
+      }
+    },
+  );
+
+  it('posts the same board as before to a character without tier 2', () => {
+    for (const level of [5, 20, 40]) {
+      const choices = bountyChoices(characterAt(level), CONTENT);
+      const weigh = boardWeights(choices);
+      const top = choices.at(-1)!.level;
+      for (const monster of choices) expect(weigh(monster)).toBe(bountyWeight(monster, top));
+    }
+  });
 
   it('posts nothing of tier 2 before the grotto is cleared, whatever the level', () => {
     for (const level of [25, 30, 40])

@@ -28,7 +28,7 @@ import { combatLevel } from '../core/bounty';
 import type { View } from './view';
 import { workStage, type WorkStage } from './atWork';
 import { actionLock, tierLock, tierOf, tierUnlocked, tiersIn } from '../core/tiers';
-import { tierChip, tierLockLine } from './tierMarks';
+import { lockedTitle, tierChip, tierLockLine } from './tierMarks';
 
 /** CSS pixels to an art pixel for the hero at work on the running action's card. */
 const CARD_STAGE_SCALE = 1.34;
@@ -316,7 +316,7 @@ export function skillPageView(
       const tierClosed = tierLock(state, tierOf(action), content);
       return h('div', { class: 'panel card locked', attrs: { 'data-action': action.id } }, [
         h('div', { class: 'card-head' }, [
-          h('h2', { text: action.name }),
+          lockedTitle(action.name),
           h('span', { class: 'muted', text: `Level ${action.level}` }),
         ]),
         tierClosed && tierLockLine(tierClosed),

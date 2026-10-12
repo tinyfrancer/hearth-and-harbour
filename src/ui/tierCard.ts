@@ -25,21 +25,27 @@ export function tierCardDue(state: GameState, content: Content): number | null {
   return due.length > 0 ? Math.max(...due) : null;
 }
 
-/** What a tier opened, as lines: each skill's new actions with their levels, then where to fight. */
+/** "levels 20–34", or "level 20" for one. */
+const levelsText = (levels: readonly number[]): string => {
+  const [low, high] = [Math.min(...levels), Math.max(...levels)];
+  return low === high ? `level ${low}` : `levels ${low}–${high}`;
+};
+
+/**
+ * What a tier opened, as short lines: each skill's count of new things and
+ * their levels, then where to fight, then the shops. Short so the card fits
+ * a 360-wide phone in a line a row (wave 20); each skill's page names them.
+ */
 export function tierOpenedLines(tier: number, content: Content): { head: string; text: string }[] {
   const lines: { head: string; text: string }[] = [];
   for (const skill of Object.values(content.skills)) {
-    const rows = Object.values(content.actions)
-      .filter((action) => action.skill === skill.id && tierOf(action) === tier)
-      .sort((a, b) => a.level - b.level);
+    const rows = Object.values(content.actions).filter(
+      (action) => action.skill === skill.id && tierOf(action) === tier,
+    );
     if (rows.length === 0) continue;
-    // A long list (Smithing's set, Crafting's leathers) is told in a line, so the card fits a phone.
     lines.push({
       head: skill.name,
-      text:
-        rows.length > 5
-          ? `${rows.length} new, levels ${rows[0]!.level} to ${rows.at(-1)!.level}`
-          : rows.map((action) => `${action.name} ${action.level}`).join(' · '),
+      text: `${rows.length} new · ${levelsText(rows.map((action) => action.level))}`,
     });
   }
   for (const area of Object.values(content.areas ?? {})) {
@@ -49,15 +55,14 @@ export function tierOpenedLines(tier: number, content: Content): { head: string;
     const bounty = monsters.every((m) => m.bountyOnly);
     lines.push({
       head: area.name,
-      text: `${monsters.map((m) => `${m.name} ${m.level}`).join(' · ')}${bounty ? ' (with a bounty on them)' : ''}`,
+      text: `${monsters.length} ${bounty ? 'for bounties' : 'to fight'} · ${levelsText(monsters.map((m) => m.level))}`,
     });
   }
   const shops = [
-    Object.values(content.store ?? {}).some((entry) => tierOf(entry) === tier) &&
-      'the general store',
-    Object.values(content.shop ?? {}).some((entry) => tierOf(entry) === tier) && 'the bounty shop',
+    Object.values(content.store ?? {}).some((entry) => tierOf(entry) === tier) && 'store',
+    Object.values(content.shop ?? {}).some((entry) => tierOf(entry) === tier) && 'bounty shop',
   ].filter((name): name is string => Boolean(name));
-  if (shops.length > 0) lines.push({ head: 'Shops', text: `New stock in ${shops.join(' and ')}.` });
+  if (shops.length > 0) lines.push({ head: 'Shops', text: `new stock: ${shops.join(', ')}` });
   return lines;
 }
 
@@ -68,17 +73,14 @@ export function tierOpenedCard(tier: number, content: Content, dismiss: () => vo
     { class: 'panel stack tight tier-opened', attrs: { 'data-tier-opened': String(tier) } },
     [
       h('div', { class: 'card-head' }, [h('h2', { text: `Tier ${tier} is open` }), tierChip(tier)]),
-      h('p', {
-        class: 'small',
-        text: 'The way past the grotto is clear. New things to do in every skill, from level 20:',
-      }),
+      h('p', { class: 'small', text: 'New in every skill from level 20:' }),
       h(
         'ul',
         { class: 'tier-list' },
         tierOpenedLines(tier, content).map(({ head, text }) =>
           h('li', { class: 'small' }, [
             h('span', { class: 'tier-list-head', text: head }),
-            ` ${text}`,
+            h('span', { class: 'tier-list-text', text }),
           ]),
         ),
       ),
