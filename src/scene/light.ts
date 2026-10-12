@@ -185,7 +185,8 @@ const HOVER: readonly [number, number][] = [
 export function hoverSpot(map: TileMap<RoomTile>, cell: Cell): Point | null {
   for (const [dc, dr] of HOVER) {
     const c = { col: cell.col + dc, row: cell.row + dr };
-    if (inMap(map, c) && !isSolid(map, c) && map.tiles[c.row]![c.col] !== 'door') return centreOf(c, T);
+    if (inMap(map, c) && !isSolid(map, c) && map.tiles[c.row]![c.col] !== 'door')
+      return centreOf(c, T);
   }
   return lampStand(map, cell);
 }

@@ -96,7 +96,7 @@ export function tier2(level = 40, fish = 20, heals = 40): Fighter {
  * The cast's numbers this lane measured and asks lane A for (wave 19), as
  * the tables' rows would carry them: what every balance case plays. Lane
  * A's first pass (PR #82: puff 40 hp, moth 36, guard 60, hound 95, king 340)
- * is far harder against this mechanic (2 clears of 12 for the careful
+ * is far harder against this mechanic (1 clear of 12 for the careful
  * player, 14 minutes). Until the tables hold these, the game fights by the
  * tables' rows (`castOf`) and only these cases by the asked ones.
  */
