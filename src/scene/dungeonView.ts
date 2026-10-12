@@ -97,6 +97,7 @@ import { foodShare } from './modifiers';
 import { KEYS, remember, remembered } from './remember';
 import { newGame } from '../core/state';
 import {
+  framedFocus,
   hudBands,
   hudBoxes,
   hudLayout,
@@ -426,6 +427,29 @@ function resultLine(icon: Element | null, name: string, amount: string): HTMLEle
 let lastLook: { camera: Point; cssPerArt: number } | null = null;
 export function dungeonCamera(): { camera: Point; cssPerArt: number } | null {
   return lastLook;
+}
+
+/** How fast the camera turns to keep the foe being fought in view, art pixels a millisecond. */
+export const FRAME_SPEED = 0.25;
+
+/**
+ * The foe a run's hero is fighting, as a box in art pixels (its body and
+ * what is drawn over it, a bird up on its perch where it sits), or null: for
+ * keeping it in view (`framedFocus`).
+ */
+export function targetBox(dungeon: Dungeon, run: Run): Box | null {
+  const b = run.battle;
+  if (!b || run.doorway) return null;
+  const foe = b.foes.find((f) => f.key === b.target && f.room === run.room && alive(f));
+  if (!foe || held(b, placeOf(dungeon, run), foe)) return null;
+  const room = dungeon.rooms[run.room];
+  const size = foeSize2(foeArtId(foe.monster));
+  const kind = foeKind(foe.monster).box;
+  const w = Math.max(kind.w, size?.box.w ?? 0);
+  const h = Math.max(kind.h, size?.tall ?? 0) + OVERHEAD;
+  const lift = room ? liftOf(room, foe) : 0;
+  const mid = foe.at.x + bodyMid(foe.monster, foe.facing);
+  return { x: mid - w / 2, y: foe.at.y - lift - h, w, h: h + 4 };
 }
 
 /** How long a lesson's ring takes to pulse out and fade, on the page's clock. */
@@ -1023,6 +1047,12 @@ export function dungeonView(options: DungeonViewOptions): View {
         return fit.scale === scale ? fit.offset : { x: 0, y: 0 };
       },
       focusRise: FOCUS_RISE_DUNGEON,
+      // The foe being fought kept in view, clear of the controls (a room the camera travels).
+      lookAt: () => {
+        if (framed.x === 0 && framed.y === 0) return null;
+        const feet = options.run().play.walker.at;
+        return { x: feet.x + framed.x, y: feet.y - FOCUS_RISE_DUNGEON + framed.y };
+      },
       pixelated: true,
       overlay: true,
       insets: bandsNow,
@@ -1117,6 +1147,41 @@ export function dungeonView(options: DungeonViewOptions): View {
 
   /** Where the camera was for the last frame drawn, and the size of an art pixel on screen. */
   let lookedAt: { camera: Point; cssPerArt: number } | null = null;
+
+  /**
+   * How far the camera is moved off the hero (art pixels) to keep the foe he
+   * fights in view clear of the controls, in a room the camera travels:
+   * eased there at `FRAME_SPEED`, and back as the foe falls. Drawing only:
+   * the fight never reads the camera.
+   */
+  let framed: Point = { x: 0, y: 0 };
+  const frameWanted = (run: Run): Point => {
+    const box = seenWhole || !lookedAt ? null : targetBox(dungeon, run);
+    const per = lookedAt?.cssPerArt ?? 0;
+    if (!box || !(per > 0) || !(size.width > 0)) return { x: 0, y: 0 };
+    const bands = bandsNow();
+    const inner = {
+      width: (size.width - bands.left - bands.right) / per,
+      height: (size.height - bands.top - bands.bottom) / per,
+    };
+    const feet = run.play.walker.at;
+    const focus = { x: feet.x, y: feet.y - FOCUS_RISE_DUNGEON };
+    const hero = {
+      x: feet.x - HERO_BOX.w / 2,
+      y: feet.y - HERO_BOX.h,
+      w: HERO_BOX.w,
+      h: HERO_BOX.h,
+    };
+    const want = framedFocus(focus, hero, box, inner);
+    return { x: want.x - focus.x, y: want.y - focus.y };
+  };
+  const stepFrame = (run: Run, ms: number): void => {
+    const want = frameWanted(run);
+    const most = FRAME_SPEED * ms;
+    const toward = (now: number, to: number): number =>
+      now + Math.max(-most, Math.min(most, to - now));
+    framed = { x: toward(framed.x, want.x), y: toward(framed.y, want.y) };
+  };
 
   /** Keeps the room's name, while it shows, in a slot where it covers nobody in the fight. */
   const placeTitle = (run: Run): void => {
@@ -1383,6 +1448,8 @@ export function dungeonView(options: DungeonViewOptions): View {
       const before = options.run();
       if (safe === NO_EDGES && size.width > 0) safe = paddingOf(safeProbe);
       placeHud();
+      // The camera eased toward keeping the foe being fought in view, before this frame is drawn.
+      if (sideways(size)) stepFrame(before, ms);
       const ready = sideways(size);
       prompt.hidden = ready || before.finished;
       promptLine.textContent =

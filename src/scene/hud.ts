@@ -273,6 +273,37 @@ export function roomFit(
   return { scale: top, offset: { x: 0, y: 0 }, clear: false };
 }
 
+/** Room kept round the hero and a foe being fought when the camera frames both, art pixels. */
+export const FRAME_MARGIN = 4;
+
+/**
+ * Where a travelling camera looks (its focus, art pixels) so that the foe
+ * being fought is in view, clear of the controls: the hero's own focus,
+ * moved toward the foe as far as it must be for the foe's box to lie inside
+ * the inner box (the view less the controls' bands, `inner`, centred on the
+ * focus), and never so far that the hero's box leaves it. Where both cannot
+ * fit, the hero stays in, and the camera goes as far toward the foe as that
+ * allows. The room's edges are the stage's to keep (`stageCamera`).
+ */
+export function framedFocus(focus: Point, hero: HudBox, target: HudBox, inner: Size): Point {
+  const axis = (f: number, h0: number, h1: number, t0: number, t1: number, size: number) => {
+    const half = size / 2 - FRAME_MARGIN;
+    // The focuses that keep the hero in, and those that keep both in.
+    const heroLo = h1 - half;
+    const heroHi = h0 + half;
+    const lo = Math.max(heroLo, t1 - half);
+    const hi = Math.min(heroHi, t0 + half);
+    if (lo <= hi) return Math.max(lo, Math.min(hi, f));
+    // Not both: toward the foe as far as the hero allows.
+    const toward = t0 + (t1 - t0) / 2 < h0 + (h1 - h0) / 2 ? heroLo : heroHi;
+    return Math.max(heroLo, Math.min(heroHi, toward));
+  };
+  return {
+    x: axis(focus.x, hero.x, hero.x + hero.w, target.x, target.x + target.w, inner.width),
+    y: axis(focus.y, hero.y, hero.y + hero.h, target.y, target.y + target.h, inner.height),
+  };
+}
+
 /** The dungeons' scale for the screen's short side: a room seen whole is never drawn smaller. */
 function sceneFloor(device: Size): number {
   return Math.max(1, Math.floor(Math.min(device.width, device.height) / DUNGEON.scene.width));
