@@ -149,7 +149,7 @@ describe('the moment tier 2 opens', () => {
     playing({ dungeons: GROTTO });
     const card = q('[data-tier-opened="2"]');
     expect(card.textContent).toContain('Tier 2 is open');
-    expect(card.textContent).toContain('Woodcutting Driftwood 20 · Elm 27 · Yew 34');
+    expect(card.textContent).toContain('Woodcutting3 new · levels 20–34');
     expect(card.textContent).toContain('Thistlewood’s Edge');
     [...card.querySelectorAll('button')].find((b) => b.textContent === 'Got it')!.click();
     expect(root.querySelector('[data-tier-opened]')).toBeNull();
@@ -182,6 +182,8 @@ describe('the moment tier 2 opens', () => {
       'The Deepthorn',
       'Shops',
     ]);
-    expect(lines.at(-2)!.text).toContain('(with a bounty on them)');
+    expect(lines.at(-2)!.text).toBe('2 for bounties · levels 29–37');
+    expect(lines.at(-3)!.text).toBe('5 to fight · levels 23–39');
+    expect(lines.at(-1)!.text).toBe('new stock: store, bounty shop');
   });
 });

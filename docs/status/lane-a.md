@@ -5,6 +5,45 @@ cloak's own slot, and opening the Burrow once lane C writes "BURROW READY".
 
 ## Done
 
+- Wave 20, PR 2: tier 2's follow-ups (branch `lane-a/w20-tier2-follow-ups`). **Save version
+  unchanged (11).**
+  - **A tier-aware bounty board** (`boardWeights`, `src/core/bounty.ts`): an earlier tier's
+    monsters keep their weight beside the strongest, times a share that falls from all of it
+    (when the later tier's first monster is the strongest posted) to a fifth eight levels on
+    (`TIER_FADE_LEVELS`, `TIER_FADE_LEAST`). A board with one tier posts exactly as before (a
+    case). The trivial share (more than six levels under the strongest) for a tier-2 player,
+    before → after: level 27 0.46 → 0.30, 30 0.30 → 0.10, 33 0.32 → 0.17, 35 0.37 → 0.21, 37 to
+    40 0.38 → 0.24 to 0.25; tier 2's share of offers from 30: 0.70 to 0.79 → 0.90 to 0.95. Tier
+    1's ten stay in the pool, faded, never gone, so the board always has its three. Held by a
+    case at every level 1 to 40, with and without the grotto: trivial under a third, and from 30
+    tier 2's at least seven in ten. Points an hour unchanged (the bounty pins pass as they were).
+    Wave 19's "trivial seldom" exception is gone.
+  - **Money**: the best fight for money at 30 was the tier-1 smuggler (120,244) and at 40 the
+    hill ogre 3.5% under Thieving (160,311 against 166,090). Now the brigand at both: 118,387 at
+    30 (0.93 of Thieving's 127,457, 1.31 times gathering's 90,430) and 157,773 at 40 (0.95 of
+    166,090, 1.50 times 105,000). Held in the pacing case: tier 2's, at least a quarter over
+    gathering and at least a twentieth under Thieving. **The margin is small on purpose, and
+    this is why**: a level-30 or -40 character in tier-2 gear farms the tier-1 marsh troll for
+    0.92 and 0.91 of Thieving, and the troll cannot pay less without failing tier 1's limit at
+    20 (it pays its way there by 4%). So tier 2's best must sit between the troll and Thieving,
+    and the brigand's hour grows 1.33 times from 30 to 40 (fewer fish), which fixes it at about
+    a twentieth under. Changes: the smuggler's coins 500–1050 → 460–980 (tier 1; his hour at 17
+    goes 53,000 → 47,000, he was never the best there), the hill ogre's 2800–4900 → 2600–4600
+    (147,797 at 40, under the brigand, as the footpad out-earns the troll at 20).
+  - **Tier badges and padlocks** (lane B's `tierBadge`, `lockIcon`): every tier mark (a skill
+    page's tier headings, the Combat page's areas, the store's later stock, the bounty shop's
+    arrows, the unlock card) is the badge with "Tier n" beside it, dulled while closed; every
+    locked row (a skill's or a mark's action, a monster out of reach) has the padlock before its
+    name. The badge speaks the tier to a screen reader and the words are hidden from it; the
+    padlock says "Locked", beside the "Locked: …" line.
+  - **The unlock card is shorter**: a line a row on a 360-wide phone, each skill as "3 new ·
+    levels 20–34", each area as "5 to fight · levels 23–39" or "2 for bounties · …", the shops
+    as "new stock: store, bounty shop" (it named every action, which wrapped to two or three
+    lines a skill).
+  - **Tests**: duels (a trivial-share case 1 to 40, a same-board case), bounty (the fade),
+    pacing (tier 2's best fight: tier 2's own, the margins; pins smuggler → brigand at 30,
+    hill ogre → brigand at 40), tiers UI (the card's lines).
+
 - Wave 20, PR 1: the Burrow's numbers (branch `lane-a/w20-burrow-open`). **Save version
   unchanged (11).** The Burrow stays `comingSoon`.
   - **Its cast is lane C's measured rows** (level / hp / attack / defence / max hit / speed):

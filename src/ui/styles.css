@@ -689,11 +689,13 @@ button.card:active {
   outline-offset: 2px;
 }
 
-/* Tiers (S22): a chip beside a heading, gold once open, dull while closed; and why it is closed. */
+/* Tiers (S22): lane B's badge and the tier's words beside a heading (wave 20), dulled while
+   closed; and why it is closed. */
 .tier-chip {
+  display: inline-flex;
   flex: none;
-  padding: 1px 6px;
-  border: var(--px) solid var(--gold);
+  align-items: center;
+  gap: 4px;
   color: var(--gold);
   font-size: 14px;
   letter-spacing: 1px;
@@ -701,9 +703,22 @@ button.card:active {
   white-space: nowrap;
 }
 
+.tier-chip > canvas {
+  flex: none;
+}
+
 .tier-chip.closed {
-  border-color: var(--line);
   color: var(--text-muted);
+}
+
+.tier-chip.closed > canvas {
+  filter: grayscale(1) brightness(0.8);
+}
+
+/* A locked row's padlock, before its name. */
+.titled > .lock-icon {
+  flex: none;
+  opacity: 0.85;
 }
 
 .tier-lock {
@@ -735,14 +750,26 @@ button.card:active {
 
 .tier-list {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* A line a row on a 360-wide phone (wave 20): the name, and its count and levels after it. */
+.tier-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 8px;
+}
+
 .tier-list-head {
   color: var(--gold);
+}
+
+.tier-list-text {
+  color: var(--text-muted);
 }
 
 /*

@@ -29,8 +29,10 @@ import {
  *   and Vitality, averaged and rounded down.
  * - The board may post any monster with a bounty row at or below that level
  *   (bounty-only ones too; before the weakest is reached, the weakest), more
- *   likely the nearer it is to the strongest of them (`bountyWeight`): so
- *   variety at every level, leaning to a fair fight, and never one above.
+ *   likely the nearer it is to the strongest of them (`bountyWeight`), and an
+ *   earlier tier's less likely the further the later tier is climbed
+ *   (`boardWeights`): so variety at every level, leaning to a fair fight, and
+ *   never one above.
  * - It shows three different ones at a time (`BOARD_SIZE`), never the one
  *   just finished or given up while anything else is open; the player takes
  *   one, or asks for three fresh ones for a point (`REROLL_COST`).
@@ -132,6 +134,36 @@ export function bountyWeight(monster: MonsterDef, top: number): number {
 }
 
 /**
+ * Levels over which an earlier tier's monsters fade from the board once a
+ * later tier's are posted (wave 20): by the later tier's third or fourth
+ * monster, the earlier tier's are down to `TIER_FADE_LEAST`.
+ */
+export const TIER_FADE_LEVELS = 8;
+/** The least an earlier tier's monster keeps of its weight: faded, never gone. */
+export const TIER_FADE_LEAST = 0.2;
+
+/**
+ * How likely each monster of a pool is to be posted (wave 20): its
+ * `bountyWeight` beside the strongest, and, for a monster of an earlier tier
+ * than the strongest, that times a share falling from all of it, when the
+ * later tier's first monster is the strongest posted, to `TIER_FADE_LEAST`
+ * `TIER_FADE_LEVELS` levels on. So a tier-2 player's board is mostly tier 2's
+ * (tier 1's ten each kept the floor weight of 1, a third of what was posted
+ * from combat level 33), while the old targets still turn up now and then,
+ * and the board is never short of offers. Within a tier nothing changes.
+ */
+export function boardWeights(pool: readonly MonsterDef[]): (monster: MonsterDef) => number {
+  if (pool.length === 0) return () => 1;
+  const top = Math.max(...pool.map((monster) => monster.level));
+  const topTier = Math.max(...pool.map(tierOf));
+  const tierStart = Math.min(
+    ...pool.filter((monster) => tierOf(monster) === topTier).map((monster) => monster.level),
+  );
+  const fade = Math.max(TIER_FADE_LEAST, 1 - (top - tierStart) / TIER_FADE_LEVELS);
+  return (monster) => bountyWeight(monster, top) * (tierOf(monster) < topTier ? fade : 1);
+}
+
+/**
  * Expected blows to kill something of `hp` with a chance `chance` to land
  * blows of 1 to `most`, each equally likely: worked out exactly, from the
  * fewest hit points up, as the fight's own rules roll them.
@@ -183,10 +215,10 @@ function drawOffers(
   let open = pool.filter((monster) => !avoid.has(monster.id));
   if (open.length === 0) open = pool.filter((monster) => monster.id !== last);
   if (open.length === 0) open = pool;
-  const top = Math.max(...pool.map((monster) => monster.level));
+  const weigh = boardWeights(pool);
   const offers: BountyOffer[] = [];
   while (offers.length < BOARD_SIZE && open.length > 0) {
-    const weights = open.map((monster) => bountyWeight(monster, top));
+    const weights = open.map(weigh);
     let pick = dice.next() * weights.reduce((sum, weight) => sum + weight, 0);
     let at = 0;
     while (at < open.length - 1 && pick >= weights[at]!) {

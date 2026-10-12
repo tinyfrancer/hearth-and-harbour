@@ -6,8 +6,11 @@ import {
   COINS_PER_POINT,
   GIVE_UP_COST,
   REROLL_COST,
+  TIER_FADE_LEAST,
+  TIER_FADE_LEVELS,
   WEIGHT_SPAN,
   autoHandIn,
+  boardWeights,
   bountyChoices,
   bountyPoints,
   bountyReady,
@@ -149,6 +152,24 @@ describe('who the board posts for', () => {
     expect(bountyWeight(at('hog'), 6)).toBe(WEIGHT_SPAN);
     expect(bountyWeight(at('bogle'), 6)).toBe(WEIGHT_SPAN - 1);
     expect(bountyWeight(at('rat'), 6)).toBe(WEIGHT_SPAN - 5);
+  });
+
+  // Wave 20: an earlier tier's monsters fade from the board as a later tier is climbed.
+  it('fades an earlier tier’s monsters as the later tier climbs, never to nothing', () => {
+    const rat = monster('rat', 1);
+    const first = monster('first', 23, { tier: 2 });
+    const later = (level: number) => monster('later', level, { tier: 2 });
+    // Only tier 1 posted: the plain weights.
+    expect(boardWeights([rat, monster('hog', 6)])(rat)).toBe(bountyWeight(rat, 6));
+    // The later tier's first monster the strongest: nothing faded yet.
+    expect(boardWeights([rat, first])(rat)).toBe(1);
+    // Half way through the fade, half; past it, the least, and the later tier untouched.
+    const half = 23 + TIER_FADE_LEVELS / 2;
+    expect(boardWeights([rat, first, later(half)])(rat)).toBeCloseTo(0.5);
+    const far = boardWeights([rat, first, later(23 + 3 * TIER_FADE_LEVELS)]);
+    expect(far(rat)).toBe(TIER_FADE_LEAST);
+    expect(far(first)).toBe(1);
+    expect(far(later(23 + 3 * TIER_FADE_LEVELS))).toBe(WEIGHT_SPAN);
   });
 
   it('pays for the time an offer should take, judged by the combat level alone', () => {
