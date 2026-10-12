@@ -49,7 +49,7 @@ export {
   mayIdle,
   modifierDef,
 } from '../core/progress';
-export { spoilsUnder } from '../core/run';
+export { rewardOf, spoilsUnder } from '../core/run';
 export type {
   ChallengeDef,
   ChallengeRule,

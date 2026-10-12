@@ -957,52 +957,101 @@
   cursor: pointer;
 }
 
-/* The S16 card: compact, two columns, its buttons always in view at the foot of the right. */
-.run-card-s16 {
-  max-width: 680px;
-  padding: 12px 14px;
+/*
+ * The S16 card (wave 18): its heading and time along the top, how it went on the left, what it
+ * earns on the right (each column scrolls on its own if it must), and its buttons along the foot,
+ * always whole, clear of the edge. Laid out for 844 x 390, 932 x 430 and 667 x 375.
+ */
+.dungeon-card.run-card-s16 {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'top top'
+    'head side'
+    'buttons buttons';
+  gap: 6px 16px;
+  max-width: 720px;
+  max-height: 100%;
+  padding: 10px 14px 12px;
+  overflow: hidden;
 }
 
-.run-card-s16 .run-head {
-  gap: 4px;
+.run-top {
+  grid-area: top;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
-.run-card-s16 h2 {
+.run-top h2 {
+  min-width: 0;
+  overflow: hidden;
   font-size: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .run-card-s16 .dungeon-time {
+  flex: none;
+  margin: 0;
   font-size: 17px;
 }
 
+.run-card-s16 .run-head {
+  grid-area: head;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.run-line {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
 .run-side {
+  grid-area: side;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 0;
-}
-
-.run-card-s16 .run-earned {
-  flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
 
 .run-card-s16 .run-earned li {
-  min-height: 26px;
+  min-height: 28px;
 }
 
+/* How it went, as many to a row as fit, the numbers in the light. */
 .run-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.run-challenges {
+.run-stats li {
+  white-space: nowrap;
+}
+
+.run-stat-name {
+  color: var(--text-muted);
+}
+
+.run-stat-value {
+  color: var(--text);
+}
+
+.run-challenges,
+.run-rewards {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1013,12 +1062,15 @@
 }
 
 /* A medal and an icon a line, at a CSS pixel an art pixel. */
-.run-challenges canvas {
+.run-challenges canvas,
+.run-rewards canvas,
+.run-modifier canvas {
   width: 24px !important;
   height: auto !important;
 }
 
-.run-challenges li {
+.run-challenges li,
+.run-rewards li {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1028,33 +1080,77 @@
   color: var(--gold-bright);
 }
 
+.run-new {
+  flex: none;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--panel);
+  background: var(--gold-bright);
+}
+
 .run-medal {
   display: flex;
   flex: none;
+  width: 24px;
 }
 
 .run-medal > canvas,
-.run-icon > canvas {
+.run-icon > canvas,
+.run-modifier canvas {
   image-rendering: pixelated;
 }
 
+.run-reward-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.run-reward-name {
+  color: var(--gold-bright);
+}
+
+.run-reward-what {
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* The day's modifier: its icon, its name and what it added (what it does in full on a long press). */
 .run-modifier {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  margin: 0;
   font-size: 15px;
   color: var(--text);
 }
 
+.run-modifier-icon {
+  display: flex;
+  flex: none;
+}
+
 .run-modifier-name {
+  flex: none;
   color: var(--gold-bright);
 }
 
+.run-modifier-bonus {
+  min-width: 0;
+}
+
 .run-buttons {
+  grid-area: buttons;
   display: flex;
   gap: 8px;
-  margin-top: auto;
 }
 
 .run-buttons > .btn {
   flex: 1;
+  min-height: 48px;
 }
 
 /* ----- The grotto: the captain's health, the tide, each room's name. ----- */
