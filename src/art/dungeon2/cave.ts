@@ -86,11 +86,14 @@ const CAVE_BASE = {
   flag: ['#e4e4d4', '#c4c6b4', '#a2a694', '#828878', '#646a60', '#484e4a', '#22262a'],
   // The cast: the spore puff's pale puffball skin, the cap folk's stalk, the bramble hound's briar,
   // the moth's dusky wings, the badger's coat.
-  puff: ['#fff8ea', '#f0e2c8', '#d8c6a6', '#b8a486', '#94826c', '#6a5c54', '#342a2c'],
-  stalk: ['#fffcf2', '#f2e8d4', '#dccdb0', '#bcaa8e', '#988670', '#6c5e56', '#36282c'],
+  puff: ['#fbf8f2', '#ebe4dc', '#d4ccc4', '#b4aaa6', '#8e8488', '#665c66', '#302a34'],
+  stalk: ['#fbfaf4', '#ece8dc', '#d6d0c0', '#b8b0a0', '#928a80', '#686068', '#322c34'],
   briar: ['#ccd496', '#9ca868', '#72824a', '#56643c', '#3e4a30', '#2a3424', '#121a10'],
-  mothwing: ['#f4ecde', '#d6c6b6', '#b2a094', '#8e7e78', '#6c5e60', '#4a3e48', '#221c26'],
+  mothwing: ['#fffaf0', '#ece2d2', '#d2c4b0', '#b2a290', '#8c7c70', '#625458', '#2e2630'],
   badger: ['#aaa6b2', '#7e7a8a', '#605c6c', '#4a4656', '#383442', '#26222e', '#121018'],
+  // The puffs' spores: a sulphur green that glows faintly, so a cloud reads in the dark too (never
+  // shifted, never dimmed), and is told from the fungus's cold blue-green and every warning's red.
+  spore: ['#fbffd8', '#eef6a0', '#d4e470', '#b4c852', '#8ea640', '#667c34', '#323e1c'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type CaveMat = keyof typeof CAVE_BASE;
@@ -132,7 +135,7 @@ export function swap2(swap: Partial<Record<Mat2, Mat2>>): (c: Cell) => Cell {
 }
 
 /** Ramps that never shift. */
-const EXEMPT: readonly CaveMat[] = ['ember', 'glowcap'];
+const EXEMPT: readonly CaveMat[] = ['ember', 'glowcap', 'spore'];
 
 /**
  * Dusk's hand-set steps: shallow water, shifted, stays a bright daylight teal
@@ -227,8 +230,8 @@ export const NIGHT = {
 /** Where each level of the dark begins, in pools' half-widths from their middle (`u`). */
 export const BURROW_DARK_BANDS = [1, 1.5, 2.2] as const;
 
-/** Lights in the dark: these keep their colour at every level (flame, lamp, ember, the glowing fungus). */
-export const NIGHT_EXEMPT: readonly Mat2[] = ['fire', 'lamp', 'ember', 'glowcap'];
+/** Lights in the dark: these keep their colour at every level (flame, lamp, ember, the glowing fungus and spores). */
+export const NIGHT_EXEMPT: readonly Mat2[] = ['fire', 'lamp', 'ember', 'glowcap', 'spore'];
 
 /** A colour in the dark, by `NIGHT`. */
 export function nightRgb(r: number, g: number, b: number): [number, number, number] {

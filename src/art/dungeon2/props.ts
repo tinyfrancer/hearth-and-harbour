@@ -6,6 +6,7 @@
  * crates' kin: shaded as a solid, lit from the upper left, outlined in its
  * own darkest steps.
  */
+import { BURROW_PROPS } from './burrowProps';
 import { hash, outlined, put, tgrid, type Cell, type TGrid } from '../town2/cells';
 import { cell } from './cave';
 import type { Glow } from '../raster';
@@ -539,6 +540,8 @@ const MAKE: Readonly<Record<string, () => Omit<Prop2, 'foot'> & { readonly foot?
   loot_pile: lootPile,
   // B15, the tide-pool cave's.
   ...TIDE_PROPS,
+  // B20, Thistlewood Burrow's.
+  ...BURROW_PROPS,
 };
 
 export const PROP2_IDS: readonly string[] = Object.keys(MAKE);

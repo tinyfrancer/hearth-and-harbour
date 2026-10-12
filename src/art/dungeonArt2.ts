@@ -35,6 +35,29 @@ import {
 import { DUNGEON2_THEMES, isDungeon2Theme, type Dungeon2Theme } from './dungeon2/theme';
 import { lightGround2 } from './dungeon2/light';
 import { burrowFungusGlows } from './dungeon2/burrow';
+import {
+  BURROW_PROPS,
+  postLanternProp,
+  postLanternShines,
+  POST_LANTERN2_FRAMES,
+  POST_LANTERN2_FRAME_MS,
+  POST_LANTERN2_LIGHT,
+  type PostLanternState,
+} from './dungeon2/burrowProps';
+export {
+  BURROW_ERUPTION2_FRAMES,
+  BURROW_ERUPTION2_FRAME_MS,
+  BURROW_MOUND2_FRAMES,
+  burrowEruption as burrowEruption2,
+  burrowMound as burrowMound2,
+  HERO_LIGHT2,
+  SPORE_CLOUD2_FRAMES,
+  SPORE_CLOUD2_FRAME_MS,
+  sporeCloud as sporeCloud2,
+  type BurrowPiece2,
+} from './dungeon2/burrowPieces';
+export { POST_LANTERN2_FRAMES, POST_LANTERN2_FRAME_MS, POST_LANTERN2_LIGHT, postLanternShines };
+export type { PostLanternState };
 import type { TGrid } from './town2/cells';
 import {
   foe2Frame,
@@ -116,8 +139,12 @@ export {
 } from './dungeon2/light';
 export { lightGround2 };
 
-/** B20: the Burrow's props, by id (filled as they are drawn; also in `PROP2_IDS`). */
-export const BURROW2_PROP_IDS: readonly string[] = [];
+/**
+ * B20: the Burrow's props, by id (also in `PROP2_IDS`): the lantern on a post
+ * burning and out, lane C's six floor props, the whole throne, and what makes
+ * the warren lived in.
+ */
+export const BURROW2_PROP_IDS: readonly string[] = Object.keys(BURROW_PROPS);
 
 /** A dungeon tile's size at the C scale, in art pixels (`TILE` in the scene is 16 at the first scale). */
 export const DUNGEON2_TILE = TILE2;
@@ -252,6 +279,45 @@ export function dungeonProp2(id: string): PropPicture2 | null {
       ...(p.light ? { light: p.light } : {}),
     };
     propPics.set(id, made);
+  }
+  return made;
+}
+
+/** B20: what a lantern on a post can be doing, in the order a lantern goes through them. */
+export const POST_LANTERN2_STATES: readonly PostLanternState[] = [
+  'out',
+  'lighting',
+  'lit',
+  'snuffed',
+];
+
+const lanternFrames = new Map<string, PropPicture2>();
+
+/**
+ * B20: a lantern on a post in a state (`POST_LANTERN2_STATES`) at a frame
+ * (any whole number; it wraps at `POST_LANTERN2_FRAMES[state]`): out, being
+ * lit (a spark, the flame catching; it shines from its third frame), burning
+ * (the flame wavering) or snuffed (a wisp of smoke from its cap). Every frame
+ * has `post_lantern`'s canvas, base and foot, so a state changes in place;
+ * its glows and light only while it shines (`postLanternShines`). `lit` 0 is
+ * `post_lantern` and `out` is `post_lantern_out`. Kept once made.
+ */
+export function postLanternFrame2(state: PostLanternState, frame = 0): PropPicture2 {
+  const s: PostLanternState = POST_LANTERN2_STATES.includes(state) ? state : 'out';
+  const n = POST_LANTERN2_FRAMES[s];
+  const f = ((Math.floor(Number.isFinite(frame) ? frame : 0) % n) + n) % n;
+  const key = `${s} ${f}`;
+  let made = lanternFrames.get(key);
+  if (!made) {
+    const p = postLanternProp(s, f);
+    // The outline adds a pixel on every side, as every prop's (props.ts).
+    made = {
+      picture: { grid: p.grid, glows: p.glows.map((g) => ({ ...g, x: g.x + 1, y: g.y + 1 })) },
+      base: p.base,
+      foot: (p.foot ?? Math.floor(p.grid.w / 2)) + 1,
+      ...(p.light ? { light: { ...p.light, x: p.light.x + 1, y: p.light.y + 1 } } : {}),
+    };
+    lanternFrames.set(key, made);
   }
   return made;
 }
