@@ -459,7 +459,7 @@ export function darkenCanvas(
  * Whether a room is drawn dark beyond its pools: on a darker day, and always
  * in a room whose light is a rule (it has lanterns on posts).
  */
-export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1 || room.ground.lamps.length > 0;
+export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1 || (room.ground.lamps.length > 0 && !(globalThis as {NODARK?: boolean}).NODARK);
 
 /** The hero's own pool's half-width in a room: in a room of lanterns on a darker day, smaller. */
 export const heroPoolIn = (room: Room): number =>

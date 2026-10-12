@@ -1881,6 +1881,7 @@ export function fightExtra(
     actors,
     boxes,
     overlayBox,
+    overlayBoxes: over,
     walkerOffset: apart.get('hero') ?? 0,
     walker: (image) => {
       if (flashing(battle.struckAt, clock)) return flashOf(image, C.white);

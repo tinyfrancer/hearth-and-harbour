@@ -485,6 +485,7 @@ export function withRing(extra: StageExtra, ring: LessonRing, now: number): Stag
   return {
     ...extra,
     overlayBox,
+    ...(extra.overlayBoxes ? { overlayBoxes: [...extra.overlayBoxes, box] } : {}),
     overlay(ctx, k) {
       extra.overlay?.(ctx, k);
       const p = (((now % LESSON_PULSE_MS) + LESSON_PULSE_MS) % LESSON_PULSE_MS) / LESSON_PULSE_MS;
