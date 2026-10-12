@@ -1,8 +1,71 @@
 # Lane C: scenes
 
-**Next session: Cody's review of wave 19** (Thistlewood Burrow, built and locked: open it with
-`?burrow=1` on the address), with lane A taking the asked cast and Deep Gloom's number and lane
-B drawing the Burrow (wave 20); then opening it for real and deleting `preview.ts`.
+**Wave 20, in progress:** finishing Thistlewood Burrow so it can open (frame rate, `foeXp`, the
+balance on real tier-2 gear, lane B's art as it lands, the weak list). Not ready to open yet:
+this file says "BURROW READY" in a heading of its own when it is.
+
+## NUMBERS FOR LANE A
+
+Wave 20, measured on the tables as they are on `main` after your #90 and #93, with a character
+built from the tables (`fighterOf`; Melee, Defence and Vitality 40; salt-iron helm, plate,
+greaves, kite shield and longsword, the red cloak; 20 cooked swordfish), the careful scripted
+player at a person's 0.4 s. 48 seeds each (the twelve fixed ones the test plays, and 36 more);
+one seed's outcome turns on a few dice at the king, so the rates over 48 are what to read.
+
+**What the real gear changed.** The plate is worn at Defence 30, not 35 as wave 19 assumed, so
+a level-30 character is armoured almost as well as a level-40 one; what is left between them is
+how hard and how often they hit, and 40 hit points. On your current numbers the careful
+level-40 player clears 46 of 48 (8.6 min) and the never-lights player 9 of 48, both on target,
+but **level 30 clears 22 of 48** (target: usually fails), and the days miss: Short Rations 36 of
+48, Thick Caps 42, Swift Hounds 43 (and on the twelve fixed seeds it is not harder than a plain
+day), Fierce Brambles 45 (10 of the fixed 12), Deep Gloom 44.
+
+1. **The cast: thicker hides, less behind them** (level, attack, max hit, speed and drops as
+   you have them):
+
+   | Monster         | Defence (now) | HP (now)  |
+   | --------------- | ------------- | --------- |
+   | `spore_puff`    | 62 (50)       | 23 (25)   |
+   | `lantern_moth`  | 72 (58)       | 17 (18)   |
+   | `cap_guard`     | 82 (66)       | 39 (43)   |
+   | `bramble_hound` | 69 (55)       | 35 (38)   |
+   | `badger_king`   | 90 (72)       | 205 (225) |
+
+   Over 48 seeds: careful level 40 clears 46 (median 8.8 min, lowest health 38% on the median
+   run), never-lights 8 (17%), **level 30 14 (29%)**. Hitting through a hide is where ten levels
+   tell; a level-40 run is as long and as dangerous as before.
+
+2. **The days** (the Burrow's own; each still a trade, and harder in the way it says):
+
+   | Day               | Now                                   | Asked                              |
+   | ----------------- | ------------------------------------- | ---------------------------------- |
+   | `thick_caps`      | foeHealth 1.2, foeSpeed 0.8           | **foeHealth 1.15**, foeSpeed 0.8   |
+   | `fierce_brambles` | foeDamage 1.1, foeHealth 0.95         | **foeDamage 1.07**, foeHealth 0.95 |
+   | `swift_hounds`    | foeSpeed 1.1, foeHealth 0.93          | **foeSpeed 1.08, no foeHealth**    |
+   | `deep_gloom`      | heroDamage 0.9 (darker, foeSpeed 0.9) | **heroDamage 0.95**                |
+   | `short_rations`   | foodHeals 0.8, foeHealth 0.9 (shared) | see below                          |
+
+   Rewards (xp, loot) unchanged. With the cast above, over 48 seeds: Thick Caps 40 (clear
+   10.1 min against 8.8), Fierce Brambles 41 (more lost to blows), Swift Hounds 40 (lost +5%),
+   Deep Gloom 43 (9.9 min).
+
+   **Short Rations** is shared with the grotto, where it is right. In the Burrow, at 0.8 a fish
+   and 0.9 health, it clears 36 of 48. Asked: **a day of the Burrow's own in its pool in place of
+   `short_rations`**, `lean_rations` (an id with "rations" in it, so lane B's icon rule draws it
+   as the same plate): **foodHeals 0.8, foeHealth 0.75**, loot 1.1. Over 48 seeds: 46 cleared,
+   12 of the fixed 12, food per hit point lost +20% (the stated way). If you would rather not add
+   a row, `short_rations`' foeHealth 0.75 for both dungeons does the same here; the grotto's
+   Short Rations case would still pass (food per hit point is untouched), but its clears would
+   rise.
+
+3. **Idle rooms**: as you have them, matching the plan (`hollow` three puffs; `watch` two
+   guards, two puffs; `gallery` two moths, two puffs, a guard; `run` two hounds, a moth, a puff;
+   `sett` two puffs, a moth, a hound, then the king). No change.
+
+4. **Opening it**: not yet. When this file has a heading **BURROW READY**, flip `comingSoon`.
+
+This lane's balance test switches to reading the tables and the real gear as soon as these
+numbers are on `main` (its cases then are as above); until then it plays the wave 19 stat line.
 
 ## The cave's map
 
