@@ -13,6 +13,7 @@ import type { ChallengeDef, Content, DungeonDef } from '../core/content';
 import { dungeonStatus, dungeonsInOrder, type DungeonState } from '../core/dungeons';
 import { challengeDone, effectWords, mayIdle, modifierDef } from '../core/progress';
 import type { GameState } from '../core/state';
+import { tierOf } from '../core/tiers';
 import { bar } from './bar';
 import { button, h, setText } from './dom';
 import { rewardWords } from './dungeonWords';
@@ -173,17 +174,27 @@ function sealOf(dungeon: DungeonDef, allDone: boolean): HTMLElement {
   return h('span', { class: 'dungeon-seal', attrs: { 'data-seal': tier } }, [seal]);
 }
 
-/** What a dungeon's first clear opens, honestly: tier 2 is not built yet. */
-function tierLine(state: GameState, dungeon: DungeonDef): HTMLElement | null {
+/**
+ * What a dungeon's first clear opens, honestly: a tier with rows in the
+ * tables (tier 2, S22) is real and says where to find it; one not built yet
+ * says so.
+ */
+function tierLine(state: GameState, dungeon: DungeonDef, content: Content): HTMLElement | null {
   if (!dungeon.opens || dungeon.comingSoon) return null;
   const cleared = (state.dungeons[dungeon.id]?.clears ?? 0) > 0;
   const { tier, brings } = dungeon.opens;
+  const built = Object.values(content.actions).some((action) => tierOf(action) === tier);
+  const text = built
+    ? cleared
+      ? `Tier ${tier} unlocked: ${brings}. New things in every skill from level 20, and a new place to fight.`
+      : `Its first clear unlocks tier ${tier}: ${brings}.`
+    : cleared
+      ? `Tier ${tier} unlocked. It is still being built; when it comes, it brings ${brings}.`
+      : `Its first clear unlocks tier ${tier}, still being built: ${brings}.`;
   return h('p', {
     class: `small tier${cleared ? ' unlocked' : ''}`,
     attrs: { 'data-tier': String(tier), 'data-unlocked': String(cleared) },
-    text: cleared
-      ? `Tier ${tier} unlocked. It is still being built; when it comes, it brings ${brings}.`
-      : `Its first clear unlocks tier ${tier}, still being built: ${brings}.`,
+    text,
   });
 }
 
@@ -275,7 +286,7 @@ export function dungeonsCard(
               ),
             ),
           ]),
-        tierLine(state, dungeon),
+        tierLine(state, dungeon, content),
         idleButton,
         mayIdle(state, dungeon.id, content) &&
           !running &&

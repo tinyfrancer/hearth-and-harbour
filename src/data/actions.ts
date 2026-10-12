@@ -80,6 +80,11 @@ function grouped(group: string, actions: ActionDef[]): ActionDef[] {
   return actions.map((action) => ({ ...action, group }));
 }
 
+/** Rows of tier 2 (S22): shown to everyone, open once Brinebeard's Grotto is cleared (src/core/tiers.ts). */
+function tier2(actions: ActionDef[]): ActionDef[] {
+  return actions.map((action) => ({ ...action, tier: 2 }));
+}
+
 // Tier 1, levels 1-20. In every skill XP per second climbs from about 3.3 at
 // level 1 to 8 at the last unlock, so the newest thing is always the one to
 // do and each skill takes about three hours to finish the tier
@@ -380,6 +385,300 @@ const ALL: ActionDef[] = [
       ],
     },
   }),
+
+  // Tier 2, levels 20-40 (S22), opened by Brinebeard's Grotto's first clear,
+  // in tier 1's shape: three gathering actions a skill seven levels apart
+  // (Foraging four, five apart), XP a second climbing from about 20 at level
+  // 20 to about 40 at the last unlock, so each skill takes about three hours
+  // from 20 to 40 on the curve (tests/data/pacing.test.ts); artisan skills
+  // about two, from about 30 to 60 a second with the materials on hand.
+  // docs/tier2-manifest.md lists every id.
+  ...tier2([
+    ...gather('woodcutting', [
+      ['chop_driftwood', 'Driftwood', 20, 4, 82, 'driftwood'],
+      ['chop_elm', 'Elm', 27, 5, 150, 'elm_logs'],
+      ['chop_yew', 'Yew', 34, 6, 232, 'yew_logs'],
+    ]),
+    ...gather('fishing', [
+      ['fish_mackerel', 'Mackerel', 20, 5, 103, 'raw_mackerel'],
+      ['fish_halibut', 'Halibut', 27, 6, 178, 'raw_halibut'],
+      ['fish_swordfish', 'Swordfish', 34, 7, 270, 'raw_swordfish'],
+    ]),
+    ...gather('mining', [
+      ['mine_salt_iron', 'Salt-iron', 20, 6, 123, 'salt_iron_ore'],
+      ['mine_silver', 'Silver', 27, 7, 208, 'silver_ore'],
+      ['mine_gold', 'Gold', 34, 8, 309, 'gold_ore'],
+    ]),
+    ...gather('foraging', [
+      ['forage_sea_holly', 'Sea holly', 20, 4, 76, 'sea_holly'],
+      ['forage_nettles', 'Nettles', 25, 4.5, 111, 'nettles'],
+      ['forage_sea_glass', 'Sea-glass', 30, 5, 160, 'sea_glass'],
+      ['forage_duskbloom', 'Duskbloom', 35, 6, 250, 'duskbloom'],
+    ]),
+    ...recipe('cooking', [
+      ['cook_mackerel', 'Mackerel', 20, 2.5, 77, { raw_mackerel: 1 }, 'cooked_mackerel'],
+      ['cook_halibut', 'Halibut', 27, 3, 134, { raw_halibut: 1 }, 'cooked_halibut'],
+      ['cook_swordfish', 'Swordfish', 34, 3.5, 203, { raw_swordfish: 1 }, 'cooked_swordfish'],
+    ]),
+    // The knight's set, from salt-iron: one bar for the axe, up to four for the plate.
+    ...grouped('Salt-iron', [
+      ...recipe('smithing', [
+        ['smelt_salt_iron', 'Salt-iron bar', 20, 3, 90, { salt_iron_ore: 1 }, 'salt_iron_bar'],
+        ['smith_salt_iron_axe', 'Salt-iron axe', 21, 3, 95, { salt_iron_bar: 1 }, 'salt_iron_axe'],
+        [
+          'smith_salt_iron_arrowheads',
+          'Salt-iron arrowheads',
+          22,
+          3,
+          100,
+          { salt_iron_bar: 1 },
+          'salt_iron_arrowheads',
+          10,
+        ],
+        [
+          'smith_salt_iron_sword',
+          'Salt-iron longsword',
+          24,
+          4,
+          145,
+          { salt_iron_bar: 2 },
+          'salt_iron_sword',
+        ],
+        [
+          'smith_salt_iron_helm',
+          'Salt-iron helm',
+          26,
+          4,
+          160,
+          { salt_iron_bar: 2 },
+          'salt_iron_helm',
+        ],
+        [
+          'smith_salt_iron_shield',
+          'Salt-iron kite shield',
+          29,
+          5,
+          235,
+          { salt_iron_bar: 3 },
+          'salt_iron_shield',
+        ],
+        [
+          'smith_salt_iron_greaves',
+          'Salt-iron greaves',
+          31,
+          5,
+          250,
+          { salt_iron_bar: 3 },
+          'salt_iron_greaves',
+        ],
+        [
+          'smith_salt_iron_plate',
+          'Salt-iron plate',
+          35,
+          6,
+          345,
+          { salt_iron_bar: 4 },
+          'salt_iron_plate',
+        ],
+      ]),
+    ]),
+    // Bars for Crafting's jewellery.
+    ...grouped('Silver and gold', [
+      ...recipe('smithing', [
+        ['smelt_silver', 'Silver bar', 27, 3, 130, { silver_ore: 1 }, 'silver_bar'],
+        ['smelt_gold', 'Gold bar', 34, 3.5, 190, { gold_ore: 1 }, 'gold_bar'],
+      ]),
+    ]),
+    // Thick hides from tier 2's beasts make the ranger's leathers; nettles the
+    // knight's cloak; silver, gold and sea-glass the jewellery.
+    ...recipe('crafting', [
+      ['craft_thick_leather', 'Thick leather', 20, 2.5, 75, { thick_hide: 1 }, 'thick_leather'],
+      ['craft_nettle_cloth', 'Nettle cloth', 21, 2.5, 80, { nettles: 2 }, 'nettle_cloth'],
+      [
+        'craft_ranger_bracers',
+        'Ranger’s bracers',
+        23,
+        3,
+        105,
+        { thick_leather: 1 },
+        'ranger_bracers',
+      ],
+      ['craft_ranger_hood', 'Ranger’s hood', 26, 3.5, 140, { thick_leather: 2 }, 'ranger_hood'],
+      [
+        'craft_silver_bangle',
+        'Silver bangle',
+        28,
+        3.5,
+        155,
+        { silver_bar: 1, sea_glass: 2 },
+        'silver_bangle',
+      ],
+      ['craft_red_cloak', 'Red cloak', 31, 5, 250, { nettle_cloth: 4 }, 'red_cloak'],
+      ['craft_ranger_coat', 'Ranger’s coat', 34, 5, 275, { thick_leather: 4 }, 'ranger_coat'],
+      [
+        'craft_gold_amulet',
+        'Gold amulet',
+        37,
+        5,
+        300,
+        { gold_bar: 2, sea_glass: 3 },
+        'gold_amulet',
+      ],
+    ]),
+    ...recipe('fletching', [
+      [
+        'fletch_driftwood_shortbow',
+        'Driftwood shortbow',
+        20,
+        3,
+        92,
+        { driftwood: 2, bowstring: 1 },
+        'driftwood_shortbow',
+      ],
+      [
+        'fletch_salt_iron_arrows',
+        'Salt-iron arrows',
+        23,
+        2.5,
+        92,
+        { arrow_shafts: 10, salt_iron_arrowheads: 10 },
+        'salt_iron_arrows',
+        10,
+      ],
+      [
+        'fletch_elm_longbow',
+        'Elm longbow',
+        28,
+        4,
+        180,
+        { elm_logs: 3, bowstring: 1 },
+        'elm_longbow',
+      ],
+      [
+        'fletch_yew_longbow',
+        'Yew longbow',
+        35,
+        4.5,
+        260,
+        { yew_logs: 3, bowstring: 1 },
+        'yew_longbow',
+      ],
+    ]),
+    ...recipe('alchemy', [
+      [
+        'brew_holly_tonic',
+        'Sea-holly tonic',
+        20,
+        3,
+        92,
+        { sea_holly: 1, shell_vial: 1 },
+        'holly_tonic',
+      ],
+      [
+        'brew_forgehand_draught',
+        'Forgehand draught',
+        26,
+        3.5,
+        145,
+        { sea_holly: 2, shell_vial: 1 },
+        'forgehand_draught',
+      ],
+      [
+        'brew_duskbloom_tincture',
+        'Duskbloom tincture',
+        32,
+        4,
+        200,
+        { duskbloom: 1, shell_vial: 1 },
+        'duskbloom_tincture',
+      ],
+      [
+        'brew_twilight_elixir',
+        'Twilight elixir',
+        37,
+        4.5,
+        270,
+        { sea_holly: 1, duskbloom: 1, shell_vial: 1 },
+        'twilight_elixir',
+      ],
+    ]),
+    // Richer marks, held to the same limits as tier 1's: about three hours from
+    // 20 to 40, and a purse somewhat fuller than selling what gathering brings in.
+    ...marks({
+      steal_spice_merchant: {
+        name: 'Spice merchant',
+        description:
+          'Sacks of saffron, pepper and something he calls dragon dust. He counts his takings twice and his customers never.',
+        level: 20,
+        seconds: 4,
+        xp: 186,
+        difficulty: 22,
+        stunSeconds: 4,
+        coins: [150, 340],
+        loot: [{ item: 'sea_holly', min: 1, max: 2, oneIn: 6 }],
+      },
+      steal_customs_house: {
+        name: 'Customs house',
+        description:
+          'Every seized barrel on the coast ends up here, under the eye of a clerk who is paid by the barrel.',
+        level: 24,
+        seconds: 4.5,
+        xp: 262,
+        difficulty: 25,
+        stunSeconds: 5,
+        coins: [190, 400],
+        loot: [
+          { item: 'smuggled_tea', min: 1, max: 2, oneIn: 5 },
+          { item: 'salt_iron_arrows', min: 10, max: 20, oneIn: 15 },
+        ],
+      },
+      steal_noble: {
+        name: 'Visiting noble',
+        description:
+          'In town to look at the sea, which has not impressed him. His purse is heavier than his cane, and his cane is solid silver.',
+        level: 28,
+        seconds: 5,
+        xp: 349,
+        difficulty: 28,
+        stunSeconds: 5,
+        coins: [250, 510],
+        loot: [
+          { item: 'pearl', min: 1, max: 1, oneIn: 30 },
+          { item: 'silver_bangle', min: 1, max: 1, oneIn: 150 },
+        ],
+      },
+      steal_guild_coffer: {
+        name: 'Smiths’ guild coffer',
+        description:
+          'Iron-banded, hammer-stamped, and guarded by an apprentice who was told never to leave it and has not had lunch.',
+        level: 32,
+        seconds: 5,
+        xp: 441,
+        difficulty: 30,
+        stunSeconds: 6,
+        coins: [320, 640],
+        loot: [
+          { item: 'salt_iron_bar', min: 1, max: 2, oneIn: 8 },
+          { item: 'gold_ore', min: 1, max: 1, oneIn: 20 },
+        ],
+      },
+      steal_counting_house: {
+        name: 'Counting house',
+        description:
+          'Ledgers to the ceiling, scales on every desk, and a banker who can hear a coin change pockets three streets away.',
+        level: 37,
+        seconds: 5.5,
+        xp: 567,
+        difficulty: 34,
+        stunSeconds: 6,
+        coins: [400, 800],
+        loot: [
+          { item: 'gold_bar', min: 1, max: 1, oneIn: 15 },
+          { item: 'pearl', min: 1, max: 1, oneIn: 20 },
+        ],
+      },
+    }),
+  ]),
 ];
 
 export const ACTIONS: Record<string, ActionDef> = Object.fromEntries(

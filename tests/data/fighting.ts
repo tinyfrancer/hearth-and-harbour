@@ -29,7 +29,8 @@ const one = (item: string): Worn => ({ item, qty: 1 });
  * wears the smithy's greaves (wave 13) in place of linen trousers, and every
  * pin was moved to them; docs/status/lane-a.md lists what moved.
  */
-export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee'): Gear {
+export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee', tier2 = false): Gear {
+  if (tier2 && level >= 20) return tier2GearAt(level, style);
   if (style === 'ranged') {
     return {
       main_hand: one(
@@ -62,23 +63,68 @@ export function gearAt(level: number, style: 'melee' | 'ranged' = 'melee'): Gear
   };
 }
 
+/**
+ * Tier 2's ladder (S22), for a character past the grotto: the best the anvil,
+ * the bench and the bowyer make at the level, taking the skill that makes a
+ * thing to be about the combat level (as tier 1's ladder does), and only what
+ * the level may wear. Melee: iron until salt-iron's pieces come, one by one
+ * (axe 21, longsword 24, helm 26, kite shield 29, greaves 31, plate 35), shell
+ * jewellery until the silver bangle (28) and the red cloak (31). Ranged:
+ * leather until the ranger's pieces (bracers 23, hood 26, coat 34), the
+ * driftwood shortbow, then elm (28) and yew (35), salt-iron arrows from 23,
+ * and still linen trousers; the gold amulet from 37.
+ */
+export function tier2GearAt(level: number, style: 'melee' | 'ranged'): Gear {
+  const from = (at: number, item: string, otherwise: string): Worn =>
+    one(level >= at ? item : otherwise);
+  if (style === 'ranged') {
+    return {
+      main_hand: one(
+        level >= 35 ? 'yew_longbow' : level >= 28 ? 'elm_longbow' : 'driftwood_shortbow',
+      ),
+      ammo: { item: level >= 23 ? 'salt_iron_arrows' : 'iron_arrows', qty: 100_000 },
+      head: from(26, 'ranger_hood', 'leather_cap'),
+      body: from(34, 'ranger_coat', 'leather_jerkin'),
+      legs: one('linen_trousers'),
+      wrist: from(23, 'ranger_bracers', 'leather_bracers'),
+      neck: from(37, 'gold_amulet', 'shell_necklace'),
+    };
+  }
+  return {
+    main_hand: one(level >= 24 ? 'salt_iron_sword' : level >= 21 ? 'salt_iron_axe' : 'iron_sword'),
+    off_hand: from(29, 'salt_iron_shield', 'iron_shield'),
+    head: from(26, 'salt_iron_helm', 'iron_helmet'),
+    body: from(35, 'salt_iron_plate', 'iron_breastplate'),
+    legs: from(31, 'salt_iron_greaves', 'iron_greaves'),
+    neck: from(31, 'red_cloak', 'shell_necklace'),
+    wrist: from(28, 'silver_bangle', 'shell_bracelet'),
+  };
+}
+
 /** The cooked fish a character of a level would have: what their tier of Fishing catches. */
-export function foodAt(level: number): string {
+export function foodAt(level: number, tier2 = false): string {
+  if (tier2 && level >= 20) {
+    return level >= 34 ? 'cooked_swordfish' : level >= 27 ? 'cooked_halibut' : 'cooked_mackerel';
+  }
   return level >= 15 ? 'cooked_cod' : level >= 8 ? 'cooked_herring' : 'cooked_shrimp';
 }
+
+/** A save that has cleared Brinebeard's Grotto: tier 2 open (S22). */
+export const GROTTO_CLEARED = { brinebeards_grotto: { clears: 1 } };
 
 /** A character with every combat skill at `level`, in that level's gear, with dice of `seed`. */
 export function characterAt(
   level: number,
-  { style = 'melee' as 'melee' | 'ranged', seed = 1, food = 0 } = {},
+  { style = 'melee' as 'melee' | 'ranged', seed = 1, food = 0, tier2 = false } = {},
 ): GameState {
   const xp = xpForLevel(level);
   return {
     ...newGame('Sim', 0),
     rng: seedFrom(seed),
     skills: level > 1 ? { melee: xp, ranged: xp, defence: xp, vitality: xp } : {},
-    equipment: gearAt(level, style),
-    food: food > 0 ? { item: foodAt(level), qty: food } : null,
+    equipment: gearAt(level, style, tier2),
+    food: food > 0 ? { item: foodAt(level, tier2), qty: food } : null,
+    ...(tier2 ? { dungeons: GROTTO_CLEARED } : {}),
   };
 }
 
@@ -119,11 +165,12 @@ export function duels(
   monster: string,
   count = 200,
   style: 'melee' | 'ranged' = 'melee',
+  tier2 = false,
 ): { winRate: number; meanLost: number } {
   let wins = 0;
   let lost = 0;
   for (let seed = 1; seed <= count; seed += 1) {
-    const result = duel(characterAt(level, { style, seed }), monster);
+    const result = duel(characterAt(level, { style, seed, tier2 }), monster);
     if (result.won) {
       wins += 1;
       lost += result.lost;
@@ -139,10 +186,10 @@ export function duels(
 export function hourOf(
   level: number,
   monster: string,
-  { style = 'melee' as 'melee' | 'ranged', seed = 1 } = {},
+  { style = 'melee' as 'melee' | 'ranged', seed = 1, tier2 = false } = {},
 ): { kills: number; eaten: number; deaths: number; xpPerHour: number } {
   const food = 100_000;
-  let state = fight(characterAt(level, { style, seed, food }), monster);
+  let state = fight(characterAt(level, { style, seed, food, tier2 }), monster);
   const skill = playerCombat(state, CONTENT).skill;
   const xpBefore = state.skills[skill] ?? 0;
   let deaths = 0;
@@ -165,9 +212,9 @@ export function hourOf(
  * The strongest monster a character should take on at their level: the
  * highest at or below it, of those anyone may fight without a bounty.
  */
-export function monsterFor(level: number): string {
+export function monsterFor(level: number, tier2 = false): string {
   return Object.values(CONTENT.monsters!)
-    .filter((monster) => monster.level <= level && !monster.bountyOnly)
+    .filter((monster) => monster.level <= level && !monster.bountyOnly && (tier2 || !monster.tier))
     .sort((a, b) => b.level - a.level)[0]!.id;
 }
 
@@ -181,17 +228,34 @@ export function hoursToLevel(
   skill: string,
   target: number,
   style: 'melee' | 'ranged' = 'melee',
+  from = 1,
 ): { hours: number; deaths: number; eaten: number } {
-  let state = { ...newGame('Sim', 0), rng: seedFrom(7) };
+  // From a level past 1 (tier 2, S22): every combat skill at it, the grotto cleared.
+  const tier2 = from > 1;
+  const start = from > 1 ? xpForLevel(from) : 0;
+  let state: GameState = {
+    ...newGame('Sim', 0),
+    rng: seedFrom(7),
+    ...(tier2
+      ? {
+          dungeons: GROTTO_CLEARED,
+          skills: { melee: start, ranged: start, defence: start, vitality: start },
+        }
+      : {}),
+  };
   let elapsed = 0;
   let deaths = 0;
   let eaten = 0;
   while (skillLevel(state, skill) < target) {
     // Gear and food follow the lowest of the skills the fight reads.
     const level = Math.min(...['defence', 'vitality', style].map((id) => skillLevel(state, id)));
-    state = { ...state, equipment: gearAt(level, style), food: { item: foodAt(level), qty: 1000 } };
-    if (!state.fight || state.fight.monster !== monsterFor(level)) {
-      state = fight(state, monsterFor(level));
+    state = {
+      ...state,
+      equipment: gearAt(level, style, tier2),
+      food: { item: foodAt(level, tier2), qty: 1000 },
+    };
+    if (!state.fight || state.fight.monster !== monsterFor(level, tier2)) {
+      state = fight(state, monsterFor(level, tier2));
     }
     state = advance(state, 60_000, CONTENT);
     eaten += 1000 - (state.food?.qty ?? 0);

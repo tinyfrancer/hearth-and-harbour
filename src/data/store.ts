@@ -16,6 +16,21 @@ export const STORE = {
   bronze_arrows: { id: 'bronze_arrows', item: 'bronze_arrows', qty: 50, price: 1500 },
   cooked_shrimp: { id: 'cooked_shrimp', item: 'cooked_shrimp', qty: 10, price: 600 },
   shell_vial: { id: 'shell_vial', item: 'shell_vial', qty: 5, price: 180 },
+  // Tier 2's first fish and arrows, for a hero just back from the grotto (S22).
+  cooked_mackerel: {
+    id: 'cooked_mackerel',
+    item: 'cooked_mackerel',
+    qty: 10,
+    price: 2700,
+    tier: 2,
+  },
+  salt_iron_arrows: {
+    id: 'salt_iron_arrows',
+    item: 'salt_iron_arrows',
+    qty: 50,
+    price: 2800,
+    tier: 2,
+  },
   potion_case: {
     id: 'potion_case',
     price: 150_000,

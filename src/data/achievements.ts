@@ -224,6 +224,58 @@ const ROWS: Record<string, Row> = {
     text: 'Finish a hundred dungeon runs idle.',
     rule: { kind: 'idleRuns', count: 100 },
   },
+  // Tier 2 (S22), in the same style: firsts by doing, sets worn, levels, a hunt, a rare find.
+  deep_water: {
+    name: 'Deep Water',
+    text: 'Catch a fish from the deep water past the grotto.',
+    rule: { kind: 'made', items: ['raw_mackerel', 'raw_halibut', 'raw_swordfish'] },
+  },
+  salt_iron: {
+    name: 'Salt in the Blood',
+    text: 'Smelt a bar of salt-iron.',
+    rule: { kind: 'made', items: ['salt_iron_bar'] },
+  },
+  knight: {
+    name: 'Arise',
+    text: 'Wear the salt-iron helm, plate, greaves, kite shield and longsword, and the red cloak, all at once.',
+    rule: {
+      kind: 'worn',
+      items: [
+        'salt_iron_helm',
+        'salt_iron_plate',
+        'salt_iron_greaves',
+        'salt_iron_shield',
+        'salt_iron_sword',
+        'red_cloak',
+      ],
+    },
+  },
+  ranger: {
+    name: 'Into the Green',
+    text: 'Wear the ranger’s hood, bracers and coat at once.',
+    rule: { kind: 'worn', items: ['ranger_hood', 'ranger_bracers', 'ranger_coat'] },
+  },
+  level_40: {
+    name: 'Over the Hill',
+    text: 'Reach level 40 in any skill.',
+    rule: { kind: 'level', level: 40 },
+  },
+  gathering_40: {
+    name: 'Shore to Forest',
+    text: 'Reach level 40 in every gathering skill.',
+    rule: { kind: 'level', level: 40, group: 'Gathering', all: true },
+  },
+  ogres_25: {
+    name: 'The Bigger They Are',
+    text: 'Fell twenty-five hill ogres.',
+    rule: { kind: 'kills', count: 25, monster: 'hill_ogre' },
+  },
+  maul: {
+    name: 'Most of a Tree',
+    text: 'Find an ogre’s maul.',
+    hidden: true,
+    rule: { kind: 'found', items: ['ogre_maul'] },
+  },
   doubloon: {
     name: 'Pieces of Eight',
     text: 'Find a doubloon.',

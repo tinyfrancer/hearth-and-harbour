@@ -140,12 +140,12 @@ describe('the collection log', () => {
     expect(q('[data-log-item="seashells"]').classList).toContain('found');
     expect(q('[data-log-item="pine_logs"]').classList).not.toContain('found');
     expect(q('[data-log-item="pine_logs"]').textContent).toBe('?');
-    expect(q('[data-source="skills:Gathering"] .small').textContent).toMatch(/^1 \/ 13$/);
+    expect(q('[data-source="skills:Gathering"] .small').textContent).toMatch(/^1 \/ 26$/);
     // A log is cut while the page is open, and turns over in place.
     play(app, 3000);
     expect(q('[data-log-item="pine_logs"]').classList).toContain('found');
     expect(q('[data-log-item="pine_logs"]').textContent).toBe('Pine logs');
-    expect(q('[data-source="skills:Gathering"] .small').textContent).toBe('2 / 13');
+    expect(q('[data-source="skills:Gathering"] .small').textContent).toBe('2 / 26');
     expect(q('[data-found]').textContent).toMatch(/^2 \/ \d+$/);
     app.save();
     expect(saved().collection).toEqual(['seashells', 'pine_logs']);

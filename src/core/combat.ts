@@ -1,5 +1,6 @@
 import type { CombatStyle, Content, MonsterDef } from './content';
 import { equipmentTotals } from './equipment';
+import { monsterLock } from './tiers';
 import { bankCount, skillLevel, type Fight, type GameState, type Health, type Worn } from './state';
 
 /**
@@ -23,6 +24,12 @@ export const RESPAWN_MS = 3000;
 export const XP_PER_DAMAGE = 5;
 /** Defence earns this much XP for each point of a monster's max hit, every time it attacks. */
 export const DEFENCE_XP_PER_MAX_HIT = 2;
+
+/** XP from a blow against (or from) a foe at its rate (`xpPercent`), a whole number, rounded once. */
+export function foeXp(base: number, foe: { readonly xpPercent?: number }): number {
+  const percent = foe.xpPercent ?? 100;
+  return percent === 100 ? base : Math.round((base * percent) / 100);
+}
 
 export type ResultOf = { ok: true; state: GameState } | { ok: false; reason: string };
 
@@ -190,6 +197,8 @@ export function startFight(state: GameState, monsterId: string, content: Content
   if (state.fight?.monster === monsterId) {
     return { ok: true, state };
   }
+  const locked = monsterLock(state, monster, content);
+  if (locked) return { ok: false, reason: locked };
   if (!mayFight(state, monster)) {
     return { ok: false, reason: `Only a bounty on the ${monster.name} will lead you to it.` };
   }

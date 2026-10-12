@@ -65,14 +65,15 @@ describe('the Combat section', () => {
     press('‹ All skills');
     // A combat skill's card leads to the fighting too: it has nothing else to do.
     q<HTMLButtonElement>('[data-skill="defence"]').click();
-    expect(root.querySelectorAll('[data-area]')).toHaveLength(4);
+    // Tier 2's two areas (S22) are listed too, closed until the grotto is cleared.
+    expect(root.querySelectorAll('[data-area]')).toHaveLength(6);
     // The first areas list in a worker draws every monster's face: seconds in jsdom.
   }, 20_000);
 
   it('lists every monster with its level, and its drops as "?" until they are seen', () => {
     playing();
     q<HTMLButtonElement>('[data-combat]').click();
-    expect(root.querySelectorAll('[data-monster]')).toHaveLength(10);
+    expect(root.querySelectorAll('[data-monster]')).toHaveLength(17);
     const rat = q('[data-monster="dock_rat"]');
     expect(rat.textContent).toContain('Level 1');
     expect(rat.querySelector('.drops')!.textContent).toBe('Drops: ?, ?, ?');

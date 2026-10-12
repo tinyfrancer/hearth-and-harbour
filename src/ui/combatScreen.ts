@@ -15,6 +15,8 @@ import type { Content, DungeonFoe, MonsterDef } from '../core/content';
 import type { FightEnd } from '../core/fight';
 import { foeDrops } from '../core/run';
 import { bankCount, type Fight, type GameState } from '../core/state';
+import { monsterLock, tierLock, tierOf, tierUnlocked } from '../core/tiers';
+import { tierChip, tierLockLine } from './tierMarks';
 import { bar } from './bar';
 import { bountyEntry } from './bountyScreen';
 import { button, h, setText, titled } from './dom';
@@ -254,8 +256,10 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
 
   const monsterCard = (monster: MonsterDef): HTMLElement => {
     const active = state.fight?.monster === monster.id;
-    // Only a bounty leads to some: they are listed, but plainly out of reach without one.
-    const locked = !mayFight(state, monster);
+    // Only a bounty leads to some, and a later tier's wait for its dungeon (S22): they are
+    // listed, but plainly out of reach, saying why.
+    const tierClosed = monsterLock(state, monster, content);
+    const locked = Boolean(tierClosed) || !mayFight(state, monster);
     // What a kill changes moves in place: the count, what has been seen to drop, the bounty.
     const drops = h('p', { class: 'small drops' });
     const killed = h('p', { class: 'small muted' });
@@ -292,22 +296,31 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
           }),
           drops,
           killed,
-          locked && h('p', { class: 'small muted', text: 'Only with a bounty on it.' }),
+          tierClosed
+            ? tierLockLine(tierClosed)
+            : locked && h('p', { class: 'small muted', text: 'Only with a bounty on it.' }),
           wanted,
         ]),
       ],
     );
   };
 
-  const areas = Object.values(content.areas ?? {}).map((area) =>
-    h('section', { class: 'stack', attrs: { 'data-area': area.id } }, [
+  const areas = Object.values(content.areas ?? {}).map((area) => {
+    // A later tier's area (S22) wears its chip, and says why while it is closed.
+    const tier = tierOf(area);
+    const closed = tierLock(state, tier, content);
+    return h('section', { class: 'stack', attrs: { 'data-area': area.id } }, [
       h('div', { class: 'stack tight' }, [
-        h('h2', { class: 'group-heading', text: area.name }),
+        h('div', { class: 'area-head' }, [
+          h('h2', { class: 'group-heading', text: area.name }),
+          tier > 1 && tierChip(tier, !closed),
+        ]),
         h('p', { class: 'small muted', text: area.description }),
+        closed && tierLockLine(closed),
       ]),
       ...monstersIn(content, area.id).map(monsterCard),
-    ]),
-  );
+    ]);
+  });
 
   // A dungeon's cast is fought in its scene, not from here; what has been
   // beaten there is kept like any kill, and shown after the areas. Anyone not
@@ -400,7 +413,8 @@ export function areasView(state: GameState, content: Content, actions: CombatAct
       before.fight?.monster !== after.fight?.monster ||
       before.idleRun?.dungeon !== after.idleRun?.dungeon ||
       before.bounty?.monster !== after.bounty?.monster ||
-      Boolean(before.food) !== Boolean(after.food),
+      Boolean(before.food) !== Boolean(after.food) ||
+      tierUnlocked(before, 2, content) !== tierUnlocked(after, 2, content),
   };
 }
 

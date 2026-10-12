@@ -10,6 +10,8 @@ import { formatNumber } from './format';
 import { face } from './face';
 import { gridIcon, spoken } from './grid';
 import type { View } from './view';
+import { tierLock, tierOf } from '../core/tiers';
+import { tierChip, tierLockLine } from './tierMarks';
 
 /** Who keeps the store, by the art's face id: the town's trader. */
 const KEEPER = { id: 'trader', name: 'Trader' };
@@ -73,7 +75,7 @@ function storeRow(
   const buyButton = button(`Buy for ${coinsText(entry.price)}`, buy);
   buyButton.setAttribute('data-buy', entry.id);
   updates.push((now) => {
-    const problem = storeProblem(now, entry);
+    const problem = storeProblem(now, entry, content);
     const owned = entry.perk && now.perks.includes(entry.id);
     buyButton.disabled = problem !== null;
     buyButton.classList.toggle('primary', problem === null);
@@ -136,7 +138,9 @@ function stockCell(
       price,
     ],
   );
-  updates.push((now) => el.classList.toggle('dear-now', storeProblem(now, entry) !== null));
+  updates.push((now) =>
+    el.classList.toggle('dear-now', storeProblem(now, entry, content) !== null),
+  );
   return el;
 }
 
@@ -187,15 +191,31 @@ export function storeView(state: GameState, content: Content, actions: StoreActi
     sheet.hidden = false;
     cardUpdates.forEach((apply) => apply(latest));
   };
-  const toolGrid = h(
-    'div',
-    { class: 'bank-grid store-grid', attrs: { 'data-store-grid': '' } },
-    tools.map((entry) => {
-      const cell = stockCell(entry, content, () => show(entry.id), updates);
-      cells.set(entry.id, cell);
-      return cell;
-    }),
+  const gridOf = (list: StoreEntry[], tier: number) =>
+    h(
+      'div',
+      { class: 'bank-grid store-grid', attrs: { 'data-store-grid': String(tier) } },
+      list.map((entry) => {
+        const cell = stockCell(entry, content, () => show(entry.id), updates);
+        cells.set(entry.id, cell);
+        return cell;
+      }),
+    );
+  // A later tier's stock (S22) has a heading of its own with its chip, and says why while closed.
+  const later = tools.filter((entry) => tierOf(entry) > 1);
+  const toolGrid = gridOf(
+    tools.filter((entry) => tierOf(entry) === 1),
+    1,
   );
+  const laterClosed = tierLock(state, 2, content);
+  const laterStock = later.length > 0 && [
+    h('div', { class: 'area-head' }, [
+      h('h2', { class: 'group-heading', text: 'Past the grotto' }),
+      tierChip(2, !laterClosed),
+    ]),
+    laterClosed && tierLockLine(laterClosed),
+    gridOf(later, 2),
+  ];
   // Built before the first update, so each row is set for the purse it opens on.
   const dearRows = rows(dear);
 
@@ -238,6 +258,7 @@ export function storeView(state: GameState, content: Content, actions: StoreActi
       ),
       tools.length > 0 && h('h2', { class: 'group-heading', text: 'To get you started' }),
       tools.length > 0 && toolGrid,
+      ...(laterStock || []),
       dear.length > 0 && h('h2', { class: 'group-heading', text: 'Worth saving for' }),
       ...dearRows,
       sheet,

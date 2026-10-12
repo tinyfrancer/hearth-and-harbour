@@ -441,9 +441,21 @@ export const DUNGEONS = {
     unlock: { kind: 'cleared', dungeon: 'brinebeards_grotto' },
     unlockText: 'Clear Brinebeard’s Grotto.',
     comingSoon: true,
-    firstClear: [{ item: 'amber', qty: 10 }],
-    loot: ['amber', 'glowcap', 'hide', 'thornwood_bow', 'capguard_helm', 'badger_crown'],
-    // Weakest first and the king last, as the bestiary lists them.
+    firstClear: [
+      { item: 'amber', qty: 10 },
+      { item: 'cooked_swordfish', qty: 10 },
+    ],
+    loot: [
+      'amber',
+      'duskbloom',
+      'thick_hide',
+      'cooked_swordfish',
+      'thornwood_bow',
+      'capguard_helm',
+      'badger_crown',
+    ],
+    // Weakest first and the king last, as the bestiary lists them. Each pays tier 2's rate of
+    // XP (`xpPercent`, as tier 2's monsters do): the scene should pay it through `foeXp`.
     cast: [
       {
         id: 'spore_puff',
@@ -455,9 +467,10 @@ export const DUNGEONS = {
         defence: 60,
         maxHit: 8,
         speedMs: 2000,
+        xpPercent: 270,
         coins: [0, 0],
         always: [{ item: 'amber', min: 1, max: 2 }],
-        rare: [{ item: 'glowcap', min: 1, max: 2, oneIn: 6 }],
+        rare: [{ item: 'duskbloom', min: 1, max: 2, oneIn: 6 }],
       },
       {
         id: 'lantern_moth',
@@ -469,6 +482,7 @@ export const DUNGEONS = {
         defence: 95,
         maxHit: 6,
         speedMs: 2000,
+        xpPercent: 270,
         coins: [0, 0],
         always: [{ item: 'amber', min: 1, max: 2 }],
         rare: [],
@@ -483,6 +497,7 @@ export const DUNGEONS = {
         defence: 70,
         maxHit: 14,
         speedMs: 2400,
+        xpPercent: 270,
         coins: [0, 0],
         always: [{ item: 'amber', min: 1, max: 2 }],
         rare: [{ item: 'capguard_helm', min: 1, max: 1, oneIn: 25 }],
@@ -497,10 +512,11 @@ export const DUNGEONS = {
         defence: 85,
         maxHit: 15,
         speedMs: 2400,
+        xpPercent: 270,
         coins: [0, 0],
         always: [
           { item: 'amber', min: 1, max: 3 },
-          { item: 'hide', min: 1, max: 2 },
+          { item: 'thick_hide', min: 1, max: 2 },
         ],
         rare: [{ item: 'thornwood_bow', min: 1, max: 1, oneIn: 40 }],
       },
@@ -514,6 +530,7 @@ export const DUNGEONS = {
         defence: 90,
         maxHit: 22,
         speedMs: 2800,
+        xpPercent: 270,
         coins: [0, 0],
         always: [{ item: 'amber', min: 8, max: 14 }],
         rare: [{ item: 'badger_crown', min: 1, max: 1, oneIn: 20 }],

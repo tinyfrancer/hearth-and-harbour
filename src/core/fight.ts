@@ -5,6 +5,7 @@ import {
   RESPAWN_MS,
   VITALITY,
   XP_PER_DAMAGE,
+  foeXp,
   attackRating,
   attackSkill,
   breatherFor,
@@ -18,7 +19,7 @@ import {
   monsterDef,
   rest,
 } from './combat';
-import { combatLevelOf, payBounty, type BountyBook } from './bounty';
+import { combatLevelOf, openTo, payBounty, type BountyBook } from './bounty';
 import type { Content } from './content';
 import { combatStyle, equipmentTotals } from './equipment';
 import { Dice } from './rng';
@@ -123,6 +124,7 @@ function walkFight(
       level,
       dice,
       true,
+      openTo(state, content),
     );
     const next = book.bounty && monsterDef(content, book.bounty.monster);
     if (next) monster = next;
@@ -169,8 +171,9 @@ function walkFight(
     if (dice.next() < hitChance(attackRating(attacking.level, totals.attack), monster.defence)) {
       const dealt = Math.min(dice.between(1, maxHitFor(attacking.level, totals.strength)), foeHp);
       foeHp -= dealt;
-      attacking.add(XP_PER_DAMAGE * dealt);
-      vitality.add(Math.floor((XP_PER_DAMAGE * dealt) / 2));
+      const earned = foeXp(XP_PER_DAMAGE * dealt, monster);
+      attacking.add(earned);
+      vitality.add(Math.floor(earned / 2));
     }
     if (foeHp === 0) kill();
   };
@@ -178,7 +181,7 @@ function walkFight(
   /** The monster's blow, and what the character eats after it. */
   const struck = (): void => {
     foeMs = monster.speedMs;
-    const earned = DEFENCE_XP_PER_MAX_HIT * monster.maxHit;
+    const earned = foeXp(DEFENCE_XP_PER_MAX_HIT * monster.maxHit, monster);
     if (dice.next() < hitChance(monster.attack, defenceRating(defence.level, totals.armour))) {
       hp -= dice.between(1, monster.maxHit);
     }

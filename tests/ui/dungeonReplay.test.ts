@@ -87,12 +87,14 @@ describe('the Dungeons card (S16)', () => {
     );
     const tier = q(`[data-dungeon-row="${GROTTO}"] [data-tier]`);
     expect(tier.getAttribute('data-unlocked')).toBe('false');
-    expect(tier.textContent).toContain('still being built');
+    // Tier 2 is real since S22: what it brings, with no "still being built".
+    expect(tier.textContent).toMatch(/^Its first clear unlocks tier 2: deep-water fishing/);
+    expect(tier.textContent).not.toContain('still being built');
     // Nothing to send the hero through yet.
     expect(root.querySelector('[data-idle-start]')).toBeNull();
   });
 
-  it('marks challenges done, states tier 2 unlocked as still to come, and offers the idle run once cleared', () => {
+  it('marks challenges done, states tier 2 unlocked and what it brings, and offers the idle run once cleared', () => {
     onCombat({
       dungeons: {
         [CAVE]: { clears: 3, bestMs: 81_000, leastDamage: 4, challenges: ['tidepool_cave.quick'] },
@@ -108,7 +110,9 @@ describe('the Dungeons card (S16)', () => {
     );
     const tier = q(`[data-dungeon-row="${GROTTO}"] [data-tier]`);
     expect(tier.getAttribute('data-unlocked')).toBe('true');
-    expect(tier.textContent).toMatch(/^Tier 2 unlocked\. It is still being built; when it comes/);
+    expect(tier.textContent).toMatch(
+      /^Tier 2 unlocked: deep-water fishing.*every skill from level 20/,
+    );
     expect(root.querySelectorAll('[data-idle-start]')).toHaveLength(2);
   });
 

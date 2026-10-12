@@ -17,7 +17,15 @@ import {
   madeWorth,
 } from './economy';
 import { CAVE, ROOMS as CAVE_ROOMS, many as manyCaveRuns } from './cave';
-import { characterAt, fight, hourOf, hoursToLevel as hoursOfFighting } from './fighting';
+import {
+  GROTTO_CLEARED,
+  characterAt,
+  fight,
+  hourOf,
+  hoursToLevel as hoursOfFighting,
+} from './fighting';
+import { actionLock } from '../../src/core/tiers';
+import { xpForLevel } from '../../src/core/xp';
 import { handRunOf, idleHourOf } from './idleRuns';
 import { novice, playCave } from '../scene/caveBot';
 import { begin, playThrough, prepared } from '../scene/grottoBot';
@@ -471,6 +479,8 @@ describe('what challenges pay, all told (S16)', () => {
     // Dungeon, its coins and items' worth all told, and its points all told.
     ['tidepool_cave', 910, 4],
     ['brinebeards_grotto', 24000, 35],
+    // Coming soon (S22's row for S23): held to the same bound at its level, 40.
+    ['thistlewood_burrow', 47000, 35],
   ] as const)('pays %s’s challenges %i coins’ worth and %i points', (id, worth, points) => {
     const dungeon = CONTENT.dungeons![id]!;
     let coins = 0;
@@ -481,7 +491,9 @@ describe('what challenges pay, all told (S16)', () => {
       earned += reward.bountyPoints ?? 0;
     }
     expect([coins, earned]).toEqual([worth, points]);
-    expect(coins).toBeLessThan(bestGatheringHour(dungeon.recommended) / 2);
+    // Past level 20 the gathering is tier 2's (S22).
+    const tier2 = dungeon.recommended > 20;
+    expect(coins).toBeLessThan(bestGatheringHour(dungeon.recommended, tier2) / 2);
     // An hour of bounties pays at least 22 points from combat level 5, and 42 from 20.
     expect(earned).toBeLessThan(dungeon.recommended >= 20 ? 42 : 22);
   });
@@ -669,3 +681,232 @@ function ok(result: { ok: true; state: GameState } | { ok: false; reason: string
   if (!result.ok) throw new Error(result.reason);
   return result.state;
 }
+
+// Tier 2 (S22), levels 20 to 40, opened by Brinebeard's Grotto's first clear,
+// held to tier 1's limits on the same curve: about three hours a gathering or
+// combat skill from 20 to 40, about two an artisan skill with its materials
+// on hand, Thieving about three; each hour's earnings told the same story as
+// tier 1's. Every case starts at level 20 with the grotto cleared.
+// Pinned so a change is seen: an hour from levels 30 and 40, tier 2 open: what each gathering
+// skill sells for, what each artisan skill adds to its materials, Thieving's coins, and the
+// best fight for money (melee, after the fish eaten).
+/** What each of tier 2's potions adds to an hour of a level-20 tier 2 action (S22). */
+const TIER2_POTIONS: Record<string, { items: number; xp: number }> = {
+  // 200 chops at 3.4 s instead of 4: the time saved chops 31 more.
+  holly_tonic: { items: 31, xp: 2542 },
+  // 200 cooks at 2.25 s instead of 2.5: twenty more.
+  forgehand_draught: { items: 20, xp: 1540 },
+  // A log over again on every fourth of 200 charges.
+  duskbloom_tincture: { items: 50, xp: 0 },
+  // 250 chops at 98 XP instead of 82.
+  twilight_elixir: { items: 0, xp: 4000 },
+};
+
+const TIER2_EARNED: Record<number, Record<string, number>> = {
+  30: {
+    woodcutting: 87180,
+    fishing: 86250,
+    mining: 82740,
+    foraging: 90430,
+    cooking: 140724,
+    smithing: 146004,
+    crafting: 145104,
+    fletching: 181359,
+    alchemy: 140134,
+    thieving: 127457,
+    smuggler: 120244,
+  },
+  40: {
+    woodcutting: 102000,
+    fishing: 96000,
+    mining: 96600,
+    foraging: 105000,
+    cooking: 161160,
+    smithing: 167280,
+    crafting: 169200,
+    fletching: 221520,
+    alchemy: 156000,
+    thieving: 166090,
+    hill_ogre: 160311,
+  },
+};
+
+/** Hours from level `from` to `target` in a skill, the best open action each minute, tier 2 open. */
+function tier2Hours(skill: string, from: number, target: number): number {
+  const actions = Object.values(CONTENT.actions).filter((action) => action.skill === skill);
+  const plenty = Object.fromEntries(
+    actions.flatMap((action) => action.uses ?? []).map(({ item }) => [item, 1_000_000]),
+  );
+  const rate = (state: GameState, action: ActionDef): number => {
+    if (!action.steal) return action.xp / action.durationMs;
+    const chance = markChance(state, action);
+    return (chance * action.xp) / (action.durationMs + (1 - chance) * action.steal.stunMs);
+  };
+  let state: GameState = {
+    ...newGame('Sim', 0),
+    dungeons: GROTTO_CLEARED,
+    skills: { [skill]: xpForLevel(from) },
+  };
+  let elapsed = 0;
+  while (skillLevel(state, skill) < target) {
+    state = { ...state, bank: { ...state.bank, ...plenty } };
+    const best = actions
+      .filter((action) => actionLock(state, action, CONTENT) === null)
+      .sort((a, b) => rate(state, b) - rate(state, a))[0]!;
+    const started = startAction(state, best.id, CONTENT);
+    if (!started.ok) throw new Error(started.reason);
+    state = advance(started.state, 60_000, CONTENT);
+    elapsed += 60_000;
+    if (elapsed > 100 * HOUR) throw new Error(`${skill} never reached ${target}`);
+  }
+  return elapsed / HOUR;
+}
+
+describe('pacing of tier 2 (S22)', () => {
+  it.each(['woodcutting', 'fishing', 'mining', 'foraging', 'thieving'])(
+    'takes %s from 20 to 40 in about three hours',
+    (skill) => {
+      const hours = tier2Hours(skill, 20, 40);
+      expect(hours).toBeGreaterThan(2.5);
+      expect(hours).toBeLessThan(3.5);
+    },
+  );
+
+  it.each(['cooking', 'smithing', 'crafting', 'fletching', 'alchemy'])(
+    'takes %s from 20 to 40 in about two hours with the materials on hand',
+    (skill) => {
+      const hours = tier2Hours(skill, 20, 40);
+      expect(hours).toBeGreaterThan(1.6);
+      expect(hours).toBeLessThan(2.4);
+    },
+  );
+
+  it.each([
+    ['melee', 'melee'],
+    ['defence', 'melee'],
+    ['vitality', 'melee'],
+    ['ranged', 'ranged'],
+    ['defence', 'ranged'],
+    ['vitality', 'ranged'],
+  ] as const)(
+    'takes %s from 20 to 40 in about three hours, fighting with %s',
+    (skill, style) => {
+      const { hours, deaths } = hoursOfFighting(skill, 40, style, 20);
+      expect(hours).toBeGreaterThan(2.5);
+      expect(hours).toBeLessThan(3.5);
+      expect(deaths).toBe(0);
+    },
+    240_000,
+  );
+
+  it('opens nothing of tier 2 to a level-40 character who has not cleared the grotto', () => {
+    const state: GameState = { ...newGame('Sim', 0), skills: { woodcutting: xpForLevel(40) } };
+    const result = startAction(state, 'chop_yew', CONTENT);
+    expect(result).toEqual({ ok: false, reason: 'Clear Brinebeard’s Grotto.' });
+    const cleared = startAction({ ...state, dungeons: GROTTO_CLEARED }, 'chop_yew', CONTENT);
+    expect(cleared.ok).toBe(true);
+  });
+});
+
+describe('what an hour of tier 2 earns (S22)', () => {
+  it.each([30, 40])(
+    'tells tier 1’s story at level %i',
+    (level) => {
+      const gathered = Object.fromEntries(
+        GATHERING.map((skill) => [skill, skillHour(skill, level, true).gross]),
+      );
+      const made = Object.fromEntries(
+        ['cooking', 'smithing', 'crafting', 'fletching', 'alchemy'].map((skill) => [
+          skill,
+          skillHour(skill, level, true).earned,
+        ]),
+      );
+      const best = bestGatheringHour(level, true);
+      const thief = thievingHour(level, true);
+      const fight = bestFightHour(level, true);
+      // Gathering pays more than tier 1's best at 20 (54,000), and the four skills alike.
+      const hours = Object.values(gathered);
+      expect(Math.min(...hours)).toBeGreaterThan(54_000 * 1.3);
+      expect(Math.max(...hours) / Math.min(...hours)).toBeLessThan(1.3);
+      // Making pays something of its own, never so much that gathering is the poor relation.
+      for (const [skill, earned] of Object.entries(made)) {
+        expect(earned / best, skill).toBeGreaterThan(1);
+        expect(earned / best, skill).toBeLessThan(2.2);
+      }
+      // Thieving somewhat better than gathering; fighting for money between the two.
+      expect(thief.coins / best).toBeGreaterThan(1.2);
+      expect(thief.coins / best).toBeLessThan(1.6);
+      expect(fight.earned / best, fight.monster).toBeGreaterThan(1);
+      expect(fight.earned, fight.monster).toBeLessThan(thief.coins);
+      expect({
+        ...gathered,
+        ...made,
+        thieving: thief.coins,
+        [fight.monster]: fight.earned,
+      }).toEqual(TIER2_EARNED[level]);
+    },
+    240_000,
+  );
+});
+
+// Bounties past the grotto (S22): the board posts tier 2's monsters beside
+// tier 1's, and whatever is hunted an hour pays about the same, as below 20.
+describe('what an hour of bounties pays in tier 2 (S22)', () => {
+  it.each([
+    // Combat level, how many monsters are open, and the least and most an hour pays.
+    [30, 13, 60, 69],
+    [40, 17, 69, 83],
+  ])(
+    'pays about the same an hour for everything open at level %i (%i open): %i to %i points',
+    (level, open, least, most) => {
+      const hours = bountyChoices(characterAt(level, { tier2: true }), CONTENT).map((monster) => {
+        const [fewest, many] = monster.bounty!.kills;
+        const count = Math.round((fewest + many) / 2);
+        const { kills } = hourOf(level, monster.id, { tier2: true });
+        return (bountyPoints(level, monster, count) * kills) / count;
+      });
+      expect(hours).toHaveLength(open);
+      expect([Math.floor(Math.min(...hours)), Math.floor(Math.max(...hours))]).toEqual([
+        least,
+        most,
+      ]);
+      expect(Math.min(...hours) / Math.max(...hours)).toBeGreaterThan(0.8);
+    },
+  );
+});
+
+// Tier 2's potions (S22), each pinned as tier 1's are: an hour of a level-20
+// tier 2 action past the grotto with it and without, the potion running out
+// within the hour.
+describe('what a tier 2 potion is worth (S22)', () => {
+  const hourOf = (actionId: string, potion: string | null): GameState => {
+    const action = CONTENT.actions[actionId]!;
+    const plenty = Object.fromEntries((action.uses ?? []).map(({ item }) => [item, 1_000_000]));
+    const state: GameState = {
+      ...newGame('Sim', 0),
+      dungeons: GROTTO_CLEARED,
+      skills: { [action.skill]: xpForLevel(20) },
+      bank: plenty,
+      potion: potion ? { item: potion, charges: CONTENT.items[potion]!.potion!.charges } : null,
+    };
+    const started = startAction(state, actionId, CONTENT);
+    if (!started.ok) throw new Error(started.reason);
+    return advance(started.state, HOUR, CONTENT);
+  };
+
+  it.each([
+    ['holly_tonic', 'chop_driftwood'],
+    ['forgehand_draught', 'cook_mackerel'],
+    ['duskbloom_tincture', 'chop_driftwood'],
+    ['twilight_elixir', 'chop_driftwood'],
+  ])('pins %s at a fixed gain over an hour of %s', (potion, actionId) => {
+    const [aided, plain] = [hourOf(actionId, potion), hourOf(actionId, null)];
+    const action = CONTENT.actions[actionId]!;
+    const item = action.gives[0]!.item;
+    expect(aided.potion, `${potion} lasts less than the hour`).toBeNull();
+    expect({
+      items: (aided.bank[item] ?? 0) - (plain.bank[item] ?? 0),
+      xp: (aided.skills[action.skill] ?? 0) - (plain.skills[action.skill] ?? 0),
+    }).toEqual(TIER2_POTIONS[potion]);
+  });
+});

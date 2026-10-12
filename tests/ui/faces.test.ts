@@ -174,7 +174,8 @@ describe('faces in the menus', () => {
   });
 
   it('show nothing beside a thieving mark while art has no face for it', () => {
-    const marks = Object.values(CONTENT.actions).filter((action) => action.steal);
+    // Tier 1's marks (tier 2's are closed to a save that has not cleared the grotto, S22).
+    const marks = Object.values(CONTENT.actions).filter((action) => action.steal && !action.tier);
     expect(marks.map((mark) => mark.id)).toEqual([
       'steal_fisherman',
       'steal_fish_stall',
@@ -194,7 +195,8 @@ describe('faces in the menus', () => {
   });
 
   it('show a thieving mark’s face from the door the moment art draws one', () => {
-    const marks = Object.values(CONTENT.actions).filter((action) => action.steal);
+    // Tier 1's marks (tier 2's are closed to a save that has not cleared the grotto, S22).
+    const marks = Object.values(CONTENT.actions).filter((action) => action.steal && !action.tier);
     for (const mark of marks) door.drawn.add(mark.id);
     playing({ skills: { thieving: 400_000 } });
     q<HTMLButtonElement>('[data-skill="thieving"]').click();

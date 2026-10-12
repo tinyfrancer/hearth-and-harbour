@@ -22,12 +22,16 @@ export function bar(
     { class: `bar ${kind}`, attrs: { role: 'progressbar', 'aria-label': label } },
     [fill],
   );
+  // Written only when it moves (read back from the element itself, so nothing can drift): a
+  // long page holds dozens of bars that stand still each frame.
   return {
     el,
     set(fraction) {
       const percent = Math.min(Math.max(fraction, 0), 1) * 100;
-      fill.style.width = `${percent}%`;
-      el.setAttribute('aria-valuenow', String(Math.round(percent)));
+      const width = `${percent}%`;
+      if (fill.style.width !== width) fill.style.width = width;
+      const now = String(Math.round(percent));
+      if (el.getAttribute('aria-valuenow') !== now) el.setAttribute('aria-valuenow', now);
     },
   };
 }

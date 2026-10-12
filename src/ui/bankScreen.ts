@@ -5,6 +5,7 @@ import {
   CATEGORIES,
   bankOrder,
   categoryOf,
+  tierOfItem,
   shortCount,
   type BankView,
   type Category,
@@ -197,7 +198,9 @@ function itemCard(
     });
   };
   updates.push(refresh);
-  const kind = CATEGORIES.find((entry) => entry.id === categoryOf(item, content))!.label;
+  const label = CATEGORIES.find((entry) => entry.id === categoryOf(item, content))!.label;
+  const tier = tierOfItem(item, content);
+  const kind = tier > 1 ? `${label} · Tier ${tier}` : label;
 
   return h(
     'section',
@@ -377,12 +380,14 @@ export function bankView(
 
   const cells = keyedList<GameState>(grid, (key, now) => {
     if (key.startsWith(HEADING)) {
-      const id = key.slice(HEADING.length) as Category;
+      // "Resources", or "Resources · Tier 2" over a later tier's things of that kind (S22).
+      const [id, tier] = key.slice(HEADING.length).split(':') as [Category, string];
+      const label = CATEGORIES.find((entry) => entry.id === id)!.label;
       return {
         el: h('h2', {
           class: 'group-heading grid-heading',
-          text: CATEGORIES.find((entry) => entry.id === id)!.label,
-          attrs: { 'data-heading': id },
+          text: tier === '1' ? label : `${label} · Tier ${tier}`,
+          attrs: { 'data-heading': tier === '1' ? id : `${id}:${tier}` },
         }),
       };
     }
@@ -416,11 +421,12 @@ export function bankView(
   const keysOf = (): string[] => {
     if (view.sort !== 'type' || view.filter !== 'all') return order;
     const keys: string[] = [];
-    let last: Category | null = null;
+    let last: string | null = null;
     for (const id of order) {
-      const kind = categoryOf(content.items[id]!, content);
-      if (kind !== last) keys.push(HEADING + kind);
-      last = kind;
+      const item = content.items[id]!;
+      const head = `${categoryOf(item, content)}:${tierOfItem(item, content)}`;
+      if (head !== last) keys.push(HEADING + head);
+      last = head;
       keys.push(id);
     }
     return keys;

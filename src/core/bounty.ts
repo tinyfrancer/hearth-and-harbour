@@ -12,6 +12,7 @@ import {
 } from './combat';
 import type { Content, MonsterDef, ShopEntry } from './content';
 import { Dice } from './rng';
+import { tierLock, tierOf, tierOpen } from './tiers';
 import {
   bankCount,
   skillLevel,
@@ -94,10 +95,26 @@ export function combatLevelOf(attack: number, defence: number, vitality: number)
   return Math.floor((attack + defence + vitality) / 3);
 }
 
-/** The monsters the board may post at a combat level, weakest first. */
-export function bountyPool(level: number, content: Content): MonsterDef[] {
+/** Which monsters the board may post at all for a character: those of a tier that is open (S22). */
+export type BountyOpen = (monster: MonsterDef) => boolean;
+const anyTier: BountyOpen = () => true;
+
+/** For a character: only monsters of a tier open to them are ever posted. */
+export function openTo(state: GameState, content: Content): BountyOpen {
+  return (monster) => tierOpen(state, monster, content);
+}
+
+/**
+ * The monsters the board may post at a combat level, weakest first, of those
+ * `allowed` lets through (every one, if left out).
+ */
+export function bountyPool(
+  level: number,
+  content: Content,
+  allowed: BountyOpen = anyTier,
+): MonsterDef[] {
   const posted = Object.values(content.monsters ?? {})
-    .filter((monster) => monster.bounty)
+    .filter((monster) => monster.bounty && allowed(monster))
     .sort((a, b) => a.level - b.level);
   const open = posted.filter((monster) => monster.level <= level);
   // Before the weakest is reached, the weakest: there is always something.
@@ -106,7 +123,7 @@ export function bountyPool(level: number, content: Content): MonsterDef[] {
 
 /** The monsters the board may post for this character, weakest first. */
 export function bountyChoices(state: GameState, content: Content): MonsterDef[] {
-  return bountyPool(combatLevel(state), content);
+  return bountyPool(combatLevel(state), content, openTo(state, content));
 }
 
 /** How likely a monster is to be posted, beside the strongest (`top`, a level) the board may post. */
@@ -160,8 +177,9 @@ function drawOffers(
   dice: Dice,
   avoid: ReadonlySet<string>,
   last: string | null,
+  allowed: BountyOpen = anyTier,
 ): BountyOffer[] {
-  const pool = bountyPool(level, content);
+  const pool = bountyPool(level, content, allowed);
   let open = pool.filter((monster) => !avoid.has(monster.id));
   if (open.length === 0) open = pool.filter((monster) => monster.id !== last);
   if (open.length === 0) open = pool;
@@ -187,7 +205,14 @@ function drawOffers(
 /** The state with a fresh board posted, its dice moved on. */
 function post(state: GameState, content: Content, avoid: ReadonlySet<string>): GameState {
   const dice = new Dice(state.rng);
-  const bountyBoard = drawOffers(combatLevel(state), content, dice, avoid, state.lastBounty);
+  const bountyBoard = drawOffers(
+    combatLevel(state),
+    content,
+    dice,
+    avoid,
+    state.lastBounty,
+    openTo(state, content),
+  );
   return { ...state, rng: dice.seed, bountyBoard };
 }
 
@@ -283,12 +308,13 @@ export function payBounty<B extends BountyBook>(
   level: number,
   dice: Dice,
   takeNext: boolean,
+  allowed: BountyOpen = anyTier,
 ): B {
   const done = book.bounty!;
   const { points, coins } = rewardOf(done, content);
   const count = (id: StatId): number => book.stats[id] ?? 0;
   const streak = count('streak') + 1;
-  const board = drawOffers(level, content, dice, new Set([done.monster]), done.monster);
+  const board = drawOffers(level, content, dice, new Set([done.monster]), done.monster, allowed);
   const next = takeNext ? board[0] : undefined;
   return {
     ...book,
@@ -315,7 +341,7 @@ export function handInBounty(state: GameState, content: Content): BountyResult {
     return { ok: false, reason: `Not yet: ${left} more to go.` };
   }
   const dice = new Dice(state.rng);
-  const paid = payBounty(state, content, combatLevel(state), dice, false);
+  const paid = payBounty(state, content, combatLevel(state), dice, false, openTo(state, content));
   return { ok: true, state: stillAllowed({ ...paid, rng: dice.seed }, content) };
 }
 
@@ -348,7 +374,10 @@ export function autoHandIn(state: GameState, content: Content): GameState {
   if (!state.autoBounty || !bountyReady(state)) return state;
   const was = state.bounty!.monster;
   const dice = new Dice(state.rng);
-  const paid = { ...payBounty(state, content, combatLevel(state), dice, true), rng: dice.seed };
+  const paid = {
+    ...payBounty(state, content, combatLevel(state), dice, true, openTo(state, content)),
+    rng: dice.seed,
+  };
   const next = paid.bounty && monsterDef(content, paid.bounty.monster);
   if (paid.fight?.monster === was && next && next.id !== was) {
     // The monster in front of the character is finished with; the next one is the new kind.
@@ -370,7 +399,9 @@ export function held(state: GameState, item: string): number {
 }
 
 /** Why the shop will not sell this entry now, or null if it will. */
-export function shopProblem(state: GameState, entry: ShopEntry): string | null {
+export function shopProblem(state: GameState, entry: ShopEntry, content?: Content): string | null {
+  const locked = content ? tierLock(state, tierOf(entry), content) : null;
+  if (locked) return locked;
   if (entry.once && held(state, entry.item) > 0) return 'You have one already.';
   if (state.bountyPoints < entry.cost) {
     return `Needs ${entry.cost} bounty points; you have ${state.bountyPoints}.`;
@@ -382,7 +413,7 @@ export function shopProblem(state: GameState, entry: ShopEntry): string | null {
 export function buyFromShop(state: GameState, entryId: string, content: Content): BountyResult {
   const entry = content.shop?.[entryId];
   if (!entry) return { ok: false, reason: 'The shop has no such thing.' };
-  const problem = shopProblem(state, entry);
+  const problem = shopProblem(state, entry, content);
   if (problem) return { ok: false, reason: problem };
   return {
     ok: true,

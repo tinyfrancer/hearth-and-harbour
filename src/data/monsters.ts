@@ -23,6 +23,21 @@ export const AREAS = {
     name: 'Blackthorn Wood',
     description: 'Thick, thorny and well off the road. Nobody goes in without being paid to.',
   },
+  // Tier 2 (S22), opened by Brinebeard's Grotto: the old forest's edge, and
+  // the thicket inside it that only bounty hunters are paid to enter.
+  thistlewood_edge: {
+    id: 'thistlewood_edge',
+    name: 'Thistlewood’s Edge',
+    description:
+      'Where the road gives up and the old forest begins, and everything in it is bigger.',
+    tier: 2,
+  },
+  the_deepthorn: {
+    id: 'the_deepthorn',
+    name: 'The Deepthorn',
+    description: 'A thicket so old it has opinions. Only a bounty will get anyone through it.',
+    tier: 2,
+  },
 } satisfies Record<string, AreaDef>;
 
 type Row = Omit<MonsterDef, 'id' | 'area' | 'always' | 'rare'> & {
@@ -30,13 +45,16 @@ type Row = Omit<MonsterDef, 'id' | 'area' | 'always' | 'rare'> & {
   rare?: MonsterDef['rare'];
 };
 
+/** An area's monsters, each of its area's tier. */
 function monsters(area: keyof typeof AREAS, rows: Record<string, Row>): MonsterDef[] {
+  const tier = (AREAS[area] as AreaDef).tier;
   return Object.entries(rows).map(([id, row]) => ({
     id,
     area,
     always: [],
     rare: [],
     ...row,
+    ...(tier ? { tier } : {}),
   }));
 }
 
@@ -203,6 +221,132 @@ const ALL: MonsterDef[] = [
       rare: [{ item: 'wyrmscale_shield', min: 1, max: 1, oneIn: 30 }],
       bountyOnly: true,
       bounty: { kills: [15, 23], points: 15 },
+    },
+  }),
+  // Tier 2: the same rules as tier 1, held by the same simulations at levels
+  // 20 to 40, each in the best set the anvil makes at its level (salt-iron).
+  ...monsters('thistlewood_edge', {
+    brigand: {
+      name: 'Brigand',
+      description:
+        'A footpad who did well for himself: a better coat, a sharper sword, the same speech.',
+      level: 23,
+      hp: 126,
+      attack: 70,
+      defence: 42,
+      maxHit: 12,
+      speedMs: 2400,
+      xpPercent: 270,
+      coins: [900, 1800],
+      always: [{ item: 'cudgel', min: 1, max: 1 }],
+      rare: [
+        { item: 'silver_ore', min: 2, max: 4, oneIn: 8 },
+        { item: 'salt_iron_arrows', min: 15, max: 30, oneIn: 10 },
+      ],
+      bounty: { kills: [14, 22], points: 12 },
+    },
+    black_bear: {
+      name: 'Black bear',
+      description: 'Big, black and very sure the berries were hers first.',
+      level: 27,
+      hp: 154,
+      attack: 78,
+      defence: 46,
+      maxHit: 17,
+      speedMs: 3000,
+      xpPercent: 270,
+      coins: [0, 0],
+      always: [{ item: 'thick_hide', min: 1, max: 2 }],
+      rare: [{ item: 'duskbloom', min: 1, max: 2, oneIn: 10 }],
+      bounty: { kills: [12, 19], points: 14 },
+    },
+    hobgoblin: {
+      name: 'Hobgoblin',
+      description:
+        'A goblin’s big cousin, who got the helmet, the cleaver and none of the manners.',
+      level: 31,
+      hp: 168,
+      attack: 90,
+      defence: 50,
+      maxHit: 16,
+      speedMs: 2400,
+      xpPercent: 270,
+      coins: [1600, 3000],
+      always: [{ item: 'feathers', min: 2, max: 4 }],
+      rare: [
+        { item: 'gold_ore', min: 1, max: 3, oneIn: 10 },
+        { item: 'salt_iron_sword', min: 1, max: 1, oneIn: 60 },
+      ],
+      bounty: { kills: [13, 20], points: 16 },
+    },
+    dire_wolf: {
+      name: 'Dire wolf',
+      description: 'The grey wolf’s grandmother, and what big teeth she has.',
+      level: 35,
+      hp: 175,
+      attack: 100,
+      defence: 54,
+      maxHit: 16,
+      speedMs: 2200,
+      xpPercent: 270,
+      coins: [0, 0],
+      always: [{ item: 'thick_hide', min: 2, max: 3 }],
+      rare: [{ item: 'sea_holly', min: 2, max: 4, oneIn: 8 }],
+      bounty: { kills: [14, 20], points: 18 },
+    },
+    hill_ogre: {
+      name: 'Hill ogre',
+      description:
+        'Enormous, unhurried and carrying most of a tree. He has never needed to be clever.',
+      level: 39,
+      hp: 250,
+      attack: 110,
+      defence: 58,
+      maxHit: 27,
+      speedMs: 3600,
+      xpPercent: 270,
+      coins: [2800, 4900],
+      always: [{ item: 'thick_hide', min: 2, max: 4 }],
+      rare: [
+        { item: 'gold_ore', min: 2, max: 5, oneIn: 6 },
+        { item: 'ogre_maul', min: 1, max: 1, oneIn: 150 },
+      ],
+      bounty: { kills: [11, 15], points: 20 },
+    },
+  }),
+  ...monsters('the_deepthorn', {
+    briar_hag: {
+      name: 'Briar hag',
+      description:
+        'Brambles for hair, berries in it, and a laugh you can hear through three hedges.',
+      level: 29,
+      hp: 154,
+      attack: 85,
+      defence: 50,
+      maxHit: 14,
+      speedMs: 2400,
+      xpPercent: 270,
+      coins: [600, 1400],
+      always: [{ item: 'nettles', min: 2, max: 4 }],
+      rare: [{ item: 'briar_charm', min: 1, max: 1, oneIn: 30 }],
+      bountyOnly: true,
+      bounty: { kills: [13, 21], points: 18 },
+    },
+    moss_golem: {
+      name: 'Moss golem',
+      description: 'A heap of old stones that the moss decided to get up and walk about in.',
+      level: 37,
+      hp: 238,
+      attack: 105,
+      defence: 60,
+      maxHit: 22,
+      speedMs: 3200,
+      xpPercent: 270,
+      coins: [800, 1800],
+      always: [{ item: 'sea_glass', min: 2, max: 4 }],
+      rare: [{ item: 'mossback_shield', min: 1, max: 1, oneIn: 30 }],
+      bountyOnly: true,
+      bounty: { kills: [11, 14], points: 22 },
     },
   }),
 ];
