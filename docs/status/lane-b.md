@@ -1,7 +1,44 @@
 # Lane B: art
 
-**Next session:** Cody's review of B17 (the dungeon-replay pictures, rowing, and the weak spots
-of B12 to B16) and whatever it asks for.
+**Next session:** B19 continues (tier 2 art, in batches; see below for what is on `main`).
+
+## Tier 2, batch 1: salt-iron and the knight, for lane A (B19, first PR)
+
+Drawn from `docs/tier2-manifest.md` (read from lane A's `lane-a/s22-tier2` branch, PR 1). **On
+`main` once this PR merges** (lane A may merge rows for these ids):
+
+| Manifest id            | Icon | Layer (`ITEM_LAYERS2`)        |
+| ---------------------- | ---- | ----------------------------- |
+| `salt_iron_ore`        | yes  | n/a                           |
+| `salt_iron_bar`        | yes  | n/a                           |
+| `salt_iron_arrowheads` | yes  | n/a                           |
+| `salt_iron_sword`      | yes  | `knight_sword`                |
+| `salt_iron_axe`        | yes  | `saltiron_axe` (new)          |
+| `salt_iron_helm`       | yes  | `knight_helm` (new)           |
+| `salt_iron_plate`      | yes  | `knight_plate`                |
+| `salt_iron_greaves`    | yes  | `knight_knees`                |
+| `salt_iron_shield`     | yes  | `kite_shield`                 |
+| `red_cloak`            | yes  | `red_cloak`                   |
+| `salt_iron_arrows`     | yes  | `arrow_quiver` (as iron's)    |
+| `broadhead_arrows`     | yes  | `barbed_quiver` (as barbed's) |
+
+Not yet drawn (later batches this wave): every other manifest id.
+
+- **Salt-iron**: a new ramp, `saltiron`, appended to `src/art/town2/ramps.ts` (cells above keep
+  their numbers) and to `src/art/palette.ts` for icons, set by hand by day and at dusk (a new
+  `DAY_SET` in `ramps.ts`, used only by it). Tested against iron, bronze, gold and every hair.
+- **The knight, audited and recoloured**: every knight layer (front, profile, back, strike, carry,
+  activities, the portrait's plate) is salt-iron, not the old `plate` ramp (kept, still used by a
+  replay icon). New: the helm `knight_helm` (front, profile, back, portrait; gilt brow band;
+  aventail), a mail skirt under the fauld (the tunic no longer shows), `knight_knees` redrawn as
+  full greaves with a cuisse (front, back, profile; it had been knee cops only), the war axe
+  `saltiron_axe` (edge rule, carry, swing). `KNIGHT_GEAR2` gains `knight_helm` at its end; the
+  five old ids, their slots and anchors are unchanged.
+- **Doors**: no export renamed or re-signed. `ITEM_LAYERS2` gains the nine rows above. New module
+  `src/art/tier2Icons.ts` (`TIER2_DRAWINGS`, `TIER2_ICON_IDS`, `TIER2_ICON_DEFS`), spread into
+  `itemIcon`'s table; `ICON_FAMILIES` gains "Salt-iron (tier 2)".
+- **Memory**: no new caches; the knight's sprites are the figure caches' (16 KB a frame a time of
+  day). Twelve icons, about 2 KB of pictures each once drawn.
 
 ## The cave's creatures and walls, the town's markers and boat, the title, six icons, for lanes C and A (B17, third PR)
 

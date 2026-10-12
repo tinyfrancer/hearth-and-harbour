@@ -352,7 +352,7 @@ const SHELL_BRACELET: readonly string[] = [
 // ---------------------------------------------------------------------------
 // Bows: one drawing in three woods, string to the lower right, the stave
 // bowed toward the light, a hide grip at the middle.
-const BOW: readonly string[] = [
+export const BOW: readonly string[] = [
   '...............<<<<>',
   '...........<<<<....e',
   '.........<<>>>....e',
@@ -404,7 +404,7 @@ const BRONZE_ARROWS: readonly string[] = [
   '.....OEE',
 ];
 
-const IRON_ARROWS: readonly string[] = [
+export const IRON_ARROWS: readonly string[] = [
   '..................M',
   '.................M',
   '...............MMn',
@@ -502,7 +502,7 @@ const IRON_ARROWHEADS: readonly string[] = [
   '....q',
 ];
 
-const FLETCH: Legend = {
+export const FLETCH: Legend = {
   S: 'pinewood1',
   s: 'pinewood2',
   c: 'pinewood1',
@@ -516,7 +516,7 @@ const FLETCH: Legend = {
 
 // ---------------------------------------------------------------------------
 // Cloth and string.
-const LINEN_CLOTH: readonly string[] = [
+export const LINEN_CLOTH: readonly string[] = [
   '....llllllllllllll',
   '...llllllllllllllLL',
   '..llllllllllllllLLLL',
@@ -556,7 +556,7 @@ const BOWSTRING: readonly string[] = [
 // The shell vial: a long whelk shell, scrubbed out and stoppered. A potion is
 // the same vial with the liquid showing through the thin shell, and its own
 // stopper: a cork, a red wax seal, a little glowcap, a lit wick.
-const VIAL_BODY: readonly string[] = [
+export const VIAL_BODY: readonly string[] = [
   '....abbc',
   '...aabbcc',
   '..aahbbbcc',
@@ -578,35 +578,35 @@ const VIAL_BODY: readonly string[] = [
 ];
 
 // prettier-ignore
-const CORK: readonly string[] = [
+export const CORK: readonly string[] = [
   '.....sS',
   '....ssSS',
   '....sSSS',
   '....nnnn',
 ];
 // prettier-ignore
-const WAX: readonly string[] = [
+export const WAX: readonly string[] = [
   '....rrR',
   '...rrrRR',
   '...rRrRR',
   '...rnRnR',
 ];
 // prettier-ignore
-const CAP: readonly string[] = [
+export const CAP: readonly string[] = [
   '...ggggG',
   '..gggggGG',
   '..GGGGGGG',
   '....nnnn',
 ];
 // prettier-ignore
-const WICK: readonly string[] = [
+export const WICK: readonly string[] = [
   '.....f',
   '....fF',
   '.....k',
   '....NNNN',
 ];
 
-const potion = (top: readonly string[], body: Legend): IconDef => ({
+export const potion = (top: readonly string[], body: Legend): IconDef => ({
   rows: [...top, ...VIAL_BODY],
   legend: {
     s: 'wood1',

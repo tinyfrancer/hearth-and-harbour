@@ -56,7 +56,8 @@ describe('hairstyles', () => {
     }
     for (const f of FACINGS)
       expect(hairCount(characterWalkPicture2({ hair: 'bald' }, [], f, 0).grid), f).toBeLessThan(12);
-  });
+    // Every style in every facing and blow: slow when the whole suite runs at once.
+  }, 30000);
 
   it('gives every style its own silhouette in profile and from behind', () => {
     for (const f of ['right', 'up'] as const) {

@@ -75,6 +75,16 @@ const WEARABLES = [
   // B13: the smithy's leg armour (lane A adds the items this wave).
   'bronze_greaves',
   'iron_greaves',
+  // B19: tier 2 (docs/tier2-manifest.md), the salt-iron set first.
+  'salt_iron_sword',
+  'salt_iron_axe',
+  'salt_iron_helm',
+  'salt_iron_plate',
+  'salt_iron_greaves',
+  'salt_iron_shield',
+  'red_cloak',
+  'salt_iron_arrows',
+  'broadhead_arrows',
 ];
 
 const at = (g: TGrid, x: number, y: number) => g.d[y * g.w + x]!;
@@ -346,6 +356,8 @@ describe('the hand rule at the C scale', () => {
         'poachers_longbow',
         'smugglers_cutlass',
         'willow_shortbow',
+        // B19, tier 2.
+        'saltiron_axe',
       ].sort(),
     );
   });
@@ -435,7 +447,7 @@ const RUNGS = {
   iron: ['iron_helmet', 'iron_breastplate', 'iron_shield', 'iron_sword'],
 } as const;
 const metal = (g: TGrid) =>
-  count(g, (c) => ['bronze', 'iron', 'plate'].includes(matOf(c) as string));
+  count(g, (c) => ['bronze', 'iron', 'plate', 'saltiron'].includes(matOf(c) as string));
 
 describe('the gear ladder at the C scale', () => {
   it('makes each rung its own picture and each richer than the last', () => {
@@ -462,7 +474,10 @@ describe('the gear ladder at the C scale', () => {
     // From the knight on, a higher rung shows heavier metal, not more of it: polished plate, white where the light strikes.
     expect(knight).toBeGreaterThan(bronze);
     const glints = (g: TGrid) =>
-      count(g, (c) => ['plate', 'iron'].includes(matOf(c) as string) && stepOf(c) === 0);
+      count(
+        g,
+        (c) => ['plate', 'iron', 'saltiron'].includes(matOf(c) as string) && stepOf(c) === 0,
+      );
     expect(glints(rungs[4]!)).toBeGreaterThan(glints(rungs[3]!) * 1.5);
     // Colour arrives with the knight: a cloak, a painted shield, gilding.
     const trim = (g: TGrid) =>

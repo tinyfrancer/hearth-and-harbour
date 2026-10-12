@@ -1,3 +1,4 @@
+import { ITEM_ICON_IDS, SKILL_ICON_IDS } from '../../src/art/icons';
 import { describe, expect, it } from 'vitest';
 import { artGallery } from '../../src/art/gallery';
 import { RAMPS } from '../../src/art/palette';
@@ -37,7 +38,8 @@ describe('artGallery', () => {
     const cells = [...icons.querySelectorAll('.icon-cell')];
     // B13: two more item icons, the greaves (59 before).
     // B17: the dungeon-replay kinds (22) and the three medals.
-    expect(cells.length).toBe(61 + 13 + 13 + 1 + 1 + 22 + 3);
+    // B19: every item and skill icon (tier 2's too), counted from the table.
+    expect(cells.length).toBe(ITEM_ICON_IDS.length + SKILL_ICON_IDS.length + 22 + 3);
     // And the five tab icons, each lit and muted (B10b).
     expect(icons.querySelectorAll('.tab-cell canvas').length).toBe(10);
     for (const cell of cells) expect(cell.querySelector('canvas')).not.toBeNull();

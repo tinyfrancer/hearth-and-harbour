@@ -125,6 +125,37 @@ export const RAMPS = {
   // The general store's velvet cap (B10b): the C-scale figure's plum, a
   // sheen, the field and two shadows, for its icon.
   velvet: ['#e8a8c8', '#b86a9c', '#844276', '#55284c'],
+
+  // Tier 2's salt-iron (B19), for its icons: the C-scale ramp's steps (town2/ramps.ts), a salt
+  // bloom, the sea-green steel's light, field and shadow, and its deep (pits and the shadow side). Set by hand by day
+  // and at dusk (below), as the figures' are, so an icon and the worn piece are one metal.
+  saltiron: ['#ffffff', '#c6e2d8', '#92bcb8', '#6a96a0', '#3c5a74'],
+
+  // Tier 2's other icons (B19): its woods, fish, ores, forage, cloth, leather and potions,
+  // the ranger's leather, and what the Thistlewood gives up.
+  drift: ['#f2f0e8', '#cac6ba', '#9c968a', '#6c665e'],
+  elmbark: ['#8c8072', '#5e544a', '#3c342e'],
+  elmwood: ['#d49a62', '#a46c3e', '#784628'],
+  yewbark: ['#b46c4a', '#804430', '#542a1e'],
+  yewheart: ['#f8b048', '#d8762a', '#a8521c'],
+  mackerel: ['#86d0b8', '#3c8090', '#1e4054'],
+  halibut: ['#b0a272', '#80744c', '#564c34'],
+  swordfish: ['#a8c4e2', '#6282b2', '#384c80'],
+  silver: ['#ffffff', '#dfe3ea', '#aeb4c2', '#7c8294'],
+  ingot: ['#fff4b0', '#ffd34d', '#d99a2b', '#9a5e1e'],
+  holly: ['#d8e8f8', '#98b4d4', '#62809e', '#3e5670'],
+  nettle: ['#86bc66', '#548640', '#2e5030'],
+  seaglass: ['#d4f4dc', '#94d0aa', '#d8ecfa', '#98bedc'],
+  duskbloom: ['#f0d4ff', '#b680e4', '#7448ac', '#42286e'],
+  nettlecloth: ['#bec4a8', '#929c7e', '#68705a'],
+  thickhide: ['#94704e', '#664630', '#40281a'],
+  holtonic: ['#e4f2ff', '#a2ccf2', '#5e90cc'],
+  forge: ['#ffcc92', '#f28c3c', '#b4501e'],
+  dusklight: ['#f8e4ff', '#c890f4', '#8050c4'],
+  twilight: ['#7484dc', '#30409c', '#161e5c'],
+  ranger: ['#84946a', '#5c6a46', '#3a442e'],
+  amber: ['#ffe48e', '#f2aa3a', '#ba6c1e'],
+  thorn: ['#5c4a40', '#3a2c28', '#22181a'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type RampName = keyof typeof RAMPS;
@@ -271,7 +302,15 @@ function makePalette(
   return { name, lightsOn, colours: { ...colours, ...fixed } };
 }
 
-export const DAY: Palette = makePalette('day', DAY_SHIFT, false, { ink1: '#1a1224' });
+export const DAY: Palette = makePalette('day', DAY_SHIFT, false, {
+  ink1: '#1a1224',
+  // B19: shifted, salt-iron's bloom goes lime; these are the figures' own day steps.
+  saltiron1: '#e6eee0',
+  saltiron2: '#a8cec4',
+  saltiron3: '#7aa8a6',
+  saltiron4: '#5a8590',
+  saltiron5: '#365270',
+});
 
 /**
  * Dusk, with the mock-up's lit and kept-bright steps. Windows and lamps are
@@ -306,6 +345,11 @@ export const DUSK: Palette = makePalette('dusk', DUSK_SHIFT, true, {
   shell2: '#b88aa0',
   white1: '#efe4f0',
   sail1: '#cdb8c0',
+  saltiron1: '#e4ecec',
+  saltiron2: '#8ec2c0',
+  saltiron3: '#5e929a',
+  saltiron4: '#46707e',
+  saltiron5: '#333e5a',
 });
 
 export const PALETTES: readonly Palette[] = [DAY, DUSK];

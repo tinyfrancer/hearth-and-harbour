@@ -627,7 +627,7 @@ export function edgeOn(parts: readonly Part2[]): Part2[] {
   // A boss in the middle stands proud of the rim, toward the walk (B11: the buckler's edge read as a plank).
   const metal = (ch: string) => {
     const pin = main.pins?.[ch] ?? LEGEND2[ch];
-    return !!pin && ['bronze', 'iron', 'gold', 'plate'].includes(pin[0]);
+    return !!pin && ['bronze', 'iron', 'gold', 'plate', 'saltiron'].includes(pin[0]);
   };
   return [
     {

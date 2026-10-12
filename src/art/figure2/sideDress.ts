@@ -165,6 +165,7 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
   linen_hood: (d) => d.head.push(...HEADGEAR_SIDE.linen_hood!),
   bronze_cap: (d) => d.head.push(...HEADGEAR_SIDE.bronze_cap!),
   iron_nasal_helm: (d) => d.head.push(...HEADGEAR_SIDE.iron_nasal_helm!),
+  knight_helm: (d) => d.head.push(...HEADGEAR_SIDE.knight_helm!),
   leather_cap: (d) => d.head.push(...HEADGEAR_SIDE.leather_cap!),
   feathered_hat: (d) => d.head.push(...HEADGEAR_SIDE.feathered_hat!),
   tricorn: (d) => d.head.push(...HEADGEAR_SIDE.tricorn!),
@@ -333,7 +334,7 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
     d.torso.push({
       at: [22, 23],
       depth: T + 10,
-      mat: 'plate',
+      mat: 'saltiron',
       rows: [
         '..01122.....',
         '.0011123....',
@@ -362,10 +363,17 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
       '..4455..',
     ];
     d.elbowCap = ['.012.', '01234', '.455.'];
-    d.capMat = 'plate';
-    d.arm.push({ mat: 'plate', from: 8, to: 14, bulk: 1, pattern: 'plate', steps: [1, 1, 2, 3] });
+    d.capMat = 'saltiron';
+    d.arm.push({
+      mat: 'saltiron',
+      from: 8,
+      to: 14,
+      bulk: 1,
+      pattern: 'plate',
+      steps: [1, 1, 2, 3],
+    });
     d.skirt = skirt({
-      mat: 'plate',
+      mat: 'saltiron',
       hem: 45,
       top: 37,
       pattern: 'lames',
@@ -375,10 +383,7 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
   },
   bronze_greaves: (d) => greaves(d, 'bronze_greaves'),
   iron_greaves: (d) => greaves(d, 'iron_greaves'),
-  knight_knees: (d) => {
-    d.kneeCap = ['.0112.', '011223', '112334', '.4455.'];
-    d.capMat = 'plate';
-  },
+  knight_knees: (d) => greaves(d, 'knight_knees'),
   red_cloak: (d) => {
     d.cloak = { mat: 'crimson' };
     d.torso.push(

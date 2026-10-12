@@ -55,7 +55,7 @@ const L: Legend = {
 // ears at the top, four legs out at the corners and a short tail, the fur
 // lit down its middle and dark at its edges (B5's was a dark splat with
 // strokes, which read as a squashed beetle at true size).
-const HIDE: readonly string[] = [
+export const HIDE: readonly string[] = [
   '.....#X....X#.....',
   '....#XFX##XFX#....',
   '....#XFFFFFFX#....',
@@ -162,7 +162,7 @@ const TROLLSTONE: readonly string[] = [
 // Tanned leather (B17; B5's roll read as a log): a sheet of it, smooth and
 // tan, laced along its edges with linen, a corner turned over to show its
 // darker flesh side.
-const LEATHER: readonly string[] = [
+export const LEATHER: readonly string[] = [
   '...aaaa..aaab...',
   '.aaaaaaaaaaaabb.',
   'aalaalaalaalabbc',
@@ -217,7 +217,7 @@ const LEATHER_JERKIN: readonly string[] = [
 ];
 
 // A pair of cuffs laced up the front, the lace ends hanging below.
-const LEATHER_BRACERS: readonly string[] = [
+export const LEATHER_BRACERS: readonly string[] = [
   '...........abbbbb',
   '..........acccccbb',
   '.........aaaaaaabbc',
@@ -302,3 +302,6 @@ export const LOOT_ICON_DEFS: Readonly<Record<string, IconDef>> = {
   cudgel: { rows: CUDGEL, legend: L },
   smugglers_cutlass: { rows: SMUGGLERS_CUTLASS, legend: L },
 };
+
+/** The loot icons' legend, for tier 2's drawings made from them (B19). */
+export const LOOT_L = L;

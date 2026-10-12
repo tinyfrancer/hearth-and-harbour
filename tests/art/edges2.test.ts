@@ -83,7 +83,15 @@ function profiles(item: string) {
 describe('the weapon-edge rule', () => {
   it('declares an edge for every curved or one-sided weapon worn', () => {
     expect(ITEMS.map((i) => i.item).sort()).toEqual(
-      ['boarding_axe', 'bronze_axe', 'iron_axe', 'pirate_cutlass', 'smugglers_cutlass'].sort(),
+      [
+        'boarding_axe',
+        'bronze_axe',
+        'iron_axe',
+        'pirate_cutlass',
+        'smugglers_cutlass',
+        // B19, tier 2.
+        'salt_iron_axe',
+      ].sort(),
     );
   });
 

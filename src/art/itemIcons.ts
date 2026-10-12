@@ -13,7 +13,7 @@ import type { Legend } from './grid';
 // Logs: two logs stacked, cut ends to the left showing their rings. The three
 // woods differ by bark (a, b, c, d: light to darkest) and by the colour of the
 // cut wood (e, f: light and ring; g the heart).
-const LOGS: readonly string[] = [
+export const LOGS: readonly string[] = [
   '.......bbbaaaaaaaaaaa',
   '......beeebaaaaaaaaaaa',
   '.....beeeeebaaabaaaaba',
@@ -39,7 +39,7 @@ const logs = (legend: Legend): IconDef => ({ rows: LOGS, legend });
 // ---------------------------------------------------------------------------
 // Fish, facing left. Raw fish are cool and silver with a dark eye; cooked
 // fish are the same fish browned, with grill marks and the eye gone white.
-const HERRING: readonly string[] = [
+export const HERRING: readonly string[] = [
   '.....ccccccc.......cc',
   '...ccdddddddcc....cdd',
   '..cdddddddddddddc.cdd',
@@ -51,7 +51,7 @@ const HERRING: readonly string[] = [
   '.....bbbbbbb.......gg',
 ];
 
-const COOKED_HERRING: readonly string[] = [
+export const COOKED_HERRING: readonly string[] = [
   '.....ccccccc.......cc',
   '...ccdddddddcc....cdd',
   '..cdddddddmdddmdc.cdd',
@@ -146,7 +146,7 @@ const COOKED_FISH: Legend = {
 // Ore: a lump of rock, lit on its upper left face, with what makes it ore
 // showing in it. Copper is warm grey stone with a green crust and red-gold
 // glints; tin is cool grey with pale crystals; iron is a rust-brown block.
-const COPPER_ORE: readonly string[] = [
+export const COPPER_ORE: readonly string[] = [
   '.....aaggaa',
   '...aagGGgaaaa',
   '.aaaaaggaaaaaac',
@@ -161,7 +161,7 @@ const COPPER_ORE: readonly string[] = [
   '...bbbbbbbccccc',
 ];
 
-const TIN_ORE: readonly string[] = [
+export const TIN_ORE: readonly string[] = [
   '.......x',
   '......xy.x',
   '.....xxyxy',
@@ -178,7 +178,7 @@ const TIN_ORE: readonly string[] = [
   '...bbbbbbbccccc',
 ];
 
-const IRON_ORE: readonly string[] = [
+export const IRON_ORE: readonly string[] = [
   '.....aaaaaa',
   '...aaaarraaaa',
   '.aaaaarRRSaaac',
@@ -195,7 +195,7 @@ const IRON_ORE: readonly string[] = [
 
 // ---------------------------------------------------------------------------
 // Bars: an ingot from the mould, its top face catching the light.
-const BAR: readonly string[] = [
+export const BAR: readonly string[] = [
   '.....hhhhhhhhhhhh',
   '....hzzaaaaaaaaaab',
   '...hzaaaaaaaaaaaabb',

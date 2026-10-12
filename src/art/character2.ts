@@ -131,11 +131,22 @@ export const ITEM_LAYERS2: Readonly<Record<string, string>> = {
   velvet_cap: 'velvet_cap',
   bronze_greaves: 'bronze_greaves',
   iron_greaves: 'iron_greaves',
+  // B19, tier 2 (docs/tier2-manifest.md): the salt-iron set is the knight.
+  salt_iron_sword: 'knight_sword',
+  salt_iron_axe: 'saltiron_axe',
+  salt_iron_helm: 'knight_helm',
+  salt_iron_plate: 'knight_plate',
+  salt_iron_greaves: 'knight_knees',
+  salt_iron_shield: 'kite_shield',
+  red_cloak: 'red_cloak',
+  salt_iron_arrows: 'arrow_quiver',
+  broadhead_arrows: 'barbed_quiver',
 };
 
 /**
- * Tier 2's knight, by gear id: drawn, waiting for tier 2's items. When lane A
- * adds them, each item id gets a row in `ITEM_LAYERS2` pointing at one of these.
+ * Tier 2's knight, by gear id: drawn in salt-iron (B19). Each tier 2 item id
+ * gets a row in `ITEM_LAYERS2` pointing at one of these. `knight_helm` (B19,
+ * appended) is his bascinet; the first five keep their order.
  */
 export const KNIGHT_GEAR2: readonly string[] = [
   'knight_plate',
@@ -143,6 +154,7 @@ export const KNIGHT_GEAR2: readonly string[] = [
   'red_cloak',
   'kite_shield',
   'knight_sword',
+  'knight_helm',
 ];
 
 /** What everyone has on under their gear: the tunic, trousers, boots and belt, unless replaced. */

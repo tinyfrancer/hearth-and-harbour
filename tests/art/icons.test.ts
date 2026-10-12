@@ -98,6 +98,19 @@ const ITEMS = [
   'brinebeards_anchor',
   'ships_figurehead',
   'velvet_cap',
+  // B19: tier 2 (docs/tier2-manifest.md), the salt-iron set first.
+  'salt_iron_ore',
+  'salt_iron_bar',
+  'salt_iron_arrowheads',
+  'salt_iron_sword',
+  'salt_iron_axe',
+  'salt_iron_helm',
+  'salt_iron_plate',
+  'salt_iron_greaves',
+  'salt_iron_shield',
+  'red_cloak',
+  'salt_iron_arrows',
+  'broadhead_arrows',
 ];
 
 const SKILLS = [

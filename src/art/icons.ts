@@ -16,6 +16,7 @@ import { DAY } from './palette';
 import { picture, type Picture } from './raster';
 import { SKILL_ICON_DEFS } from './skillIcons';
 import { TAB_ICON_DEFS, TAB_MUTED } from './tabArt';
+import { TIER2_ICON_DEFS } from './tier2Icons';
 
 /** Every item art has an icon for, by the game's item id. */
 const ITEMS: Readonly<Record<string, IconDef>> = {
@@ -23,6 +24,7 @@ const ITEMS: Readonly<Record<string, IconDef>> = {
   ...GEAR_ICON_DEFS,
   ...LOOT_ICON_DEFS,
   ...GROTTO_ICON_DEFS,
+  ...TIER2_ICON_DEFS,
 };
 
 export const ITEM_ICON_IDS: readonly string[] = Object.keys(ITEMS);
@@ -126,6 +128,24 @@ export const ICON_FAMILIES: readonly {
     ],
   },
   { name: 'The general store', kind: 'item', ids: ['velvet_cap'] },
+  {
+    name: 'Salt-iron (tier 2)',
+    kind: 'item',
+    ids: [
+      'salt_iron_ore',
+      'salt_iron_bar',
+      'salt_iron_axe',
+      'salt_iron_sword',
+      'salt_iron_helm',
+      'salt_iron_shield',
+      'salt_iron_plate',
+      'salt_iron_greaves',
+      'red_cloak',
+      'salt_iron_arrowheads',
+      'salt_iron_arrows',
+      'broadhead_arrows',
+    ],
+  },
   { name: 'Skills', kind: 'skill', ids: SKILL_ICON_IDS },
 ];
 
