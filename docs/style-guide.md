@@ -1053,6 +1053,30 @@ lantern light against a cold blue-green dark.
   a lit window, the larder dug under a root, the court's bench, the king's banner (a crowned badger's
   head on purple). Each is lit from the upper left, outlined in its own darkest steps, and stands on
   its own base.
+- **The cast is built for the dark** (`dungeon2/burrowCast.ts`): each a silhouette that names it
+  even dimmed (a round puffball, a shield of cap, a long spiny dog, spread wings) with one thing that
+  keeps its own light in the dark: the puff's spore freckles, the guard's gill edge, the hound's ember
+  eyes, the moth's eyes (all `NIGHT_EXEMPT` ramps). Their outlines stay darker than the dark floor
+  (tested), so a dim shape still has an edge.
+  - **The spore puff**, knee high: a warty pale puffball on two root feet, a vent on its crown,
+    cross little eyes and a pursed mouth. Its telegraph is the swell (round, vent open and glowing,
+    eyes wide); its fall bursts it to an empty skin.
+  - **The cap guard**, a head under the hero: a pale stalk with a ring at its waist, its own brown
+    cap for a head with a stern face under the brim, a great red shield-cap spotted white held close
+    before it. Telegraph: the shield lifted over its head; block: braced low; turn: through
+    three-quarters to front-on, the shield's disc turned to the viewer.
+  - **The bramble hound**, long and low: strands of briar twisted along its body, each lit on top
+    with a dark gap under it, thorns jutting from every edge of its silhouette (more with its
+    hackles up), leaf tufts, a few dark berries, ember eyes. Telegraph: the crouch, back low, head
+    down, thorns raised; it charges stretched and flat, and sticks nose-down in a heap of earth.
+  - **The lantern moth**, seen from above as the floor is: a pale dusty moth a stride across, its
+    forewings a delta cut square at the tips with an eye spot each, rounder hindwings, a furred
+    thorax, feathered antennae. Its beat is the span of its wings foreshortening (spread, raised,
+    lowered); telegraph: wings straight up over it, reared back; at a lantern its wings wrap forward
+    over the flame, shedding glowing dust.
+- **Faces** (`dungeon2/burrowFaces.ts`): the puff puffed up and indignant, the guard grim on duty
+  under its brim, the hound snarling with a slit-pupilled ember eye, the moth rapt with two great
+  glowing eyes and its wings spread behind.
 
 ### The harbour chart (B15)
 

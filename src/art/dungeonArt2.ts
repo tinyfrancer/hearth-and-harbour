@@ -66,6 +66,7 @@ import {
   FOE2_POSES,
   BURROW2_IDS,
   GROTTO2_IDS,
+  PHASED2_IDS,
   MONSTER2_IDS,
   TIER2_MONSTER2_IDS,
   TIDEPOOL2_IDS,
@@ -74,6 +75,7 @@ import {
 import { TIDEPOOL2_PROP_IDS } from './dungeon2/tideProps';
 import { FOE2_SIZES, type Foe2Size } from './dungeon2/sizes';
 import { prop2, PROP2_IDS } from './dungeon2/props';
+import { BURROW_SPECIALS, burrowSpecialFrame } from './dungeon2/burrowCast';
 import {
   DOOR2_FOOTPRINTS,
   footprint2,
@@ -392,11 +394,103 @@ export function foeSprite2(
   if (!counts || !Object.hasOwn(counts, pose)) return null;
   const n = counts[pose];
   const f = ((Math.floor(Number.isFinite(frame) ? frame : 0) % n) + n) % n;
-  const ph = id === 'brinebeard' ? Math.max(1, Math.min(3, Math.floor(phase) || 1)) : 1;
+  const ph = PHASED2_IDS.includes(id) ? Math.max(1, Math.min(3, Math.floor(phase) || 1)) : 1;
   const pic = foePicture2(id, pose, facing, f, ph);
   return pic
     ? spriteCanvas(`dungeon2 foe ${id} ${pose} ${facing} ${f} ${ph}`, pic.picture, palette)
     : null;
+}
+
+/* ----- B20: the moves beyond the common poses ----- */
+
+/**
+ * B20: each foe's special moves and how many frames each has, by id (the
+ * Burrow's cast): the puff's `swell` and `burst`; the guard's `block` and
+ * `turn`; the hound's `crouch`, `charge` and `stuck`; the moth's `hover` and
+ * `snuff`. A foe with none is absent.
+ */
+export const FOE2_SPECIALS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
+  ...Object.fromEntries(
+    Object.entries(BURROW_SPECIALS).map(([id, s]) => [
+      id,
+      Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.length])),
+    ]),
+  ),
+};
+
+const specials = new Map<string, FoePicture2>();
+
+/**
+ * B20: a foe's special move (`FOE2_SPECIALS`) in a facing, at a frame (any
+ * whole number; it wraps), the king in his phase (1 to 3). Its feet are where
+ * it stands, as `foePicture2`'s. Null for an unknown id or move. Kept.
+ */
+export function foeSpecial2(
+  id: string,
+  special: string,
+  facing: Foe2Facing = 'right',
+  frame = 0,
+  phase = 1,
+): FoePicture2 | null {
+  const moves = Object.hasOwn(FOE2_SPECIALS, id) ? FOE2_SPECIALS[id]! : {};
+  const n = Object.hasOwn(moves, special) ? moves[special] : undefined;
+  if (!n) return null;
+  const f = ((Math.floor(Number.isFinite(frame) ? frame : 0) % n) + n) % n;
+  const ph = PHASED2_IDS.includes(id) ? Math.max(1, Math.min(3, Math.floor(phase) || 1)) : 1;
+  const key = `${id} ${special} ${facing} ${f} ${ph}`;
+  let made = specials.get(key);
+  if (made) return made;
+  const right = burrowSpecialFrame(id, special, f);
+  if (!right) return null;
+  const grid = edgedSpecial(right.grid);
+  made =
+    facing === 'left'
+      ? {
+          picture: { grid: mirror(grid), glows: [] },
+          feet: { x: grid.w - 1 - right.feet.x, y: right.feet.y },
+        }
+      : { picture: { grid, glows: [] }, feet: right.feet };
+  specials.set(key, made);
+  return made;
+}
+
+/** A special on an offscreen canvas at one pixel per art pixel, kept; null as `foeSpecial2`. */
+export function foeSpecialSprite2(
+  id: string,
+  special: string,
+  facing: Foe2Facing = 'right',
+  frame = 0,
+  phase = 1,
+  palette: CavePalette = CAVE_DUSK,
+): HTMLCanvasElement | null {
+  const pic = foeSpecial2(id, special, facing, frame, phase);
+  if (!pic) return null;
+  const n = FOE2_SPECIALS[id]![special]!;
+  const f = ((Math.floor(Number.isFinite(frame) ? frame : 0) % n) + n) % n;
+  const ph = PHASED2_IDS.includes(id) ? Math.max(1, Math.min(3, Math.floor(phase) || 1)) : 1;
+  return spriteCanvas(
+    `dungeon2 special ${id} ${special} ${facing} ${f} ${ph}`,
+    pic.picture,
+    palette,
+  );
+}
+
+/** Anything on a special's canvas edge ends in its outline there, as every frame's does (cast2.ts). */
+function edgedSpecial(g: TGrid): TGrid {
+  const d = g.d.slice();
+  const line = (i: number) => {
+    const c = d[i]!;
+    if (c && (c & 7) !== 6) d[i] = (c & ~7) | 6;
+  };
+  for (let x = 0; x < g.w; x++) {
+    line(x);
+    line((g.h - 1) * g.w + x);
+  }
+  for (let y = 0; y < g.h; y++) {
+    line(y * g.w);
+    line(y * g.w + g.w - 1);
+  }
+  return { w: g.w, h: g.h, d };
 }
 
 /** A foe's sizes, as data (`FOE2_SIZES`), or null for an unknown id. */

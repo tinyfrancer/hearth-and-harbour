@@ -3,6 +3,56 @@
 **Next session:** after B20 (Thistlewood Burrow's art, in batches below). Start with Cody's verdict
 on the Burrow and the weak lists below.
 
+## Thistlewood Burrow, batch 3: the four smaller creatures and their faces (B20, third PR)
+
+**For lane C, on `main` once this PR merges** (no export renamed or re-signed; every older foe's
+frames and sizes as they were):
+
+```ts
+// through the existing doors: foePicture2, foeSprite2, foeFrames2, FOE2_SIZES, foeSize2, portrait2
+'spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth'   // in FOE2_IDS; every pose, both ways
+// idle 2, walk 4, windup 1, strike 1, hurt 1, flash 1, fall 2 each
+// the moves beyond the common poses (new doors)
+FOE2_SPECIALS: Record<id, Record<move, frames>>
+  spore_puff:    { swell: 3, burst: 3 }          // filling up round; its fall's burst, then the husk
+  cap_guard:     { block: 1, turn: 2 }           // braced behind its shield; three-quarters, front-on
+  bramble_hound: { crouch: 2, charge: 4, stuck: 2 }
+  lantern_moth:  { hover: 4, snuff: 3 }          // beating beside a flame; wings wrapped over it
+foeSpecial2(id, move, facing = 'right', frame = 0, phase = 1): FoePicture2 | null  // feet as idle's
+foeSpecialSprite2(id, move, facing, frame, phase, palette = CAVE_DUSK): HTMLCanvasElement | null
+PHASED2_IDS = ['brinebeard']                     // the king joins in batch 4
+```
+
+| id              | canvas  | anchor   | tall | front | back | strike | box     | shadow | hover |
+| --------------- | ------- | -------- | ---- | ----- | ---- | ------ | ------- | ------ | ----- |
+| `spore_puff`    | 40 x 38 | (20, 36) | 22   | 11    | 11   | 12     | 23 x 22 | 11     | 0     |
+| `cap_guard`     | 64 x 84 | (30, 82) | 65   | 27    | 15   | 33     | 32 x 65 | 15     | 0     |
+| `bramble_hound` | 84 x 52 | (44, 50) | 43   | 37    | 40   | 39     | 49 x 43 | 24     | 0     |
+| `lantern_moth`  | 70 x 72 | (34, 50) | 39   | 18    | 22   | 22     | 24 x 39 | 11     | 2     |
+
+- **Sizes against your brief and rows** (drawing only; your reach numbers are yours and untouched):
+  your scaled tap boxes were puff 30 x 33, guard 36 x 60, hound 60 x 42, moth 39 x 33. Mine are
+  measured from the drawings (`tapBox` takes them): the puff is knee high, so its box is smaller (23
+  x 22: grow it to a thumb if your taps need it); the guard's 32 wide is its body without the shield;
+  the hound's 49 is its body without head and tail; the moth's 24 x 39 is its body with its wings up.
+  The guard's shield stops 27 ahead of its feet, so a hero at the 36 stand is not drawn over it.
+- **The moth** is drawn low: its feet point is just under its body and its `hover` is 2, so your own
+  lift (`hovers`, 21) places it, as before with the parrot. A wing beating down reaches below the
+  feet point; draw its contact shadow at the lifted point, or none.
+- **The guard's shield is part of its picture** now (your code-drawn marker can go): `windup` lifts
+  it high (the telegraph), `strike` bashes low, `block` braces it, and `turn` frames 0 and 1 show it
+  turning toward the hero (three-quarters, then front-on) for your 1.2 s turn.
+- **Specials, when to show them**: the puff's `swell` while its heavy is marked (or keep `windup`),
+  `burst` as it falls (then your cloud); the hound's `crouch` while its lane is marked, `charge` while
+  it runs (4 frames a stride), `stuck` while it is stuck; the moth's `hover` while it waits at a
+  lantern and `snuff` over the last second before the flame goes. All face the way the foe faces.
+- **In the dark**: draw them with `foeSprite2(…, burrowNight(level))`; each keeps a light of its own
+  (the puff's spores, the guard's gills, the hound's ember eyes, the moth's eyes), tested.
+- **Faces**: `portrait2(id)` for all four, hand-drawn 72 x 72, `PORTRAIT2_SAFE` measured.
+- **Memory**: all lazy in the caches that were there. Every frame and special of the four, both
+  facings, if a run asked for all of them, is about 140 frames, about 560,000 cells (about 4 MB of
+  grid); a room shows a few. The four faces about 21,000 cells.
+
 ## Thistlewood Burrow, batch 2: lanterns, light pieces, clouds, props (B20, second PR)
 
 **For lane C, on `main` once this PR merges** (no export renamed or re-signed):
