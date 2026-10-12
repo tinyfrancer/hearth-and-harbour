@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { FOE2_SIZES } from '../../src/art/dungeonArt2';
-import { APART_MOST, shownApart, type Figure } from '../../src/scene/apart';
+import {
+  APART_ALLOW,
+  APART_CHAIN,
+  APART_MOST,
+  shownApart,
+  type Figure,
+} from '../../src/scene/apart';
 import { MELEE_STAND, type Foe } from '../../src/scene/battle';
 import type { Run } from '../../src/scene/dungeon';
 import {
@@ -169,5 +175,97 @@ describe('figures drawn apart', () => {
     expect(one.has('b')).toBe(false);
     // Equals do not push each other about.
     expect(shownApart([f('a', 0, 1), f('b', 10, 1)]).size).toBe(0);
+  });
+});
+
+describe('three or more in a knot (wave 18)', () => {
+  /** How much the figures still overlap as shown, past what is allowed, weighted as the rule weighs it. */
+  const overlapOf = (figures: readonly Figure[], shown: Map<string, number>): number => {
+    let sum = 0;
+    for (let i = 0; i < figures.length; i++)
+      for (let j = i + 1; j < figures.length; j++) {
+        const p = figures[i]!;
+        const q = figures[j]!;
+        const [a, b] = p.at.x <= q.at.x ? [p, q] : [q, p];
+        const ax = a.at.x + (shown.get(a.key) ?? 0);
+        const bx = b.at.x + (shown.get(b.key) ?? 0);
+        const d = Math.abs(a.at.y - b.at.y);
+        if (d >= 20) continue;
+        sum += Math.max(0, ax + a.right - (bx - b.left) - APART_ALLOW);
+      }
+    return sum;
+  };
+
+  /** The cove at high tide: the hero at a deckhand, the deckhand pressed against the captain's coat. */
+  function knot(): { run: Run; figures: Figure[] } {
+    const cap = { x: 20 * 24 + 12, y: 6 * 24 + 12 };
+    const base = standing('cove', { x: cap.x - 18 - MELEE_STAND, y: cap.y + 2 }, cap, 'left');
+    const deck = base.battle!.foes.find((f) => f.monster === 'deckhand')!;
+    const run: Run = {
+      ...base,
+      battle: {
+        ...base.battle!,
+        foes: [
+          ...base.battle!.foes,
+          {
+            ...deck,
+            key: 'cove 99',
+            room: 'cove',
+            at: { x: cap.x - 18, y: cap.y + 1 },
+            hp: 30,
+            diedAt: null,
+            facing: 'left',
+            path: [],
+          },
+        ],
+      },
+    };
+    return { run, figures: fightFigures(GROTTO_DUNGEON, run) };
+  }
+
+  it('draws hero, deckhand and captain apart where the pairs’ rule left them in one knot', () => {
+    const { run, figures } = knot();
+    expect(figures.map((f) => f.key)).toContain('cove 99');
+    const before = shownApart(figures, 1);
+    const after = fightApart(GROTTO_DUNGEON, run);
+    // The pairs' rule sent the deckhand off the captain and straight on to the hero.
+    expect(overlapOf(figures, before)).toBeGreaterThan(10);
+    // Now he gives way further: less than half the overlap that was left, and nobody past a tile.
+    expect(overlapOf(figures, after)).toBeLessThan(overlapOf(figures, before) / 2);
+    for (const dx of after.values()) expect(Math.abs(dx)).toBeLessThanOrEqual(APART_CHAIN);
+    // The captain stays where he stands; the order left to right is kept.
+    const capKey = run.battle!.foes.find((f) => f.monster === 'brinebeard')!.key;
+    expect(after.get(capKey) ?? 0).toBe(0);
+    const xs = figures
+      .slice()
+      .sort((a, b) => a.at.x - b.at.x)
+      .map((f) => f.at.x + (after.get(f.key) ?? 0));
+    expect([...xs].sort((a, b) => a - b)).toEqual(xs);
+    // Nothing in the run moved.
+    expect(fightFigures(GROTTO_DUNGEON, run).map((f) => f.at)).toEqual(figures.map((f) => f.at));
+  });
+
+  it('draws two alone exactly as the pairs’ rule does, and moves smoothly as a knot forms', () => {
+    const f = (key: string, x: number, rank: number, half = 14): Figure => ({
+      key,
+      at: { x, y: 0 },
+      left: half,
+      right: half,
+      rank,
+      weight: 1,
+    });
+    for (let x = 0; x <= 40; x += 1) {
+      const two = [f('h', 0, 0), f('c', x, 2, 24)];
+      expect(shownApart(two)).toEqual(shownApart(two, 1));
+    }
+    // A deckhand walking up between the hero and the captain: never a jump of more than two pixels.
+    let last: Map<string, number> | null = null;
+    for (let x = 60; x >= 18; x -= 1) {
+      const now = shownApart([f('h', 0, 0), f('d', x, 1), f('c', x + 20, 2, 24)]);
+      if (last)
+        for (const k of ['h', 'd'])
+          expect(Math.abs((now.get(k) ?? 0) - (last.get(k) ?? 0))).toBeLessThanOrEqual(2);
+      last = now;
+    }
   });
 });
