@@ -249,7 +249,9 @@ describe('the hero in every look', () => {
         const irises = [...new Set(eyes.filter(([, , c]) => stepOf(c) === 3).map(([x]) => x))];
         expect(irises.sort((a, b) => a - b)).toEqual([FACE_AXIS - 3, FACE_AXIS + 3]);
       }
-  });
+    // Every look under every helm and hood: tier 2's three head pieces took it past five seconds
+    // on a busy machine.
+  }, 30000);
 
   it('draws brows that show on every skin in every hair colour', () => {
     for (const skin of Object.values(SKIN2))
