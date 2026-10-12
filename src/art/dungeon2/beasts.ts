@@ -685,7 +685,7 @@ const BOAR: Beast = {
  * shoulders, a darker saddle down the back, the belly tucked, the brush held
  * low with a dark tip.
  */
-const WOLF_BODY: readonly (readonly [number, number])[] = [
+export const WOLF_BODY: readonly (readonly [number, number])[] = [
   [11, 21],
   [16, 18],
   [26, 17],
@@ -701,7 +701,7 @@ const WOLF_BODY: readonly (readonly [number, number])[] = [
   [16, 29],
   [11, 27],
 ];
-const WOLF_HEAD: readonly (readonly [number, number])[] = [
+export const WOLF_HEAD: readonly (readonly [number, number])[] = [
   [46, 14],
   [50, 11],
   [55, 10],
@@ -714,7 +714,7 @@ const WOLF_HEAD: readonly (readonly [number, number])[] = [
   [52, 22],
   [48, 20],
 ];
-const WOLF_TAIL: readonly (readonly [number, number])[] = [
+export const WOLF_TAIL: readonly (readonly [number, number])[] = [
   [13, 20],
   [9, 23],
   [5, 28],

@@ -85,6 +85,19 @@ export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
   steal_sailor: { x: 6, y: 1, w: 60, h: 55 },
   steal_pedlar: { x: 5, y: 1, w: 64, h: 55 },
   steal_strongbox: { x: 5, y: 5, w: 61, h: 51 },
+  // B19, tier 2: Thistlewood's Edge, the Deepthorn and the new marks.
+  brigand: { x: 6, y: 4, w: 60, h: 52 },
+  black_bear: { x: 5, y: 5, w: 62, h: 51 },
+  hobgoblin: { x: 0, y: 1, w: 72, h: 55 },
+  dire_wolf: { x: 0, y: 0, w: 72, h: 56 },
+  hill_ogre: { x: 0, y: 3, w: 72, h: 53 },
+  briar_hag: { x: 0, y: 0, w: 72, h: 56 },
+  moss_golem: { x: 0, y: 0, w: 72, h: 56 },
+  steal_spice_merchant: { x: 4, y: 0, w: 68, h: 56 },
+  steal_customs_house: { x: 6, y: 5, w: 66, h: 51 },
+  steal_noble: { x: 6, y: 1, w: 65, h: 55 },
+  steal_guild_coffer: { x: 4, y: 3, w: 68, h: 53 },
+  steal_counting_house: { x: 0, y: 9, w: 66, h: 47 },
 };
 
 /** The hero's safe box: the union over every hairstyle and head gear. */

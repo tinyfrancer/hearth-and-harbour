@@ -23,6 +23,7 @@ import { figure2Gallery } from './figure2/gallery';
 import { town2Gallery } from './town2/gallery2';
 import { dungeon2Gallery } from './dungeon2/gallery';
 import { titleGallery } from './title/gallery';
+import { tier2Gallery } from './tier2Gallery';
 import {
   CHALLENGE_MEDAL_FRAMES,
   CHALLENGE_MEDAL_FRAME_MS,
@@ -103,6 +104,9 @@ export function artGallery(): HTMLElement {
   page.append(jumpFigures);
   const dungeon2 = dungeon2Gallery();
   page.append(dungeon2.button);
+  // B19: tier 2.
+  const tier2 = tier2Gallery();
+  page.append(tier2.button);
 
   // Icons: they are the most seen.
   const families = ICON_FAMILIES.flatMap((family) => {
@@ -149,6 +153,7 @@ export function artGallery(): HTMLElement {
     town2.section,
     figures2.section,
     dungeon2.section,
+    tier2.section,
   );
 
   part(

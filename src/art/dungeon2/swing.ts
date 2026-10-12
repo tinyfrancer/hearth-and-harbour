@@ -17,7 +17,8 @@ import { cell } from './cave';
 import { rod, sprite } from './kit';
 
 /** What a person strikes with. */
-export type SwingKind = 'hook' | 'cutlass' | 'cudgel' | 'bow';
+/** B19 adds the hobgoblin's cleaver and the briar hag's thorny staff. */
+export type SwingKind = 'hook' | 'cutlass' | 'cudgel' | 'bow' | 'cleaver' | 'staff';
 
 /** A person's sleeve as it shows on the swinging arm: the upper arm's stuff and the forearm's. */
 export interface Sleeve {
@@ -69,6 +70,16 @@ export function windupArm(kind: SwingKind, s: Sleeve): TGrid {
       put(g, x + 1, 13 - i, cell('iron', i > 11 ? 4 : 3));
     }
     sprite(g, 11, 13, ['abba', '.cc.'], { a: ['bronze', 1], b: ['bronze', 2], c: ['bronze', 4] });
+  } else if (kind === 'cleaver') {
+    rod(g, 14, 13, 10, 5, 2, 'wood', [2, 4]);
+    sprite(g, 3, 0, ['abbbbbc', 'abbbbbc', 'ab.bbbc', 'abbbbbc', 'acccccc'], {
+      a: ['iron', 1],
+      b: ['iron', 2],
+      c: ['iron', 4],
+    });
+  } else if (kind === 'staff') {
+    rod(g, 24, 26, 4, 1, 2, 'thorn', [1, 3]);
+    for (let i = 2; i < 24; i += 4) put(g, 24 - i - 1, 26 - Math.round(i * 1.25), cell('thorn', 5));
   } else {
     rod(g, 14, 13, 9, 2, 3, 'wood', [1, 2, 4]);
     rod(g, 10, 4, 7, 0, 4, 'wood', [1, 2, 3, 4]);
@@ -102,6 +113,16 @@ export function strikeArm(kind: SwingKind, s: Sleeve): TGrid {
       put(g, x, y, cell('iron', 1));
       put(g, x, y + 1, cell('iron', i > 9 ? 4 : 3));
     }
+  } else if (kind === 'cleaver') {
+    rod(g, 41, 31, 46, 28, 2, 'wood', [2, 4]);
+    sprite(g, 46, 22, ['abbbbbc', 'abbbbbc', 'abb.bbc', 'abbbbbc', 'abbbbbc', 'acccccc'], {
+      a: ['iron', 1],
+      b: ['iron', 2],
+      c: ['iron', 4],
+    });
+  } else if (kind === 'staff') {
+    rod(g, 26, 36, 54, 20, 2, 'thorn', [1, 3]);
+    for (let i = 4; i < 26; i += 4) put(g, 26 + i, 36 - Math.round(i * 0.57) - 1, cell('thorn', 5));
   } else {
     rod(g, 41, 31, 50, 25, 3, 'wood', [1, 2, 4]);
     rod(g, 48, 26, 53, 23, 4, 'wood', [1, 2, 3, 4]);

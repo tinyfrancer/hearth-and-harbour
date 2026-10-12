@@ -18,6 +18,16 @@ import { SKILL_ICON_DEFS } from './skillIcons';
 import { TAB_ICON_DEFS, TAB_MUTED } from './tabArt';
 import { TIER2_ICON_DEFS } from './tier2Icons';
 
+// B19: tier presentation, a badge per tier and a padlock, through this door.
+export {
+  TIERS,
+  lockIcon,
+  lockIconPicture,
+  tierBadge,
+  tierBadgePicture,
+  type Tier,
+} from './tierBadge';
+
 /** Every item art has an icon for, by the game's item id. */
 const ITEMS: Readonly<Record<string, IconDef>> = {
   ...ITEM_ICON_DEFS,

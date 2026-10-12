@@ -63,6 +63,13 @@ const CAVE_BASE = {
   turtleskin: ['#e8eac8', '#c2c8a0', '#9aa27e', '#7a8462', '#5e684e', '#42483c', '#1e221c'],
   // Anemones: a soft sea pink, small and never on a floor's open ground.
   anemone: ['#fff0f6', '#ffc4dc', '#f494bc', '#d8689e', '#ac4c82', '#783662', '#381830'],
+  // B19, Thistlewood's Edge and the Deepthorn (appended): the black bear's coat, the dire wolf's
+  // charcoal (darker than the grey wolf's, so he reads as the bigger, worse thing), the hill ogre's
+  // grey-green hide (greyer and paler than the troll's), the hobgoblin's orange-brown skin.
+  bear: ['#948ea0', '#686274', '#4c4858', '#3a3644', '#2a2632', '#1c1a24', '#0c0a10'],
+  direfur: ['#bab6c0', '#8e8a98', '#6e6a7a', '#545062', '#3e3a4a', '#2a2834', '#121018'],
+  ogre: ['#dce2c4', '#b6bea0', '#949e84', '#78826a', '#5c6654', '#40483c', '#1e221c'],
+  hobgob: ['#f8c08c', '#e09a66', '#c67e4c', '#a8623a', '#84482c', '#5a3022', '#2a1410'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type CaveMat = keyof typeof CAVE_BASE;

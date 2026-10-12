@@ -20,6 +20,12 @@ import { CARRY } from '../../src/art/figure2/carry';
 import { isMat, matOf, stepOf, type TGrid } from '../../src/art/town2/cells';
 import { DAY2, DUSK2, type Mat } from '../../src/art/town2/ramps';
 import { DAY, DUSK } from '../../src/art/palette';
+import { FOE2_IDS, FOE2_POSES, FOE2_SIZES, TIER2_MONSTER2_IDS } from '../../src/art/dungeonArt2';
+import { foe2Frame, foe2Frames } from '../../src/art/dungeon2/cast2';
+import { measureFoe2 } from '../../src/art/dungeon2/sizes';
+import { PORTRAIT2_IDS, portraitPicture2 } from '../../src/art/portraits2';
+import { TIERS, lockIcon, lockIconPicture, tierBadge, tierBadgePicture } from '../../src/art/icons';
+import { tier2Gallery } from '../../src/art/tier2Gallery';
 
 // Tier 2 (B19; docs/tier2-manifest.md, docs/style-guide.md "Salt-iron"): every
 // id the manifest names that needs a picture has one; salt-iron is a metal of
@@ -458,5 +464,89 @@ describe('tier 2’s other wearables', () => {
       .parts.flatMap((p) => pixels(p))
       .filter(([, , c]) => isMat(c, 'thorn'));
     expect(thorny.length).toBeGreaterThan(40);
+  });
+});
+
+describe('tier 2’s monsters, faces and marks', () => {
+  const MONSTERS = [
+    'brigand',
+    'black_bear',
+    'hobgoblin',
+    'dire_wolf',
+    'hill_ogre',
+    'briar_hag',
+    'moss_golem',
+  ];
+  const MARKS = [
+    'steal_spice_merchant',
+    'steal_customs_house',
+    'steal_noble',
+    'steal_guild_coffer',
+    'steal_counting_house',
+  ];
+
+  it('draws every monster in the manifest in every pose a fight shows, its sizes declared', () => {
+    expect([...TIER2_MONSTER2_IDS].sort()).toEqual([...MONSTERS].sort());
+    for (const id of MONSTERS) {
+      expect(FOE2_IDS, id).toContain(id);
+      expect(FOE2_SIZES[id], id).toEqual(measureFoe2(id));
+      const counts = foe2Frames(id)!;
+      for (const pose of FOE2_POSES) {
+        expect(counts[pose], `${id} ${pose}`).toBeGreaterThan(0);
+        for (let f = 0; f < counts[pose]; f++)
+          expect(foe2Frame(id, pose, f)!.picture.grid.d.some(Boolean), `${id} ${pose} ${f}`).toBe(
+            true,
+          );
+      }
+    }
+  });
+
+  it('makes size carry threat: the ogre and the golem over the hero, the bear and the wolf below him', () => {
+    const tall = (id: string) => FOE2_SIZES[id]!.tall;
+    for (const id of ['hill_ogre', 'moss_golem']) expect(tall(id), id).toBeGreaterThan(80);
+    for (const id of ['black_bear', 'dire_wolf']) expect(tall(id), id).toBeLessThan(60);
+    expect(tall('dire_wolf')).toBeGreaterThan(FOE2_SIZES.grey_wolf!.tall);
+    expect(tall('briar_hag')).toBeLessThan(tall('brigand'));
+  });
+
+  it('gives every monster and mark a face of its own, each a character', () => {
+    const grids = [...MONSTERS, ...MARKS].map((id) => {
+      expect(PORTRAIT2_IDS, id).toContain(id);
+      return portraitPicture2(id)!.grid.d.join();
+    });
+    expect(new Set(grids).size).toBe(grids.length);
+  });
+});
+
+describe('tier presentation', () => {
+  it('draws a badge for each tier, each its own, a small shield with its numeral', () => {
+    const seen = new Set<string>();
+    for (const n of TIERS) {
+      const g = tierBadgePicture(n).grid;
+      expect([g.w, g.h], `${n}`).toEqual([14, 16]);
+      seen.add(g.d.join());
+      const el = tierBadge(n);
+      expect(el.getAttribute('aria-label')).toBe(`Tier ${n}`);
+      expect(el).toBeInstanceOf(HTMLCanvasElement);
+    }
+    expect(seen.size).toBe(4);
+    // Tier 2's badge is the knight's: salt-iron round his blue, a gold numeral.
+    const two = tierBadgePicture(2).grid.d;
+    expect(two.some((c) => c?.startsWith('saltiron'))).toBe(true);
+    expect(two.some((c) => c?.startsWith('gold'))).toBe(true);
+  });
+
+  it('draws a padlock as an ordinary icon', () => {
+    const g = lockIconPicture().grid;
+    expect([g.w, g.h]).toEqual([24, 24]);
+    expect(lockIcon().getAttribute('aria-label')).toBe('Locked');
+  });
+
+  it('shows tier 2 in the gallery on a tap', () => {
+    const { button, section } = tier2Gallery();
+    document.body.append(section);
+    (button as HTMLButtonElement).click();
+    expect(section.querySelectorAll('canvas').length).toBeGreaterThan(10);
+    section.remove();
   });
 });

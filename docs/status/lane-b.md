@@ -1,8 +1,64 @@
 # Lane B: art
 
-**Next session:** B19 continues (tier 2 art, in batches; see below for what is on `main`).
+**Next session:** B20. Tier 2's art is all drawn (B19, four PRs) except what the brief held back
+for later: Thistlewood Burrow's tiles and creatures (`spore_puff`, `cap_guard`, `bramble_hound`,
+`lantern_moth`, `badger_king`) and Magic. Start with Cody's verdict on the tier 2 section of the
+gallery (it says "not yet approved") and the weak list below.
 
-## Tier 2, batch 3: every other wearable's figure layer, for lane A (B19, third PR)
+## Tier 2, batch 4: monsters, faces, marks, the tier badge and the gallery (B19, fourth PR)
+
+**With this PR every id in `docs/tier2-manifest.md` that this wave asked for has its picture.**
+
+| Manifest ids                                                                                                                                                                                                        | What is drawn                            | Batch, PR    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------ |
+| `salt_iron_ore`, `salt_iron_bar`, `salt_iron_arrowheads`                                                                                                                                                            | icon                                     | 1, #83       |
+| `salt_iron_sword`, `_axe`, `_helm`, `_plate`, `_greaves`, `_shield`, `red_cloak`, `salt_iron_arrows`, `broadhead_arrows`                                                                                            | icon and layer                           | 1, #83       |
+| the 13 gathered things, 3 cooked fish, `silver_bar`, `gold_bar`, `nettle_cloth`, `thick_hide`, `thick_leather`, the 4 potions, `amber`, `badger_crown`                                                              | icon                                     | 2, #84       |
+| `ranger_hood`, `ranger_coat`, `ranger_bracers`, `driftwood_shortbow`, `elm_longbow`, `yew_longbow`, `silver_bangle`, `gold_amulet`, `ogre_maul`, `briar_charm`, `mossback_shield`, `thornwood_bow`, `capguard_helm` | icon (batch 2), layer (batch 3)          | 2 #84, 3 #85 |
+| `brigand`, `black_bear`, `hobgoblin`, `dire_wolf`, `hill_ogre`, `briar_hag`, `moss_golem`                                                                                                                           | every fight pose, `FOE2_SIZES` row, face | 4            |
+| `steal_spice_merchant`, `steal_customs_house`, `steal_noble`, `steal_guild_coffer`, `steal_counting_house`                                                                                                          | face (`portrait2(id)`)                   | 4            |
+| Thistlewood Burrow's five creatures and its tiles                                                                                                                                                                   | not this wave (the brief)                | n/a          |
+
+- **Monsters** (`dungeon2/tier2Foes.ts`, `dungeon2/people.ts`): every one has idle (2 frames),
+  walk (8 for the three people, 4 for the four on bones), windup, strike, hurt, flash and fall
+  (2). The brigand, the hobgoblin and the hag are `PEOPLE` rows with blows of their own (new
+  `SwingKind`s `cleaver` and `staff` beside the brigand's `cutlass`); the bear and the dire wolf
+  are four-footed `BEASTS`; the ogre and the golem stand on the troll's bones. New cave ramps
+  `bear`, `direfur`, `ogre`, `hobgob`. Each has an honest `FOE2_SIZES` row (measured; tested
+  equal to `measureFoe2`). New export `TIER2_MONSTER2_IDS` (cast2, re-exported from
+  `dungeonArt2.ts`), all in `FOE2_IDS`.
+- **Faces** (`dungeon2/tier2Faces.ts`): seven monsters and five marks, hand-drawn 72 × 72, each
+  with a measured `PORTRAIT2_SAFE` box; `portrait2(id)` answers each.
+- **Tier presentation** (new `src/art/tierBadge.ts`, re-exported from `icons.ts`):
+  `tierBadge(n: 1 | 2 | 3 | 4): Element` (a canvas, `aria-label` "Tier n", class `icon
+tier-badge`), `tierBadgePicture(n): Picture` (14 × 16), `lockIcon(): Element` (24 × 24,
+  `aria-label` "Locked", class `icon`), `lockIconPicture(): Picture`, `TIERS`, `type Tier`.
+- **Gallery**: a "Draw tier 2" button inside "At the finer scale" (`tier2Gallery.ts`): badges and
+  padlock, the ladder by day and at dusk, six outfits in four facings, the seven monsters beside
+  the knight, the twelve faces. Checked in the built app at 390 × 844 and 844 × 390: no page
+  scroll sideways, no console errors.
+- **Memory**: all lazy, in the caches that were there. Every frame of all seven monsters, if a
+  run asked for all of them, is 96 frames, about 546,000 cells (about 4 MB of grid as JS
+  arrays); a fight draws one area's few. The twelve faces about 62,000 cells. The badges and
+  padlock are five small pictures, kept once drawn.
+- **No door changed**: no export renamed or re-signed; ids, anchors and sizes other lanes read are
+  unchanged.
+
+### Weak spots (honest)
+
+- The hobgoblin's cleaver reads as a hammer at true size; its blade is three pixels.
+- The three people share the figure's walk; the hag is crooked only by being drawn shorter, not by a
+  stoop or a gait of her own.
+- The bear and the dire wolf lunge with the grey wolf's bones; the bear has no rear-up or swipe.
+- The ogre's fall is his body laid down with the club sticking out; the golem's is a heap of the
+  same stones. Both serviceable, neither crafted.
+- The tier 3 and tier 4 badges' colours anticipate rungs not yet drawn; they may move with those
+  tiers' art.
+- From batches 1 to 3: the red cloak's icon took four drawings and is still the plainest of the
+  set; the ranger's hood is the villager's cut dyed, not a new cut; amber at 17 wide is close to
+  the doubloon's silhouette.
+
+## Tier 2, batch 3: every other wearable's figure layer, for lane A (B19, third PR, merged #85)
 
 **Layers on `main` once this PR merges** (an `ITEM_LAYERS2` row each, by the item's own id as the
 layer id): `ranger_hood`, `ranger_coat`, `ranger_bracers`, `driftwood_shortbow`, `elm_longbow`,
@@ -2021,6 +2077,20 @@ other id is null, never an error. Also exported: `itemIconPicture(id)` and
 - The townsfolk bodies are drawn only where they show, so they cannot be dressed in other gear.
 
 ## Needs from another lane
+
+- **Lane A, for B19** (fourth PR; nothing breaks if you wait):
+  - Put `tierBadge(n)` beside a tier's heading (skills' tier groups, the chart's dungeons, the
+    bank's tier 2 things as you see fit) and `lockIcon()` on rows not yet open. Both are canvases
+    sized like an icon; style them in `styles.css` as you would `.icon`. Neither should be the only
+    thing that says the tier or the lock: each carries its label for screen readers.
+  - Every tier 2 item row may merge: icons (`itemIcon(id)`) and layers (`ITEM_LAYERS2[id]`) are on
+    `main` for every id in the manifest. Monsters and marks show their faces through
+    `portrait2(id)` as soon as their rows exist.
+  - The gallery count test (`tests/art/gallery.test.ts`) counts from `ITEM_ICON_IDS`, so new icons
+    need no edit there.
+- **Lane C, for B19** (fourth PR): nothing. The seven tier 2 monsters are in `FOE2_IDS` with
+  honest `FOE2_SIZES` rows should a scene ever stage them; the bear (88 wide), the dire wolf (98)
+  and the ogre and golem (99 and 86 tall) are bigger than anything in the grotto.
 
 - **Lane C, for B17** (third PR; nothing breaks if you wait):
   - The boat lantern's pennant stirs: draw `town2PieceFrame('boat_lantern', Math.floor(now /

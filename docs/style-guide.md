@@ -829,6 +829,34 @@ The knight's rung, the look the guide was built toward, drawn in a metal of its 
   the cap-guard helm a broad red mushroom cap with white spots over pale gills, a strap down both
   cheeks, its gills above the brows.
 
+#### Tier 2's monsters, faces and the tier badge (B19)
+
+- **Size carries the threat**, as in the grotto: the brigand and the hobgoblin stand the hero's
+  height, the briar hag a head shorter and bent; the black bear and the dire wolf are long and
+  low, under the hero's shoulder but nearly twice his length (the dire wolf is the grey wolf's
+  drawing at 1.3 times, darker and shaggier, so the two read as kin); the hill ogre and the moss
+  golem stand half again over him (tested as data in `FOE2_SIZES`).
+- **People are figures; beasts and giants are bones.** The brigand, the hobgoblin and the hag are
+  `PEOPLE` rows (the figure in dyed gear with a head of their own) and so walk, wind up and
+  strike like the grotto's folk, each with a blow of its own (`SwingKind`: the brigand the
+  cutlass's sweep, the hobgoblin a `cleaver`, the hag a thorny `staff`). The bear and the wolf
+  are four-footed `BEASTS` (`tier2Foes.ts`); the ogre and the golem stand on the troll's bones,
+  the ogre's club on his shoulder, the golem stones held by moss and root.
+- **A palette of its own for each**, on the cave's ramps: `bear` (warm black, brown muzzle),
+  `direfur` (charcoal), `ogre` (grey-green), `hobgob` (orange-brown); the golem is the cave's
+  stone and moss, its eyes the only glow.
+- **Faces** (`tier2Faces.ts`, 72 × 72 like every portrait) are drawn by hand, each a character
+  first: masks, tusks, muzzles and brambles are what name them, all inside the safe box. The new
+  marks' faces are the person at their work (the merchant, the clerk, the noble, the guard at the
+  coffer, the banker), never a building.
+- **The tier badge** (`tierBadge(n)`, 14 × 16) is a small heater shield with its numeral: tier 1
+  bronze on hide, tier 2 the knight's salt-iron round his blue with a gold numeral, tier 3 gilt on forest
+  green (the warden), tier 4 gold on enamel with a numeral glowing like the forge (the champion);
+  told apart by numeral first, colour second. It sits beside a name like an icon and is never the only
+  thing that says the tier (its `aria-label` says it). **The padlock** (`lockIcon()`, 24 × 24) is
+  an ordinary icon, an iron shackle over a gold body with its keyhole, for anything not yet
+  open.
+
 ## Portraits at the C scale (B10a, redrawn in B11)
 
 Cody, on B10a's faces: "Honestly the character portraits freak me out." They were one built head
