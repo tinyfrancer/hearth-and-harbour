@@ -11,6 +11,7 @@ import { bossFrame, BOSS_FRAMES, type BossPhase } from './boss';
 import { MONKEY_FRAMES, monkeyFrame } from './monkey';
 import { PEOPLE, PERSON_FRAMES, personPose } from './people';
 import { forgetSnapper, SNAPPER_FRAMES, snapperFrame } from './snapper';
+import { TIER2_BEASTS, tier2BeastGrid, tier2Fallen } from './tier2Foes';
 
 /**
  * What a foe can be doing. Every id has every pose: standing (`idle`, two
@@ -122,6 +123,12 @@ const BEAST_KEYS: Readonly<Record<string, BeastKeys>> = {
   thieving_gull: GULL_KEYS,
   marsh_troll: TROLL_KEYS,
   bramble_wyrm: STANDING,
+  // B19, tier 2: the bear and the dire wolf spring as the wolf does, the ogre and the golem
+  // raise both arms and bring them down as the troll does.
+  black_bear: FOUR_FEET,
+  dire_wolf: FOUR_FEET,
+  hill_ogre: TROLL_KEYS,
+  moss_golem: TROLL_KEYS,
 };
 
 /** The grotto's cast, by the ids the scene fights them by: everything `foePicture` draws today. */
@@ -156,9 +163,24 @@ export const MONSTER2_IDS: readonly string[] = [
  */
 export const TIDEPOOL2_IDS: readonly string[] = ['dock_rat', 'sand_crab', 'old_snapper'];
 
+/**
+ * B19, tier 2's monsters (docs/tier2-manifest.md): Thistlewood's Edge's five
+ * and the Deepthorn's two, by their ids in the manifest, drawn ahead of lane
+ * A's rows for them.
+ */
+export const TIER2_MONSTER2_IDS: readonly string[] = [
+  'brigand',
+  'black_bear',
+  'hobgoblin',
+  'dire_wolf',
+  'hill_ogre',
+  'briar_hag',
+  'moss_golem',
+];
+
 /** Everything that fights, once each: every dungeon's cast and every monster in the tables. */
 export const FOE2_IDS: readonly string[] = [
-  ...new Set([...GROTTO2_IDS, ...MONSTER2_IDS, ...TIDEPOOL2_IDS]),
+  ...new Set([...GROTTO2_IDS, ...MONSTER2_IDS, ...TIDEPOOL2_IDS, ...TIER2_MONSTER2_IDS]),
 ];
 
 /** How many frames each pose of an id has (the same for every phase of the captain). */
@@ -237,6 +259,14 @@ function drawnFrame(id: string, pose: Drawn, f: number, ph: BossPhase): Foe2Fram
     return { picture: pic(p.grid, p.glows), feet: p.anchor };
   }
   const keys = BEAST_KEYS[id]![pose];
+  if (Object.hasOwn(TIER2_BEASTS, id)) {
+    const t = TIER2_BEASTS[id]!;
+    if (pose === 'fall' && f === keys.length - 1 && keys.length > 1) {
+      const fallen = tier2Fallen(id, keys[0]!);
+      return { picture: pic(fallen.grid), feet: fallen.feet };
+    }
+    return { picture: pic(tier2BeastGrid(id, keys[f])!), feet: t.anchor };
+  }
   const b = BEASTS[id]!;
   if (pose === 'fall' && f === keys.length - 1 && keys.length > 1) {
     // Down: the last fall frame is the creature's own fallen drawing.

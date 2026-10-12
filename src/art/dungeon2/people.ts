@@ -332,11 +332,288 @@ const GOBLIN: Person = {
   shorter: [24, 28, 32, 36, 45, 47, 49, 51, 53, 56, 58, 60],
 };
 
+/* ----------------------------------------------------------------- the brigand */
+
+/** B19: dark tangled hair, brows drawn down, a red scarf over the lower face, the eyes narrowed over it. */
+const BRIGAND_HEAD = headPart(
+  [
+    '...hhHhhhh.....',
+    '..hhHhhhhhhh...',
+    '.hhhhhHhhhhhh..',
+    '.hhHhhhhhhhhhh.',
+    '.hshhhhhhhhhhh.',
+    '.sBBBsssBBBtuv.',
+    '.ssssBssBttuuv.',
+    'stsKIKsstKIKuvu',
+    'tusWIWsstWIWuvv',
+    'RRRRRRRRRRRRRRq',
+    '.RRRrRRRRRRRRq.',
+    '.RRRRRRRrRRRqq.',
+    '..RRRRRRRRRqq..',
+    '...RRRRRRRRq...',
+    '....RRRRRRq....',
+    '.....RRqqq.....',
+    '.....tuuvw.....',
+    '....ttuuvvw....',
+  ],
+  {
+    h: ['hair', 3],
+    H: ['hair', 1],
+    R: ['crimson', 2],
+    r: ['crimson', 1],
+    q: ['crimson', 4],
+  },
+);
+
+/** The scarf's knot and tails behind his head. */
+const BRIGAND_KNOT = bit(
+  HX - 3,
+  HY + 9,
+  -15,
+  ['.qq', 'qq.', 'rq.', '.qr', '..q'],
+  { q: ['crimson', 4], r: ['crimson', 3] },
+  'head',
+);
+
+const BRIGAND: Person = {
+  gear: [
+    'captains_coat',
+    'linen_tunic',
+    'grey_trousers',
+    'leather_boots',
+    'leather_belt',
+    'bronze_shortsword',
+  ],
+  worn: (part, id) => {
+    // A long brown coat edged in iron; a short sword of plain steel.
+    if (id === 'captains_coat') return dyed(dyed(part, 'midnight', 'umber'), 'bronze', 'iron');
+    if (id === 'bronze_shortsword') return dyed(part, 'bronze', 'iron');
+    return part;
+  },
+  own: [b(BRIGAND_HEAD, 'head'), b(BRIGAND_KNOT, 'head')],
+  swing: { kind: 'cutlass', sleeve: { upper: 'umber', fore: 'umber' } },
+  skin: 'skingolden',
+  hair: 'hairblack',
+};
+
+/* --------------------------------------------------------------- the hobgoblin */
+
+/** B19: the goblin's big cousin, man-high: a broad flat nose, small yellow eyes, tusks up from an underbite. */
+const HOBGOBLIN_HEAD = headPart(
+  [
+    '...............',
+    '...............',
+    '...............',
+    '...............',
+    '...............',
+    '.sBBBsssBBBtuv.',
+    '.ssssBssBttuuv.',
+    'stsKyKsstKyKuvu',
+    'tussssooossuuvv',
+    'stssooooootuuvu',
+    '.ssssssssttuuv.',
+    '.sswvvvvvvvuvv.',
+    '.sTsswvvvwssTv.',
+    '..TsssttttsTv..',
+    '...sssttttuv...',
+    '....sttuuv.....',
+    '.....tuuvw.....',
+    '....ttuuvvw....',
+  ],
+  { y: ['gold', 1], T: ['cream', 0] },
+);
+/** His ears, long, pointed and torn, out under the helmet's rim. */
+const HOBGOBLIN_EARS: Boned[] = [
+  b(
+    bit(
+      HX - 7,
+      HY + 6,
+      74,
+      ['tt.....', '.sttt..', '..sttu.', '...ttuu', '....tuu'],
+      {},
+      'head',
+      false,
+    ),
+    'head',
+  ),
+  b(
+    bit(
+      HX + 15,
+      HY + 6,
+      74,
+      ['.....uv', '..tuuv.', '.tuuv..', 'ttuv...', 'tuv....'],
+      {},
+      'head',
+      false,
+    ),
+    'head',
+  ),
+];
+/** A notched cleaver in place of the guard's axe head. */
+const CLEAVER: Part2 = bit(
+  4,
+  17,
+  DEPTH.HELD_FRONT,
+  [
+    '0111111223',
+    '0122222234',
+    '012.222234',
+    '0122222234',
+    '01222222.4',
+    '0122222234',
+    '1233333445',
+  ],
+  {
+    '0': ['iron', 1],
+    '1': ['iron', 2],
+    '2': ['iron', 3],
+    '3': ['iron', 4],
+    '4': ['iron', 5],
+    '5': ['iron', 6],
+  },
+  'nearHeld',
+);
+
+const HOBGOBLIN: Person = {
+  gear: [
+    'bronze_cap',
+    'leather_jerkin',
+    'teal_tunic',
+    'grey_trousers',
+    'leather_boots',
+    'leather_belt',
+    'iron_bearded_axe',
+  ],
+  worn: (part, id) => {
+    // A dented iron cap; a hide jerkin; the axe's haft carries a cleaver.
+    if (id === 'bronze_cap') return dyed(part, 'bronze', 'iron');
+    if (id === 'leather_jerkin') return dyed(part, 'tan', 'hide');
+    if (id === 'teal_tunic') return dyed(part, 'teal', 'umber');
+    if (id === 'iron_bearded_axe') return part.rows.length === 11 ? CLEAVER : part;
+    return part;
+  },
+  own: [b(HOBGOBLIN_HEAD, 'head'), ...HOBGOBLIN_EARS],
+  swing: { kind: 'cudgel', sleeve: { upper: 'hide', fore: 'skin' } },
+  skin: 'hobgob',
+  hair: 'hairblack',
+};
+
+/* ---------------------------------------------------------------- the briar hag */
+
+/** B19: a crooked old woman, hair a tangle of brambles with berries in it, one eye screwed up, a gappy grin. */
+const HAG_HEAD = headPart(
+  [
+    '.t.Tt..tT.t.T..',
+    'tTtLtTtTLtTtTt.',
+    'TtLrtTtTtLtrTtT',
+    'tTtTtLtTtTtTLtT',
+    'TLtTrtTtTtrTtTt',
+    'tTsBBsssssBBtTt',
+    'TssssssssBtuu.T',
+    'tsKIKsstsKKKuvt',
+    '.tsWIWssstuuuv.',
+    'tsssssoostuuvu.',
+    '.sssssooottuuv.',
+    '.ssswvvvvwuuv..',
+    '..sssWvWvsuv...',
+    '...sssttuuv....',
+    '....ssttuv.....',
+    '.....tuuvw.....',
+    '.....tuuvw.....',
+    '....ttuuvvw....',
+  ],
+  { t: ['thorn', 3], T: ['thorn', 5], L: ['leaf', 2], r: ['crimson', 1] },
+);
+/** Brambles straggling down behind her shoulders. */
+const HAG_TANGLE = bit(
+  HX - 2,
+  HY + 6,
+  -15,
+  ['tT...........Tt', 'Tt...........tT', '.tT.........Tt.', '.Tt.........tT.', 'tT...........Tr'],
+  { t: ['thorn', 3], T: ['thorn', 5], r: ['crimson', 1] },
+  'head',
+);
+/** A thorny staff in her near hand, taller than she is: above the fist, through it, below it. */
+const staffRows = (n: number, from: number): string[] =>
+  Array.from({ length: n }, (_, i) =>
+    (from + i) % 5 === 0 ? 'x12.' : (from + i) % 5 === 2 ? '.12x' : '.12.',
+  );
+const HAG_STAFF: Boned[] = [
+  b(
+    bit(
+      14,
+      4,
+      DEPTH.HELD_FRONT,
+      ['.12.', '1123', ...staffRows(33, 2)],
+      {
+        '1': ['thorn', 1],
+        '2': ['thorn', 3],
+        '3': ['thorn', 4],
+        x: ['thorn', 5],
+      },
+      'nearHeld',
+    ),
+    'nearHeld',
+  ),
+  b(
+    bit(
+      14,
+      39,
+      DEPTH.GRIP,
+      ['.12.', '.12.', '.12.', '.12.', '.12.'],
+      {
+        '1': ['thorn', 2],
+        '2': ['thorn', 4],
+      },
+      'nearHeld',
+    ),
+    'nearHeld',
+  ),
+  b(
+    bit(
+      14,
+      44,
+      DEPTH.HELD_FRONT,
+      [...staffRows(22, 4), '.23.'],
+      {
+        '1': ['thorn', 1],
+        '2': ['thorn', 3],
+        '3': ['thorn', 4],
+        x: ['thorn', 5],
+      },
+      'nearHeld',
+    ),
+    'nearHeld',
+  ),
+];
+
+const BRIAR_HAG: Person = {
+  gear: ['captains_coat', 'teal_tunic', 'linen_trousers', 'leather_boots', 'leather_belt'],
+  body: 'standard',
+  worn: (part, id) => {
+    // A long ragged robe of dark moss-green edged in thorn; under it, undyed brown.
+    if (id === 'captains_coat') return dyed(dyed(part, 'midnight', 'mossdye'), 'bronze', 'thorn');
+    if (id === 'teal_tunic') return dyed(part, 'teal', 'umber');
+    if (id === 'linen_trousers') return dyed(part, 'linen', 'umber');
+    return part;
+  },
+  own: [b(HAG_HEAD, 'head'), b(HAG_TANGLE, 'head'), ...HAG_STAFF],
+  swing: { kind: 'cudgel', sleeve: { upper: 'mossdye', fore: 'mossdye' } },
+  skin: 'skinpale',
+  hair: 'hairgrey',
+  // Stooped: a head shorter, taken out of her back and her legs.
+  shorter: [24, 28, 32, 36, 47, 52, 57, 62],
+};
+
 export const PEOPLE: Readonly<Record<string, Person>> = {
   deckhand: DECKHAND,
   smuggler: SMUGGLER,
   footpad: FOOTPAD,
   goblin_poacher: GOBLIN,
+  // B19, tier 2.
+  brigand: BRIGAND,
+  hobgoblin: HOBGOBLIN,
+  briar_hag: BRIAR_HAG,
 };
 
 /* ------------------------------------------------------------------- posing */

@@ -18,6 +18,7 @@ import {
   lightAt,
   lightGround2,
   MONSTER2_IDS,
+  TIER2_MONSTER2_IDS,
   PROP2_IDS,
   roomKinds2,
   TIDEPOOL2_IDS,
@@ -424,8 +425,10 @@ describe('every foe at the C scale', () => {
     // Every monster in the tables is drawn (B15: a table may gain a dungeon's cast, as long as it is drawn).
     for (const id of monsters) expect(FOE2_IDS, id).toContain(id);
     for (const id of MONSTER2_IDS) expect(monsters, id).toContain(id);
-    // B15: the tide-pool cave's cast with them.
-    expect(new Set(FOE2_IDS)).toEqual(new Set([...FOE_IDS, ...monsters, ...TIDEPOOL2_IDS]));
+    // B15: the tide-pool cave's cast with them; B19: tier 2's monsters, drawn ahead of their rows.
+    expect(new Set(FOE2_IDS)).toEqual(
+      new Set([...FOE_IDS, ...monsters, ...TIDEPOOL2_IDS, ...TIER2_MONSTER2_IDS]),
+    );
   });
 
   it('draws every foe in every pose and frame, facing both ways, standing on its feet', () => {

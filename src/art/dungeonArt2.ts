@@ -29,6 +29,7 @@ import {
   FOE2_POSES,
   GROTTO2_IDS,
   MONSTER2_IDS,
+  TIER2_MONSTER2_IDS,
   TIDEPOOL2_IDS,
   type Foe2Pose,
 } from './dungeon2/cast2';
@@ -68,6 +69,7 @@ export {
   FOE2_SIZES,
   GROTTO2_IDS,
   MONSTER2_IDS,
+  TIER2_MONSTER2_IDS,
   PROP2_IDS,
   TILE2_KINDS,
   TILE2_WEARS,

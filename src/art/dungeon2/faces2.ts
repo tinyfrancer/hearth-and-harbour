@@ -22,6 +22,7 @@ import { OLD_SNAPPER } from './snapperFace';
 import { FERRYMAN } from './ferrymanFace';
 import * as FOLK from './folkFaces';
 import * as MARKS from './markFaces';
+import * as TIER2 from './tier2Faces';
 import { drawHero, type HeroBust } from './heroFace';
 
 export type { HeroBust };
@@ -550,6 +551,19 @@ const FACES2: Readonly<Record<string, FaceDef>> = {
   steal_sailor: MARKS.SAILOR,
   steal_pedlar: MARKS.PEDLAR,
   steal_strongbox: MARKS.CLERK,
+  // B19, tier 2 (docs/tier2-manifest.md): Thistlewood's Edge, the Deepthorn and the new marks.
+  brigand: TIER2.BRIGAND,
+  black_bear: TIER2.BLACK_BEAR,
+  hobgoblin: TIER2.HOBGOBLIN,
+  dire_wolf: TIER2.DIRE_WOLF,
+  hill_ogre: TIER2.HILL_OGRE,
+  briar_hag: TIER2.BRIAR_HAG,
+  moss_golem: TIER2.MOSS_GOLEM,
+  steal_spice_merchant: TIER2.SPICE_MERCHANT,
+  steal_customs_house: TIER2.CUSTOMS_CLERK,
+  steal_noble: TIER2.VISITING_NOBLE,
+  steal_guild_coffer: TIER2.GUILD_GUARD,
+  steal_counting_house: TIER2.BANKER,
 };
 
 export const PORTRAIT2_IDS: readonly string[] = Object.keys(FACES2);

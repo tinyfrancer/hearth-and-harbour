@@ -12,6 +12,8 @@ describe('artGallery', () => {
     expect(buttons).toContain('See the new town at the finer scale');
     expect(buttons).toContain('Draw the new figures');
     expect(buttons).toContain('See the title screen');
+    // B19.
+    expect(buttons).toContain('Draw tier 2');
   });
 
   it('draws every picture at a whole number of device pixels', () => {
