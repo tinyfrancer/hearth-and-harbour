@@ -481,7 +481,7 @@ describe('what challenges pay, all told (S16)', () => {
     // Dungeon, its coins and items' worth all told, and its points all told.
     ['tidepool_cave', 910, 4],
     ['brinebeards_grotto', 24000, 35],
-    // Coming soon (S22's row for S23): held to the same bound at its level, 40.
+    // Charted since wave 20: held to the same bound at its level, 40.
     ['thistlewood_burrow', 47000, 35],
   ] as const)('pays %s’s challenges %i coins’ worth and %i points', (id, worth, points) => {
     const dungeon = CONTENT.dungeons![id]!;
@@ -609,6 +609,56 @@ describe('a dungeon run idle (S16)', () => {
       const night = idleHourOf(first, 'brinebeards_grotto', { hours: 6 });
       expect(night.knockedOut, String(first)).toBe(false);
       expect(night.earned, String(first)).toBeGreaterThan(night.food / 2);
+    }
+  }, 240_000);
+});
+
+// Thistlewood Burrow run idle (wave 20), held as the grotto is: worse than by
+// hand (lane C's careful player at level 40 in the full tier-2 kit, its median
+// clear plus fifteen seconds), and worse than the best idle fight at 40, on
+// any day; and a night of it at the levels it is first cleared at pays for
+// its fish.
+const IDLE_BURROW: number[] = [6, 64077, 69589];
+describe('Thistlewood Burrow run idle (wave 20)', () => {
+  const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
+  const median = (xs: readonly number[]): number =>
+    [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+
+  it('runs it idle for less than by hand, and less than the best idle fight at level 40, on any day', () => {
+    const burrow = CONTENT.dungeons!.thistlewood_burrow!;
+    const level = 40;
+    const hero = characterAt(level, { tier2: true, food: 20 });
+    const runs = SEEDS.map((seed) => playBurrow(fighterOf(hero, CONTENT), seed, { reactMs: 400 }));
+    const clear = median(runs.filter((run) => run.cleared).map((run) => run.ms));
+    const hand = handRunOf(burrow);
+    const handRuns = HOUR / (clear + 15_000);
+    const handXp = hand.xp * handRuns;
+    const handWorth = hand.worth * handRuns;
+    const open = Object.values(CONTENT.monsters!).filter(
+      (monster) => monster.level <= level && !monster.bountyOnly,
+    );
+    const hours = open.map((monster) => hourOf(level, monster.id, { tier2: true }));
+    const bestXp = Math.max(...hours.map((hour) => hour.xpPerHour));
+    const bestEarned = bestFightHour(level, true).earned;
+    const plain = idleHourOf(level, 'thistlewood_burrow', { tier2: true });
+    // Pinned so a change is seen: idle 6 runs an hour, its XP and what it earns after fish.
+    expect([plain.runs, plain.xp, Math.round(plain.earned)]).toEqual(IDLE_BURROW);
+    expect(plain.xp).toBeLessThan(handXp * 0.9);
+    expect(plain.loot + plain.coins).toBeLessThan(handWorth / 2);
+    for (const modifier of [null, ...burrow.modifiers!]) {
+      const day = idleHourOf(level, 'thistlewood_burrow', { modifier, tier2: true });
+      expect(day.knockedOut, String(modifier)).toBe(false);
+      expect(day.xp, String(modifier)).toBeLessThan(bestXp);
+      expect(day.earned, String(modifier)).toBeLessThan(bestEarned);
+      // Every one of its days is a trade, played plain idle.
+      expect(day, String(modifier)).toEqual(plain);
+    }
+    // A night's worth of runs at the levels it is first cleared at: never knocked out, and the
+    // amber kept pays for the swordfish eaten.
+    for (const first of [38, 40]) {
+      const night = idleHourOf(first, 'thistlewood_burrow', { hours: 6, tier2: true });
+      expect(night.knockedOut, String(first)).toBe(false);
+      expect(night.earned, String(first)).toBeGreaterThan(night.food);
     }
   }, 240_000);
 });

@@ -91,14 +91,14 @@ describe('dungeonStatus', () => {
     expect(dungeonsInOrder(tables).map((d) => d.id)).toEqual(['cave', 'cove', 'keep', 'later']);
   });
 
-  it('shows the real chart to a new character: the cave and the grotto open, the rest to come', () => {
+  it('shows the real chart to a new character: the cave and the grotto open, the burrow locked, the rest to come', () => {
     const states = dungeonsInOrder(CONTENT).map(
       (d) => `${d.id} ${dungeonStatus(fresh(), d.id, CONTENT)!.state}`,
     );
     expect(states).toEqual([
       'tidepool_cave open',
       'brinebeards_grotto open',
-      'thistlewood_burrow soon',
+      'thistlewood_burrow locked',
       'unknown_2 soon',
       'unknown_3 soon',
     ]);

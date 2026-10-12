@@ -121,7 +121,11 @@ describe('the day’s modifier', () => {
   });
 
   it('is none for a landing to come, an unknown id, or a dungeon that draws from none', () => {
-    expect(dailyModifier(NOON, 'thistlewood_burrow', CONTENT)).toBeNull();
+    expect(dailyModifier(NOON, 'unknown_2', CONTENT)).toBeNull();
+    // Wave 20: the burrow is charted, and has its days.
+    expect(CONTENT.dungeons!.thistlewood_burrow!.modifiers).toContain(
+      dailyModifier(NOON, 'thistlewood_burrow', CONTENT),
+    );
     expect(dailyModifier(NOON, 'nowhere', CONTENT)).toBeNull();
     expect(dailyModifier(NOON, 'constructor', CONTENT)).toBeNull();
     const plain: Content = {
@@ -348,9 +352,14 @@ describe('settling a run that meets challenges', () => {
     expect(clearRewards(after, clear, CONTENT)).toEqual({ firstClear: [], challenges: [] });
     // A run that did not clear, a landing to come, or no tables: nothing.
     expect(clearRewards(start, { ...clear, cleared: undefined }, CONTENT).challenges).toEqual([]);
+    expect(clearRewards(start, { ...clear, cleared: 'unknown_2' }, CONTENT).firstClear).toEqual([]);
+    // Wave 20: the burrow is charted, and its first clear pays.
     expect(
       clearRewards(start, { ...clear, cleared: 'thistlewood_burrow' }, CONTENT).firstClear,
-    ).toEqual([]);
+    ).toEqual([
+      { item: 'amber', qty: 10 },
+      { item: 'cooked_swordfish', qty: 10 },
+    ]);
     expect(clearRewards(start, clear, undefined)).toEqual({ firstClear: [], challenges: [] });
   });
 

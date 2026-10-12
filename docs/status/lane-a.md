@@ -1,9 +1,37 @@
 # Lane A: idle rules
 
-**Next: wave 20** (in progress): the Burrow's numbers (PR 1, below), tier 2's follow-ups, the
-cloak's own slot, and opening the Burrow once lane C writes "BURROW READY".
+**Next: wave 20's last PR, opening Thistlewood Burrow** (branch `lane-a/w20-burrow-open`), the
+moment lane C writes "BURROW READY" and lane B's five faces are on `main`; then Cody's review.
 
 ## Done
+
+- Wave 20, PR 4: Thistlewood Burrow opened (branch `lane-a/w20-burrow-open`). **Save version
+  unchanged (12).**
+  - **Charted**: `comingSoon` is gone from its row. It is locked, named, until the grotto is
+    cleared ("Clear Brinebeard’s Grotto."), then open; the Dungeons card, the chart, the day's
+    modifier (its five days), challenges, first-clear reward (10 amber, 10 cooked swordfish),
+    the bestiary (its five, faces by `portrait2`), the collection log and the bank's "From" all
+    take it as they take the grotto. Its first clear opens tier 3, told on the Dungeons card as
+    still being built ("levels 40 to 60 in every skill"); no unlock card (tier 3 has no rows).
+  - **Run idle** (`idle`): the walks are now half a minute a room (he lights the lanterns as he
+    goes) and the trip three minutes (was 12 s and two): at the first walks an hour idle at 40
+    paid 85,440 XP, more than an hour by hand (74,711). Now 6 runs an hour, 64,077 XP (0.86 of
+    by hand), 69,589 coins earned after fish (the best fight 165,264); the same on every day
+    (all five are trades, played plain idle); a night at 38 and 40 is never knocked out and
+    pays for its swordfish. Pinned in `Thistlewood Burrow run idle`.
+  - **Achievements** (four, 54 in all): Lights Out (a clear), Knows Every Tunnel (ten), By
+    Royal Appointment (every challenge), Rain or Spores (a clear on each of its five days).
+  - **A content case**: every charted dungeon has idle rooms, a face for everyone in its cast
+    (`PORTRAIT2_IDS`), and an icon for everything it gives up, pays first or pays for a
+    challenge (`ITEM_ICON_IDS`). It fails until lane B's five faces are on `main`, which is the
+    gate.
+  - **Tests changed on purpose**: `thistlewood_burrow soon` → `locked` for a newcomer and
+    `open` past the grotto (core dungeons, the Dungeons card); a landing to come is now
+    `unknown_2` where a case needed one (the day's modifier, the first-clear reward, the
+    shell's modifier, the Dungeons card's "?"); tier 3's reason is "Clear Thistlewood
+    Burrow." (tier 4's "Not open yet."); the Town tab's dot stays until the burrow is cleared
+    too; the content case reads the burrow as charted and named. New: the tier-3 line on the
+    Dungeons card, before and after its clear.
 
 - Wave 20, PR 3: the cloak's own slot (branch `lane-a/w20-cloak-slot`). **Save version 12.**
   - **A ninth slot, `back`** (`SLOTS` in `src/core/content.ts`, after `neck`; named "Back" on
