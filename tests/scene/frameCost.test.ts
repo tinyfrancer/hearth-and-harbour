@@ -82,14 +82,9 @@ describe('a dark room’s layers, worked out with its ground', () => {
     expect(seen).toBeGreaterThan(1000);
   }, 60_000);
 
-  it('has a heart a step lighter than the lit ground, never darker', () => {
-    let lighter = 0;
-    for (let i = 0; i < dark.w * dark.h; i++) {
-      const a = dark.lit[i * 4]! + dark.lit[i * 4 + 1]! + dark.lit[i * 4 + 2]!;
-      const b = dark.heart[i * 4]! + dark.heart[i * 4 + 1]! + dark.heart[i * 4 + 2]!;
-      if (b > a) lighter += 1;
-    }
-    expect(lighter / (dark.w * dark.h)).toBeGreaterThan(0.3);
+  it('keeps the ground’s own cells and palette beside them (no second copy of either)', () => {
+    expect(dark.cells).toBe(painted.cells.d);
+    expect(dark.palette).toBe(themeOf(room).palette);
   });
 
   it('gives a plain day no layers at all, and its ground as before', () => {
@@ -104,6 +99,8 @@ describe('a dark room’s layers, worked out with its ground', () => {
     const into = new Uint8ClampedArray(own.bw * own.bh * 4);
     expect(heroLightPixels(dark, own, at, into)).toBe(true);
     let drawn = 0;
+    let heart = 0;
+    let lifted = 0;
     for (let j = 0; j < own.bh; j++)
       for (let i = 0; i < own.bw; i++) {
         const x = at.x + i;
@@ -123,11 +120,20 @@ describe('a dark room’s layers, worked out with its ground', () => {
         expect(shadeIn(dark, own, x, y)).toBe(mine);
         const p = (y * dark.w + x) * 4;
         const m = own.mask[j * own.bw + i]!;
-        const src = m === 0 ? dark.heart : dark.lit;
         const k = mine === 1 ? IN_THE_DARK[1] : 1;
-        expect(Math.abs(into[o]! - (src[p]! * k + NIGHT_RGB[0] * (1 - k)))).toBeLessThanOrEqual(1);
+        if (m === 0) {
+          // The heart: lighter than the ground lit, by the step its cell is lifted (or as lit).
+          heart += 1;
+          const sum = (d: Uint8ClampedArray, i: number) => d[i]! + d[i + 1]! + d[i + 2]!;
+          expect(sum(into, o)).toBeGreaterThanOrEqual(sum(dark.lit, p) - 3);
+          if (sum(into, o) > sum(dark.lit, p) + 3) lifted += 1;
+        } else
+          expect(
+            Math.abs(into[o]! - (dark.lit[p]! * k + NIGHT_RGB[0] * (1 - k))),
+          ).toBeLessThanOrEqual(1);
       }
     expect(drawn).toBeGreaterThan(2000);
+    expect(lifted / heart).toBeGreaterThan(0.5);
     // Beside a burning lantern, where the ground is lit already, nothing of his.
     const lamp = room.ground.lamps.findIndex((_, i) => (room.lit! & (1 << i)) !== 0);
     const l = room.ground.lamps[lamp]!.cell;

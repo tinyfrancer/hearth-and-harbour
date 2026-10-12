@@ -57,9 +57,9 @@ export const TEND_REACH = far(30);
 /** A darker day: his own light (drawing only; it is not a rule) lays this share of its pool. */
 export const DARKER_HERO = 0.7;
 /** In the dark, his blows land this much as often. */
-export const DARK_AIM = 0.55;
+export const DARK_AIM = Number((globalThis as { SCRATCH_AIM?: number }).SCRATCH_AIM ?? 0.55);
 /** In the dark, blows at him find him as if his defence were this much of itself. */
-export const DARK_GUARD = 0.35;
+export const DARK_GUARD = Number((globalThis as { SCRATCH_GUARD?: number }).SCRATCH_GUARD ?? 0.35);
 /** A burrower come up into a lantern's light is dazzled this long: it does nothing. */
 export const DAZZLE_MS = 2500;
 /** A heavy blow begun in the light is marked this much longer: it is seen coming. */

@@ -7,6 +7,7 @@
 import type { Room } from './dungeon';
 import {
   groundOnTheSpot,
+  themeOf,
   type DarkLayers,
   type DoorPaint,
   type GroundPainter,
@@ -72,7 +73,13 @@ export function groundInAWorker(): WorkerPainter {
             barred: { w: d.box.w, h: d.box.h, d: d.barred },
             open: { w: d.box.w, h: d.box.h, d: d.open },
           })),
-          a.dark && { w: a.w, h: a.h, ...a.dark },
+          a.dark && {
+            w: a.w,
+            h: a.h,
+            ...a.dark,
+            cells: a.cells,
+            palette: themeOf(job.room).palette,
+          },
         );
       send();
     };

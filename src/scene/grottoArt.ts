@@ -444,30 +444,29 @@ export function darkenPixels(
 /**
  * A dark room's ground made ready for what moves about in it, worked out
  * with the ground itself (in the worker): the shade the room's own pools
- * leave each pixel (`shadeAt`, ragged edges and all), and the ground as it
- * would be lit (`lit`: in a pool's light; `heart`: in the heart of the
- * hero's own, a step lighter). His pool and the shadows cast in the dark
- * are put together from these by lookup each frame, never worked out a
- * pixel at a time from the lights (which cost a frame its budget).
+ * leave each pixel (`shadeAt`, ragged edges and all) and the ground as it
+ * would be in a pool's light (`lit`, glows and all), beside the ground's
+ * own cells and palette. His pool and the shadows cast in the dark are put
+ * together from these by lookup each frame, never worked out a pixel at a
+ * time from the lights (which cost a frame its budget). What a pixel would
+ * be in his pool's heart (a step lighter) or at its edge is had from them by
+ * sum (`heroLightPixels`): the light its glows add is the same at any step.
  */
 export interface DarkLayers {
   readonly w: number;
   readonly h: number;
   readonly shade: Uint8Array;
   readonly lit: Uint8ClampedArray;
-  readonly heart: Uint8ClampedArray;
+  readonly cells: TGrid['d'];
+  readonly palette: CavePalette;
 }
 
-/** The ground's cells with the heart of the hero's own pool's lift: a step lighter, as lane B lifts a pool's heart. */
-function heartCells(cells: TGrid): TGrid {
+/** A cell a step lighter, as the heart of a pool lifts it (not a light, not wood); its own where not. */
+function heartCell(c: number): number {
   const L = DUNGEON2_LIGHT;
-  const d = cells.d.slice();
-  for (let i = 0; i < d.length; i++) {
-    const c = d[i]!;
-    if (c && (c & 7) !== 6 && !isMat(c, 'wood'))
-      d[i] = (c & ~7) | Math.max(0, (c & 7) - L.heartSteps);
-  }
-  return { w: cells.w, h: cells.h, d };
+  return c && (c & 7) !== 6 && !isMat(c, 'wood')
+    ? (c & ~7) | Math.max(0, (c & 7) - L.heartSteps)
+    : c;
 }
 
 /** A pixel's shade where a dark room's pools and the hero's own meet: the lighter of the two. */
@@ -1059,8 +1058,12 @@ export function groundPixels(
       shade[i] = s;
       if (data[i * 4 + 3]) nightOf(data, i * 4, s);
     }
-  const heart = rasterize2({ grid: heartCells(cells), glows: steady }, palette, 1).data;
-  return { cells, data, doors, dark: { w: cells.w, h: cells.h, shade, lit, heart } };
+  return {
+    cells,
+    data,
+    doors,
+    dark: { w: cells.w, h: cells.h, shade, lit, cells: cells.d, palette },
+  };
 }
 
 /** The lanterns' glows on the ground at their weakest; the rest flickers over it (`flicker`). */
@@ -1604,6 +1607,7 @@ export function heroLightPixels(
 ): boolean {
   const { bw, bh, mask } = own;
   const k = IN_THE_DARK[1];
+  const rgb = dark.palette.rgb;
   let any = false;
   for (let j = 0; j < bh; j++) {
     const y = at.y + j;
@@ -1620,15 +1624,21 @@ export function heroLightPixels(
       if (!dark.lit[p4 + 3]) continue;
       if (skip && skip.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h))
         continue;
-      const src = m === 0 ? dark.heart : dark.lit;
-      if (ownShade === 1) {
-        into[o4] = src[p4]! * k + NIGHT_RGB[0] * (1 - k);
-        into[o4 + 1] = src[p4 + 1]! * k + NIGHT_RGB[1] * (1 - k);
-        into[o4 + 2] = src[p4 + 2]! * k + NIGHT_RGB[2] * (1 - k);
+      if (m === 0) {
+        // The heart: the cell a step lighter, with the light its glows add (the lit pixel less
+        // its cell's own colour) on top.
+        const c = dark.cells[p]!;
+        const h = heartCell(c);
+        for (let ch = 0; ch < 3; ch++)
+          into[o4 + ch] = rgb[h * 3 + ch]! + (dark.lit[p4 + ch]! - rgb[c * 3 + ch]!);
+      } else if (ownShade === 1) {
+        into[o4] = dark.lit[p4]! * k + NIGHT_RGB[0] * (1 - k);
+        into[o4 + 1] = dark.lit[p4 + 1]! * k + NIGHT_RGB[1] * (1 - k);
+        into[o4 + 2] = dark.lit[p4 + 2]! * k + NIGHT_RGB[2] * (1 - k);
       } else {
-        into[o4] = src[p4]!;
-        into[o4 + 1] = src[p4 + 1]!;
-        into[o4 + 2] = src[p4 + 2]!;
+        into[o4] = dark.lit[p4]!;
+        into[o4 + 1] = dark.lit[p4 + 1]!;
+        into[o4 + 2] = dark.lit[p4 + 2]!;
       }
       into[o4 + 3] = 255;
       any = true;

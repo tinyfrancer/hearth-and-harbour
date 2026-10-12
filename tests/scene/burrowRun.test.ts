@@ -1,12 +1,14 @@
 /*
  * Thistlewood Burrow's balance, held by playing it (`burrowBot.ts`), as the
  * grotto's is (`grottoRun.test.ts`): twelve fixed seeds, a person's 0.4 s to
- * notice anything new, and the cast's numbers as this lane asks lane A for
- * them (`BURROW_ASKED`). A careful player at level 40 in tier-2 gear with a
- * slot of swordfish clears it in seven to ten minutes, in real danger; one
- * who never lights a lantern usually does not, nor one ten levels under;
- * and every day of its pool is a fair trade, cleared nearly as often and
- * harder in the way it says. A number that breaks one is a decision.
+ * notice anything new, the cast and the days as the tables have them, and a
+ * character built from the tables' gear (`tier2State`: salt-iron and the red
+ * cloak, cooked swordfish). A careful player at level 40 clears it in seven
+ * to ten minutes, in real danger; one who never lights a lantern usually
+ * does not, nor one ten levels under; and every day of its pool is a fair
+ * trade, cleared nearly as often and harder in the way it says. Each with a
+ * seed to spare: no case sits on its line. A number that breaks one is a
+ * decision.
  */
 import { describe, expect, it } from 'vitest';
 import type { ModifierEffects } from '../../src/core/content';
@@ -15,7 +17,7 @@ import { CONTENT } from '../../src/data';
 import { spoilsOf } from '../../src/scene/battle';
 import { BURROW_ID } from '../../src/scene/burrow';
 import { runStats, type RunModifier } from '../../src/scene/modifiers';
-import { playBurrow, tier2, type BurrowOutcome } from './burrowBot';
+import { playBurrow, tier2, tier2State, type BurrowOutcome } from './burrowBot';
 
 const SEEDS = Array.from({ length: 12 }, (_, i) => (i + 1) * 7919);
 const REACT_MS = 400;
@@ -43,6 +45,34 @@ function burrow(who: 'careful' | 'careless' | 'under', modifier?: RunModifier): 
   return runs;
 }
 
+describe('the hero the balance is played by', () => {
+  it('is built from the tables: the gear his level allows, and swordfish', () => {
+    const at40 = tier2State(40);
+    expect(
+      Object.values(at40.equipment)
+        .map((e) => e!.item)
+        .sort(),
+    ).toEqual(
+      [
+        'red_cloak',
+        'salt_iron_greaves',
+        'salt_iron_helm',
+        'salt_iron_plate',
+        'salt_iron_shield',
+        'salt_iron_sword',
+      ].sort(),
+    );
+    expect(at40.food).toEqual({ item: 'cooked_swordfish', qty: 20 });
+    const hero = tier2(40);
+    expect(hero.food?.heals).toBe(CONTENT.items.cooked_swordfish!.heals);
+    // Ten levels under hits less hard, less often, and has less to lose.
+    const under = tier2(30);
+    expect(under.attack).toBeLessThan(hero.attack);
+    expect(under.maxHit).toBeLessThan(hero.maxHit);
+    expect(under.maxHp).toBeLessThan(hero.maxHp);
+  });
+});
+
 describe('Thistlewood Burrow, played through', () => {
   it('is cleared by a careful player at level 40 in seven to ten minutes, in real danger', () => {
     const runs = burrow('careful');
@@ -61,7 +91,8 @@ describe('Thistlewood Burrow, played through', () => {
 
   it('usually sends home a player who never lights a lantern', () => {
     const careless = burrow('careless');
-    expect(clears(careless)).toBeLessThanOrEqual(5);
+    // Usually: no more than five of twelve, with a seed to spare.
+    expect(clears(careless)).toBeLessThanOrEqual(4);
     expect(clears(careless)).toBeLessThanOrEqual(clears(burrow('careful')) - 6);
     for (const r of careless) expect(r.lit).toBe(0);
     // ...and not at the door: he gets as far as the king, most of the time.
@@ -69,7 +100,7 @@ describe('Thistlewood Burrow, played through', () => {
   }, 240_000);
 
   it('usually sends home a careful player ten levels under', () => {
-    expect(clears(burrow('under'))).toBeLessThanOrEqual(5);
+    expect(clears(burrow('under'))).toBeLessThanOrEqual(4);
   }, 240_000);
 
   it('brings a clear home: kills by monster and the Burrow cleared', () => {
@@ -82,22 +113,10 @@ describe('Thistlewood Burrow, played through', () => {
   }, 240_000);
 });
 
-/**
- * The one day this lane asks lane A to change, played as asked: against the
- * asked cast, Deep Gloom's hero damage of 0.85 on top of the dark is cleared
- * on 9 of 12 seeds (20 of 24 more); at 0.9 it is 10 of 12 (23 of 24) and
- * still the longest day. Its rewards are as they were. (Swift Hounds as it
- * stands is cleared on exactly 10: on the line.)
- */
-const ASKED_DAYS: Readonly<Record<string, ModifierEffects>> = {
-  deep_gloom: { darker: true, heroDamage: 0.9, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
-};
-
-/** The Burrow's days: its pool in the tables (`DungeonDef.modifiers`), with the asked one as asked. */
-const POOL: readonly RunModifier[] = (() => {
-  const ids = CONTENT.dungeons?.[BURROW_ID]?.modifiers ?? [];
-  return ids.map((id) => ({ id, effects: ASKED_DAYS[id] ?? effectsOf(CONTENT, id) }));
-})().filter((m) => !isKind(m.effects));
+/** The Burrow's days, as its pool in the tables names them (`DungeonDef.modifiers`), each as written. */
+const POOL: readonly RunModifier[] = (CONTENT.dungeons?.[BURROW_ID]?.modifiers ?? [])
+  .map((id) => ({ id, effects: effectsOf(CONTENT, id) }))
+  .filter((m) => !isKind(m.effects));
 
 const times = (k: number | undefined): number =>
   typeof k === 'number' && Number.isFinite(k) && k > 0 ? k : 1;
@@ -132,11 +151,11 @@ describe('the Burrow’s days, held to lane A’s target', () => {
   });
 
   it.each(POOL.map((m) => [m.id, m] as const))(
-    '%s: cleared on at least 10 of 12 seeds by the careful player, and harder in its stated way',
+    '%s: cleared on 11 of 12 seeds by the careful player (a seed over the line), and harder in its stated way',
     (_id, modifier) => {
       const plain = burrow('careful');
       const runs = burrow('careful', modifier);
-      expect(clears(runs)).toBeGreaterThanOrEqual(10);
+      expect(clears(runs)).toBeGreaterThanOrEqual(11);
       const how = stated(modifier.effects);
       if (how.longer) expect(clearTime(runs)).toBeGreaterThan(clearTime(plain) * 1.04);
       if (how.hurt) expect(lost(runs)).toBeGreaterThan(lost(plain) * 1.02);

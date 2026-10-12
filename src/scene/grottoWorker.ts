@@ -42,7 +42,6 @@ export interface GroundAnswer {
   readonly dark: {
     readonly shade: Uint8Array;
     readonly lit: Uint8ClampedArray;
-    readonly heart: Uint8ClampedArray;
   } | null;
 }
 
@@ -77,20 +76,14 @@ scope.onmessage = (event) => {
     barred: d.barred.d,
     open: d.open.d,
   }));
-  const layers = dark && { shade: dark.shade, lit: dark.lit, heart: dark.heart };
+  const layers = dark && { shade: dark.shade, lit: dark.lit };
   scope.postMessage(
     { id, w: cells.w, h: cells.h, cells: cells.d, data, doors: flat, dark: layers },
     [
       cells.d.buffer as ArrayBuffer,
       data.buffer as ArrayBuffer,
       ...flat.flatMap((d) => [d.barred.buffer as ArrayBuffer, d.open.buffer as ArrayBuffer]),
-      ...(layers
-        ? [
-            layers.shade.buffer as ArrayBuffer,
-            layers.lit.buffer as ArrayBuffer,
-            layers.heart.buffer as ArrayBuffer,
-          ]
-        : []),
+      ...(layers ? [layers.shade.buffer as ArrayBuffer, layers.lit.buffer as ArrayBuffer] : []),
     ],
   );
 };
