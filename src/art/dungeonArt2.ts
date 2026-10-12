@@ -18,15 +18,30 @@
  */
 import { mirror, type Picture2 } from './town2/cells';
 import { spriteCanvas } from './town2/raster';
-import { CAVE_DAY, CAVE_DUSK, CAVE_TIDEPOOL, type CavePalette } from './dungeon2/cave';
+import {
+  burrowNight,
+  BURROW_DARK_BANDS,
+  BURROW_NIGHT_LEVELS,
+  CAVE_BURROW,
+  CAVE_BURROW_DARK,
+  CAVE_DAY,
+  CAVE_DUSK,
+  CAVE_TIDEPOOL,
+  NIGHT,
+  NIGHT_EXEMPT,
+  nightRgb,
+  type CavePalette,
+} from './dungeon2/cave';
 import { DUNGEON2_THEMES, isDungeon2Theme, type Dungeon2Theme } from './dungeon2/theme';
 import { lightGround2 } from './dungeon2/light';
+import { burrowFungusGlows } from './dungeon2/burrow';
 import type { TGrid } from './town2/cells';
 import {
   foe2Frame,
   foe2Frames,
   FOE2_IDS,
   FOE2_POSES,
+  BURROW2_IDS,
   GROTTO2_IDS,
   MONSTER2_IDS,
   TIER2_MONSTER2_IDS,
@@ -58,6 +73,15 @@ import {
 } from './dungeon2/tiles';
 
 export {
+  BURROW2_IDS,
+  burrowNight,
+  BURROW_DARK_BANDS,
+  BURROW_NIGHT_LEVELS,
+  CAVE_BURROW,
+  CAVE_BURROW_DARK,
+  NIGHT,
+  NIGHT_EXEMPT,
+  nightRgb,
   CAVE_DAY,
   CAVE_DUSK,
   CAVE_TIDEPOOL,
@@ -79,6 +103,9 @@ export { GROUND2_SHADOW, forgetTiles2 } from './dungeon2/tiles';
 export { roomKinds2, aroundOf } from './dungeon2/room';
 export { forgetFoes2 } from './dungeon2/cast2';
 export {
+  BURROW2_LIGHT,
+  FUNGUS2_RGB,
+  burrowLevel2,
   DUNGEON2_LIGHT,
   FUSE_LIGHT2,
   LANTERN_LIGHT2,
@@ -88,6 +115,9 @@ export {
   lightAt,
 } from './dungeon2/light';
 export { lightGround2 };
+
+/** B20: the Burrow's props, by id (filled as they are drawn; also in `PROP2_IDS`). */
+export const BURROW2_PROP_IDS: readonly string[] = [];
 
 /** A dungeon tile's size at the C scale, in art pixels (`TILE` in the scene is 16 at the first scale). */
 export const DUNGEON2_TILE = TILE2;
@@ -125,7 +155,10 @@ export function dungeonTile2(
 ): Picture2 | null {
   if (!isTile2Kind(kind)) return null;
   const t = isDungeon2Theme(theme) ? theme : 'grotto';
-  return { grid: tile2Grid(kind, wearOf(variant, TILE2_WEARS[kind]), around, at, t), glows: [] };
+  const grid = tile2Grid(kind, wearOf(variant, TILE2_WEARS[kind]), around, at, t);
+  // B20: the Burrow's face carries its glowing fungus's light (only with its cell, where the fungus is).
+  const glows = t === 'burrow' && at ? burrowFungusGlows(kind, Math.floor(at.col) * TILE2) : [];
+  return { grid, glows };
 }
 
 /**
@@ -353,7 +386,7 @@ export function dungeonTheme2(theme: Dungeon2Theme | string = 'grotto'): Dungeon
   const t: Dungeon2Theme = isDungeon2Theme(theme) ? theme : 'grotto';
   let made = themes.get(t);
   if (made) return made;
-  const palette = t === 'tidepool' ? CAVE_TIDEPOOL : CAVE_DUSK;
+  const palette = t === 'tidepool' ? CAVE_TIDEPOOL : t === 'burrow' ? CAVE_BURROW : CAVE_DUSK;
   made = {
     theme: t,
     palette,
@@ -361,8 +394,12 @@ export function dungeonTheme2(theme: Dungeon2Theme | string = 'grotto'): Dungeon
     propIds:
       t === 'tidepool'
         ? TIDEPOOL2_PROP_IDS
-        : PROP2_IDS.filter((id) => !TIDEPOOL2_PROP_IDS.includes(id)),
-    castIds: t === 'tidepool' ? TIDEPOOL2_IDS : GROTTO2_IDS,
+        : t === 'burrow'
+          ? BURROW2_PROP_IDS
+          : PROP2_IDS.filter(
+              (id) => !TIDEPOOL2_PROP_IDS.includes(id) && !BURROW2_PROP_IDS.includes(id),
+            ),
+    castIds: t === 'tidepool' ? TIDEPOOL2_IDS : t === 'burrow' ? BURROW2_IDS : GROTTO2_IDS,
     tile: (kind, variant = 0, around, at) => dungeonTile2(kind, variant, around, at, t),
     door: (kind, around, at) => dungeonDoor2(kind, around, at, t),
     prop: (id) => dungeonProp2(id),

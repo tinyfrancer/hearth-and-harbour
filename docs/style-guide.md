@@ -992,6 +992,53 @@ slow, plainer to read than the grotto's giant crab.
   slot pupil under lids slanting to the middle and brows like ledges, the hooked beak turned down at
   its corners, the hook in his mouth.
 
+### Thistlewood Burrow (B20)
+
+The game's second real dungeon: a warren dug under the old forest, played dark. It must never read
+as the grotto recoloured: earth, roots and fungus where the grotto has rock, sand and sea; warm
+lantern light against a cold blue-green dark.
+
+- **A theme** (`'burrow'`, `dungeonTheme2('burrow')`, `dungeon2/burrow.ts`, doors
+  `dungeon2/burrowDoors.ts`) on the grotto's tile kinds and footprints, so lane C's rooms are
+  data-compatible: lane C's `.` floor is earth; `:` (sand) is a deep carpet of leaf litter, `,`
+  (wet sand) a bed of moss, `=` (planks) the badger's flagstones; water is still black seep.
+  Higher spills over lower as everywhere (leaves over moss over earth).
+- **Palette.** New ramps appended to `CAVE_BASE`: `soil` (warm umber lights, cool violet-brown
+  shadows), `clay` (paler, greyer beds), `root` (pale, fibrous), `glowcap` (the fungus's cold
+  light), `litter` (dun and olive leaves: floors are still never red or orange), `flag` (worn grey
+  stone), and the cast's `puff`, `stalk`, `briar`, `mothwing`, `badger`. `CAVE_BURROW`, the palette
+  in the light, is the dungeon's dusk, so figures are as at dusk in town.
+- **Walls are dug earth**: beds of soil and clay dipping and bending across the room, a few
+  stones lodged in them (each a dome with a dark pocket under it), a lattice of pale roots grown
+  down through the face from the forest above (two leaning families, wandering, crossing in places,
+  bare earth in others, a shadow on their right), and the older tunnels shored with worm-eaten oak:
+  a pair of posts and a beam under the lip every few tiles. Fine roots hang over the lip. The top
+  seen from above is the forest's floor: humped dark earth, a root across it, moss on the humps.
+- **Floors**: trodden earth in soft patches, a few pebbles, surface roots, moss in cushions, leaves
+  drifted into hollows; a deep carpet of leaves is drawn leaf by leaf (pointed blades lying their
+  own ways, midrib, lit upper edge, a dark line on the lower where each lies on the next), never a
+  noise; moss is soft cushions with no ruled cracks (with cracks it read as green cobbles);
+  flagstones are wide worn flags, lit lips, earth and moss in the joints.
+- **Fungus glows**: little caps of `glowcap` in clumps along the face's foot and at each shoring
+  post's foot (and now and then on the floor); its glows are data on the face's tiles (`always`,
+  `FUNGUS2_RGB`, a cool blue-green), and its colour is never dimmed by the dark. It is a second,
+  colder light: it lets the walls be found in the dark without lighting the floor.
+- **Doors**: in a side wall, a tunnel through the forest floor framed by two old root-stumps,
+  roots lining its edges; open, the next room's lantern light down it and a lantern hung on a
+  root; barred, a woven hurdle of hazel and withies with brambles through it, dark beyond. In the
+  wall you face, a round badger-door: a ring of bent timbers with a stone sill; open, a tunnel to a
+  round lit doorway; barred, a round door of planks, studded, barred, its ring hanging.
+- **The night ramp** (`CAVE_BURROW_DARK`, `burrowNight(level)`, `burrowLevel2` in `cave.ts` and
+  `light.ts`): the dark is a palette, not a wash. Every colour in the dark is desaturated by half,
+  kept at a third of its brightness and lifted by a cold floor (`NIGHT`), so every material keeps
+  its steps in order (its forms) and never goes black, while detail sinks together. Levels, in
+  whole palette steps, by how far into a pool a pixel is: **0** in a pool, the light's own colours
+  (a lantern still lifts its heart a step); **1** its edge band, the night ramp two steps up
+  (twilight: the warm light's own lower steps read as a red stain round each pool); **2** the dark,
+  the night ramp; **3** the far dark, a step further down. Lights (`fire`, `lamp`, `ember`,
+  `glowcap`) keep their colour at every level. A figure is painted whole in the level at its feet.
+  The Burrow's `lightGround2` darkens nothing beyond a pool: its dark is the ramp's.
+
 ### The harbour chart (B15)
 
 The chart the rowing boat opens: a hand-drawn sea chart in the game's pixels, day only (paper).

@@ -178,6 +178,18 @@ export const TIER2_MONSTER2_IDS: readonly string[] = [
   'moss_golem',
 ];
 
+/**
+ * B20, Thistlewood Burrow's cast, by the ids lane A's row and lane C's plan
+ * fight them by. Each joins `FOE2_IDS` as its drawing lands.
+ */
+export const BURROW2_IDS: readonly string[] = [
+  'spore_puff',
+  'cap_guard',
+  'bramble_hound',
+  'lantern_moth',
+  'badger_king',
+];
+
 /** Everything that fights, once each: every dungeon's cast and every monster in the tables. */
 export const FOE2_IDS: readonly string[] = [
   ...new Set([...GROTTO2_IDS, ...MONSTER2_IDS, ...TIDEPOOL2_IDS, ...TIER2_MONSTER2_IDS]),

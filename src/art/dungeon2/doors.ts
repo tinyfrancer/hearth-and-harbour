@@ -30,6 +30,7 @@ import type { Light2 } from './light';
 import type { Glow } from '../raster';
 import type { Dungeon2Theme } from './theme';
 import { tideFaceDoorPiece, tideSideDoorPiece } from './tideDoors';
+import { burrowFaceDoorPiece, burrowSideDoorPiece } from './burrowDoors';
 
 export type DoorKind2 = 'door_open' | 'door_barred' | 'door_side_open' | 'door_side_barred';
 
@@ -90,9 +91,13 @@ export function placeDoor2(
       ? side
         ? tideSideDoorPiece(barred, x, y, roomWest)
         : tideFaceDoorPiece(barred, x, y)
-      : side
-        ? sideDoorPiece(barred, x, y, roomWest)
-        : faceDoorPiece(barred, x, y);
+      : theme === 'burrow'
+        ? side
+          ? burrowSideDoorPiece(barred, x, y, roomWest)
+          : burrowFaceDoorPiece(barred, x, y)
+        : side
+          ? sideDoorPiece(barred, x, y, roomWest)
+          : faceDoorPiece(barred, x, y);
   return { piece, x, y };
 }
 
