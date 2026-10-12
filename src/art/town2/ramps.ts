@@ -117,6 +117,15 @@ const BASE = {
   // shadows. Richer than iron (more contrast, more colour) and nothing like bronze or gold;
   // tests/art/saltiron.test.ts measures it against them and every hair colour.
   saltiron: ['#ffffff', '#c6e2d8', '#92bcb8', '#6a96a0', '#4a6e82', '#2f4a62', '#152234'],
+  // B19, tier 2's other wearables (appended): the ranger's dark green-brown leather, the bows'
+  // woods (driftwood bleached silver-grey, warm elm, yew's orange heart under pale sapwood, the
+  // thornwood's near-black), silver.
+  ranger: ['#a8b48a', '#7e8c62', '#606e48', '#4a5638', '#38422c', '#283020', '#121810'],
+  drift: ['#fbfaf2', '#dedad0', '#bdb8ac', '#9c968a', '#7a746a', '#58524c', '#2c2826'],
+  elm: ['#f0c088', '#d49a62', '#b47844', '#945c34', '#723f26', '#4e2a1c', '#26140e'],
+  yew: ['#ffd890', '#f6a848', '#e88a34', '#f0e2c2', '#d8c49c', '#8a4e26', '#3c1e10'],
+  thorn: ['#8c7a6c', '#6a5a50', '#52443e', '#3e3230', '#2e2424', '#201818', '#100a0a'],
+  silver: ['#ffffff', '#eef0f4', '#cdd2dc', '#a8aebc', '#848a9c', '#5c6274', '#2c3040'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Mat = keyof typeof BASE;

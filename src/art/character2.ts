@@ -141,6 +141,20 @@ export const ITEM_LAYERS2: Readonly<Record<string, string>> = {
   red_cloak: 'red_cloak',
   salt_iron_arrows: 'arrow_quiver',
   broadhead_arrows: 'barbed_quiver',
+  // B19 batch 3: the rest of tier 2's wearables, by their own layers.
+  ranger_hood: 'ranger_hood',
+  ranger_coat: 'ranger_coat',
+  ranger_bracers: 'ranger_bracers',
+  driftwood_shortbow: 'driftwood_shortbow',
+  elm_longbow: 'elm_longbow',
+  yew_longbow: 'yew_longbow',
+  thornwood_bow: 'thornwood_bow',
+  silver_bangle: 'silver_bangle',
+  gold_amulet: 'gold_amulet',
+  briar_charm: 'briar_charm',
+  ogre_maul: 'ogre_maul',
+  mossback_shield: 'mossback_shield',
+  capguard_helm: 'capguard_helm',
 };
 
 /**
@@ -191,7 +205,7 @@ export function characterGear2(
   for (const id of extra) wear(id);
   const style = HAIRSTYLES2[look.hair ?? ''] ?? HAIRSTYLES2[DEFAULT_LOOK.hair]!;
   // Under head gear what shows below its rim; under a hood, what falls out of it (B13).
-  const hooded = gear.some((id) => id === 'linen_hood');
+  const hooded = gear.some((id) => id === 'linen_hood' || id === 'ranger_hood');
   wear(
     !slots.has('head') ? style.gear : hooded && style.hood !== undefined ? style.hood : style.under,
   );

@@ -337,7 +337,7 @@ const BRINEBEARDS_ANCHOR: Gear2 = {
  * knee, the string runs straight between the tips, behind. One drawing in
  * three woods.
  */
-function bowParts(mat: Mat, top: number, bottom: number, bend: number, bind?: Mat): Part2[] {
+export function bowParts(mat: Mat, top: number, bottom: number, bend: number, bind?: Mat): Part2[] {
   const mid = (top + bottom) / 2;
   const half = (bottom - top) / 2;
   const lines: Line[] = [];

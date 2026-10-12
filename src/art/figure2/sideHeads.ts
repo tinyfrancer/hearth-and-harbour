@@ -477,6 +477,35 @@ const CORD: Pins = { c: ['linen', 1], C: ['linen', 3] };
 /** The knight's helm's gilt brow band (B19). */
 const GILT: Pins = { o: ['gold', 0], g: ['gold', 1], G: ['gold', 3], h: ['gold', 4] };
 
+/** Head gear's parts in another material (B19: the ranger's hood is the villager's, in dark leather). */
+const dyedAs = (parts: readonly Part2[], from: Mat, to: Mat): Part2[] =>
+  parts.map((p) => ({ ...p, mat: p.mat === from ? to : p.mat }));
+
+/** B19, the cap-guard helm: a broad red mushroom cap, white spots, pale gills under its rim. */
+const CAP_PINS: Pins = { w: ['sail', 0], g: ['cream', 1], G: ['cream', 3] };
+
+const CAP_SIDE_ROWS: readonly string[] = [
+  '.......1111222',
+  '....1111ww11222222',
+  '..111ww111122222ww33',
+  '.11111111222222www334',
+  '1111ww112222222223344',
+  '111www1122222ww223334',
+  '44444444444444444455555',
+  '.gGgGgGgGgGgGgGgGgGgGg',
+];
+const CAP_BACK_ROWS: readonly string[] = [
+  '........1111222',
+  '.....111ww11122222',
+  '...111www11112ww2233',
+  '..1111ww111222www2334',
+  '.11ww11111222222223344',
+  '11www1112ww22222233334',
+  '1111111122www222233w34',
+  '44444444444444444455555',
+  '.gGgGgGgGgGgGgGgGgGgGg',
+];
+
 /** Head gear in profile (facing right) and from behind, by gear id. */
 export const HEADGEAR_SIDE: Readonly<Record<string, readonly Part2[]>> = {
   bronze_cap: [
@@ -559,6 +588,22 @@ export const HEADGEAR_SIDE: Readonly<Record<string, readonly Part2[]>> = {
       '0152525253455',
       '.44444444555',
     ]),
+  ],
+  // B19: the ranger's hood is the villager's in dark leather.
+  get ranger_hood() {
+    return dyedAs(HEADGEAR_SIDE.linen_hood!, 'linen', 'ranger');
+  },
+  // B19: the cap-guard helm, its strap down behind the cheek to the chin.
+  capguard_helm: [
+    gear(PX - 4, PY - 5, 'tile', CAP_SIDE_ROWS, CAP_PINS),
+    gear(
+      27,
+      9,
+      'leather',
+      ['3', '3', '3', '3', '3', '3', '.3', '..3', '...3', '....3', '.....3'],
+      undefined,
+      DEPTH.HELMET - 1,
+    ),
   ],
   linen_hood: [
     gear(PX - 1, PY - 2, 'linen', [
@@ -738,6 +783,21 @@ export const HEADGEAR_BACK: Readonly<Record<string, readonly Part2[]>> = {
         '.oggggggggggGGGGhh',
       ],
       GILT,
+    ),
+  ],
+  // B19.
+  get ranger_hood() {
+    return dyedAs(HEADGEAR_BACK.linen_hood!, 'linen', 'ranger');
+  },
+  capguard_helm: [
+    gear(BX - 4, BY - 5, 'tile', CAP_BACK_ROWS, CAP_PINS),
+    gear(
+      BX - 1,
+      BY + 4,
+      'leather',
+      ['3...............4', '3...............4', '3...............4', '3...............4'],
+      undefined,
+      DEPTH.HELMET - 1,
     ),
   ],
   linen_hood: [

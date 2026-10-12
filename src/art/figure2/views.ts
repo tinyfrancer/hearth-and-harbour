@@ -390,9 +390,12 @@ const BACK_RULES: Readonly<Record<string, BackRule>> = {
   leather_belt: (p) => rechar(p, { g: '2', G: '3', h: '4' }),
   leather_jerkin: (p) => rechar(p, { c: '2', C: '3' }),
   captains_coat: (p) => filled(rechar(p, { b: '2', B: '3', g: '1' })),
+  ranger_coat: (p) => filled(rechar(p, { b: '2', B: '3', g: '1' })),
   shell_necklace: () => null,
   trollstone: () => null,
   hunters_charm: () => null,
+  gold_amulet: () => null,
+  briar_charm: () => null,
   // Greaves from behind: the plates' edges round the calf and the straps across it.
   bronze_greaves: (_p, i) => GREAVES_BACK.bronze_greaves![i] ?? null,
   iron_greaves: (_p, i) => GREAVES_BACK.iron_greaves![i] ?? null,

@@ -85,6 +85,20 @@ const WEARABLES = [
   'red_cloak',
   'salt_iron_arrows',
   'broadhead_arrows',
+  // B19, batch 3.
+  'ranger_hood',
+  'ranger_coat',
+  'ranger_bracers',
+  'driftwood_shortbow',
+  'elm_longbow',
+  'yew_longbow',
+  'thornwood_bow',
+  'silver_bangle',
+  'gold_amulet',
+  'briar_charm',
+  'ogre_maul',
+  'mossback_shield',
+  'capguard_helm',
 ];
 
 const at = (g: TGrid, x: number, y: number) => g.d[y * g.w + x]!;
@@ -358,6 +372,11 @@ describe('the hand rule at the C scale', () => {
         'willow_shortbow',
         // B19, tier 2.
         'saltiron_axe',
+        'driftwood_shortbow',
+        'elm_longbow',
+        'yew_longbow',
+        'thornwood_bow',
+        'ogre_maul',
       ].sort(),
     );
   });

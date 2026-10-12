@@ -92,9 +92,29 @@ const TIER2_LAYERS: Readonly<Record<string, string>> = {
   red_cloak: 'red_cloak',
   salt_iron_arrows: 'arrow_quiver',
   broadhead_arrows: 'barbed_quiver',
+  ranger_hood: 'ranger_hood',
+  ranger_coat: 'ranger_coat',
+  ranger_bracers: 'ranger_bracers',
+  driftwood_shortbow: 'driftwood_shortbow',
+  elm_longbow: 'elm_longbow',
+  yew_longbow: 'yew_longbow',
+  thornwood_bow: 'thornwood_bow',
+  silver_bangle: 'silver_bangle',
+  gold_amulet: 'gold_amulet',
+  briar_charm: 'briar_charm',
+  ogre_maul: 'ogre_maul',
+  mossback_shield: 'mossback_shield',
+  capguard_helm: 'capguard_helm',
 };
 
-const KNIGHT = Object.keys(TIER2_LAYERS).filter((id) => !/arrows/.test(id));
+const KNIGHT = [
+  'salt_iron_sword',
+  'salt_iron_helm',
+  'salt_iron_plate',
+  'salt_iron_greaves',
+  'salt_iron_shield',
+  'red_cloak',
+];
 const FACINGS = ['down', 'right', 'left', 'up'] as const;
 const count = (g: TGrid, test: (c: number) => boolean) => g.d.filter((c) => c && test(c)).length;
 const at = (g: TGrid, x: number, y: number) => g.d[y * g.w + x]!;
@@ -380,5 +400,63 @@ describe('tier 2’s icons', () => {
     ['holly_tonic', 'forgehand_draught', 'duskbloom_tincture', 'twilight_elixir'].forEach((id, i) =>
       liquids.forEach((l, j) => expect(uses(icon(id), l) > 0, `${id} ${l}`).toBe(i === j)),
     );
+  });
+});
+
+describe('tier 2’s other wearables', () => {
+  it('draws each in every facing, walking and striking, inside the canvas (the soles’ row kept clear)', () => {
+    for (const id of Object.keys(TIER2_LAYERS).filter((i) => !KNIGHT.includes(i))) {
+      const bare = characterPicture2(DEFAULT_LOOK, []).grid;
+      const worn = characterPicture2(DEFAULT_LOOK, [id]).grid;
+      expect(
+        worn.d.some((c, i) => c !== bare.d[i]),
+        id,
+      ).toBe(true);
+      for (const f of FACINGS)
+        for (const pic of [
+          characterWalkPicture2(DEFAULT_LOOK, [id], f, 2),
+          characterStrikePicture2(DEFAULT_LOOK, [id], f, 2),
+        ]) {
+          const g = pic.grid;
+          for (let i = 0; i < 56; i++) expect(at(g, i, 71), `${id} ${f}`).toBe(0);
+          for (let j = 0; j < 72; j++) expect(at(g, 0, j) + at(g, 55, j), `${id} ${f}`).toBe(0);
+        }
+    }
+  });
+
+  it('wears the ranger’s hood as a hood: the hair that falls out of one, the face clear', () => {
+    const eyes = (g: TGrid) => count(g, (c) => isMat(c, 'eye'));
+    for (const hair of ['long', 'braid', 'short']) {
+      const linen = characterPicture2({ hair }, ['linen_hood']).grid;
+      const ranger = characterPicture2({ hair }, ['ranger_hood']).grid;
+      // The same cut: where the linen hood is linen, the ranger's is his leather.
+      expect(
+        count(ranger, (c) => isMat(c, 'ranger')),
+        hair,
+      ).toBeGreaterThan(count(linen, (c) => isMat(c, 'linen')) - 40);
+      expect(eyes(ranger), hair).toBe(eyes(characterPicture2({ hair }, []).grid));
+    }
+  });
+
+  it('dyes the ranger’s coat the captain’s cut in leather, no brass, no purple', () => {
+    const g = characterPicture2(DEFAULT_LOOK, ['ranger_coat']).grid;
+    expect(count(g, (c) => isMat(c, 'ranger'))).toBeGreaterThan(300);
+    expect(count(g, (c) => isMat(c, 'bronze') || isMat(c, 'midnight'))).toBe(0);
+  });
+
+  it('gives the longbows a head more than the shortbows, and the thornwood its thorns', () => {
+    const tall = (id: string) => {
+      const ys = WARDROBE2.gear
+        .find((g) => g.id === id)!
+        .parts.flatMap((p) => pixels(p).map(([, y]) => y));
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    for (const id of ['elm_longbow', 'yew_longbow', 'thornwood_bow'])
+      expect(tall(id), id).toBeGreaterThan(tall('driftwood_shortbow') + 12);
+    const thorny = WARDROBE2.gear
+      .find((g) => g.id === 'thornwood_bow')!
+      .parts.flatMap((p) => pixels(p))
+      .filter(([, , c]) => isMat(c, 'thorn'));
+    expect(thorny.length).toBeGreaterThan(40);
   });
 });

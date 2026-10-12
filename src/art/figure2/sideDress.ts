@@ -17,6 +17,7 @@ import { HELD2 } from './held';
 import { mirrored } from './views';
 import { carried } from './carry';
 import { KNIGHT2 } from './knight';
+import { TIER2_GEAR2 } from './tier2Gear';
 import { HAIR_VIEWS, HEAD_SIDE, HEADGEAR_SIDE } from './sideHeads';
 import { SIDE, type SideDress, type SkirtSpec } from './side';
 import type { Cover } from './rig2';
@@ -93,7 +94,10 @@ type Dresser = (d: SideDress) => void;
 const FIST_AXIS = 2 * (FIST2.at[0] + 2);
 
 const heldParts = (id: string) =>
-  HELD2.find((g) => g.id === id)?.parts ?? KNIGHT2.find((g) => g.id === id)?.parts ?? [];
+  HELD2.find((g) => g.id === id)?.parts ??
+  KNIGHT2.find((g) => g.id === id)?.parts ??
+  TIER2_GEAR2.find((g) => g.id === id)?.parts ??
+  [];
 
 /** The collar's V at the front of the neck, dark inside. */
 const V_SIDE: readonly (readonly [number, number, number])[] = [
@@ -166,6 +170,8 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
   bronze_cap: (d) => d.head.push(...HEADGEAR_SIDE.bronze_cap!),
   iron_nasal_helm: (d) => d.head.push(...HEADGEAR_SIDE.iron_nasal_helm!),
   knight_helm: (d) => d.head.push(...HEADGEAR_SIDE.knight_helm!),
+  ranger_hood: (d) => d.head.push(...HEADGEAR_SIDE.ranger_hood!),
+  capguard_helm: (d) => d.head.push(...HEADGEAR_SIDE.capguard_helm!),
   leather_cap: (d) => d.head.push(...HEADGEAR_SIDE.leather_cap!),
   feathered_hat: (d) => d.head.push(...HEADGEAR_SIDE.feathered_hat!),
   tricorn: (d) => d.head.push(...HEADGEAR_SIDE.tricorn!),
@@ -257,42 +263,41 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
   },
   leather_bracers: (d) =>
     d.arm.push({ mat: 'tan', from: 9, to: 14, bulk: 1, pattern: 'lace', cord: 'linen', hem: true }),
-  captains_coat: (d) => {
-    d.torso.push(
-      torso(
-        'midnight',
-        22,
-        43,
-        {
-          fix: [
-            [31, 23, -1],
-            [30, 22, -1],
-          ],
-        },
-        T + 10,
-      ),
-      // Brass braid down the coat's open front edge.
-      runs(
-        T + 11,
-        [
-          ...Array.from(
-            { length: 19 },
-            (_, i) => [24 + i, [i < 9 ? 31 : 30, i % 3 === 0 ? 'B' : 'b']] as const,
-          ),
-        ],
-        { pins: BRASS },
-      ),
-    );
-    d.arm.push(sleeve('midnight', 13), {
-      mat: 'bronze',
-      from: 12,
+  captains_coat: (d) => coat(d, 'midnight', BRASS, 'bronze'),
+  // B19: the ranger's coat is the captain's cut in dark leather, edged in plain leather.
+  ranger_coat: (d) => coat(d, 'ranger', { b: ['umber', 1], B: ['umber', 3] }, 'umber'),
+  ranger_bracers: (d) =>
+    d.arm.push({
+      mat: 'umber',
+      from: 7,
       to: 14,
       bulk: 1,
-      steps: [1, 1, 2, 3],
-    });
-    d.skirt = skirt({ mat: 'midnight', hem: 56, x1: 31, depth: SIDE.SKIRT + 1 });
-  },
-
+      pattern: 'lace',
+      cord: 'linen',
+      hem: true,
+    }),
+  silver_bangle: (d) =>
+    d.weaponArm.push({ mat: 'silver', from: 12, to: 14, bulk: 1, steps: [0, 1, 2, 3] }),
+  gold_amulet: (d) =>
+    d.torso.push(
+      neckCord(
+        [
+          ['gold', 1],
+          ['blue', 0],
+        ],
+        'gold',
+      ),
+    ),
+  briar_charm: (d) =>
+    d.torso.push(
+      neckCord(
+        [
+          ['thorn', 3],
+          ['crimson', 1],
+        ],
+        'thorn',
+      ),
+    ),
   // ------------------------------------------------------------ trinkets
   shell_necklace: (d) =>
     d.torso.push(
@@ -399,6 +404,43 @@ export const SIDE_GEAR: Readonly<Record<string, Dresser>> = {
     );
   },
 };
+
+/** A long coat open down the front in profile: the captain's (B6) and, dyed, the ranger's (B19). */
+function coat(d: SideDress, mat: Mat, trim: Pins, cuff: Mat): void {
+  d.torso.push(
+    torso(
+      mat,
+      22,
+      43,
+      {
+        fix: [
+          [31, 23, -1],
+          [30, 22, -1],
+        ],
+      },
+      T + 10,
+    ),
+    // Its braid down the open front edge (brass on the captain's, leather on the ranger's).
+    runs(
+      T + 11,
+      [
+        ...Array.from(
+          { length: 19 },
+          (_, i) => [24 + i, [i < 9 ? 31 : 30, i % 3 === 0 ? 'B' : 'b']] as const,
+        ),
+      ],
+      { pins: trim },
+    ),
+  );
+  d.arm.push(sleeve(mat, 13), {
+    mat: cuff,
+    from: 12,
+    to: 14,
+    bulk: 1,
+    steps: [1, 1, 2, 3],
+  });
+  d.skirt = skirt({ mat: mat, hem: 56, x1: 31, depth: SIDE.SKIRT + 1 });
+}
 
 /** Greaves in profile: plate and straps along the shin, the cop on the knee (dressed after the boots). */
 function greaves(d: SideDress, id: string): void {
@@ -536,7 +578,10 @@ export function sideDress(gearIds: readonly string[]): SideDress | null {
       dresser(d);
       continue;
     }
-    const held = HELD2.find((g) => g.id === id) ?? KNIGHT2.find((g) => g.id === id);
+    const held =
+      HELD2.find((g) => g.id === id) ??
+      KNIGHT2.find((g) => g.id === id) ??
+      TIER2_GEAR2.find((g) => g.id === id);
     if (held?.slot === 'weapon') {
       const upright = heldParts(id).map((p) => mirrored(p, FIST_AXIS));
       d.held.push(...carried(id, upright));

@@ -54,6 +54,11 @@ export const CARRY: Readonly<
   willow_shortbow: { down: false, lean: 0.6, keep: 0.9 },
   knight_sword: { down: true, lean: 0.75, keep: 0.6 },
   saltiron_axe: { down: true, lean: 0.75, keep: 0.6 },
+  driftwood_shortbow: { down: false, lean: 0.6, keep: 0.9 },
+  elm_longbow: { down: false, lean: 0.75, keep: 0.8 },
+  yew_longbow: { down: false, lean: 0.75, keep: 0.8 },
+  thornwood_bow: { down: false, lean: 0.75, keep: 0.8 },
+  ogre_maul: { down: false, lean: 0, keep: 0.62 },
 };
 
 /** Rows beyond the fist's own, along the weapon, kept every `keep`: the far end foreshortened. */
