@@ -35,7 +35,11 @@ export interface ItemDef {
   heals?: number;
 }
 
-/** Where the character wears things, in the order the character sheet lists them. */
+/**
+ * Where the character wears things, in order. Wave 20 added `back`, the
+ * ninth, for a cloak: until then the red cloak was worn at the neck, so a
+ * knight chose his cloak or an amulet (save version 12 moves it).
+ */
 export const SLOTS = [
   'head',
   'body',
@@ -43,6 +47,7 @@ export const SLOTS = [
   'main_hand',
   'off_hand',
   'neck',
+  'back',
   'wrist',
   'ammo',
 ] as const;

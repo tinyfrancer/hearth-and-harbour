@@ -72,7 +72,21 @@ const MIGRATIONS: Record<number, MigrationStep> = {
   // modifiers cleared under, the least damage and food of a clear and idle
   // runs, all optional and none known for an older clear, so the records stand.
   10: (state) => ({ ...state, idleRun: null }),
+  // Wave 20: a ninth slot, `back`, for a cloak. The red cloak was worn at the
+  // neck until now; one worn there moves to the back (empty in every older
+  // save), freeing the neck for an amulet. Nothing else was a cloak.
+  11: (state) => ({ ...state, equipment: cloakToBack(record(state.equipment)) }),
 };
+
+/** The one thing that ever went on the back but was worn at the neck before version 12. */
+export const MOVED_TO_BACK = 'red_cloak';
+
+/** Equipment with a red cloak worn at the neck moved to the back. */
+function cloakToBack(equipment: Record<string, unknown>): Record<string, unknown> {
+  if (record(equipment.neck).item !== MOVED_TO_BACK) return equipment;
+  const { neck, ...rest } = equipment;
+  return { ...rest, back: neck };
+}
 
 /** A save's field as a plain object, or an empty one if it is not one. */
 function record(value: unknown): Record<string, unknown> {

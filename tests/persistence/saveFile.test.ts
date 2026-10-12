@@ -257,6 +257,35 @@ describe('save export and import', () => {
     });
   });
 
+  it('loads a version 11 save with its red cloak moved from the neck to the back', () => {
+    const v11: Record<string, unknown> = {
+      ...state,
+      version: 11,
+      equipment: { neck: { item: 'red_cloak', qty: 1 }, body: { item: 'salt_iron_plate', qty: 1 } },
+    };
+    expect(readSave(JSON.stringify({ game: SAVE_FILE_GAME, save: v11 }))).toEqual({
+      ok: true,
+      state: {
+        ...state,
+        equipment: {
+          back: { item: 'red_cloak', qty: 1 },
+          body: { item: 'salt_iron_plate', qty: 1 },
+        },
+      },
+    });
+  });
+
+  it('round-trips a cloak on the back beside an amulet at the neck', () => {
+    const knight: GameState = {
+      ...state,
+      equipment: {
+        neck: { item: 'gold_amulet', qty: 1 },
+        back: { item: 'red_cloak', qty: 1 },
+      },
+    };
+    expect(readSave(writeSaveExport('file', knight).text)).toEqual({ ok: true, state: knight });
+  });
+
   it('round-trips a dungeon’s records, a run’s statistics and modifier, and a dungeon run idle', () => {
     const progressed: GameState = {
       ...state,
@@ -428,6 +457,9 @@ describe('save export and import', () => {
       { ...state, equipment: { head: { item: 5, qty: 1 } } },
       { ...state, equipment: { ammo: { item: 'bronze_arrows', qty: 0 } } },
       { ...state, equipment: { ammo: { item: 'bronze_arrows', qty: 1.5 } } },
+      // Version 12 wears the cloak on the back: at the neck it is an unmigrated older save's.
+      { ...state, equipment: { neck: { item: 'red_cloak', qty: 1 } } },
+      { ...state, equipment: { back: { item: 'red_cloak', qty: 2 } } },
       { ...state, fight: undefined },
       { ...state, fight: 'dock_rat' },
       // Fighting and chopping at once.

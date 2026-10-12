@@ -10,7 +10,7 @@ import { levelForXp } from './xp';
  *
  * States are never changed in place: every rule returns a new one.
  */
-export const GAME_STATE_VERSION = 11;
+export const GAME_STATE_VERSION = 12;
 
 export interface ActiveAction {
   /** An ActionDef id. */

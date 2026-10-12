@@ -835,15 +835,16 @@ export const ITEMS = {
     value: 882,
     equip: { slot: 'body', armour: 24, requires: { skill: 'defence', level: 30 } },
   },
-  // Worn in the neck slot: a cloak fastens at the throat, so it takes the
-  // place of a necklace or charm (docs/tier2-manifest.md).
+  // Worn on the back, its own slot since wave 20 (it was the neck's, so a
+  // knight chose the cloak or an amulet): the knight is plate, kite shield
+  // and cloak, and an amulet besides.
   red_cloak: {
     id: 'red_cloak',
     name: 'Red cloak',
     description:
       'Nettle cloth dyed the red of a good fire. It swirls on its own whenever anyone is looking.',
     value: 1191,
-    equip: { slot: 'neck', armour: 7, requires: { skill: 'defence', level: 25 } },
+    equip: { slot: 'back', armour: 7, requires: { skill: 'defence', level: 25 } },
   },
   salt_iron_arrows: {
     id: 'salt_iron_arrows',

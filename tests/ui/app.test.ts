@@ -792,7 +792,7 @@ describe('the app shell', () => {
       q(`[data-total="${stat}"]`).previousElementSibling?.textContent ?? '';
     const lastToast = (): string => [...root.querySelectorAll('.toast')].at(-1)?.textContent ?? '';
 
-    it('shows the character, eight empty slots and nothing in the totals to begin with', () => {
+    it('shows the character, nine empty slots and nothing in the totals to begin with', () => {
       geared({});
       tab('character');
       expect(q('.sheet canvas[role="img"]')).toBeDefined();
@@ -801,6 +801,7 @@ describe('the app shell', () => {
       expect(slots.map((el) => el.getAttribute('aria-label')?.split(':')[0])).toEqual([
         'Head',
         'Neck',
+        'Back',
         'Body',
         'Legs',
         'Main hand',

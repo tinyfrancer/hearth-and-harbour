@@ -941,6 +941,11 @@ button.card:active {
   color: var(--text-muted);
 }
 
+/* The left column has the cloak's line too: the right's last place is left empty. */
+.worn-lists > .spare {
+  visibility: hidden;
+}
+
 .doll-side {
   display: flex;
   flex-direction: column;

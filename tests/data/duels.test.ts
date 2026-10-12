@@ -10,15 +10,19 @@ import { HOUR, characterAt, duels, fight, hourOf } from './fighting';
 // Changing a number that breaks one of these is a decision, not a fix.
 // Tier 1's cases read tier 1's monsters only (S22): tier 2's are held below,
 // by the same rules, for a character who has cleared the grotto.
-/** Fish an hour against each of tier 2's monsters at its level, melee (S22). */
+/**
+ * Fish an hour against each of tier 2's monsters at its level, melee (S22).
+ * Wave 20, the cloak on the back from 31 and the gold amulet from 37: hobgoblin
+ * 135 → 130, hill ogre 133 → 127, moss golem 118 → 117.
+ */
 const TIER2_FISH: Record<string, number> = {
   brigand: 120,
   black_bear: 117,
-  hobgoblin: 135,
+  hobgoblin: 130,
   dire_wolf: 125,
-  hill_ogre: 133,
+  hill_ogre: 127,
   briar_hag: 121,
-  moss_golem: 118,
+  moss_golem: 117,
 };
 
 const MONSTERS = Object.values(CONTENT.monsters!).filter((monster) => !monster.tier);

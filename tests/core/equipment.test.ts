@@ -35,6 +35,7 @@ const content: Content = {
     lid: item('lid', { slot: 'off_hand', armour: 5 }),
     pot: item('pot', { slot: 'head', armour: 3 }),
     charm: item('charm', { slot: 'neck', attack: 1, strength: 1 }),
+    cape: item('cape', { slot: 'back', armour: 4 }),
     darts: item('darts', { slot: 'ammo', style: 'ranged', strength: 4 }),
     bolts: item('bolts', { slot: 'ammo', style: 'ranged', strength: 6 }),
   },
@@ -54,6 +55,18 @@ describe('equip', () => {
     const state = wear(holding({ blade: 2 }), 'blade');
     expect(state.equipment).toEqual({ main_hand: { item: 'blade', qty: 1 } });
     expect(state.bank).toEqual({ blade: 1 });
+  });
+
+  // Wave 20: the back is a slot of its own, so a cloak is worn beside a necklace.
+  it('wears a cloak on the back beside a charm at the neck, both counting', () => {
+    const state = wear(wear(holding({ charm: 1, cape: 1, pot: 1 }), 'charm'), 'cape');
+    expect(state.equipment).toEqual({
+      neck: { item: 'charm', qty: 1 },
+      back: { item: 'cape', qty: 1 },
+    });
+    expect(equipmentTotals(state, content)).toMatchObject({ attack: 1, strength: 1, armour: 4 });
+    expect(wornItemIds(wear(state, 'pot'))).toEqual(['pot', 'charm', 'cape']);
+    expect(unequip(state, 'back').bank).toEqual({ cape: 1, pot: 1 });
   });
 
   it('keeps nothing in the bank at zero', () => {
