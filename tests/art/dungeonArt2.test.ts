@@ -11,6 +11,7 @@ import {
   foePicture2,
   foeSize2,
   foeSprite2,
+  BURROW2_IDS,
   FOE2_IDS,
   FOE2_POSES,
   FOE2_SIZES,
@@ -426,8 +427,15 @@ describe('every foe at the C scale', () => {
     for (const id of monsters) expect(FOE2_IDS, id).toContain(id);
     for (const id of MONSTER2_IDS) expect(monsters, id).toContain(id);
     // B15: the tide-pool cave's cast with them; B19: tier 2's monsters, drawn ahead of their rows.
+    // B20: the Burrow's cast, drawn ahead of or with its rows.
     expect(new Set(FOE2_IDS)).toEqual(
-      new Set([...FOE_IDS, ...monsters, ...TIDEPOOL2_IDS, ...TIER2_MONSTER2_IDS]),
+      new Set([
+        ...FOE_IDS,
+        ...monsters,
+        ...TIDEPOOL2_IDS,
+        ...TIER2_MONSTER2_IDS,
+        ...BURROW2_IDS.filter((id) => FOE2_IDS.includes(id)),
+      ]),
     );
   });
 
@@ -462,7 +470,8 @@ describe('every foe at the C scale', () => {
 
   it('stands every foe on its feet: something drawn on the row just above them, standing', () => {
     for (const id of FOE2_IDS) {
-      if (id === 'ships_parrot') continue;
+      // Fliers: a wing beating down reaches below the feet point (B20's moth, as the parrot's perch).
+      if (id === 'ships_parrot' || id === 'lantern_moth') continue;
       for (const pose of ['idle', 'windup', 'strike', 'hurt'] as const) {
         const p = foePicture2(id, pose)!;
         const g = p.picture.grid;

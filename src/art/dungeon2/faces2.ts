@@ -10,6 +10,7 @@
  * Everything that matters (face, hat, ears, horns) lies inside the safe box
  * (`PORTRAIT2_SAFE`), so a frame that must crop a portrait can crop to it.
  */
+import * as BURROWF from './burrowFaces';
 import { hash, put, stamp, tgrid, type Picture2, type TGrid } from '../town2/cells';
 import { cell } from './cave';
 import type { Mat2 as Mat } from './cave';
@@ -564,6 +565,11 @@ const FACES2: Readonly<Record<string, FaceDef>> = {
   steal_noble: TIER2.VISITING_NOBLE,
   steal_guild_coffer: TIER2.GUILD_GUARD,
   steal_counting_house: TIER2.BANKER,
+  // B20, Thistlewood Burrow's cast.
+  spore_puff: BURROWF.SPORE_PUFF_FACE,
+  cap_guard: BURROWF.CAP_GUARD_FACE,
+  bramble_hound: BURROWF.BRAMBLE_HOUND_FACE,
+  lantern_moth: BURROWF.LANTERN_MOTH_FACE,
 };
 
 export const PORTRAIT2_IDS: readonly string[] = Object.keys(FACES2);

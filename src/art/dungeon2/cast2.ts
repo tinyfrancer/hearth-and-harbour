@@ -12,6 +12,7 @@ import { MONKEY_FRAMES, monkeyFrame } from './monkey';
 import { PEOPLE, PERSON_FRAMES, personPose } from './people';
 import { forgetSnapper, SNAPPER_FRAMES, snapperFrame } from './snapper';
 import { TIER2_BEASTS, tier2BeastGrid, tier2Fallen } from './tier2Foes';
+import { BURROW_CREATURE_IDS, burrowFrame, burrowFrames } from './burrowCast';
 
 /**
  * What a foe can be doing. Every id has every pose: standing (`idle`, two
@@ -192,8 +193,18 @@ export const BURROW2_IDS: readonly string[] = [
 
 /** Everything that fights, once each: every dungeon's cast and every monster in the tables. */
 export const FOE2_IDS: readonly string[] = [
-  ...new Set([...GROTTO2_IDS, ...MONSTER2_IDS, ...TIDEPOOL2_IDS, ...TIER2_MONSTER2_IDS]),
+  ...new Set([
+    ...GROTTO2_IDS,
+    ...MONSTER2_IDS,
+    ...TIDEPOOL2_IDS,
+    ...TIER2_MONSTER2_IDS,
+    // B20: the Burrow's cast as each is drawn (the king in the next batch).
+    ...BURROW2_IDS.filter((id) => BURROW_CREATURE_IDS.includes(id)),
+  ]),
 ];
+
+/** The foes drawn in three phases (the bosses that change as their fight turns). */
+export const PHASED2_IDS: readonly string[] = ['brinebeard'];
 
 /** How many frames each pose of an id has (the same for every phase of the captain). */
 export function foe2Frames(id: string): Readonly<Record<Foe2Pose, number>> | null {
@@ -201,6 +212,7 @@ export function foe2Frames(id: string): Readonly<Record<Foe2Pose, number>> | nul
   if (id === 'brinebeard') drawn = BOSS_FRAMES;
   else if (id === 'old_snapper') drawn = SNAPPER_FRAMES;
   else if (id === 'powder_monkey') drawn = MONKEY_FRAMES;
+  else if (burrowFrames(id)) drawn = burrowFrames(id);
   else if (Object.hasOwn(PEOPLE, id)) drawn = PERSON_FRAMES;
   else if (Object.hasOwn(BEAST_KEYS, id)) {
     const k = BEAST_KEYS[id]!;
@@ -266,6 +278,9 @@ function drawnFrame(id: string, pose: Drawn, f: number, ph: BossPhase): Foe2Fram
     const m = monkeyFrame(pose, f);
     return { picture: pic(m.grid, m.glows), feet: m.anchor };
   }
+  // B20, Thistlewood Burrow's cast.
+  const burrow = burrowFrame(id, pose, f);
+  if (burrow) return { picture: pic(burrow.grid), feet: burrow.feet };
   if (Object.hasOwn(PEOPLE, id)) {
     const p = personPose(id, pose, f)!;
     return { picture: pic(p.grid, p.glows), feet: p.anchor };
@@ -304,7 +319,7 @@ export function foe2Frame(
   const n = counts[pose];
   const f = ((Math.floor(Number.isFinite(frame) ? frame : 0) % n) + n) % n;
   const ph = (
-    id === 'brinebeard' ? Math.max(1, Math.min(3, Math.floor(phase) || 1)) : 1
+    PHASED2_IDS.includes(id) ? Math.max(1, Math.min(3, Math.floor(phase) || 1)) : 1
   ) as BossPhase;
   const key = `${id} ${pose} ${f} ${ph}`;
   let out = made.get(key);
