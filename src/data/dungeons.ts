@@ -100,7 +100,9 @@ export const DUNGEON_MODIFIERS = {
     id: 'deep_gloom',
     name: 'Deep Gloom',
     text: 'The moths have had every lamp. Swing carefully; nobody down there can see much either.',
-    effects: { darker: true, heroDamage: 0.85, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
+    // Wave 20: 0.9, not the grotto's 0.85, on lane C's measure: the burrow's dark already
+    // softens his blows, and at 0.85 its careful player cleared 9 of 12 against a target of 10.
+    effects: { darker: true, heroDamage: 0.9, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
   },
 } satisfies Record<string, ModifierDef>;
 
@@ -424,13 +426,11 @@ export const DUNGEONS = {
   // balance against them. The cast's ids are the shared contract with lanes B
   // and C (docs/tier2-manifest.md).
   //
-  // First-pass numbers, for a combat-40 hero in full salt-iron eating tier 2's
-  // fish, scaled from the grotto's balance at combat 20 in iron: the hero's
-  // defence rating is about 1.7 times as high (so the foes' attack too), his
-  // attack rating about 1.6 times, his hit points and max hit about 1.85
-  // times (so the foes' max hits and hit points). Aimed at an 8 to 10 minute
-  // run; lane C measures with a scripted player and sends back what works.
-  // Its idle rooms wait for lane C's plan.
+  // Wave 20: the cast's numbers are lane C's, measured by its careful player
+  // against the burrow's own rules (the dark, the guards' blocks, the king's
+  // calls already cost what wave 19's extra health and accuracy were for):
+  // level 40 in salt-iron with 20 cooked swordfish clears most seeds in about
+  // nine minutes, level 30 about a third (tests/scene/burrowRun.test.ts).
   thistlewood_burrow: {
     id: 'thistlewood_burrow',
     name: 'Thistlewood Burrow',
@@ -462,60 +462,60 @@ export const DUNGEONS = {
         name: 'Spore puff',
         description: 'Knee-high, round and cheerful, right up until it bursts.',
         level: 34,
-        hp: 40,
-        attack: 80,
-        defence: 60,
-        maxHit: 8,
-        speedMs: 2000,
+        hp: 25,
+        attack: 65,
+        defence: 50,
+        maxHit: 10,
+        speedMs: 2600,
         xpPercent: 270,
         coins: [0, 0],
-        always: [{ item: 'amber', min: 1, max: 2 }],
+        always: [{ item: 'amber', min: 2, max: 3 }],
         rare: [{ item: 'duskbloom', min: 1, max: 2, oneIn: 6 }],
       },
       {
         id: 'lantern_moth',
         name: 'Lantern moth',
         description: 'Drawn to every light in the warren, and determined to put it out.',
-        level: 36,
-        hp: 36,
-        attack: 100,
-        defence: 95,
-        maxHit: 6,
+        level: 35,
+        hp: 18,
+        attack: 66,
+        defence: 58,
+        maxHit: 8,
         speedMs: 2000,
         xpPercent: 270,
         coins: [0, 0],
-        always: [{ item: 'amber', min: 1, max: 2 }],
+        always: [{ item: 'amber', min: 2, max: 3 }],
         rare: [],
       },
       {
         id: 'cap_guard',
         name: 'Cap guard',
         description: 'Stands behind its own hat, which is wider than it is, and means business.',
-        level: 38,
-        hp: 60,
-        attack: 95,
-        defence: 70,
-        maxHit: 14,
-        speedMs: 2400,
+        level: 37,
+        hp: 43,
+        attack: 71,
+        defence: 66,
+        maxHit: 15,
+        speedMs: 2800,
         xpPercent: 270,
         coins: [0, 0],
-        always: [{ item: 'amber', min: 1, max: 2 }],
+        always: [{ item: 'amber', min: 2, max: 3 }],
         rare: [{ item: 'capguard_helm', min: 1, max: 1, oneIn: 25 }],
       },
       {
         id: 'bramble_hound',
         name: 'Bramble hound',
         description: 'A dog-shaped tangle of thorns that has never once fetched anything back.',
-        level: 40,
-        hp: 95,
-        attack: 92,
-        defence: 85,
+        level: 38,
+        hp: 38,
+        attack: 77,
+        defence: 55,
         maxHit: 15,
-        speedMs: 2400,
+        speedMs: 2200,
         xpPercent: 270,
         coins: [0, 0],
         always: [
-          { item: 'amber', min: 1, max: 3 },
+          { item: 'amber', min: 2, max: 3 },
           { item: 'thick_hide', min: 1, max: 2 },
         ],
         rare: [{ item: 'thornwood_bow', min: 1, max: 1, oneIn: 40 }],
@@ -525,19 +525,45 @@ export const DUNGEONS = {
         name: 'The Badger King',
         description: 'Lord of the burrow, by his own decree, and deeply offended by yours.',
         level: 44,
-        hp: 340,
-        attack: 115,
-        defence: 90,
-        maxHit: 22,
+        hp: 225,
+        attack: 88,
+        defence: 72,
+        maxHit: 26,
         speedMs: 2800,
         xpPercent: 270,
         coins: [0, 0],
-        always: [{ item: 'amber', min: 8, max: 14 }],
+        always: [{ item: 'amber', min: 10, max: 16 }],
         rare: [{ item: 'badger_crown', min: 1, max: 1, oneIn: 20 }],
         pick: { items: ['thornwood_bow', 'capguard_helm'], oneIn: 2 },
       },
     ],
-    opens: { tier: 3, brings: 'the third tier' },
+    opens: { tier: 3, brings: 'levels 40 to 60 in every skill' },
+    // Run idle once cleared (src/core/idleRun.ts): lane C's five rooms in
+    // order (src/scene/burrow.ts), each met as one group, and in the sett the
+    // king with those he calls (two puffs, a moth, a hound), dealt with first.
+    // Idle there are no lanterns to light, so a walk is a walk. The crown is a
+    // trophy, only ever found by hand (docs/design.md).
+    idle: {
+      rooms: [
+        { foes: ['spore_puff', 'spore_puff', 'spore_puff'], walkMs: 12_000 },
+        { foes: ['cap_guard', 'cap_guard', 'spore_puff', 'spore_puff'], walkMs: 12_000 },
+        {
+          foes: ['lantern_moth', 'lantern_moth', 'spore_puff', 'spore_puff', 'cap_guard'],
+          walkMs: 12_000,
+        },
+        {
+          foes: ['bramble_hound', 'bramble_hound', 'lantern_moth', 'spore_puff'],
+          walkMs: 12_000,
+        },
+        {
+          foes: ['spore_puff', 'spore_puff', 'lantern_moth', 'bramble_hound', 'badger_king'],
+          walkMs: 15_000,
+        },
+      ],
+      tripMs: 120_000,
+      lootPercent: 50,
+      activeOnly: ['badger_crown'],
+    },
     modifiers: ['thick_caps', 'fierce_brambles', 'swift_hounds', 'short_rations', 'deep_gloom'],
     // Real goals, as the grotto's: none expected of a first clear. Their ids
     // name what lane B's icons draw (a clock, an unhurt hero, an empty plate,

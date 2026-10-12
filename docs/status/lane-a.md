@@ -1,9 +1,52 @@
 # Lane A: idle rules
 
-**Next: Cody's review of tier 2** (S22, wave 19), then the burrow's idle rooms and numbers from
-lane C's S23, and whatever the review asks for.
+**Next: wave 20** (in progress): the Burrow's numbers (PR 1, below), tier 2's follow-ups, the
+cloak's own slot, and opening the Burrow once lane C writes "BURROW READY".
 
 ## Done
+
+- Wave 20, PR 1: the Burrow's numbers (branch `lane-a/w20-burrow-open`). **Save version
+  unchanged (11).** The Burrow stays `comingSoon`.
+  - **Its cast is lane C's measured rows** (level / hp / attack / defence / max hit / speed):
+    spore puff 34/25/65/50/10/2600, lantern moth 35/18/66/58/8/2000, cap guard 37/43/71/66/15/2800,
+    bramble hound 38/38/77/55/15/2200, the Badger King 44/225/88/72/26/2800; `xpPercent` 270 as
+    tier 2's. **Deep Gloom**'s hero damage 0.85 → 0.9.
+  - **Idle rooms** (lane C's list): `hollow` three puffs; `watch` two guards, two puffs;
+    `gallery` two moths, two puffs, a guard; `run` two hounds, a moth, a puff; `sett` two puffs, a
+    moth and a hound (the king's calls, met first) and the king. Walks 12 s a room (15 to the
+    sett), the row home and back 2 minutes, half of what falls kept, the crown by hand only. The
+    content test that holds idle rooms to the scene's plan now counts every phase's calls
+    (`boss.more`) and checks a designed landing to come too.
+  - **The real stat line** lane C asked for, from the tables (`playerCombat` of a level-40
+    character in full salt-iron, the red cloak and the silver bangle, 20 cooked swordfish):
+    attack rating 68 (gear +18: longsword 16, bangle 2), max hit 30 (strength +18: longsword 14,
+    bangle 4), defence rating 121 (armour 71: helm 11, kite shield 16, plate 24, greaves 13,
+    cloak 7), 176 hit points, swordfish heal 40. Lane C's bot assumed attack 65, max hit 27,
+    defence 120: the real line hits about a tenth harder. Wear levels: longsword and helm 20,
+    kite shield, greaves and cloak Defence 25, **plate Defence 30** (assumed 35). With the cloak's
+    own slot (a later PR this wave) the gold amulet goes on too: attack 73, max hit 32, defence 123.
+  - **The economy, by hand at level 40** (a pacing case, `Thistlewood Burrow by hand`): lane C's
+    careful player in that gear clears 12 of 12 in a median 8.3 minutes eating 16 swordfish; a run
+    is worth 31,285 coins by the tables and pays 10,665 XP. An hour: **179,173 coins earned**
+    after fish, 74,769 XP. Re-running the grotto at 40 (3.8 minutes, one fish): 145,675 and
+    48,369. Best fight for money at 40 (hill ogre): 160,311; Thieving 166,090 coins. So the
+    Burrow is the best paid thing in tier 2 by hand: 1.23 times the grotto re-run in coins and
+    1.55 in XP, 1.12 times the best fight. The case holds coins and XP over the grotto re-run by
+    a tenth and coins over the best fight, and pins only the run's worth and XP (the bot's hour is
+    lane C's to re-tune). **Not held, stated**: by hand it pays 0.43 of the best idle fight's XP
+    an hour (173,308, the brigand): rooms are walked, lanterns lit and foes met a few at a time,
+    as the grotto by hand at 20 paid 0.73 of that level's best fight.
+  - **To get there**: amber 400 → 450 coins, and more of it falls (puff, moth, guard and hound 2
+    to 3 each, was 1 to 2 or 1 to 3; the king 10 to 16, was 8 to 14). Before: a run 19,935 coins,
+    99,601 an hour, below both the grotto re-run and the best fight.
+  - **Tier 3**: the Burrow's first clear opens tier 3 (`tierUnlocked(state, 3)` true once it is
+    charted), which has no rows yet; its line on the Dungeons card reads from `opens.brings`, now
+    "levels 40 to 60 in every skill" (was "the third tier"), told as still being built, as the
+    grotto's was before tier 2. While the Burrow waits to open, a clear counts for nothing and
+    tier 3 says "Not open yet.".
+  - **Tests**: `tests/data/idleRuns.ts`'s `handRunOf` pays XP at each foe's `xpPercent` (the cave
+    and grotto unchanged) and `idleHourOf` takes `tier2`; content (the burrow's rooms; calls of
+    every phase), tiers (tier 3), pacing (the case above).
 
 - Wave 19, PR 2: tier 2 itself (branch `lane-a/s22-tier2-rows`). **Save version unchanged
   (11)**: tier 2 needs no state but its rows (bank, mastery and bestiary are keyed by id; a tier
@@ -1335,6 +1378,13 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
   notes).
 
 ## Needs from another lane
+
+- **For lane C (wave 20)**: (1) the cast's numbers and Deep Gloom 0.9 are in the tables, so
+  `BURROW_ASKED` and the tables agree; the tier-2 stat line is above (read it from data:
+  `fighterOf(characterAt(40, { tier2: true, food: 20 }), CONTENT)` gives it; once the cloak slot
+  lands the same call wears the gold amulet too). (2) `idle.rooms` for the Burrow are in, from your
+  list; the content test fails if your plan's foes or the king's calls change without them, so
+  tell lane A. (3) Amber is worth 450 and falls more; the results card reads it from the tables.
 
 - **For lane C (wave 19)**: (1) the chart's third landing is now the row `thistlewood_burrow`
   (coming soon, landed by `landings` on the spare `unknown_1` spot as before); three of your

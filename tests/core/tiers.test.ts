@@ -47,6 +47,29 @@ describe('tiers', () => {
     expect(tierLock(cleared(fresh), 3, CONTENT)).toBe('Not open yet.');
   });
 
+  // Wave 20: the burrow opens tier 3, which has no rows yet: open, honestly, with nothing in it.
+  it('opens tier 3 on the burrow’s first clear, once the burrow is charted', () => {
+    const burrow = CONTENT.dungeons!.thistlewood_burrow!;
+    const open = {
+      ...CONTENT,
+      dungeons: { ...CONTENT.dungeons, thistlewood_burrow: { ...burrow, comingSoon: false } },
+    };
+    const past = cleared(at({ melee: 40 }));
+    expect([tierUnlocked(past, 3, open), tierLock(past, 3, open)]).toEqual([
+      false,
+      'Clear Thistlewood Burrow.',
+    ]);
+    const through = settleRun(past, { cleared: 'thistlewood_burrow', timeMs: 500_000 }, open);
+    expect([tierUnlocked(through, 3, open), tierLock(through, 3, open)]).toEqual([true, null]);
+    expect(tierUnlocked(through, 4, open)).toBe(false);
+    // While it waits to open, nothing counts: tier 3 is not open yet, and says so.
+    const early = settleRun(past, { cleared: 'thistlewood_burrow', timeMs: 500_000 }, CONTENT);
+    expect([tierUnlocked(early, 3, CONTENT), tierLock(early, 3, CONTENT)]).toEqual([
+      burrow.comingSoon !== true,
+      burrow.comingSoon ? 'Not open yet.' : null,
+    ]);
+  });
+
   it('closes a tier 2 action to a level-30 character until the grotto is cleared, then opens it at once', () => {
     const state = at({ woodcutting: 30 });
     expect(actionLock(state, CONTENT.actions.chop_elm!, CONTENT)).toBe(GROTTO);
