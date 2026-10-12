@@ -55,7 +55,7 @@ import { HIGH_WATER } from './tide';
 import { cellAt, type Cell, type Point, type TileMap } from './tileMap';
 import { WALK_SPEED } from './walker';
 import { lampPicture, propArtId } from './fromLaneB';
-import { lampFoot, lightShare, poolMiddle, poolOf } from './light';
+import { DARKER_HERO, LAMP_POOL, lampFoot, poolMiddle } from './light';
 
 /** A tile's side, in art pixels. */
 const T = DUNGEON.tile;
@@ -277,11 +277,12 @@ export function litRooms(room: Room): readonly Room[] {
 
 /**
  * How much of its light a room has as it is drawn: a darker day's share
- * (`Room.dim`); in a room whose light is a rule, the rules' share
- * (`lightShare`), so what is drawn lit is what the rules call lit.
+ * (`Room.dim`); in a room whose light is a rule, all of it (a darker day
+ * there makes lanterns slow to light, not dim: `DARKER_LIGHTING`), so what is drawn
+ * lit is what the rules call lit.
  */
 export function lightKeptIn(room: Room): number {
-  return room.ground.lamps.length > 0 ? lightShare(room.dim) : (room.dim ?? 1);
+  return room.ground.lamps.length > 0 ? 1 : (room.dim ?? 1);
 }
 
 /**
@@ -312,7 +313,7 @@ export function lightsOf(room: Room): Light2[] {
     const placed = lightAt(p.art.light, p.topLeft.x, p.topLeft.y);
     if (p.key.startsWith('lamp ')) {
       const middle = poolMiddle(room.ground.lamps[Number(p.key.slice(5))]!.cell);
-      return [{ ...placed, drop: middle.y - placed.y, pool: poolOf(k), radius: placed.radius * k }];
+      return [{ ...placed, drop: middle.y - placed.y, pool: LAMP_POOL }];
     }
     // A darker day: every pool smaller, so more of the room lies beyond them, in the dark.
     return [k === 1 ? placed : { ...placed, radius: placed.radius * k, pool: placed.pool * k }];
@@ -460,9 +461,9 @@ export function darkenCanvas(
  */
 export const isDark = (room: Room): boolean => (room.dim ?? 1) < 1 || room.ground.lamps.length > 0;
 
-/** The hero's own pool's half-width in a room: smaller as its light is (`lightKeptIn`), in a room of lanterns. */
+/** The hero's own pool's half-width in a room: in a room of lanterns on a darker day, smaller. */
 export const heroPoolIn = (room: Room): number =>
-  room.ground.lamps.length > 0 ? HERO_POOL * lightKeptIn(room) : HERO_POOL;
+  room.ground.lamps.length > 0 && (room.dim ?? 1) < 1 ? HERO_POOL * DARKER_HERO : HERO_POOL;
 
 /* ----- Doors ----- */
 

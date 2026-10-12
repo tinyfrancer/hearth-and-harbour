@@ -485,8 +485,8 @@ export interface BattleCount {
 export interface BattleMods {
   readonly tidePace?: number;
   readonly noFood?: boolean;
-  /** A darker day in a dungeon whose light is a rule: lanterns light this share as far (`light.ts`). */
-  readonly light?: number;
+  /** A darker day where light is a rule: lighting a lantern takes this many times as long. */
+  readonly lighting?: number;
 }
 
 /** Where the battle is being fought: the room, its ground, whether it is the last, and its perches and landings. */
@@ -705,15 +705,12 @@ export function inReach(battle: Battle, map: TileMap, hero: Point, foe: Foe): bo
 
 /* ----- The light (`light.ts`), as the rules read it ----- */
 
-/** The share of their reach the lanterns have today (a darker day's is less). */
-const shareOf = (b: Battle): number => b.mods?.light ?? 1;
-
 /** Whether the room's light is a rule: it has lanterns on posts. */
 const lightHere = (place: Place): boolean => place.ground.lamps.length > 0;
 
 /** Whether a point in the room is in a burning lantern's light, clouds aside. */
 export function litAt(b: Battle, place: Place, p: Point): boolean {
-  return litBy(place.ground.lamps, b.lamps?.[place.room], p, shareOf(b));
+  return litBy(place.ground.lamps, b.lamps?.[place.room], p);
 }
 
 /** Whether a point in the room is lit: in a burning lantern's light, and not in a cloud of spores. */
@@ -1036,15 +1033,16 @@ function struck(
   hurtHero(w, dealt, hero);
 }
 
-function hurtHero(w: Work, dealt: number, hero: Point, blow = true): void {
+function hurtHero(w: Work, dealt: number, hero: Point, blow = true, jolts = blow): void {
   if (dealt <= 0) return;
   // Hit points lost to blows (`RunStats.damageTaken`); the sea's wash is not a blow.
   if (blow) tallyCount(w, 'damage', Math.min(dealt, w.hp));
   w.hp = Math.max(0, w.hp - dealt);
   w.struckAt = w.clock;
   effect(w, { kind: 'hit', at: hero, amount: dealt, on: 'hero', from: w.clock });
-  // A blow puts out the match: lighting a lantern starts again from nothing.
-  if (w.tend && w.tend.until !== null) {
+  // A blow puts out the match: lighting a lantern starts again from nothing (spores sting, but
+  // do not jolt him).
+  if (jolts && w.tend && w.tend.until !== null) {
     delete w.tend;
     effect(w, { kind: 'interrupted', at: hero, from: w.clock });
   }
@@ -1775,7 +1773,7 @@ function lightTurn(w: Work, place: Place, play: Play): Play {
     const on = w.clouds.find((c) => c.room === place.room && inCloud(c, hero));
     if (on) {
       w.sporeAt = w.clock + CLOUD_EVERY_MS;
-      hurtHero(w, on.damage, hero);
+      hurtHero(w, on.damage, hero, true, false);
       if (w.over) return play;
     }
   }
@@ -1791,7 +1789,7 @@ function lightTurn(w: Work, place: Place, play: Play): Play {
     // Walking to it: once he stops beside it he starts; stopped anywhere else, it is given up.
     if (play.walker.path.length > 0) return play;
     if (within(distance(hero, foot), TEND_REACH)) {
-      w.tend = { lamp: tend.lamp, until: w.clock + LIGHT_MS };
+      w.tend = { lamp: tend.lamp, until: w.clock + LIGHT_MS * (w.mods?.lighting ?? 1) };
       return { ...play, facing: turnToward(play.facing, hero, foot.x) };
     }
     delete w.tend;
@@ -1987,7 +1985,7 @@ function erupt(
   let dazzles = false;
   let nearest = Infinity;
   place.ground.lamps.forEach((l, i) => {
-    if (!lit?.[i] || !inPool(l.cell, hero, shareOf(w))) return;
+    if (!lit?.[i] || !inPool(l.cell, hero)) return;
     const spot = lampStand(map, l.cell);
     const d = distance(lampFoot(l.cell), hero);
     if (spot && d < nearest) {

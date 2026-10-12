@@ -273,13 +273,13 @@ export const BURROW_KINDS: Readonly<Record<string, FoeKind>> = {
       burrow: {
         phases: [2],
         firstMs: 2000,
-        everyMs: 2500,
+        everyMs: 2000,
         warnMs: 1700,
         radius: 34,
         times: 2,
         upMs: 6000,
       },
-      rage: { phase: 3, pace: 1.35 },
+      rage: { phase: 3, pace: 1.5 },
     },
   },
 };

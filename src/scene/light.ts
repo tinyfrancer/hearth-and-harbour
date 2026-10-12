@@ -29,7 +29,8 @@
  *   starts it over); with nothing burning it fights like anything else.
  * - A spore cloud hurts whoever stands in it every `CLOUD_EVERY_MS`; one in a
  *   pool burns off within `CLOUD_BURN_MS`.
- * - A darker day (S16 `darker`) lights `DARKER_REACH` as far.
+ * - A darker day (S16 `darker`): a lantern takes `DARKER_LIGHTING` times as
+ *   long to light, and his own small light is smaller (`DARKER_HERO`).
  */
 import { DUNGEON, far } from './dungeonMetrics';
 import type { Ground, LampSpot, RoomTile } from './ground';
@@ -53,12 +54,12 @@ export const POOL_DROP = 4;
 export const LIGHT_MS = 1200;
 /** How near his feet must be to a lantern's foot to light it. */
 export const TEND_REACH = far(30);
-/** A darker day: every lantern lights this share as far. */
-export const DARKER_REACH = 0.75;
+/** A darker day: his own light (drawing only; it is not a rule) lays this share of its pool. */
+export const DARKER_HERO = 0.7;
 /** In the dark, his blows land this much as often. */
-export const DARK_AIM = 0.65;
+export const DARK_AIM = 0.55;
 /** In the dark, blows at him find him as if his defence were this much of itself. */
-export const DARK_GUARD = 0.6;
+export const DARK_GUARD = 0.35;
 /** A burrower come up into a lantern's light is dazzled this long: it does nothing. */
 export const DAZZLE_MS = 2500;
 /** A heavy blow begun in the light is marked this much longer: it is seen coming. */
@@ -84,8 +85,13 @@ export interface Cloud {
   readonly burning?: true;
 }
 
-/** The share of a lantern's reach a day leaves it: a darker day's (`Room.dim` below 1) lights less far. */
-export const lightShare = (dim: number | undefined): number => ((dim ?? 1) < 1 ? DARKER_REACH : 1);
+/**
+ * A darker day where light is a rule (S16 `darker`): the dark presses in,
+ * and a lantern takes this many times as long to catch (`LIGHT_MS`). Its
+ * pool, once lit, is as wide as ever: what the rules call lit is what is
+ * drawn lit.
+ */
+export const DARKER_LIGHTING = 1.25;
 
 /** Whether a room's light is a rule: it has lanterns on posts. */
 export const lightRoom = (ground: Ground): boolean => ground.lamps.length > 0;
@@ -101,30 +107,23 @@ export function poolMiddle(cell: Cell): Point {
   return { x: foot.x, y: foot.y + POOL_DROP };
 }
 
-/** A lantern's pool's half-width on a day of `share` (`lightShare`). */
-export const poolOf = (share = 1): number => LAMP_POOL * share;
-
 /** How far into a lantern's pool a point is: 0 at its middle, 1 at its heart's edge, `LIT_EDGE` at its light's. */
-export function intoPool(cell: Cell, p: Point, share = 1): number {
+export function intoPool(cell: Cell, p: Point): number {
   const m = poolMiddle(cell);
-  const r = poolOf(share);
-  return Math.hypot((p.x - m.x) / r, (p.y - m.y) / (r * LAMP_SQUASH));
+  return Math.hypot((p.x - m.x) / LAMP_POOL, (p.y - m.y) / (LAMP_POOL * LAMP_SQUASH));
 }
 
 /** Whether a point is in the light of a lantern: inside its pool, out to the edge of its light. */
-export const inPool = (cell: Cell, p: Point, share = 1): boolean =>
-  intoPool(cell, p, share) <= LIT_EDGE + 1e-9;
+export const inPool = (cell: Cell, p: Point): boolean => intoPool(cell, p) <= LIT_EDGE + 1e-9;
 
 /** Whether a point is in the light of any of a room's lanterns that burn (`lit`, by the ground's order). */
 export function litBy(
   lamps: readonly LampSpot[],
   lit: readonly boolean[] | undefined,
   p: Point,
-  share = 1,
 ): boolean {
   if (!lit) return false;
-  for (let i = 0; i < lamps.length; i++)
-    if (lit[i] && inPool(lamps[i]!.cell, p, share)) return true;
+  for (let i = 0; i < lamps.length; i++) if (lit[i] && inPool(lamps[i]!.cell, p)) return true;
   return false;
 }
 

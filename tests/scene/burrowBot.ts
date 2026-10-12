@@ -12,6 +12,7 @@
  * (lane A's S22), so `tier2` is what its first pass implies (see
  * `docs/status/lane-c.md`, "Balance").
  */
+import type { MonsterDef } from '../../src/core/content';
 import { effectsOf } from '../../src/core/progress';
 import { CONTENT } from '../../src/data';
 import {
@@ -63,15 +64,20 @@ export const BURROW_ORDER = ['hollow', 'watch', 'gallery', 'run', 'sett'];
 
 /**
  * A level-`level` hero (Melee, Defence and Vitality) in the best tier-2 gear
- * lane A's first pass implies, as the sheet would read: a salt-iron blade
- * (+12 attack, +11 strength) and armour (helm 12, shield 18, body 26, legs
- * 14: 70), the hunter's charm (+3 attack, +1 strength), and `fish` of a
- * tier-2 fish that heals `heals`.
+ * he can wear, as the sheet would read, with `fish` cooked swordfish (lane
+ * A's tier-2 fish, heals 40). Tier-2 gear is not in the tables yet (lane A's
+ * S22 PR 2), so its stat line is assumed from the rungs below it (iron is
+ * tier 1's, the grotto's gear tier 1.5): a salt-iron longsword (+12 attack,
+ * +11 strength), helm 12, kite shield 18, plate 26 and greaves 14 (70
+ * armour), and the hunter's charm (+3 attack, +1 strength). The plate is
+ * taken to need level 35 to wear, as tier 1's best needs 18 to 20: under
+ * that he wears the captain's coat (+3 attack, 14 armour) in its place.
  */
-export function tier2(level = 40, fish = 20, heals = 30): Fighter {
-  const attack = 12 + 3;
+export function tier2(level = 40, fish = 20, heals = 40): Fighter {
+  const plate = level >= 35;
+  const attack = 12 + 3 + (plate ? 0 : 3);
   const strength = 11 + 1;
-  const armour = 12 + 18 + 26 + 14;
+  const armour = 12 + 18 + (plate ? 26 : 14) + 14;
   const maxHp = 20 + 4 * (level - 1);
   return {
     style: 'melee',
@@ -86,10 +92,83 @@ export function tier2(level = 40, fish = 20, heals = 30): Fighter {
   };
 }
 
-export function beginBurrow(fighter: Fighter, seed: number, modifier?: string | RunModifier): Run {
+/**
+ * The cast's numbers this lane measured and asks lane A for (wave 19), as
+ * the tables' rows would carry them: what every balance case plays. Lane
+ * A's first pass (PR #82: puff 40 hp, moth 36, guard 60, hound 95, king 340)
+ * is far harder against this mechanic (2 clears of 12 for the careful
+ * player, 14 minutes); until the tables hold these, the scene's stand-in
+ * rows are the same numbers (`BURROW_STAND_IN_CAST`).
+ */
+const asked = (
+  id: string,
+  name: string,
+  level: number,
+  hp: number,
+  attack: number,
+  defence: number,
+  maxHit: number,
+  speedMs: number,
+): [string, MonsterDef] => [
+  id,
+  {
+    id,
+    name,
+    description: '',
+    level,
+    hp,
+    attack,
+    defence,
+    maxHit,
+    speedMs,
+    coins: [0, 0],
+    always: [],
+    rare: [],
+    area: BURROW.id,
+  },
+];
+export const BURROW_ASKED: Readonly<Record<string, MonsterDef>> = Object.fromEntries([
+  asked('spore_puff', 'Spore puff', 34, 24, 76, 50, 9, 2600),
+  asked('lantern_moth', 'Lantern moth', 35, 18, 78, 58, 7, 2000),
+  asked('cap_guard', 'Cap guard', 37, 42, 84, 66, 13, 2800),
+  asked('bramble_hound', 'Bramble hound', 38, 38, 90, 55, 13, 2200),
+  asked('badger_king', 'The Badger King', 44, 200, 104, 72, 22, 2800),
+]);
+
+/** The rows a balance case fights by: the tables', with the cast's numbers as asked. */
+export const burrowMonsters = (): Readonly<Record<string, MonsterDef>> => {
+  const tables = castOf(CONTENT, BURROW.id);
+  // The tables' own rows (their names, drops), with the asked numbers in them.
+  return {
+    ...tables,
+    ...Object.fromEntries(
+      Object.entries(BURROW_ASKED).map(([id, row]) => [
+        id,
+        tables[id]
+          ? {
+              ...tables[id],
+              hp: row.hp,
+              attack: row.attack,
+              defence: row.defence,
+              maxHit: row.maxHit,
+              speedMs: row.speedMs,
+              level: row.level,
+            }
+          : row,
+      ]),
+    ),
+  };
+};
+
+export function beginBurrow(
+  fighter: Fighter,
+  seed: number,
+  modifier?: string | RunModifier,
+  monsters: Readonly<Record<string, MonsterDef>> = burrowMonsters(),
+): Run {
   return startRun(BURROW_DUNGEON, {
     fighter,
-    monsters: castOf(CONTENT, BURROW.id),
+    monsters,
     seed,
     known: Object.keys(CONTENT.items),
     ...(modifier
@@ -111,6 +190,11 @@ interface Policy {
   readonly light: boolean;
 }
 let policy: Policy = { reaction: 0, light: true };
+
+/** How the next decisions are made (`playBurrow` sets it for each run it plays). */
+export function burrowPolicy(reactMs: number, light: boolean): void {
+  policy = { reaction: reactMs, light };
+}
 
 /** Every mark on the ground in the room that he has noticed. */
 function marksIn(b: Battle, room: string): Telegraph[] {
@@ -312,6 +396,66 @@ export function decideBurrow(run: Run): Run {
     return { ...run, battle: aimed.battle, play: aimed.play };
   }
 
+  // Fighting from the light: what is on its way to him is met in a lantern's pool, where he sees
+  // it (`light.ts`): he waits there for it, or goes into one near by to wait.
+  if (policy.light && marks.length === 0) {
+    const coming = here.filter(
+      (f) =>
+        f.aware &&
+        f.path.length > 0 &&
+        !f.under &&
+        !(f.stuck !== undefined && f.stuck > b.clock) &&
+        !foeKind(f.monster).seeksLight &&
+        !inLight(b, place, f.at) &&
+        distance(f.at, hero) > far(36),
+    );
+    const lighted = inLight(b, place, hero);
+    if (coming.length > 0 && lighted) {
+      const current = here.find((f) => f.key === b.target);
+      if (current && !inLight(b, place, current.at) && distance(current.at, hero) > far(36))
+        return {
+          ...run,
+          battle: stopChasing(b),
+          play: { ...run.play, walker: { at: hero, path: [] } },
+        };
+      if (!current || !b.chase) {
+        const lit2 = here
+          .filter((f) => !f.under && inLight(b, place, f.at))
+          .sort((p, q) => distance(p.at, hero) - distance(q.at, hero))[0];
+        if (lit2) {
+          const aimed = targetFoe(b, place, run.play, lit2.key);
+          return { ...run, battle: aimed.battle, play: aimed.play };
+        }
+        return run.play.walker.path.length ? run : run;
+      }
+    }
+    if (coming.length > 0 && !lighted && !here.some((f) => f.engaged)) {
+      const spots = lamps
+        .flatMap((l, i) => {
+          if (!lit[i]) return [];
+          const stand = lampStand(map, l.cell, hero);
+          if (!stand) return [];
+          return [
+            stand,
+            { x: stand.x - far(24), y: stand.y },
+            { x: stand.x + far(24), y: stand.y },
+          ];
+        })
+        .filter((p) => {
+          const c = cellAt(p, T);
+          return (
+            inMap(map, c) &&
+            !isSolid(map, c) &&
+            inLight(b, place, p) &&
+            !hurtsAt(marks, clouds, p) &&
+            distance(p, hero) < far(80)
+          );
+        })
+        .sort((p, q) => distance(p, hero) - distance(q, hero));
+      if (spots[0] && walkPath(map, hero, spots[0]).length > 0) return walkTo(run, map, spots[0]);
+    }
+  }
+
   const reachable = (f: Foe): boolean => alive(f) && !f.under && !held(b, place, f);
   const foes = here.filter(reachable).sort((a, c) => distance(a.at, hero) - distance(c.at, hero));
   const nearest = foes[0];
@@ -374,6 +518,8 @@ export interface BurrowOutcome {
   /** Lanterns he lit, and lanterns put out (moths, smashes, charges). */
   readonly lit: number;
   readonly snuffed: number;
+  /** Times a blow put out the match as he lit one. */
+  readonly interrupted: number;
   readonly hurt: Readonly<Record<string, number>>;
   readonly run: Run;
 }
@@ -386,12 +532,14 @@ export function playBurrow(
     readonly reactMs?: number;
     readonly light?: boolean;
     readonly modifier?: string | RunModifier;
+    /** The cast's rows to fight by, in place of the tables' (a measurement of other numbers). */
+    readonly monsters?: Readonly<Record<string, MonsterDef>>;
     /** Called after every step, for tests that look inside a run. */
     readonly each?: (run: Run) => void;
   } = {},
 ): BurrowOutcome {
   policy = { reaction: options.reactMs ?? 0, light: options.light ?? true };
-  let run = beginBurrow(fighter, seed, options.modifier);
+  let run = beginBurrow(fighter, seed, options.modifier, options.monsters);
   const rooms: Record<string, number> = {};
   const hurt: Record<string, number> = {};
   let roomAt = 0;
@@ -399,6 +547,7 @@ export function playBurrow(
   let lowest = run.battle!.hp;
   let lit = 0;
   let snuffed = 0;
+  let interrupted = 0;
   for (let t = 0; t < 20 * 60_000 && !run.finished; t += 100) {
     run = decideBurrow(run);
     const before = run.battle!;
@@ -409,6 +558,7 @@ export function playBurrow(
       if (e.from <= before.clock) continue;
       if (e.kind === 'lit') lit += 1;
       if (e.kind === 'snuffed') snuffed += 1;
+      if (e.kind === 'interrupted') interrupted += 1;
       if (e.kind !== 'hit' || e.on !== 'hero') continue;
       const cause = after.effects.find((x) => x.from === e.from && x.kind === 'landed');
       const why =
@@ -446,6 +596,7 @@ export function playBurrow(
     rooms,
     lit,
     snuffed,
+    interrupted,
     hurt,
     run,
   };
