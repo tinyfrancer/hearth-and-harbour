@@ -22,6 +22,22 @@ import {
 import { cell, isMat, type Picture2 } from '../art/town2/cells';
 import { dungeonSeal } from '../art/dungeonIcons';
 import { dungeonProp2, foeSize2, type PropPicture2 } from '../art/dungeonArt2';
+export {
+  BURROW_ERUPTION2_FRAMES,
+  BURROW_ERUPTION2_FRAME_MS,
+  BURROW_MOUND2_FRAMES,
+  POST_LANTERN2_FRAMES,
+  POST_LANTERN2_FRAME_MS,
+  SPORE_CLOUD2_FRAMES,
+  SPORE_CLOUD2_FRAME_MS,
+  burrowEruption2,
+  burrowMound2,
+  postLanternFrame2,
+  postLanternShines,
+  sporeCloud2,
+  type BurrowPiece2,
+  type PostLanternState,
+} from '../art/dungeonArt2';
 import * as markers2 from '../art/town2/markers';
 import {
   townHighlight2,
@@ -343,6 +359,19 @@ const BURROW_PROP_STAND_INS: Readonly<Record<string, string>> = {
   fallen_log: 'driftwood',
   root_throne: 'treasure_chest',
 };
+
+/**
+ * What of Thistlewood Burrow is still drawn by a stand-in, by id: a creature
+ * lane B has no sizes for yet, a prop or a lantern it has not drawn. Empty
+ * once every piece is lane B's own (and the "Stand-in art" tag goes).
+ */
+export function burrowStandIns(): string[] {
+  return [
+    ...Object.keys(BURROW_FOE_STAND_INS).filter((id) => !foeSize2(id)),
+    ...Object.keys(BURROW_PROP_STAND_INS).filter((id) => !dungeonProp2(id)),
+    ...Object.values(LAMP_ART).filter((id) => !dungeonProp2(id)),
+  ];
+}
 
 /** The art lane's id a room's prop is drawn by: its own, or a stand-in's while lane B has none. */
 export function propArtId(id: string): string {

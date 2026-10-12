@@ -32,7 +32,7 @@ import { far } from '../../src/scene/dungeonMetrics';
 import { FIGHT_COLOURS, fightArtFor, fightExtra, foePose, liftOf } from '../../src/scene/fightArt';
 import { DAZZLE_HINT_MS, forgetLessons, lessonBlocks, stepLessons } from '../../src/scene/lessons';
 import { foeKind } from '../../src/scene/foes';
-import { foeArtId } from '../../src/scene/fromLaneB';
+import { burrowStandIns, foeArtId } from '../../src/scene/fromLaneB';
 import { standable } from '../../src/scene/ground';
 import { groundPixels, lampMask, litRoom, roomLook } from '../../src/scene/grottoArt';
 import {
@@ -716,6 +716,20 @@ describe('a Burrow run kept through a reload', () => {
       cut = advanceBattle(cut.battle, place, cut.play, ms);
     expect(cut.battle).toEqual(whole.battle);
     expect(cut.play).toEqual(whole.play);
+  });
+});
+
+describe('the Burrow’s own art, as lane B draws it', () => {
+  it('is tagged a stand-in only while some piece of it is one', () => {
+    const left = burrowStandIns();
+    // Every creature without lane B's sizes, and nothing lane B has drawn.
+    for (const id of ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king'])
+      expect(left.includes(id)).toBe(!foeSize2(id));
+    for (const id of ['toadstools', 'root_tangle', 'post_lantern', 'post_lantern_out'])
+      expect(left.includes(id)).toBe(false);
+    expect(dungeonScene(BURROW_ID)!.standIn).toBe(left.length > 0 ? 'Stand-in art' : undefined);
+    // Drawn in lane B's own theme, its dark by lane B's night ramp.
+    expect(D.rooms.hollow!.theme).toBe('burrow');
   });
 });
 

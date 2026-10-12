@@ -74,6 +74,7 @@ import {
   lightsOf,
   glowSig,
   HERO_POOL_RISE,
+  litPicture,
   litness,
   nightRule,
   ownLight,
@@ -85,7 +86,24 @@ import {
   type RoomLook,
 } from './grottoArt';
 import { sayingOf } from './dungeons';
-import { foeArtId, lampPicture } from './fromLaneB';
+import {
+  BURROW_ERUPTION2_FRAMES,
+  BURROW_ERUPTION2_FRAME_MS,
+  BURROW_MOUND2_FRAMES,
+  POST_LANTERN2_FRAMES,
+  POST_LANTERN2_FRAME_MS,
+  SPORE_CLOUD2_FRAMES,
+  SPORE_CLOUD2_FRAME_MS,
+  burrowEruption2,
+  burrowMound2,
+  foeArtId,
+  lampPicture,
+  postLanternFrame2,
+  postLanternShines,
+  sporeCloud2,
+  type BurrowPiece2,
+  type PostLanternState,
+} from './fromLaneB';
 import { LIGHT_MS, lampFoot, type Cloud } from './light';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';
@@ -898,6 +916,57 @@ function drawMark(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): v
   else if (t.shape === 'lane') drawLane(ctx, t, clock);
   else if (t.spores) drawSporeCircle(ctx, t, clock);
   else drawCircle(ctx, t, clock);
+}
+
+/** Lane B's Burrow pieces (B20) painted once each in a palette, by a key naming piece and frame. */
+const pieceCanvases = new Map<string, HTMLCanvasElement | null>();
+function pieceCanvas(
+  key: string,
+  piece: () => BurrowPiece2,
+  palette: CavePalette,
+): { image: HTMLCanvasElement; anchor: Point } | null {
+  const made = piece();
+  const k = `${key} ${palette.key ?? palette.name}`;
+  if (!pieceCanvases.has(k)) pieceCanvases.set(k, paintCells(made.picture, undefined, palette));
+  const image = pieceCanvases.get(k);
+  return image ? { image, anchor: made.anchor } : null;
+}
+
+/** Where a piece drawn at `at` (its anchor) lies, art pixels: for what must be drawn again. */
+function pieceBox(piece: () => BurrowPiece2, at: Point): Box {
+  const p = piece();
+  return {
+    x: Math.round(at.x - p.anchor.x) - 1,
+    y: Math.round(at.y - p.anchor.y) - 1,
+    w: p.picture.grid.w + 2,
+    h: p.picture.grid.h + 2,
+  };
+}
+
+/**
+ * A cloud of spores as lane B draws it (B20: a haze the floor shows through,
+ * drifting a frame at a time), fading as it settles, its edge kept solid in
+ * a pixel's line so where it hurts is never in doubt; one burning off in a
+ * lantern's light goes warm at the edge.
+ */
+function drawCloudArt(
+  ctx: CanvasRenderingContext2D,
+  c: Cloud,
+  clock: number,
+  palette: CavePalette,
+): void {
+  const r = Math.round(c.radius);
+  const frame = Math.floor((clock - c.from) / SPORE_CLOUD2_FRAME_MS) % SPORE_CLOUD2_FRAMES;
+  const art = pieceCanvas(`cloud ${r} ${frame}`, () => sporeCloud2(r, frame), palette);
+  if (!art) return drawCloud(ctx, c, clock);
+  const left = Math.max(0, c.until - clock);
+  const fade = Math.min(1, left / 600);
+  ctx.globalAlpha = (c.burning ? 0.6 : 1) * fade;
+  ctx.drawImage(art.image, Math.round(c.at.x - art.anchor.x), Math.round(c.at.y - art.anchor.y));
+  ctx.globalAlpha = 0.85 * fade;
+  ctx.fillStyle = c.burning ? C.fire2 : C.spore1;
+  ring(ctx, c.at.x, c.at.y, c.radius, 1);
+  ctx.globalAlpha = 1;
 }
 
 /**
@@ -1814,7 +1883,7 @@ export function fightExtra(
   for (const foe of here) {
     if (foe.under && alive(foe)) {
       mounds.push(foe.at);
-      boxes.push(around(foe.at, 30));
+      boxes.push(around(foe.at, 30), pieceBox(() => burrowMound2(0), foe.at));
       if (foe.heavy) boxes.push(markBox(foe.heavy));
       continue;
     }
@@ -1942,7 +2011,10 @@ export function fightExtra(
   for (const t of battle.volleys) boxes.push(markBox(t));
   // Clouds of spores hanging in the room, and the Burrow's lanterns being lit or put out.
   const clouds = (battle.clouds ?? []).filter((c) => c.room === run.room);
-  for (const c of clouds) boxes.push(around(c.at, c.radius + 12));
+  for (const c of clouds) {
+    const r = Math.round(c.radius);
+    boxes.push(around(c.at, c.radius + 12), pieceBox(() => sporeCloud2(r, 0), c.at));
+  }
   const lamps = room.ground.lamps;
   /** A lantern with a ring on it: being lit (gold, filling), or a moth at it (violet, emptying). */
   const rings: { at: Point; k: number; how: 'lighting' | 'snuff' }[] = [];
@@ -1953,6 +2025,50 @@ export function fightExtra(
       k: 1 - Math.max(0, tend.until - clock) / LIGHT_MS,
       how: 'lighting',
     });
+  // The lanterns on posts as lane B draws them doing what they do (B20): catching while he lights
+  // one, the flame wavering while it burns, a wisp of smoke once it is put out. Drawn over the
+  // painted room where each stands, lit and darkened as the room paints its props.
+  const lampLit = battle.lamps?.[run.room] ?? [];
+  lamps.forEach((l, i) => {
+    const foot = lampFoot(l.cell);
+    let state: PostLanternState | null = null;
+    let frame = 0;
+    if (tend && tend.lamp === i && tend.until !== null) {
+      state = 'lighting';
+      frame = Math.floor((1 - Math.max(0, tend.until - clock) / LIGHT_MS) * POST_LANTERN2_FRAMES.lighting);
+    } else if (lampLit[i]) {
+      state = 'lit';
+      frame = Math.floor(clock / POST_LANTERN2_FRAME_MS.lit);
+    } else {
+      const out = battle.effects.find(
+        (e) =>
+          e.kind === 'snuffed' &&
+          Math.abs(e.at.x - foot.x) < 1 &&
+          Math.abs(e.at.y - foot.y) < 1 &&
+          clock - e.from < POST_LANTERN2_FRAMES.snuffed * POST_LANTERN2_FRAME_MS.snuffed,
+      );
+      if (out) {
+        state = 'snuffed';
+        frame = Math.floor((clock - out.from) / POST_LANTERN2_FRAME_MS.snuffed);
+      }
+    }
+    if (!state) return;
+    const art = postLanternFrame2(state, frame);
+    const { w, h } = art.picture.grid;
+    const box = { x: foot.x - art.foot, y: foot.y - art.base, w, h };
+    const image = litPicture(
+      seenRoom,
+      `lamp ${i} ${state} ${frame % POST_LANTERN2_FRAMES[state]}`,
+      art.picture,
+      box,
+      look.glows,
+      dark && !postLanternShines(state, frame) ? pools : null,
+      look.theme.palette,
+    );
+    if (!image) return;
+    actors.push({ image, x: box.x, y: box.y, base: foot.y });
+    boxes.push({ x: box.x - 1, y: box.y - 1, w: w + 2, h: h + 2 });
+  });
   // The king dazzled: the lantern he came up under flares (it goes out as he comes up).
   const flares: { at: Point; from: number }[] = [];
   for (const e of battle.effects) {
@@ -1985,7 +2101,7 @@ export function fightExtra(
     else if (e.kind === 'swing') boxes.push(around(e.at, e.radius + 3));
     else if (e.kind === 'lit' || e.kind === 'snuffed')
       boxes.push(around({ x: e.at.x, y: e.at.y - 44 }, 36));
-    else if (e.kind === 'erupt') boxes.push(around(e.at, 40));
+    else if (e.kind === 'erupt') boxes.push(around(e.at, 40), pieceBox(() => burrowEruption2(0), e.at));
     else if (e.kind === 'charge') {
       const x = Math.floor(Math.min(e.at.x, e.to.x)) - 6;
       const y = Math.floor(Math.min(e.at.y, e.to.y)) - 16;
@@ -2176,7 +2292,14 @@ export function fightExtra(
           oval(ctx, midX(foe), feet, rx + 2, 5);
         }
       }
-      for (const at of mounds) drawMound(ctx, at, clock);
+      for (const at of mounds) {
+        // Lane B's mound (B20), heaving a frame at a time; this lane's own where none is drawn.
+        const frame = Math.floor(clock / 140) % BURROW_MOUND2_FRAMES;
+        const art = pieceCanvas(`mound ${frame}`, () => burrowMound2(frame), look.theme.palette);
+        if (art)
+          ctx.drawImage(art.image, Math.round(at.x - art.anchor.x), Math.round(at.y - art.anchor.y));
+        else drawMound(ctx, at, clock);
+      }
       for (const foe of here)
         if (foe.heavy && foe.heavy.shape !== 'circle') drawMark(ctx, foe.heavy, clock);
       for (const t of battle.volleys) drawMark(ctx, t, clock);
@@ -2234,7 +2357,7 @@ export function fightExtra(
           ctx.fillRect(x, y - 3, 1, 1);
         }
       }
-      for (const c of clouds) drawCloud(ctx, c, clock);
+      for (const c of clouds) drawCloudArt(ctx, c, clock, look.theme.palette);
       for (const foe of here) {
         if (foe.stuck === undefined || foe.stuck <= clock || !alive(foe)) continue;
         // Stuck fast: three stars wheeling over its head.
@@ -2246,7 +2369,27 @@ export function fightExtra(
           ctx.fillRect(Math.round(cx + Math.cos(a) * 10), Math.round(cy + Math.sin(a) * 4), 2, 2);
         }
       }
-      for (const e of battle.effects) drawEffectArt(ctx, e, clock);
+      for (const e of battle.effects) {
+        if (e.kind === 'erupt') {
+          // Up out of the ground (lane B's eruption, B20): its last frame the hole he leaves.
+          const frame = Math.min(
+            BURROW_ERUPTION2_FRAMES - 1,
+            Math.floor((clock - e.from) / BURROW_ERUPTION2_FRAME_MS),
+          );
+          const art = pieceCanvas(`erupt ${frame}`, () => burrowEruption2(frame), look.theme.palette);
+          if (art) {
+            ctx.globalAlpha = Math.max(0, Math.min(1, (EFFECT_MS - (clock - e.from)) / 200));
+            ctx.drawImage(
+              art.image,
+              Math.round(e.at.x - art.anchor.x),
+              Math.round(e.at.y - art.anchor.y),
+            );
+            ctx.globalAlpha = 1;
+            continue;
+          }
+        }
+        drawEffectArt(ctx, e, clock);
+      }
       for (const f of flares) drawFlare(ctx, f.at, clock - f.from);
       if (battle.braceUntil > clock) {
         // Braced: a small shield over his head.

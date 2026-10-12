@@ -20,7 +20,8 @@
  *   Q  a lantern on a post, standing on the floor, unlit (the Burrow's: lit by hand)
  *   Y  the same, burning from the start
  *   M  toadstools   O  a tangle of roots   U  brambles   V  a mossy stone
- *   F  a fallen log   J  a throne of roots   (the Burrow's props; solid, as above)
+ *   F  a fallen log   J  a throne of roots   I  a mushroom dwelling   X  a larder
+ *   Z  a court bench   (the Burrow's props; solid, as above)
  *   any other lower-case letter: a door, joined to the door with the same
  *   letter in exactly one other room.
  */
@@ -73,6 +74,10 @@ export const PROP_LETTERS: Readonly<Record<string, string>> = {
   V: 'mossy_stone',
   F: 'fallen_log',
   J: 'root_throne',
+  // Lane B's furnishings for the Burrow (B20): the guards' homes, the king's larder, his court's benches.
+  I: 'mushroom_dwelling',
+  X: 'larder',
+  Z: 'court_bench',
 };
 
 /** A lantern on a post, by its letter: whether it burns from the start (`Ground.lamps`). */
