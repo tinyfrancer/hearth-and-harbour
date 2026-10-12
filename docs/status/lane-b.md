@@ -2,7 +2,31 @@
 
 **Next session:** B19 continues (tier 2 art, in batches; see below for what is on `main`).
 
-## Tier 2, batch 1: salt-iron and the knight, for lane A (B19, first PR)
+## Tier 2, batch 2: every other icon in the manifest, for lane A (B19, second PR)
+
+**Icons on `main` once this PR merges**, for every id below (`itemIcon` answers each):
+`driftwood`, `elm_logs`, `yew_logs`, `raw_mackerel`, `raw_halibut`, `raw_swordfish`,
+`cooked_mackerel`, `cooked_halibut`, `cooked_swordfish`, `silver_ore`, `gold_ore`, `silver_bar`,
+`gold_bar`, `sea_holly`, `nettles`, `sea_glass`, `duskbloom`, `nettle_cloth`, `thick_hide`,
+`thick_leather`, `holly_tonic`, `forgehand_draught`, `duskbloom_tincture`, `twilight_elixir`,
+`ranger_hood`, `ranger_coat`, `ranger_bracers`, `driftwood_shortbow`, `elm_longbow`,
+`yew_longbow`, `silver_bangle`, `gold_amulet`, `ogre_maul`, `briar_charm`, `mossback_shield`,
+`amber`, `thornwood_bow`, `capguard_helm`, `badger_crown`.
+
+**Not yet**: the figure layers (`ITEM_LAYERS2` rows) for the wearables among them (`ranger_*`,
+the four new bows, `silver_bangle`, `gold_amulet`, `ogre_maul`, `briar_charm`,
+`mossback_shield`, `capguard_helm`, `thornwood_bow`): batch 3. Foes, faces and marks: batch 4.
+Until a wearable's layer lands, the art tests in lane A's own suite that look for a layer will
+fail for it; its icon is already there.
+
+- Families drawn beside their tier 1 kin: elm and yew are the logs' drawing in their own barks
+  and cut ends, silver, gold and salt-iron bars the ingot, the four potions the shell vial with
+  their own liquids and stoppers, the driftwood shortbow the shortbows' drawing, the longbows the
+  poacher's, thick hide and thick leather the hide and the leather sheet. New icon ramps appended
+  to `palette.ts` (no colour changed). New module `src/art/tier2Items.ts` (`TIER2_ITEM_DEFS`),
+  spread into `TIER2_ICON_DEFS`; eight new `ICON_FAMILIES`.
+
+## Tier 2, batch 1: salt-iron and the knight, for lane A (B19, first PR, merged #83)
 
 Drawn from `docs/tier2-manifest.md` (read from lane A's `lane-a/s22-tier2` branch, PR 1). **On
 `main` once this PR merges** (lane A may merge rows for these ids):
@@ -22,7 +46,7 @@ Drawn from `docs/tier2-manifest.md` (read from lane A's `lane-a/s22-tier2` branc
 | `salt_iron_arrows`     | yes  | `arrow_quiver` (as iron's)    |
 | `broadhead_arrows`     | yes  | `barbed_quiver` (as barbed's) |
 
-Not yet drawn (later batches this wave): every other manifest id.
+Merged as #83 and deployed.
 
 - **Salt-iron**: a new ramp, `saltiron`, appended to `src/art/town2/ramps.ts` (cells above keep
   their numbers) and to `src/art/palette.ts` for icons, set by hand by day and at dusk (a new

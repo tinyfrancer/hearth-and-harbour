@@ -355,19 +355,21 @@ const MOSSBACK: readonly string[] = [
 
 /** Amber: a rounded golden nugget with a seed caught in it. */
 const AMBER: readonly string[] = [
-  '.....aaaaa',
-  '...aaAAAAaab',
-  '..aAwAAAAaabb',
-  '.aAwAAAAAaabbb',
-  '.aAAAAAkkAaabb',
-  'aAAAAAkKkAaabbc',
-  'aAAAAAAkAAaabbc',
-  'aaAAAAAAAaabbcc',
-  'aaAAAAAAaabbbcc',
-  '.aaAAAAaabbbcc',
-  '..aaaaaabbbcc',
-  '...bbbbbbccc',
-  '.....cccc',
+  '......aaaaa',
+  '....aaAAAAaab',
+  '...aAwAAAAAabb',
+  '..aAwwAAAAAaabb',
+  '.aAwAAAAAAAAabbb',
+  '.aAAAAAAkkAAabbb',
+  'aAAAAAAkKKkAaabbc',
+  'aAAAAAAAkKAAaabbc',
+  'aAAAAAAAAkAAaabbc',
+  'aaAAAAAAAAAaabbcc',
+  '.aaAAAAAAAaabbbcc',
+  '.aaaAAAAAaabbbcc',
+  '..aaaaaaabbbbcc',
+  '...bbbbbbbbccc',
+  '.....cccccc',
 ];
 
 /** The cap-guard helm: a broad red mushroom cap with white spots, its gills under it, a chin strap. */
