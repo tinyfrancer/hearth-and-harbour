@@ -1,4 +1,5 @@
 import type { Content } from './content';
+import { dungeonName } from './dungeons';
 import type { GameState } from './state';
 
 /**
@@ -86,7 +87,9 @@ export function collectionSources(content: Content): CollectionSource[] {
     Object.values(content.shop ?? {}).map((entry) => entry.item),
   );
   for (const dungeon of Object.values(content.dungeons ?? {})) {
-    add(`dungeon:${dungeon.id}`, dungeon.name, dungeon.loot);
+    // A landing still to come keeps its name back, as the chart does; its things are listed (as
+    // "?" until found) so the log's count does not jump when it opens.
+    add(`dungeon:${dungeon.id}`, dungeonName(dungeon), dungeon.loot);
   }
   // The store mostly sells what can be made, to get a new player going; it
   // has a heading only for what it alone sells.

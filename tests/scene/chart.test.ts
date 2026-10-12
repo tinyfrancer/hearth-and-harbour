@@ -31,14 +31,14 @@ describe('the harbour chart', () => {
     expect(list.map((l) => l.id)).toEqual([
       'tidepool_cave',
       'brinebeards_grotto',
-      'unknown_1',
+      'thistlewood_burrow',
       'unknown_2',
       'unknown_3',
     ]);
     const l = byId(fresh());
     expect(l.tidepool_cave).toMatchObject({ state: 'open', rowable: true, recommended: 1 });
     expect(l.brinebeards_grotto).toMatchObject({ state: 'open', rowable: true });
-    for (const id of ['unknown_1', 'unknown_2', 'unknown_3']) {
+    for (const id of ['thistlewood_burrow', 'unknown_2', 'unknown_3']) {
       expect(l[id]).toMatchObject({ state: 'soon', name: null, description: null, rowable: false });
       expect(l[id]!.unlock.length).toBeGreaterThan(0);
     }
@@ -82,7 +82,7 @@ describe('the harbour chart', () => {
     expect(l.brinebeards_grotto!.state).toBe('cleared');
     expect(levelWarning(state, l.brinebeards_grotto!)).toBeNull();
     // Landings to come stay silhouettes, whatever is done.
-    expect(l.unknown_1).toMatchObject({ state: 'soon', rowable: false, name: null });
+    expect(l.thistlewood_burrow).toMatchObject({ state: 'soon', rowable: false, name: null });
     // Nothing open and never cleared: the chart opens on the last it can row to.
     expect(firstPick(landings(state, CONTENT, map))).toBe('brinebeards_grotto');
   });

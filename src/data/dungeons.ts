@@ -76,6 +76,32 @@ export const DUNGEON_MODIFIERS = {
     text: 'Someone forgot the lamp oil. Mind your swing; they can hardly see you either.',
     effects: { darker: true, heroDamage: 0.85, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
   },
+  // Trades: for Thistlewood Burrow, each the grotto's trade of the same shape
+  // in the burrow's own words (and the grotto's Short Rations, shared).
+  thick_caps: {
+    id: 'thick_caps',
+    name: 'Thick Caps',
+    text: 'A wet night: every cap in the warren is plump, tough and slow to get moving.',
+    effects: { foeHealth: 1.2, foeSpeed: 0.8, xp: 1.2, loot: 1.15 },
+  },
+  fierce_brambles: {
+    id: 'fierce_brambles',
+    name: 'Fierce Brambles',
+    text: 'The thorns grew long overnight. Everything in the burrow bites harder and bends easier.',
+    effects: { foeDamage: 1.1, foeHealth: 0.95, loot: 1.1 },
+  },
+  swift_hounds: {
+    id: 'swift_hounds',
+    name: 'Swift Hounds',
+    text: 'Something has the whole warren running about: quick, careless and easier to knock over.',
+    effects: { foeSpeed: 1.1, foeHealth: 0.93, xp: 1.15 },
+  },
+  deep_gloom: {
+    id: 'deep_gloom',
+    name: 'Deep Gloom',
+    text: 'The moths have had every lamp. Swing carefully; nobody down there can see much either.',
+    effects: { darker: true, heroDamage: 0.85, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
+  },
 } satisfies Record<string, ModifierDef>;
 
 // The dungeons, as far as the idle rules know them: where each sits on the
@@ -391,29 +417,156 @@ export const DUNGEONS = {
       },
     ],
   },
-  // Landings to come: silhouettes on the chart with what will open them, by
-  // the ids lane B's chart has landings for (`harbourChart2`). Their ids are
-  // placeholders, renamed when each is designed (no save can hold a
-  // clear of one, so nothing needs migrating).
-  unknown_1: {
-    id: 'unknown_1',
-    name: 'Uncharted',
-    description: 'Not yet charted.',
+  // The second real dungeon (plan S23), opened by the grotto's first clear and
+  // the gate to tier 3. Coming soon this wave: a silhouette on the chart (the
+  // scene lands it on the spare `unknown_1` spot), its name never shown, but
+  // its cast, loot, days and challenges are real rows, so lane C can build and
+  // balance against them. The cast's ids are the shared contract with lanes B
+  // and C (docs/tier2-manifest.md).
+  //
+  // First-pass numbers, for a combat-40 hero in full salt-iron eating tier 2's
+  // fish, scaled from the grotto's balance at combat 20 in iron: the hero's
+  // defence rating is about 1.7 times as high (so the foes' attack too), his
+  // attack rating about 1.6 times, his hit points and max hit about 1.85
+  // times (so the foes' max hits and hit points). Aimed at an 8 to 10 minute
+  // run; lane C measures with a scripted player and sends back what works.
+  // Its idle rooms wait for lane C's plan.
+  thistlewood_burrow: {
+    id: 'thistlewood_burrow',
+    name: 'Thistlewood Burrow',
+    description:
+      'A warren under the old forest, overgrown and lamplit, where something takes visitors very personally.',
     order: 3,
     recommended: 40,
     unlock: { kind: 'cleared', dungeon: 'brinebeards_grotto' },
     unlockText: 'Clear Brinebeard’s Grotto.',
     comingSoon: true,
+    firstClear: [{ item: 'amber', qty: 10 }],
+    loot: ['amber', 'glowcap', 'hide', 'thornwood_bow', 'capguard_helm', 'badger_crown'],
+    // Weakest first and the king last, as the bestiary lists them.
+    cast: [
+      {
+        id: 'spore_puff',
+        name: 'Spore puff',
+        description: 'Knee-high, round and cheerful, right up until it bursts.',
+        level: 34,
+        hp: 40,
+        attack: 80,
+        defence: 60,
+        maxHit: 8,
+        speedMs: 2000,
+        coins: [0, 0],
+        always: [{ item: 'amber', min: 1, max: 2 }],
+        rare: [{ item: 'glowcap', min: 1, max: 2, oneIn: 6 }],
+      },
+      {
+        id: 'lantern_moth',
+        name: 'Lantern moth',
+        description: 'Drawn to every light in the warren, and determined to put it out.',
+        level: 36,
+        hp: 36,
+        attack: 100,
+        defence: 95,
+        maxHit: 6,
+        speedMs: 2000,
+        coins: [0, 0],
+        always: [{ item: 'amber', min: 1, max: 2 }],
+        rare: [],
+      },
+      {
+        id: 'cap_guard',
+        name: 'Cap guard',
+        description: 'Stands behind its own hat, which is wider than it is, and means business.',
+        level: 38,
+        hp: 60,
+        attack: 95,
+        defence: 70,
+        maxHit: 14,
+        speedMs: 2400,
+        coins: [0, 0],
+        always: [{ item: 'amber', min: 1, max: 2 }],
+        rare: [{ item: 'capguard_helm', min: 1, max: 1, oneIn: 25 }],
+      },
+      {
+        id: 'bramble_hound',
+        name: 'Bramble hound',
+        description: 'A dog-shaped tangle of thorns that has never once fetched anything back.',
+        level: 40,
+        hp: 95,
+        attack: 92,
+        defence: 85,
+        maxHit: 15,
+        speedMs: 2400,
+        coins: [0, 0],
+        always: [
+          { item: 'amber', min: 1, max: 3 },
+          { item: 'hide', min: 1, max: 2 },
+        ],
+        rare: [{ item: 'thornwood_bow', min: 1, max: 1, oneIn: 40 }],
+      },
+      {
+        id: 'badger_king',
+        name: 'The Badger King',
+        description: 'Lord of the burrow, by his own decree, and deeply offended by yours.',
+        level: 44,
+        hp: 340,
+        attack: 115,
+        defence: 90,
+        maxHit: 22,
+        speedMs: 2800,
+        coins: [0, 0],
+        always: [{ item: 'amber', min: 8, max: 14 }],
+        rare: [{ item: 'badger_crown', min: 1, max: 1, oneIn: 20 }],
+        pick: { items: ['thornwood_bow', 'capguard_helm'], oneIn: 2 },
+      },
+    ],
     opens: { tier: 3, brings: 'the third tier' },
-    loot: [],
+    modifiers: ['thick_caps', 'fierce_brambles', 'swift_hounds', 'short_rations', 'deep_gloom'],
+    // Real goals, as the grotto's: none expected of a first clear. Their ids
+    // name what lane B's icons draw (a clock, an unhurt hero, an empty plate,
+    // a step aside).
+    challenges: [
+      {
+        id: 'thistlewood_burrow.swift',
+        name: 'Quick Through the Warren',
+        text: 'Clear the burrow in eight minutes or less.',
+        rule: { kind: 'atMost', stat: 'timeMs', n: 480_000 },
+        reward: { coins: 12_000, bountyPoints: 10 },
+      },
+      {
+        id: 'thistlewood_burrow.nearly_unhurt',
+        name: 'Barely Brambled',
+        text: 'Clear the burrow losing no more than 450 hit points to blows.',
+        rule: { kind: 'atMost', stat: 'damageTaken', n: 450 },
+        reward: { coins: 12_000, bountyPoints: 10 },
+      },
+      {
+        id: 'thistlewood_burrow.no_food',
+        name: 'Nothing from the Larder',
+        text: 'Clear the burrow without eating a thing. One for a seasoned fighter: combat 60 or so.',
+        rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
+        reward: { coins: 15_000, bountyPoints: 10 },
+      },
+      {
+        id: 'thistlewood_burrow.badger_dodge',
+        name: 'Out of the King’s Way',
+        text: 'Clear the burrow having stepped out of eight heavy blows.',
+        rule: { kind: 'atLeast', stat: 'stepOuts', n: 8 },
+        reward: { coins: 8000, bountyPoints: 5 },
+      },
+    ],
   },
+  // Landings to come: silhouettes on the chart with what will open them, by
+  // the ids lane B's chart has landings for (`harbourChart2`). Their ids are
+  // placeholders, renamed when each is designed (no save can hold a
+  // clear of one, so nothing needs migrating).
   unknown_2: {
     id: 'unknown_2',
     name: 'Uncharted',
     description: 'Not yet charted.',
     order: 4,
     recommended: 60,
-    unlock: { kind: 'cleared', dungeon: 'unknown_1' },
+    unlock: { kind: 'cleared', dungeon: 'thistlewood_burrow' },
     unlockText: 'Clear the landing before it.',
     comingSoon: true,
     opens: { tier: 4, brings: 'the fourth tier' },

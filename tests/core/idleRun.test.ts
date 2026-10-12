@@ -96,7 +96,7 @@ describe('sending the hero through a dungeon idle', () => {
       ok: false,
       reason: 'Clear Tidepool Cave by hand first.',
     });
-    expect(startIdleRun(fresh, 'unknown_1', CONTENT, NOON).ok).toBe(false);
+    expect(startIdleRun(fresh, 'thistlewood_burrow', CONTENT, NOON).ok).toBe(false);
     expect(startIdleRun(fresh, 'nowhere', CONTENT, NOON).ok).toBe(false);
     expect(startIdleRun(cleared(1, CAVE), CAVE, CONTENT, NOON).ok).toBe(true);
   });

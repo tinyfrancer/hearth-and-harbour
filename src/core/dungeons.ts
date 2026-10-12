@@ -41,6 +41,12 @@ export function unlocked(state: GameState, dungeon: DungeonDef): boolean {
   }
 }
 
+/** What the menus may call a dungeon: its name, or the chart's words for a landing still to come. */
+export const UNCHARTED = 'Uncharted waters';
+export function dungeonName(dungeon: DungeonDef): string {
+  return dungeon.comingSoon ? UNCHARTED : dungeon.name;
+}
+
 /** A dungeon's row, own rows only; undefined for anything the tables do not hold. */
 export function dungeonDef(content: Content, id: string): DungeonDef | undefined {
   return content.dungeons && Object.hasOwn(content.dungeons, id) ? content.dungeons[id] : undefined;
