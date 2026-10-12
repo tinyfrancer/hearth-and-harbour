@@ -302,7 +302,7 @@ function toadstool(
     const ny = (py + 0.5 - (foot - h)) / (foot - h - top + 0.5);
     if (nx * nx + ny * ny > 1) return 0;
     const lit = -(nx * 0.6 + ny * 0.8);
-    return cell(cap, lim(2.6 - lit * 1.8, cap === 'glowcap' ? 1 : 1, cap === 'glowcap' ? 4 : 5));
+    return cell(cap, lim(2.6 - lit * 1.8, cap === 'glowcap' ? 2 : 1, cap === 'glowcap' ? 4 : 5));
   });
   if (spots)
     for (const [dx, dy] of [
@@ -314,7 +314,7 @@ function toadstool(
       if (hash(x + dx, dy, 951) < 0.8) put(g, x + dx, foot - h - 1 + dy, cell('cream', 1));
 }
 
-/** A clump of toadstools on a tile: a tall tawny one, a short one beside it, two little glowing ones. */
+/** A clump of toadstools on a tile: a tall tawny one, a short one beside it, a knot of little glowing ones at its foot. */
 function toadstools(): BurrowProp {
   const W = 24;
   const H = 30;
@@ -323,15 +323,15 @@ function toadstools(): BurrowProp {
   dome(g, 12, H - 2, 10, 2.6, 'soil', 3.2, 1.2);
   toadstool(g, 9, H - 3, 12, 6, 'ochre', true);
   toadstool(g, 16, H - 3, 6, 4, 'umber', false);
-  toadstool(g, 4, H - 2, 3, 2, 'glowcap', false);
-  toadstool(g, 20, H - 2, 2, 2, 'glowcap', false);
+  // A knot of little glowing caps, each a dome on a pale stem, close together so they read as one
+  // clump (two apart in the dark read as a pair of eyes).
+  toadstool(g, 20, H - 2, 4, 2, 'glowcap', false);
+  toadstool(g, 17, H - 1, 2, 1, 'glowcap', false);
+  toadstool(g, 22, H - 1, 1, 1, 'glowcap', false);
   return {
     grid: outlined(g),
     base: H,
-    glows: [
-      { x: 5, y: H - 6, radius: 8, strength: 0.32, always: true, rgb: FUNGUS2_RGB },
-      { x: 21, y: H - 5, radius: 7, strength: 0.3, always: true, rgb: FUNGUS2_RGB },
-    ],
+    glows: [{ x: 21, y: H - 6, radius: 9, strength: 0.26, always: true, rgb: FUNGUS2_RGB }],
   };
 }
 
@@ -493,18 +493,21 @@ function fallenLog(): BurrowProp {
   // Moss along its top.
   for (let x = 6; x < 22; x++)
     if (hash(x, 1, 981) < 0.7) put(g, x, top - (x % 3 === 0 ? 1 : 0), cell('moss', x % 2 ? 2 : 3));
-  // A shelf of glowing fungus on its side.
-  for (const [x, w] of [
-    [12, 4],
-    [17, 3],
-  ] as const) {
-    for (let i = 0; i < w; i++) put(g, x + i, 10, cell('glowcap', i === 0 ? 1 : 2));
-    for (let i = 1; i < w; i++) put(g, x + i, 11, cell('glowcap', 4));
-  }
+  // Brackets of fungus stepped up its side, each a half-disc lit on top (not glowing: two logs end
+  // to end, as lane C lays them, made a pair of eyes in the dark).
+  for (const [x, y, r] of [
+    [14, 12, 3],
+    [17, 9, 2],
+    [12, 9, 2],
+  ] as const)
+    for (let dy = 0; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++)
+        if (dx * dx + (dy * 1.6) ** 2 <= r * r + 1)
+          put(g, x + dx, y + dy, cell('ochre', dy === 0 ? 1 : dy === r ? 4 : 2));
   return {
     grid: outlined(g),
     base: H,
-    glows: [{ x: 15, y: 11, radius: 9, strength: 0.3, always: true, rgb: FUNGUS2_RGB }],
+    glows: [],
   };
 }
 

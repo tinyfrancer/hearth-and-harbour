@@ -76,6 +76,7 @@ import { TIDEPOOL2_PROP_IDS } from './dungeon2/tideProps';
 import { FOE2_SIZES, type Foe2Size } from './dungeon2/sizes';
 import { prop2, PROP2_IDS } from './dungeon2/props';
 import { BURROW_SPECIALS, burrowSpecialFrame } from './dungeon2/burrowCast';
+import { KING_SPECIALS, kingSpecial } from './dungeon2/badgerKing';
 import {
   DOOR2_FOOTPRINTS,
   footprint2,
@@ -99,6 +100,7 @@ import {
 
 export {
   BURROW2_IDS,
+  PHASED2_IDS,
   burrowNight,
   BURROW_DARK_BANDS,
   BURROW_NIGHT_LEVELS,
@@ -407,7 +409,8 @@ export function foeSprite2(
  * B20: each foe's special moves and how many frames each has, by id (the
  * Burrow's cast): the puff's `swell` and `burst`; the guard's `block` and
  * `turn`; the hound's `crouch`, `charge` and `stuck`; the moth's `hover` and
- * `snuff`. A foe with none is absent.
+ * `snuff`; the king's `burrow` (going under), `erupt` (coming up through
+ * the floor) and `stunned` (dazzled at a lantern). A foe with none is absent.
  */
 export const FOE2_SPECIALS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
   ...Object.fromEntries(
@@ -416,6 +419,7 @@ export const FOE2_SPECIALS: Readonly<Record<string, Readonly<Record<string, numb
       Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.length])),
     ]),
   ),
+  badger_king: KING_SPECIALS,
 };
 
 const specials = new Map<string, FoePicture2>();
@@ -440,7 +444,8 @@ export function foeSpecial2(
   const key = `${id} ${special} ${facing} ${f} ${ph}`;
   let made = specials.get(key);
   if (made) return made;
-  const right = burrowSpecialFrame(id, special, f);
+  const right =
+    id === 'badger_king' ? kingSpecial(special, f, ph) : burrowSpecialFrame(id, special, f);
   if (!right) return null;
   const grid = edgedSpecial(right.grid);
   made =

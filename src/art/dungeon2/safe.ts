@@ -98,6 +98,7 @@ export const PORTRAIT2_SAFE: Readonly<Record<string, Box2>> = {
   cap_guard: { x: 1, y: 1, w: 71, h: 55 },
   bramble_hound: { x: 0, y: 5, w: 71, h: 51 },
   lantern_moth: { x: 0, y: 8, w: 72, h: 48 },
+  badger_king: { x: 0, y: 1, w: 72, h: 55 },
   steal_spice_merchant: { x: 4, y: 0, w: 68, h: 56 },
   steal_customs_house: { x: 6, y: 5, w: 66, h: 51 },
   steal_noble: { x: 6, y: 1, w: 65, h: 55 },

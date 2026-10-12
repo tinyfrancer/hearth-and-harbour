@@ -13,6 +13,7 @@ import { PEOPLE, PERSON_FRAMES, personPose } from './people';
 import { forgetSnapper, SNAPPER_FRAMES, snapperFrame } from './snapper';
 import { TIER2_BEASTS, tier2BeastGrid, tier2Fallen } from './tier2Foes';
 import { BURROW_CREATURE_IDS, burrowFrame, burrowFrames } from './burrowCast';
+import { forgetKing, KING_FRAMES, kingFrame } from './badgerKing';
 
 /**
  * What a foe can be doing. Every id has every pose: standing (`idle`, two
@@ -198,13 +199,13 @@ export const FOE2_IDS: readonly string[] = [
     ...MONSTER2_IDS,
     ...TIDEPOOL2_IDS,
     ...TIER2_MONSTER2_IDS,
-    // B20: the Burrow's cast as each is drawn (the king in the next batch).
-    ...BURROW2_IDS.filter((id) => BURROW_CREATURE_IDS.includes(id)),
+    // B20: the Burrow's cast.
+    ...BURROW2_IDS.filter((id) => BURROW_CREATURE_IDS.includes(id) || id === 'badger_king'),
   ]),
 ];
 
 /** The foes drawn in three phases (the bosses that change as their fight turns). */
-export const PHASED2_IDS: readonly string[] = ['brinebeard'];
+export const PHASED2_IDS: readonly string[] = ['brinebeard', 'badger_king'];
 
 /** How many frames each pose of an id has (the same for every phase of the captain). */
 export function foe2Frames(id: string): Readonly<Record<Foe2Pose, number>> | null {
@@ -212,6 +213,7 @@ export function foe2Frames(id: string): Readonly<Record<Foe2Pose, number>> | nul
   if (id === 'brinebeard') drawn = BOSS_FRAMES;
   else if (id === 'old_snapper') drawn = SNAPPER_FRAMES;
   else if (id === 'powder_monkey') drawn = MONKEY_FRAMES;
+  else if (id === 'badger_king') drawn = KING_FRAMES;
   else if (burrowFrames(id)) drawn = burrowFrames(id);
   else if (Object.hasOwn(PEOPLE, id)) drawn = PERSON_FRAMES;
   else if (Object.hasOwn(BEAST_KEYS, id)) {
@@ -279,6 +281,10 @@ function drawnFrame(id: string, pose: Drawn, f: number, ph: BossPhase): Foe2Fram
     return { picture: pic(m.grid, m.glows), feet: m.anchor };
   }
   // B20, Thistlewood Burrow's cast.
+  if (id === 'badger_king') {
+    const k = kingFrame(pose, f, ph);
+    return { picture: pic(k.grid), feet: k.feet };
+  }
   const burrow = burrowFrame(id, pose, f);
   if (burrow) return { picture: pic(burrow.grid), feet: burrow.feet };
   if (Object.hasOwn(PEOPLE, id)) {
@@ -337,4 +343,5 @@ export function foe2Frame(
 export function forgetFoes2(): void {
   made.clear();
   forgetSnapper();
+  forgetKing();
 }

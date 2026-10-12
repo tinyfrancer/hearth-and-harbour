@@ -3,6 +3,76 @@
 **Next session:** after B20 (Thistlewood Burrow's art, in batches below). Start with Cody's verdict
 on the Burrow and the weak lists below.
 
+## Thistlewood Burrow, batch 4: the badger king, his face, the chart, the gallery (B20, fourth PR)
+
+**For lane C and lane A, on `main` once this PR merges** (no export renamed or re-signed):
+
+```ts
+// through the existing doors: foePicture2, foeSprite2, foeFrames2, FOE2_SIZES, foeSize2, portrait2
+'badger_king'                     // in FOE2_IDS and BURROW2_IDS; every pose, both ways, phases 1-3
+// idle 2, walk 4, windup 1, strike 1, hurt 1, flash 1, fall 2, in each phase
+PHASED2_IDS = ['brinebeard', 'badger_king']    // now exported from dungeonArt2
+FOE2_SPECIALS.badger_king = { burrow: 3, erupt: 3, stunned: 2 }
+foeSpecial2('badger_king', move, facing, frame, phase)   // phase clamps to 1-3, feet as idle's
+// the chart (lane A)
+CHART2_LANDINGS.thistlewood_burrow = { x: 52, y: 84 }  // unknown_1..3 kept where they were
+chartEmblem2('thistlewood_burrow', locked?)            // the crowned badger; ink when locked
+dungeonSeal('thistlewood_burrow', tier)                // through the emblem, nothing new to call
+```
+
+| id            | canvas    | anchor   | tall | front | back | strike | box     | shadow | hover | mid |
+| ------------- | --------- | -------- | ---- | ----- | ---- | ------ | ------- | ------ | ----- | --- |
+| `badger_king` | 100 x 100 | (55, 98) | 83   | 27    | 46   | 44     | 74 x 83 | 24     | 0     | -9  |
+
+- **Sizes against your brief**: you sized him 60 x 78 with a reach of 45. Drawn, he is 74 wide
+  (robe and raised arms) and 83 tall, so take the box from `foeSize2` or grow yours. His front is 27
+  ahead of his feet, so the hero at the 36 stand is clear of him (front + 13 - 36 = 4); his slam's
+  strike reaches 44, onto a hero at the stand. His body sits 9 behind his feet point (`mid` -9): a
+  bar or a hit spark over his middle wants `x + mid` facing right, `x - mid` facing left.
+- **Phases**: pass the fight's phase (1-3) as `phase`; each phase is its own look (earth on him from
+  2, fur up, torn hem, teeth and red eyes in 3). The telegraph is `windup` (both fists raised high
+  over the crown, 8+ rows above his idle top), the blow `strike`.
+- **Moves, when to show them**: `burrow` frames 0-2 as he goes under (play once, then draw the
+  mound from batch 2, `burrowMound2`, where he travels), `erupt` frames 0-2 as he comes up (with
+  `burrowEruption2` under him), `stunned` (2 frames, looping) while he stands dazzled at a lantern.
+  All face the way he faces; feet are idle's.
+- **In the dark**: his face (`hairgrey`) is the lightest thing on him and his eyes keep their light
+  (`ember`), tested at level 2; draw him with `foeSprite2(…, burrowNight(level))` like the others.
+- **His room**: set the plan's theme to `'burrow'` (`dungeonTheme2('burrow')` gives palette, cast,
+  props). `root_throne` (J) is a tile-wide woven segment; `badger_throne` is the whole throne (96
+  wide) if you want one chair instead; `sett_banner`, `court_bench`, `larder`,
+  `mushroom_dwelling` are dressing for any room.
+- **Changed since batch 2 (prop glows)**: `toadstools` has one glowing knot (one glow, strength
+  0.26) instead of two, and `fallen_log`'s brackets are unlit (no glows): in the dark, two glows side
+  by side read as eyes. Their footprints and anchors are unchanged.
+- **Face**: `portrait2('badger_king')`, hand-drawn 72 x 72, `PORTRAIT2_SAFE.badger_king` = {x 0,
+  y 1, w 72, h 55} measured.
+- **The icon matcher**: every Burrow modifier and challenge id in your brief has a fitting kind, none
+  generic (tested): `thick_caps` tough, `fierce_brambles` fierce, `swift_hounds` swift,
+  `short_rations` hungry, `deep_gloom` dark; `.swift` time, `.nearly_unhurt` untouched, `.no_food`
+  hungry, `.badger_dodge` dodge. No change was needed.
+- **Gallery**: a "Draw Thistlewood Burrow" button and section (`burrowGallery.ts`): three of your
+  rooms dressed and lit (all lanterns, some, one), grounds, props, lantern states, clouds, mound and
+  eruption, the cast and the king in every pose lit and dark, faces, the chart.
+- **Memory**: lazy as before. Every king frame and move in every phase and both facings is 120
+  frames of 100 x 100, 1.2 million cells (about 5 MB with their canvases), only if a run asked for all
+  of them; a fight in one phase facing one way uses about 20 (about 0.8 MB). His face is 5,184 cells.
+  The gallery's Burrow section draws only when tapped.
+
+### Weak spots (honest, the whole Burrow)
+
+- The king's arms are dark and blocky against his robe when lit; the raised windup reads by its
+  silhouette more than by its drawing. His burrow frame 1 (half under) is muddy at a glance.
+- The bramble hound's head is boxy, and its `stuck` frames' heap of earth is a flat block.
+- The spore puff is small (box 23 x 22), under a thumb: it may want its tap box grown by lane C.
+- The moth's raised and lowered wing frames are weaker than the spread one; it reads best still.
+- Flagstones (the hall) stay bright-ish in the dark next to earth; the hall reads, but loud.
+- Glowing toadstools repeat in long rows along lane C's walls (`M` runs); a few more variants
+  would help.
+- Lanterns' lighting and snuffed frames (`postLanternFrame2`) are only seen once lane C plays
+  them; drawn with the two prop ids alone, a lantern pops on and off.
+- Nothing has been checked on a phone or in Safari; the sheets are rendered in node.
+
 ## Thistlewood Burrow, batch 3: the four smaller creatures and their faces (B20, third PR)
 
 **For lane C, on `main` once this PR merges** (no export renamed or re-signed; every older foe's
