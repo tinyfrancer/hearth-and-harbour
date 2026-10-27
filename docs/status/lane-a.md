@@ -1,7 +1,7 @@
 # Lane A: idle rules
 
 **Next: Cody's review of tier 2 and Thistlewood Burrow** (open since wave 21), then S25 (tier 3)
-when the plan says so. Waiting on lane C for one thing: its five scene expectations that read
+when the plan says so. Waiting on lane C for one thing: its four scene expectations that read
 the Burrow as a landing to come (Needs, wave 21).
 
 ## Done
@@ -1546,13 +1546,12 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
 
 ## Needs from another lane
 
-- **For lane C (wave 21)**: five of your expectations read the Burrow as a landing to come or
+- **For lane C (wave 21)**: four of your expectations read the Burrow as a landing to come or
   its pool as having Short Rations, and fail on lane A's branch for that alone (nothing else in
   `tests/scene` does): `burrowRun.test.ts` "has five days" (the pool is now `thick_caps`,
   `fierce_brambles`, `swift_hounds`, `lean_rations`, `deep_gloom`); `chart.test.ts` "for a new
   save: … the rest silhouettes" and "all cleared: … the next landing to come" (the burrow is
-  locked and named, then rowable; the next to come is `unknown_2`); `chartFit.test.ts` "keeps
-  the ferryman’s word … no medals for a landing not open"; `harbour.test.ts` "has no Row out for
+  locked and named, then rowable; the next to come is `unknown_2`); `harbour.test.ts` "has no Row out for
   a landing to come" (use `unknown_2`). Your bot's `BURROW_ASKED` can go: the tables hold #96's
   numbers. Lean Rations pays XP 1.1, not loot (lane A's economy); your days' cases are about
   clears and costs, so unaffected. The fourth challenge is `thistlewood_burrow.king_in_the_dark`
@@ -1764,7 +1763,7 @@ was picked up with it (nothing is settled until the run ends).
 
 ### Weak list (wave 21)
 
-- **The branch is red until lane C's five expectations move** (Needs): lane A's PR merges
+- **The branch is red until lane C's four expectations move** (Needs): lane A's PR merges
   after them, or lane C's goes on top of it.
 - **A night idle in the Burrow lifts combat far into tier 3's levels**: eight hours at 40 with
   fish enough took Melee 40 → 55, Defence 40 → 62, Vitality 40 → 58 (49 runs, 669 swordfish).
