@@ -462,8 +462,8 @@ describe('the content tables', () => {
       'badger_king',
     ]);
     expect(dungeonName(burrow)).toBe('Thistlewood Burrow');
-    // Wave 21: lane C's measured hides and health on real tier-2 gear (#96), as
-    // [level, hp, attack, defence, max hit, speed].
+    // Lane C's measured cast, held on real tier-2 gear in wave 21 (#100; #96's thicker hides
+    // withdrawn), as [level, hp, attack, defence, max hit, speed].
     expect(
       burrow.cast!.map((foe) => [
         foe.level,
@@ -474,19 +474,18 @@ describe('the content tables', () => {
         foe.speedMs,
       ]),
     ).toEqual([
-      [34, 23, 65, 62, 10, 2600],
-      [35, 17, 66, 72, 8, 2000],
-      [37, 39, 71, 82, 15, 2800],
-      [38, 35, 77, 69, 15, 2200],
-      [44, 205, 88, 90, 26, 2800],
+      [34, 25, 65, 50, 10, 2600],
+      [35, 18, 66, 58, 8, 2000],
+      [37, 43, 71, 66, 15, 2800],
+      [38, 38, 77, 55, 15, 2200],
+      [44, 225, 88, 72, 26, 2800],
     ]);
-    // Its own days (its own rations day in place of the grotto's), and its challenges' ids,
-    // kept in saves from now on.
+    // Its days, and its challenges' ids, kept in saves from now on.
     expect(burrow.modifiers).toEqual([
       'thick_caps',
       'fierce_brambles',
       'swift_hounds',
-      'lean_rations',
+      'short_rations',
       'deep_gloom',
     ]);
     expect(burrow.challenges!.map((c) => c.id)).toEqual([
@@ -510,8 +509,7 @@ describe('the content tables', () => {
   it('draws every dungeon’s days from modifiers the tables hold, each used, kind for the cave and a trade elsewhere', () => {
     const modifiers = Object.values(CONTENT.modifiers!);
     expect(modifiers.length).toBeGreaterThanOrEqual(6);
-    // Wave 21: thirteen, with the burrow's own rations day.
-    expect(modifiers.length).toBeLessThanOrEqual(14);
+    expect(modifiers.length).toBeLessThanOrEqual(12);
     const drawn = new Set<string>();
     for (const dungeon of Object.values(CONTENT.dungeons!)) {
       for (const id of dungeon.modifiers ?? []) {

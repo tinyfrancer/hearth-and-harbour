@@ -45,11 +45,11 @@ const HAND_GROTTO_XP = 22631;
 const IDLE_GROTTO: number[] = [5, 18750, 8095];
 /** The burrow's days by hand against a plain day (wave 21): XP, coins' worth earned, their mean. */
 const BURROW_DAYS: Record<string, [number, number, number]> = {
-  thick_caps: [1.28, 1.13, 1.2],
-  fierce_brambles: [0.97, 1.14, 1.05],
-  swift_hounds: [1.14, 0.99, 1.06],
-  lean_rations: [1.01, 1.27, 1.14],
-  deep_gloom: [1.09, 0.99, 1.04],
+  thick_caps: [1.27, 1.13, 1.2],
+  fierce_brambles: [1, 1.08, 1.04],
+  swift_hounds: [1.13, 0.93, 1.03],
+  short_rations: [1, 1.21, 1.1],
+  deep_gloom: [1.24, 1.1, 1.17],
 };
 /** The grotto's days by hand against a plain day (wave 18): XP, coins' worth earned, their mean. */
 const GROTTO_DAYS: Record<string, [number, number, number]> = {
@@ -627,7 +627,7 @@ describe('a dungeon run idle (S16)', () => {
 // clear plus fifteen seconds), and worse than the best idle fight at 40, on
 // any day; and a night of it at the levels it is first cleared at pays for
 // its fish.
-const IDLE_BURROW: number[] = [5, 57616, 49574];
+const IDLE_BURROW: number[] = [6, 64077, 69589];
 /**
  * The Burrow's cast as the tables have it, played by the cases below whatever
  * the scene's balance test fights by (wave 21: lane C's bot, until it reads the
@@ -1006,10 +1006,10 @@ describe('what a tier 2 potion is worth (S22)', () => {
 // best fight for money at 40 (`bestFightHour`). Not held: XP against an idle
 // fight. A dungeon's rooms are walked, its lanterns lit and its foes met a
 // few at a time, so by hand it pays well under half the XP of a fight back to
-// back (wave 21: 73,151 an hour against 190,055; the grotto by hand at 20 paid
-// 0.73 of that level's best fight). Wave 21: the tables' cast (#96), played as
-// the tables have it (`BURROW_CAST`): 11 of 12 cleared, 191,001 coins earned an
-// hour against the grotto re-run's 151,210 and the hobgoblin's 165,264.
+// back (wave 21: 74,711 an hour against 190,055; the grotto by hand at 20 paid
+// 0.73 of that level's best fight). Wave 21: the cast as the tables have it
+// (`BURROW_CAST`): 12 of 12 cleared, 186,557 coins earned an hour against the
+// grotto re-run's 151,210 and the hobgoblin's 165,264.
 // The hour by hand is the bot's, which lane C may re-tune; only the run's
 // worth and XP are pinned.
 describe('Thistlewood Burrow by hand (wave 20)', () => {
@@ -1035,9 +1035,8 @@ describe('Thistlewood Burrow by hand (wave 20)', () => {
     const burrowRun = handRunOf(burrow);
     const grottoRun = handRunOf(grotto);
     // Pinned so a change is seen: a burrow run by its tables is worth about 31,285 coins and pays
-    // 9,788 XP (its foes at tier 2's 270%; 10,665 before wave 21's thinner cast); the grotto's
-    // 10,086 and 3,230.
-    expect([Math.round(burrowRun.worth), burrowRun.xp]).toEqual([31285, 9788]);
+    // 10,665 XP (its foes at tier 2's 270%); the grotto's 10,086 and 3,230.
+    expect([Math.round(burrowRun.worth), burrowRun.xp]).toEqual([31285, 10665]);
     expect([Math.round(grottoRun.worth), grottoRun.xp]).toEqual([10086, 3230]);
     const fighter = fighterOf(hero, CONTENT);
     const there = byHand(
