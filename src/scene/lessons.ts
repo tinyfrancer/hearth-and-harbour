@@ -540,7 +540,7 @@ export const BURROW_LESSONS: readonly Lesson[] = [
     blocks: false,
     minMs: DAZZLE_HINT_MS,
     text: () =>
-      'He came up under the lantern you stood by, and its light has dazzled him: strike while he reels! Under the ground, he cannot see you in the light.',
+      'He came up under the lantern you stood by, and its light dazzled him. Strike while he reels!',
     due: (dungeon, run) => dazzled(dungeon, run) !== null,
     done: (dungeon, run) => dazzled(dungeon, run) === null,
     ring: (dungeon, run) => {

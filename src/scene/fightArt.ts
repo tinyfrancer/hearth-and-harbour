@@ -1325,19 +1325,26 @@ function speech(
   y: number,
   width: number,
   k: number,
+  // Never higher than this (clear of the panels along the top): under its feet instead, from `feet`.
+  minTop = -Infinity,
+  feet = y,
 ): void {
   ctx.font = `${13 * k}px ${WORDS}`;
   const pad = 6 * k;
   const w = Math.ceil(ctx.measureText(text).width) + 2 * pad;
   const h = 18 * k;
   const left = Math.min(Math.max(4, x - w / 2), width - w - 4);
-  const top = y - h - 6 * k;
+  const above = y - h - 6 * k;
+  const under = above < minTop;
+  const top = under ? feet + 6 * k : above;
+  // The tail points at the speaker: down from a bubble over its head, up from one under its feet.
+  const tail = under ? top - 5 * k : top + h;
   ctx.fillStyle = C.ink;
   ctx.fillRect(left - k, top - k, w + 2 * k, h + 2 * k);
-  ctx.fillRect(x - 4 * k, top + h, 9 * k, 5 * k);
+  ctx.fillRect(x - 4 * k, tail, 9 * k, 5 * k);
   ctx.fillStyle = C.white;
   ctx.fillRect(left, top, w, h);
-  ctx.fillRect(x - 3 * k, top + h, 7 * k, 3 * k);
+  ctx.fillRect(x - 3 * k, under ? tail + 2 * k : tail, 7 * k, 3 * k);
   ctx.fillStyle = C.ink;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -2434,7 +2441,8 @@ export function fightExtra(
       const who = battle.foes.find((f) => f.key === e.who);
       if (who && who.room === run.room) {
         const top = who.at.y - standsOf(who.monster) - 14;
-        over.push({ x: 0, y: top - 50, w: viewWidth, h: 54 });
+        // Over its head, or under its feet where the panels along the top would cover it.
+        over.push({ x: 0, y: top - 50, w: viewWidth, h: who.at.y - top + 110 });
       }
     }
   }
@@ -2693,7 +2701,16 @@ export function fightExtra(
         if (!who || who.room !== run.room) continue;
         const words = sayingOf(run.dungeon, who.monster, e.line);
         if (!words) continue;
-        speech(ctx, words, who.at.x, who.at.y - standsOf(who.monster) - 14, viewWidth, k);
+        speech(
+          ctx,
+          words,
+          who.at.x,
+          who.at.y - standsOf(who.monster) - 14,
+          viewWidth,
+          k,
+          wordsTop,
+          who.at.y,
+        );
       }
     },
   };
