@@ -168,6 +168,7 @@ describe('the Town tab’s dot', () => {
     let state = newGame('Cody', clock);
     state = settleRun(state, { cleared: 'tidepool_cave' }, CONTENT);
     state = settleRun(state, { cleared: 'brinebeards_grotto' }, CONTENT);
+    state = settleRun(state, { cleared: 'thistlewood_burrow' }, CONTENT);
     // A breath short of combat level 2, fighting rats.
     const almost = xpForLevel(2) - 1;
     state = {
@@ -194,7 +195,11 @@ describe('the Town tab’s dot', () => {
     let state = newGame('Cody', clock);
     state = settleRun(state, { cleared: 'tidepool_cave' }, CONTENT);
     state = settleRun(state, { cleared: 'brinebeards_grotto' }, CONTENT);
+    // Wave 20: the grotto's clear opens the burrow, which wears the dot until it is cleared too.
     playing(state);
+    expect(dot()).not.toBeNull();
+    root.replaceChildren();
+    playing(settleRun(state, { cleared: 'thistlewood_burrow' }, CONTENT));
     expect(dot()).toBeNull();
   });
 });

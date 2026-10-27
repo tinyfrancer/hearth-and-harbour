@@ -165,7 +165,7 @@ describe('the moment tier 2 opens', () => {
     expect(root.querySelector('[data-tier-opened]')).toBeNull();
   });
 
-  it('lists every skill with tier 2 rows, then where to fight, then the shops', () => {
+  it('lists every skill with tier 2 rows, then where to fight, then the shops, then the landing opened', () => {
     const lines = tierOpenedLines(2, CONTENT);
     expect(lines.map((line) => line.head)).toEqual([
       'Woodcutting',
@@ -181,9 +181,12 @@ describe('the moment tier 2 opens', () => {
       'Thistlewood’s Edge',
       'The Deepthorn',
       'Shops',
+      'Thistlewood Burrow',
     ]);
-    expect(lines.at(-2)!.text).toBe('2 for bounties · levels 29–37');
-    expect(lines.at(-3)!.text).toBe('5 to fight · levels 23–39');
-    expect(lines.at(-1)!.text).toBe('new stock: store, bounty shop');
+    expect(lines.at(-3)!.text).toBe('2 for bounties · levels 29–37');
+    expect(lines.at(-4)!.text).toBe('5 to fight · levels 23–39');
+    expect(lines.at(-2)!.text).toBe('new stock: store, bounty shop');
+    // Wave 21: the grotto's clear opens the burrow too.
+    expect(lines.at(-1)!.text).toBe('open · by boat · combat 40');
   });
 });

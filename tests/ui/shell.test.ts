@@ -182,10 +182,13 @@ describe('the shell a scene is given', () => {
     // Nothing is laid over the scene's results card (wave 18)...
     expect(root.querySelector('.toast')).toBeNull();
     expect(root.querySelector('[data-award]')).toBeNull();
-    // ...it is all said back in the menus: the bounty, and the clear's achievement.
+    // ...it is all said back in the menus: the first clear and the landing it opened (wave 21),
+    // the bounty, and the clear's achievement.
     click('.tab[data-tab="bank"]');
     expect(root.querySelector('.toast')?.textContent).toBe(
-      'Bounty done: 10 Dock rats. Hand it in.',
+      'First clear of Brinebeard’s Grotto! ' +
+        'Thistlewood Burrow is open: the boat at the quay will take you. ' +
+        'Bounty done: 10 Dock rats. Hand it in.',
     );
     expect(root.querySelector('[data-award="grotto_cleared"]')).not.toBeNull();
   });
@@ -366,7 +369,7 @@ describe('the day’s modifier and challenges, for a scene (S16)', () => {
     const eleventh = Math.floor(Date.UTC(2026, 9, 11) / 86_400_000);
     expect(at(0)).toEqual(day(eleventh));
     expect(at(60)).toEqual(day(eleventh + 1));
-    expect(shell!.todaysModifier!('thistlewood_burrow')).toBeNull();
+    expect(shell!.todaysModifier!('unknown_2')).toBeNull();
   });
 
   it('pays a challenge met by a clear once, and says so', () => {

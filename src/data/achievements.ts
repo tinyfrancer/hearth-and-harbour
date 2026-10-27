@@ -214,6 +214,28 @@ const ROWS: Record<string, Row> = {
     text: 'Clear Brinebeard’s Grotto on each of its six kinds of day.',
     rule: { kind: 'underModifiers', dungeon: 'brinebeards_grotto' },
   },
+  // Wave 20: Thistlewood Burrow, as the grotto's: the first clear, going back,
+  // every challenge, and every kind of day.
+  burrow_cleared: {
+    name: 'Lights Out',
+    text: 'Clear Thistlewood Burrow.',
+    rule: { kind: 'cleared', dungeon: 'thistlewood_burrow' },
+  },
+  burrow_10: {
+    name: 'Knows Every Tunnel',
+    text: 'Clear Thistlewood Burrow ten times.',
+    rule: { kind: 'cleared', dungeon: 'thistlewood_burrow', count: 10 },
+  },
+  burrow_challenges: {
+    name: 'By Royal Appointment',
+    text: 'Meet every one of Thistlewood Burrow’s challenges.',
+    rule: { kind: 'challenges', dungeon: 'thistlewood_burrow' },
+  },
+  burrow_weathers: {
+    name: 'Rain or Spores',
+    text: 'Clear Thistlewood Burrow on each of its five kinds of day.',
+    rule: { kind: 'underModifiers', dungeon: 'thistlewood_burrow' },
+  },
   idle_1: {
     name: 'Sent Ahead',
     text: 'Finish a dungeon run idle.',

@@ -446,11 +446,11 @@ describe('the content tables', () => {
         expect([row.loot.length, row.firstClear], row.id).toEqual([0, undefined]);
       }
     }
-    // Wave 19: a designed dungeon may wait as a landing to come with its real rows (the burrow,
-    // for lanes B and C to build against); its name is still never shown (`dungeonName`).
+    // Wave 19: a designed dungeon may wait as a landing to come with its real rows; the burrow
+    // waited a wave so, and is charted since wave 20, named.
     const burrow = CONTENT.dungeons!.thistlewood_burrow!;
     expect([burrow.comingSoon, burrow.recommended, burrow.unlock]).toEqual([
-      true,
+      undefined,
       40,
       { kind: 'cleared', dungeon: 'brinebeards_grotto' },
     ]);
@@ -461,7 +461,39 @@ describe('the content tables', () => {
       'bramble_hound',
       'badger_king',
     ]);
-    expect(dungeonName(burrow)).toBe('Uncharted waters');
+    expect(dungeonName(burrow)).toBe('Thistlewood Burrow');
+    // Lane C's measured cast, held on real tier-2 gear in wave 21 (#100; #96's thicker hides
+    // withdrawn), as [level, hp, attack, defence, max hit, speed].
+    expect(
+      burrow.cast!.map((foe) => [
+        foe.level,
+        foe.hp,
+        foe.attack,
+        foe.defence,
+        foe.maxHit,
+        foe.speedMs,
+      ]),
+    ).toEqual([
+      [34, 25, 65, 50, 10, 2600],
+      [35, 18, 66, 58, 8, 2000],
+      [37, 43, 71, 66, 15, 2800],
+      [38, 38, 77, 55, 15, 2200],
+      [44, 225, 88, 72, 26, 2800],
+    ]);
+    // Its days, and its challenges' ids, kept in saves from now on.
+    expect(burrow.modifiers).toEqual([
+      'thick_caps',
+      'fierce_brambles',
+      'swift_hounds',
+      'short_rations',
+      'deep_gloom',
+    ]);
+    expect(burrow.challenges!.map((c) => c.id)).toEqual([
+      'thistlewood_burrow.swift',
+      'thistlewood_burrow.nearly_unhurt',
+      'thistlewood_burrow.no_food',
+      'thistlewood_burrow.king_in_the_dark',
+    ]);
     // Wave 20: lane C's idle rooms, room by room (src/scene/burrow.ts), checked against the plan below.
     expect(burrow.idle!.rooms.map((room) => room.foes.length)).toEqual([3, 4, 5, 4, 5]);
     for (const foe of burrow.cast!) {
@@ -664,6 +696,24 @@ describe('the content tables', () => {
       .flatMap((dungeon) => dungeon.cast ?? []);
     expect(cast.map((foe) => foe.id)).toContain('old_snapper');
     for (const foe of cast) expect(PORTRAIT2_IDS, foe.id).toContain(foe.id);
+  });
+
+  // Wave 20: a dungeon is charted only once it can be played in full in the menus too: rooms to
+  // run idle, a face for everyone in its cast, an icon for everything it gives up, and its first
+  // clear's and challenges' things among them.
+  it('gives every charted dungeon idle rooms, faces and icons', () => {
+    const charted = Object.values(CONTENT.dungeons!).filter((dungeon) => !dungeon.comingSoon);
+    expect(charted.map((dungeon) => dungeon.id)).toContain('thistlewood_burrow');
+    for (const dungeon of charted) {
+      expect(dungeon.idle?.rooms.length ?? 0, dungeon.id).toBeGreaterThan(0);
+      for (const foe of dungeon.cast ?? []) expect(PORTRAIT2_IDS, foe.id).toContain(foe.id);
+      const things = [
+        ...dungeon.loot,
+        ...(dungeon.firstClear ?? []).map((reward) => reward.item),
+        ...(dungeon.challenges ?? []).flatMap((c) => (c.reward.items ?? []).map((r) => r.item)),
+      ];
+      for (const item of things) expect(ITEM_ICON_IDS, `${dungeon.id} ${item}`).toContain(item);
+    }
   });
 
   it('describes the captain’s coat in the colour art draws it', () => {

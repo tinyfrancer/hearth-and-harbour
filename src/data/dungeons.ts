@@ -78,31 +78,39 @@ export const DUNGEON_MODIFIERS = {
   },
   // Trades: for Thistlewood Burrow, each the grotto's trade of the same shape
   // in the burrow's own words (and the grotto's Short Rations, shared).
+  // Wave 21, lane C's measure on real tier-2 gear over 120 seeds (#100): a
+  // plain day clears 113. Fierce Brambles and Swift Hounds as first written
+  // lost no more to blows than a plain day (their foes' lower health paid for
+  // the harder, quicker blows), so each is now its harm alone; Deep Gloom at
+  // hero damage 0.9 cleared 97, so 0.95. Asked, they clear 105, 105 and 109.
+  // Thick Caps (109) and Short Rations (104) as they were.
   thick_caps: {
     id: 'thick_caps',
     name: 'Thick Caps',
     text: 'A wet night: every cap in the warren is plump, tough and slow to get moving.',
-    effects: { foeHealth: 1.2, foeSpeed: 0.8, xp: 1.2, loot: 1.15 },
+    // XP 1.1, not the grotto's 1.2: tougher caps already pay more XP a run (it is paid by
+    // damage dealt), and at 1.2 an hour by hand paid 1.39 times a plain day's XP.
+    effects: { foeHealth: 1.2, foeSpeed: 0.8, xp: 1.1, loot: 1.15 },
   },
   fierce_brambles: {
     id: 'fierce_brambles',
     name: 'Fierce Brambles',
-    text: 'The thorns grew long overnight. Everything in the burrow bites harder and bends easier.',
-    effects: { foeDamage: 1.1, foeHealth: 0.95, loot: 1.1 },
+    text: 'The thorns grew long overnight. Everything in the burrow bites harder for it.',
+    effects: { foeDamage: 1.08, loot: 1.1 },
   },
   swift_hounds: {
     id: 'swift_hounds',
     name: 'Swift Hounds',
-    text: 'Something has the whole warren running about: quick, careless and easier to knock over.',
-    effects: { foeSpeed: 1.1, foeHealth: 0.93, xp: 1.15 },
+    text: 'Something has the whole warren running about, quick on its feet and quicker to bite.',
+    effects: { foeSpeed: 1.08, xp: 1.15 },
   },
   deep_gloom: {
     id: 'deep_gloom',
     name: 'Deep Gloom',
     text: 'The moths have had every lamp. Swing carefully; nobody down there can see much either.',
-    // Wave 20: 0.9, not the grotto's 0.85, on lane C's measure: the burrow's dark already
-    // softens his blows, and at 0.85 its careful player cleared 9 of 12 against a target of 10.
-    effects: { darker: true, heroDamage: 0.9, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
+    // Lane C's measure: the burrow's dark already softens his blows, so its own darker day
+    // asks less of them than the grotto's 0.85 (0.9 in wave 20, 0.95 since wave 21).
+    effects: { darker: true, heroDamage: 0.95, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
   },
 } satisfies Record<string, ModifierDef>;
 
@@ -340,7 +348,7 @@ export const DUNGEONS = {
         pick: { items: ['captains_coat', 'spyglass'], oneIn: 2 },
       },
     ],
-    // Its first clear opens the next tier of idle content (plan S22, not built yet).
+    // Its first clear opens tier 2 (plan S22) and Thistlewood Burrow (by its `unlock`).
     opens: {
       tier: 2,
       brings:
@@ -420,17 +428,19 @@ export const DUNGEONS = {
     ],
   },
   // The second real dungeon (plan S23), opened by the grotto's first clear and
-  // the gate to tier 3. Coming soon this wave: a silhouette on the chart (the
-  // scene lands it on the spare `unknown_1` spot), its name never shown, but
-  // its cast, loot, days and challenges are real rows, so lane C can build and
-  // balance against them. The cast's ids are the shared contract with lanes B
-  // and C (docs/tier2-manifest.md).
+  // the gate to tier 3. Charted since wave 20, when lane C called it ready to
+  // play (it waited a wave as a silhouette, its rows real so lanes B and C
+  // could build against them). The cast's ids are the shared contract with
+  // lanes B and C (docs/tier2-manifest.md).
   //
   // Wave 20: the cast's numbers are lane C's, measured by its careful player
   // against the burrow's own rules (the dark, the guards' blocks, the king's
   // calls already cost what wave 19's extra health and accuracy were for):
   // level 40 in salt-iron with 20 cooked swordfish clears most seeds in about
   // nine minutes, level 30 about a third (tests/scene/burrowRun.test.ts).
+  // Wave 21, measured again on real tier-2 gear over 120 seeds (#100): these
+  // numbers stand (#96's thicker hides were withdrawn): careful at 40 clears
+  // 113 (median 9.0 minutes), never lighting a lantern 24, careful at 30 36.
   thistlewood_burrow: {
     id: 'thistlewood_burrow',
     name: 'Thistlewood Burrow',
@@ -440,7 +450,6 @@ export const DUNGEONS = {
     recommended: 40,
     unlock: { kind: 'cleared', dungeon: 'brinebeards_grotto' },
     unlockText: 'Clear Brinebeard’s Grotto.',
-    comingSoon: true,
     firstClear: [
       { item: 'amber', qty: 10 },
       { item: 'cooked_swordfish', qty: 10 },
@@ -541,39 +550,52 @@ export const DUNGEONS = {
     // Run idle once cleared (src/core/idleRun.ts): lane C's five rooms in
     // order (src/scene/burrow.ts), each met as one group, and in the sett the
     // king with those he calls (two puffs, a moth, a hound), dealt with first.
-    // Idle there are no lanterns to light, so a walk is a walk. The crown is a
-    // trophy, only ever found by hand (docs/design.md).
+    // Each walk is slow: he lights the lanterns as he goes (half a minute a
+    // room), and the row up the river and back is three minutes; at 12 s and
+    // two minutes an hour idle out-paid an hour by hand in XP (wave 20). The
+    // crown is a trophy, only ever found by hand (docs/design.md).
     idle: {
       rooms: [
-        { foes: ['spore_puff', 'spore_puff', 'spore_puff'], walkMs: 12_000 },
-        { foes: ['cap_guard', 'cap_guard', 'spore_puff', 'spore_puff'], walkMs: 12_000 },
+        { foes: ['spore_puff', 'spore_puff', 'spore_puff'], walkMs: 30_000 },
+        { foes: ['cap_guard', 'cap_guard', 'spore_puff', 'spore_puff'], walkMs: 30_000 },
         {
           foes: ['lantern_moth', 'lantern_moth', 'spore_puff', 'spore_puff', 'cap_guard'],
-          walkMs: 12_000,
+          walkMs: 30_000,
         },
         {
           foes: ['bramble_hound', 'bramble_hound', 'lantern_moth', 'spore_puff'],
-          walkMs: 12_000,
+          walkMs: 30_000,
         },
         {
           foes: ['spore_puff', 'spore_puff', 'lantern_moth', 'bramble_hound', 'badger_king'],
-          walkMs: 15_000,
+          walkMs: 30_000,
         },
       ],
-      tripMs: 120_000,
+      tripMs: 180_000,
       lootPercent: 50,
       activeOnly: ['badger_crown'],
     },
     modifiers: ['thick_caps', 'fierce_brambles', 'swift_hounds', 'short_rations', 'deep_gloom'],
-    // Real goals, as the grotto's: none expected of a first clear. Their ids
-    // name what lane B's icons draw (a clock, an unhurt hero, an empty plate,
-    // a step aside).
+    // Real goals, a ladder of them as the grotto's: none but its own dark day
+    // comes with a first clear. Lane C's careful player (tests/scene/
+    // burrowBot.ts, 20 swordfish, salt-iron and the cloak; measured by lane A
+    // on the tables in wave 21, twelve seeds, 48 at level 40) meets Quick
+    // Through the Warren on 2 of 48 at combat 40, 4 of 12 at 50 and 11 at 60
+    // (in the full kit, cloak and amulet: 2 at 40, 6 at 45, 11 at 55); Barely
+    // Brambled on 3 of 48 at 40, 3 of 12 at 50, 8 at 60; Nothing from the
+    // Larder, with no fish at all, once at 60, 3 times at 65 and 70, 6 at 75
+    // (tier 3's gear will bring it nearer); The King in the Dark on 39 of 48
+    // such days at 40 (lane C: 109 of 120). Their ids name what lane B's icons
+    // draw (a clock, an unhurt hero, an empty plate, the king).
+    // Wave 21: the fourth was 'badger_dodge' (eight heavy blows stepped out
+    // of), which every careful clear meets many times over (47 to 121): never
+    // in a save, as the burrow paid nothing while it waited, so replaced.
     challenges: [
       {
         id: 'thistlewood_burrow.swift',
         name: 'Quick Through the Warren',
-        text: 'Clear the burrow in eight minutes or less.',
-        rule: { kind: 'atMost', stat: 'timeMs', n: 480_000 },
+        text: 'Clear the burrow in seven minutes or less.',
+        rule: { kind: 'atMost', stat: 'timeMs', n: 420_000 },
         reward: { coins: 12_000, bountyPoints: 10 },
       },
       {
@@ -586,15 +608,15 @@ export const DUNGEONS = {
       {
         id: 'thistlewood_burrow.no_food',
         name: 'Nothing from the Larder',
-        text: 'Clear the burrow without eating a thing. One for a seasoned fighter: combat 60 or so.',
+        text: 'Clear the burrow without eating a thing. One for a seasoned fighter: combat 75 or so.',
         rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
         reward: { coins: 15_000, bountyPoints: 10 },
       },
       {
-        id: 'thistlewood_burrow.badger_dodge',
-        name: 'Out of the King’s Way',
-        text: 'Clear the burrow having stepped out of eight heavy blows.',
-        rule: { kind: 'atLeast', stat: 'stepOuts', n: 8 },
+        id: 'thistlewood_burrow.king_in_the_dark',
+        name: 'The King in the Dark',
+        text: 'Clear the burrow on a day of Deep Gloom.',
+        rule: { kind: 'withModifier', id: 'deep_gloom' },
         reward: { coins: 8000, bountyPoints: 5 },
       },
     ],

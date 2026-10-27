@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Content, DungeonDef } from '../../src/core/content';
-import { dungeonStatus, dungeonsInOrder, mayEnter } from '../../src/core/dungeons';
+import { dungeonStatus, dungeonsInOrder, mayEnter, newlyOpened } from '../../src/core/dungeons';
 import { settleRun } from '../../src/core/run';
 import { newGame, type GameState } from '../../src/core/state';
 import { xpForLevel } from '../../src/core/xp';
@@ -91,17 +91,43 @@ describe('dungeonStatus', () => {
     expect(dungeonsInOrder(tables).map((d) => d.id)).toEqual(['cave', 'cove', 'keep', 'later']);
   });
 
-  it('shows the real chart to a new character: the cave and the grotto open, the rest to come', () => {
+  it('shows the real chart to a new character: the cave and the grotto open, the burrow locked, the rest to come', () => {
     const states = dungeonsInOrder(CONTENT).map(
       (d) => `${d.id} ${dungeonStatus(fresh(), d.id, CONTENT)!.state}`,
     );
     expect(states).toEqual([
       'tidepool_cave open',
       'brinebeards_grotto open',
-      'thistlewood_burrow soon',
+      'thistlewood_burrow locked',
       'unknown_2 soon',
       'unknown_3 soon',
     ]);
+  });
+});
+
+// Wave 21: what a change opened, for the menus to say so.
+describe('newlyOpened', () => {
+  it('names the landings a first clear or a level opened, and nothing already open or still to come', () => {
+    const before = fresh();
+    const cleared = settleRun(before, { cleared: 'cave' }, tables);
+    expect(newlyOpened(before, cleared, tables).map((d) => d.id)).toEqual(['cove']);
+    // A second clear opens nothing new.
+    expect(newlyOpened(cleared, settleRun(cleared, { cleared: 'cave' }, tables), tables)).toEqual(
+      [],
+    );
+    // A level gained opens the keep; the landing to come never.
+    expect(newlyOpened(fighter(9), fighter(10), tables).map((d) => d.id)).toEqual(['keep']);
+    expect(newlyOpened(before, before, tables)).toEqual([]);
+  });
+
+  it('opens Thistlewood Burrow on the grotto’s first clear', () => {
+    const before = fresh();
+    const after = settleRun(before, { cleared: 'brinebeards_grotto' }, CONTENT);
+    expect(newlyOpened(before, after, CONTENT).map((d) => d.id)).toEqual(['thistlewood_burrow']);
+    expect(mayEnter(after, 'thistlewood_burrow', CONTENT)).toBe(true);
+    // Its own first clear opens nothing yet: the landing after it is still to come.
+    const burrow = settleRun(after, { cleared: 'thistlewood_burrow' }, CONTENT);
+    expect(newlyOpened(after, burrow, CONTENT)).toEqual([]);
   });
 });
 

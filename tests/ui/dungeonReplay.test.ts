@@ -87,8 +87,12 @@ describe('the Dungeons card (S16)', () => {
     );
     const tier = q(`[data-dungeon-row="${GROTTO}"] [data-tier]`);
     expect(tier.getAttribute('data-unlocked')).toBe('false');
-    // Tier 2 is real since S22: what it brings, with no "still being built".
-    expect(tier.textContent).toMatch(/^Its first clear unlocks tier 2: deep-water fishing/);
+    // Tier 2 is real since S22: what it brings, with no "still being built"; and since wave 21
+    // the landing its clear opens too.
+    expect(tier.textContent).toBe(
+      'Its first clear unlocks tier 2, from level 20: deep-water fishing, driftwood, salt-iron to mine and smith, richer pockets to pick and somewhere new to fight. ' +
+        'It opens Thistlewood Burrow too.',
+    );
     expect(tier.textContent).not.toContain('still being built');
     // Nothing to send the hero through yet.
     expect(root.querySelector('[data-idle-start]')).toBeNull();
@@ -110,8 +114,9 @@ describe('the Dungeons card (S16)', () => {
     );
     const tier = q(`[data-dungeon-row="${GROTTO}"] [data-tier]`);
     expect(tier.getAttribute('data-unlocked')).toBe('true');
-    expect(tier.textContent).toMatch(
-      /^Tier 2 unlocked: deep-water fishing.*every skill from level 20/,
+    expect(tier.textContent).toBe(
+      'Tier 2 unlocked, from level 20: deep-water fishing, driftwood, salt-iron to mine and smith, richer pockets to pick and somewhere new to fight. ' +
+        'Thistlewood Burrow is open.',
     );
     expect(root.querySelectorAll('[data-idle-start]')).toHaveLength(2);
   });

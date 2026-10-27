@@ -1,9 +1,87 @@
 # Lane A: idle rules
 
-**Next: wave 20** (in progress): the Burrow's numbers (PR 1, below), tier 2's follow-ups, the
-cloak's own slot, and opening the Burrow once lane C writes "BURROW READY".
+**Next: Cody's review of tier 2 and Thistlewood Burrow** (open since wave 21), then S25 (tier 3)
+when the plan says so. Waiting on lane C for one thing: its three scene expectations that read
+the Burrow as a landing to come (Needs, wave 21).
 
 ## Done
+
+- Wave 21: Thistlewood Burrow opened, finished (branch `lane-a/w21-burrow-open`, PR #99:
+  wave 20's PR 4, rebased, and this wave's commits on top). **Save version unchanged (12).**
+  - **Lane C's numbers, reconciled**: #96 asked for thicker hides and a Burrow rations day of its
+    own (`lean_rations`); this branch applied them, then lane C's re-measure this wave (#100, 120
+    seeds on real tier-2 gear) withdrew both: the cast stands as wave 20 left it, and Short
+    Rations stays in the pool (104 of 120 against a plain 113). Applied from #100: Fierce
+    Brambles `{ foeDamage: 1.08, loot: 1.1 }` (its foe health 0.95 gone, so its words lose
+    "bends easier"), Swift Hounds `{ foeSpeed: 1.08, xp: 1.15 }` (foe health 0.93 gone, words
+    likewise), Deep Gloom hero damage 0.9 → 0.95. Thick Caps' difficulty as it was; **its XP 1.2
+    → 1.1** (lane A's economy: tougher caps already pay more XP a run, and at 1.2 an hour by hand paid 1.39 times a plain day's XP, past the 1.3 held). Modifiers: 12, as before.
+  - **Recommended 40 stands**: lane C's careful player on the tables (sword, kite shield, helm,
+    plate, greaves, cloak; 20 swordfish), twelve seeds: level 30 clears 5, 35 11, 40 12; 48
+    seeds at 40: 46 (median 8.6 min).
+  - **Challenges** (ids kept in saves from now): `thistlewood_burrow.swift` now **seven**
+    minutes (was eight: half the full kit's first clears met it); `.nearly_unhurt` (450 lost to
+    blows) as it was; `.no_food`, its words now "combat 75 or so"; **`.king_in_the_dark`** ("The
+    King in the Dark": a clear on a day of Deep Gloom, 8,000 coins and 5 points) replaces
+    `.badger_dodge` (eight heavy blows stepped out of), which every careful clear meets 36 to 115
+    times. Never in a save: the burrow paid nothing while it waited. Its slug names the king so
+    lane B's icon draws the boss (lane B's data test wants every slug matched). Evidence (the
+    bot, twelve seeds unless said): seven minutes 2 of 48 at 40, 4 at 50, 11 at 60 (full kit: 2
+    at 40, 6 at 45, 11 at 55); 450 lost 3 of 48 at 40, 3 at 50, 8 at 60; no food (no fish
+    carried) 0 at 55, 1 at 60, 3 at 65 and 70, 6 at 75; Deep Gloom 39 of 48 at 40 (lane C: 109 of
+    120).
+  - **The unlock, said**: `newlyOpened(before, after, content)` (`src/core/dungeons.ts`): the
+    landings a change opened. Settling a run toasts it once back in the menus: "First clear of
+    Brinebeard’s Grotto! Thistlewood Burrow is open: the boat at the quay will take you." (the
+    first clear named now even with nothing to pay). The Town tab's dot comes on by the existing
+    rule (an open landing never seen on the chart). Tier 2's card on the Skills tab ends with
+    "Thistlewood Burrow · open · by boat · combat 40". The grotto's line on the Dungeons card
+    says what is open: "Its first clear unlocks tier 2, from level 20: …. It opens Thistlewood
+    Burrow too." and once cleared "Tier 2 unlocked, from level 20: …. Thistlewood Burrow is
+    open." (was "New things in every skill from level 20, and a new place to fight.").
+  - **The economy** (pacing, all fighting the tables' cast through `BURROW_CAST`, whatever lane
+    C's bot defaults to), level 40 in the full kit: **by hand** 12 of 12 cleared, 76,834 XP and 191,858 coins earned an hour after fish (the grotto re-run 50,207 and 151,210; the best fight
+    for money, the hobgoblin, 165,264); a run is worth 31,285 coins and 10,665 XP. **Idle** 6 runs
+    an hour, 64,077 XP (0.83 of by hand), 69,589 earned after 29,356 of fish; the best idle fight
+    190,055 XP. A night at 38 and 40 with fish to spare is never knocked out and pays for its
+    fish. **The days by hand** against a plain day (XP, earned, mean), a new case held as the
+    grotto's (each 0.9 to 1.3, the mean 1.0 to 1.3): Thick Caps 1.22 / 1.07 / 1.15, Fierce Brambles 1.00 / 1.09 / 1.05, Swift Hounds 1.13 / 0.94 / 1.04, Short Rations 1.05 / 1.25 / 1.15, Deep Gloom 1.22 / 1.08 / 1.15 (on lane C's finished scene, #100).
+  - **Tests changed on purpose**: the grotto's tier line (`dungeonReplay`) to the new words; the
+    tier card's lines gain the burrow; the shell's grotto clear says the first clear and the
+    burrow before the bounty. New: `newlyOpened` (core), the burrow's cast, pool and challenge ids
+    pinned (content), the burrow's days by hand (pacing). The idle and by-hand pins are wave 20's.
+  - **Checked** at 390 × 844 and 360 × 740, 3x (`/home/claude/lane-shots/w21-a/`): the Burrow
+    locked, open (and its challenges) and cleared; the grotto's tier line; the unlock toast and
+    the Town dot after a grotto first clear; tier 2's card, the bounty board, Mining's tier
+    badges; the away report after eight hours of idle Burrow runs, with 300 swordfish (out of fish after 23 runs, knocked out, said in red) and 1,000 (51 runs, 612 eaten).
+
+- Wave 20, PR 4: Thistlewood Burrow opened (branch `lane-a/w20-burrow-open`, shipped in wave 21
+  above). **Save version unchanged (12).**
+  - **Charted**: `comingSoon` is gone from its row. It is locked, named, until the grotto is
+    cleared ("Clear Brinebeard’s Grotto."), then open; the Dungeons card, the chart, the day's
+    modifier (its five days), challenges, first-clear reward (10 amber, 10 cooked swordfish),
+    the bestiary (its five, faces by `portrait2`), the collection log and the bank's "From" all
+    take it as they take the grotto. Its first clear opens tier 3, told on the Dungeons card as
+    still being built ("levels 40 to 60 in every skill"); no unlock card (tier 3 has no rows).
+  - **Run idle** (`idle`): the walks are now half a minute a room (he lights the lanterns as he
+    goes) and the trip three minutes (was 12 s and two): at the first walks an hour idle at 40
+    paid 85,440 XP, more than an hour by hand (74,711). Now 6 runs an hour, 64,077 XP (0.86 of
+    by hand), 69,589 coins earned after fish (the best fight 165,264); the same on every day
+    (all five are trades, played plain idle); a night at 38 and 40 is never knocked out and
+    pays for its swordfish. Pinned in `Thistlewood Burrow run idle`.
+  - **Achievements** (four, 54 in all): Lights Out (a clear), Knows Every Tunnel (ten), By
+    Royal Appointment (every challenge), Rain or Spores (a clear on each of its five days).
+  - **A content case**: every charted dungeon has idle rooms, a face for everyone in its cast
+    (`PORTRAIT2_IDS`), and an icon for everything it gives up, pays first or pays for a
+    challenge (`ITEM_ICON_IDS`). It fails until lane B's five faces are on `main`, which is the
+    gate.
+  - **Tests changed on purpose**: `thistlewood_burrow soon` → `locked` for a newcomer and
+    `open` past the grotto (core dungeons, the Dungeons card); a landing to come is now
+    `unknown_2` where a case needed one (the day's modifier, the first-clear reward, the
+    shell's modifier, the Dungeons card's "?"); tier 3's reason is "Clear Thistlewood
+    Burrow." (tier 4's "Not open yet."); the Town tab's dot stays until the burrow is cleared
+    too; the content case reads the burrow as charted and named. New: the tier-3 line on the
+    Dungeons card, before and after its clear.
 
 - Wave 20, PR 3: the cloak's own slot (branch `lane-a/w20-cloak-slot`). **Save version 12.**
   - **A ninth slot, `back`** (`SLOTS` in `src/core/content.ts`, after `neck`; named "Back" on
@@ -1462,6 +1540,17 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
 
 ## Needs from another lane
 
+- **For lane C (wave 21)**: three of your expectations read the Burrow as a landing to come and
+  fail once it is charted (nothing else in `tests/scene` does, with #100's numbers in the
+  tables): `chart.test.ts` "for a new save: … the rest silhouettes" (:42) and "all cleared: …
+  the next landing to come" (:85), expecting `thistlewood_burrow` `soon`; `harbour.test.ts` "has
+  no Row out for a landing to come" (:191; use `unknown_2`). #100's asked days are now the
+  tables' rows, so `ASKED` can go. The fourth challenge is `thistlewood_burrow.king_in_the_dark`
+  (`withModifier` Deep Gloom), not `badger_dodge`.
+- **For lane B (wave 21)**: nothing blocking. `thistlewood_burrow.king_in_the_dark` draws your
+  boss picture ("king"; your data test wants every challenge matched, so the slug was chosen to
+  match).
+
 - **For lane C (wave 20)**: (1) the cast's numbers and Deep Gloom 0.9 are in the tables, so
   `BURROW_ASKED` and the tables agree; the tier-2 stat line is above (read it from data:
   `fighterOf(characterAt(40, { tier2: true, food: 20 }), CONTENT)` gives it; since PR 3 the same
@@ -1662,6 +1751,47 @@ was picked up with it (nothing is settled until the run ends).
   scene. Reloading to dodge a blow gets the snapshot at most a few seconds old, with the same
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
+
+### Weak list (wave 21)
+
+- **The branch is red until lane C's three expectations move** (Needs): lane A's PR merges
+  after them, or lane C's goes on top of it.
+- **A night idle in the Burrow lifts combat far into tier 3's levels**: eight hours at 40 with
+  fish enough took Melee 40 → 56, Defence 40 → 61, Vitality 40 → 58 (51 runs, 612 swordfish). The best idle fight at 40 pays more
+  XP still (tier 2's foes pay 270%). Tier 3 (S25) has to be paced from there, or tier 2's rate
+  eased past 40.
+- **Idle eats a lot**: about 15 to 20 swordfish a run at 40; a phone left overnight with 300
+  runs dry after 23 runs and he is knocked out. Honest, and said in the report, but a
+  player may not expect it.
+- **No Food is far off**: "combat 75 or so" in salt-iron; tier 3's gear should bring it nearer,
+  unmeasured.
+- **Lane C's two measures disagree a little**: on main's bot and 48 seeds, Short Rations clears
+  36 and Deep Gloom 39 of 48 (75% and 81%); lane C's new bot on 120 seeds says 104 and 109 (87%
+  and 91%). Theirs is the scene's own; its test holds the line.
+- The in-browser shots build a save with the game's own code; achievements earned "while away"
+  in the away shot are that save's backlog, not the night's.
+- `docs/tier2-manifest.md` still says the cloak is worn at the neck (outside this wave's files).
+
+### Weak list (wave 20)
+
+- **Money at 40 is tight**: in the full kit (cloak and amulet) the best fight for money, the
+  hobgoblin, is 0.5% under Thieving and 0.4% over the tier-1 troll. The pins are exact (fixed
+  dice), so it holds, but any change to the troll, the hobgoblin, tier-2 gear or Thieving can
+  tip it. Widening it needs a decision on tier 1's troll or on Thieving and gathering at 40.
+- **Fights stay far above by-hand dungeons in XP**: the Burrow by hand pays 0.43 of the best
+  idle fight's XP an hour (the grotto at 20 paid 0.73). It is the best paid active content in
+  coins, not in XP; its rooms are walked and lit.
+- **The by-hand economy reads lane C's bot**: the Burrow's case asserts margins on its median
+  clear; a lane C re-tune that slows the bot by more than about a tenth would fail the case
+  (only the run's worth and XP are pinned).
+- **Idle walks are a number, not a measure**: half a minute a room for lighting lanterns is a
+  guess sized to keep idle under by hand, not lane C's measured walk.
+- **Tier-1 bounty targets still turn up for a tier-2 player** (5% of the weight at 40) by
+  design; someone who wants only tier 2 still meets one now and then.
+- **The sheet's right column** spreads four squares down a five-square height: level at top
+  and bottom, wider gaps between than the left's. Looked at and kept; a fifth right-hand
+  square (the food slot, say) would make it symmetrical.
+- `docs/tier2-manifest.md` still says the cloak is worn at the neck.
 
 ### Weak list (wave 18)
 

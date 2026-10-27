@@ -43,8 +43,9 @@ describe('tiers', () => {
     expect(tierUnlocked(fresh, 2, CONTENT)).toBe(false);
     expect(tierLock(fresh, 2, CONTENT)).toBe(GROTTO);
     expect(tierLock(cleared(fresh), 2, CONTENT)).toBeNull();
-    // Tier 3's dungeon is still coming: no name given away.
-    expect(tierLock(cleared(fresh), 3, CONTENT)).toBe('Not open yet.');
+    // Tier 3's dungeon is charted since wave 20 (it said "Not open yet." while it waited).
+    expect(tierLock(cleared(fresh), 3, CONTENT)).toBe('Clear Thistlewood Burrow.');
+    expect(tierLock(cleared(fresh), 4, CONTENT)).toBe('Not open yet.');
   });
 
   // Wave 20: the burrow opens tier 3, which has no rows yet: open, honestly, with nothing in it.
