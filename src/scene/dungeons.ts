@@ -94,7 +94,6 @@ export const DUNGEON_SCENES: Readonly<Record<string, DungeonScene>> = {
   [BURROW_ID]: {
     plan: DUNGEON_PLANS[BURROW_ID]!,
     lessons: BURROW_LESSONS,
-    standIn: 'Stand-in art',
     words: {
       cleared: {
         title: 'The burrow is quiet',

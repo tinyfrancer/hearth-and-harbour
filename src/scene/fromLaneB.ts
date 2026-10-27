@@ -19,9 +19,28 @@ import {
   type ChartMarker2State,
   type ChartPiece2,
 } from '../art/chart';
-import { cell, isMat, type Picture2 } from '../art/town2/cells';
+import { type Picture2 } from '../art/town2/cells';
 import { dungeonSeal } from '../art/dungeonIcons';
 import { dungeonProp2, foeSize2, type PropPicture2 } from '../art/dungeonArt2';
+export {
+  BURROW_ERUPTION2_FRAMES,
+  BURROW_ERUPTION2_FRAME_MS,
+  BURROW_MOUND2_FRAMES,
+  POST_LANTERN2_FRAMES,
+  POST_LANTERN2_FRAME_MS,
+  SPORE_CLOUD2_FRAMES,
+  SPORE_CLOUD2_FRAME_MS,
+  burrowEruption2,
+  burrowMound2,
+  postLanternFrame2,
+  postLanternShines,
+  sporeCloud2,
+  type BurrowPiece2,
+  type PostLanternState,
+  FOE2_SPECIALS,
+  foeSpecial2,
+  foeSpecialSprite2,
+} from '../art/dungeonArt2';
 import * as markers2 from '../art/town2/markers';
 import {
   townHighlight2,
@@ -313,77 +332,18 @@ export const BOAT_LANTERN: StandInPiece = placed(
 /** The Old Snapper's picture until lane B draws it: the giant crab's, by the art lane's id. */
 export function foeArtId(monster: string): string {
   if (monster === 'old_snapper' && !foeSize2('old_snapper')) return 'giant_crab';
-  // Thistlewood Burrow's cast until lane B draws it (wave 20): a creature of about its size.
-  const standIn = BURROW_FOE_STAND_INS[monster];
-  if (standIn && !foeSize2(monster)) return standIn;
   return monster;
 }
 
-/* ----- Thistlewood Burrow: stand-ins until lane B draws it (the art brief in lane-c.md) ----- */
-
-/**
- * Each of the Burrow's creatures drawn as one of a size that exists, until
- * lane B's own are in (`foeSize2` knows the id): the run says "Stand-in art"
- * in a corner of the screen meanwhile (`DungeonScene.standIn`).
- */
-export const BURROW_FOE_STAND_INS: Readonly<Record<string, string>> = {
-  spore_puff: 'sand_crab',
-  cap_guard: 'deckhand',
-  bramble_hound: 'bramble_boar',
-  lantern_moth: 'ships_parrot',
-  badger_king: 'marsh_troll',
-};
-
-/** The Burrow's props drawn as props that exist, until lane B's own are in. */
-const BURROW_PROP_STAND_INS: Readonly<Record<string, string>> = {
-  toadstools: 'kelp_clump',
-  root_tangle: 'driftwood',
-  bramble_patch: 'boat_ribs',
-  mossy_stone: 'anemone_rock',
-  fallen_log: 'driftwood',
-  root_throne: 'treasure_chest',
-};
-
-/** The art lane's id a room's prop is drawn by: its own, or a stand-in's while lane B has none. */
-export function propArtId(id: string): string {
-  const standIn = BURROW_PROP_STAND_INS[id];
-  return standIn && !dungeonProp2(id) ? standIn : id;
-}
-
-/** Lane B's ids for the Burrow's lantern on a post, burning and out, when they are drawn. */
+/** Lane B's ids for the Burrow's lantern on a post, burning and out (B20, batch 2). */
 export const LAMP_ART = { lit: 'post_lantern', out: 'post_lantern_out' } as const;
 
-const coldLamps = new Map<string, PropPicture2>();
-
 /**
- * A lantern on a post as drawn, burning or out: lane B's own once drawn
- * (`LAMP_ART`); until then the grotto's lantern, and for one that is out the
- * same with its panes and flame gone cold and no glow. Its light is not the
- * picture's: the rules say how far it reaches (`light.ts`).
+ * A lantern on a post as lane B draws it, burning or out. Its light is not
+ * the picture's: the rules say how far it reaches (`light.ts`).
  */
-export function lampPicture(lit: boolean): PropPicture2 | null {
-  const own = dungeonProp2(lit ? LAMP_ART.lit : LAMP_ART.out);
-  if (own) return own;
-  const lantern = dungeonProp2('lantern');
-  if (!lantern || lit) return lantern;
-  let cold = coldLamps.get('out');
-  if (!cold) {
-    const g = lantern.picture.grid;
-    const d = g.d.slice();
-    for (let i = 0; i < d.length; i++) {
-      const c = d[i]!;
-      if (isMat(c, 'lamp') || isMat(c, 'fire') || isMat(c, 'plaster'))
-        d[i] = cell('iron', Math.min(5, 3 + (c & 7)));
-    }
-    cold = {
-      picture: { grid: { w: g.w, h: g.h, d }, glows: [] },
-      base: lantern.base,
-      foot: lantern.foot,
-    };
-    coldLamps.set('out', cold);
-  }
-  return cold;
-}
+export const lampPicture = (lit: boolean): PropPicture2 | null =>
+  dungeonProp2(lit ? LAMP_ART.lit : LAMP_ART.out);
 
 /* ----- Dungeon replay (lane B's B17a): modifier and challenge icons, medals, the pennant ----- */
 

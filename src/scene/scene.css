@@ -1589,6 +1589,15 @@
   cursor: pointer;
 }
 
+/* Near an edge of the map, a name runs inward from its landing (`NAME_EDGE`). */
+.chart-landing[data-side='start'] .chart-pin-name {
+  left: 0;
+}
+
+.chart-landing[data-side='end'] .chart-pin-name {
+  right: 0;
+}
+
 .chart-pin-name {
   position: absolute;
   top: 38px;

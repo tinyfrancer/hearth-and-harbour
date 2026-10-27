@@ -22,6 +22,7 @@ import {
   TICK_MS,
   useAbility,
   type Battle,
+  type Effect,
   type Foe,
   type Telegraph,
 } from '../../src/scene/battle';
@@ -29,9 +30,19 @@ import { BURROW, BURROW_ID } from '../../src/scene/burrow';
 import { advanceRun, groundNow, placeOf, type Run } from '../../src/scene/dungeon';
 import { dungeonById, dungeonScene, DUNGEON_IDS } from '../../src/scene/dungeons';
 import { far } from '../../src/scene/dungeonMetrics';
-import { FIGHT_COLOURS, fightArtFor, fightExtra, liftOf } from '../../src/scene/fightArt';
-import { foeKind } from '../../src/scene/foes';
-import { foeArtId } from '../../src/scene/fromLaneB';
+import {
+  DIVE_SHOWN_MS,
+  FIGHT_COLOURS,
+  RISE_SHOWN_MS,
+  diveShown,
+  fightArtFor,
+  fightExtra,
+  foePose,
+  liftOf,
+} from '../../src/scene/fightArt';
+import { DAZZLE_HINT_MS, forgetLessons, lessonBlocks, stepLessons } from '../../src/scene/lessons';
+import { bodyMid, foeKind } from '../../src/scene/foes';
+import { foeArtId, lampPicture } from '../../src/scene/fromLaneB';
 import { standable } from '../../src/scene/ground';
 import { groundPixels, lampMask, litRoom, roomLook } from '../../src/scene/grottoArt';
 import {
@@ -49,7 +60,7 @@ import {
   poolMiddle,
   LAMP_POOL,
 } from '../../src/scene/light';
-import { DUNGEON2_LIGHT, foeSize2 } from '../../src/art/dungeonArt2';
+import { DUNGEON2_LIGHT, dungeonProp2, foeSize2 } from '../../src/art/dungeonArt2';
 import { POOL_EDGE } from '../../src/scene/grottoArt';
 import { WALK_SPEED } from '../../src/scene/walker';
 import { restoreRun, snapshotRun } from '../../src/scene/runSave';
@@ -59,8 +70,10 @@ import {
   BURROW_DUNGEON,
   BURROW_ORDER,
   beginBurrow,
+  burrowMonsters,
   burrowPolicy,
   decideBurrow,
+  playBurrow,
   tier2,
 } from './burrowBot';
 
@@ -122,6 +135,7 @@ describe('the Burrow as written', () => {
       'lantern',
       'moth',
       'guard',
+      'dazzle',
     ]);
   });
 
@@ -152,11 +166,13 @@ describe('the Burrow as written', () => {
     expect(run.battle!.lamps!.hollow).toEqual(D.rooms.hollow!.ground.lamps.map((l) => l.lit));
   });
 
-  it('draws its creatures with stand-ins of about their size until lane B draws them', () => {
-    expect(dungeonScene(BURROW_ID)!.standIn).toBeTruthy();
-    // Each has a picture to be drawn by, its own or a stand-in's, and sizes as data.
-    for (const id of ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king'])
-      expect(foeSize2(foeArtId(id)), id).not.toBeNull();
+  it('draws its creatures as lane B draws them, no stand-in left', () => {
+    expect(dungeonScene(BURROW_ID)!.standIn).toBeUndefined();
+    // Each by its own picture and sizes, as data.
+    for (const id of ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king']) {
+      expect(foeArtId(id), id).toBe(id);
+      expect(foeSize2(id), id).not.toBeNull();
+    }
   });
 });
 
@@ -543,6 +559,62 @@ describe('the cast', () => {
     expect(king.under).toBeUndefined();
     expect(r.battle!.lamps!.sett![lit]).toBe(false);
     expect(king.stuck! - r.battle!.clock).toBeGreaterThan(DAZZLE_MS - 2 * TICK_MS);
+
+    // Taught on screen: he stands stunned where he came up (lane B's two frames, by turns), the
+    // lantern he came up under flares as it goes out, and the first time, a hint says why.
+    const kind = foeKind('badger_king');
+    const up = r.battle!.effects.find((e) => e.kind === 'erupt')!;
+    // First climbing out over the eruption, then stunned.
+    expect(foePose(king, up.from, 2800, kind, r.battle!.effects).special).toBe('erupt');
+    const stunned = [0, 220, 440].map((dt) =>
+      foePose(king, up.from + RISE_SHOWN_MS + dt, 2800, kind, r.battle!.effects),
+    );
+    for (const s of stunned) expect(s.special).toBe('stunned');
+    expect(new Set(stunned.map((s) => s.frame))).toEqual(new Set([0, 1]));
+    const look = roomLook(litRoom(sett, lampMask(r.battle!.lamps!.sett!)));
+    const extra = fightExtra(D, r, look, fightArtFor(look));
+    const flame = lampFoot(sett.ground.lamps[lit]!.cell);
+    expect(
+      extra.boxes.some(
+        (b) =>
+          b.x <= flame.x &&
+          flame.x <= b.x + b.w &&
+          b.y <= flame.y - 30 &&
+          flame.y - 30 <= b.y + b.h,
+      ),
+    ).toBe(true);
+    forgetLessons();
+    const lessons = dungeonScene(BURROW_ID)!.lessons!;
+    const shown = stepLessons(
+      { shown: null, done: ['lantern', 'moth', 'guard'], off: false },
+      lessons,
+      D,
+      r,
+    );
+    expect(shown.shown).toBe('dazzle');
+    expect(lessonBlocks(shown, lessons)).toBe(false);
+    // Up long enough to be read, though the dazzle passes.
+    const after = on(r, DAZZLE_MS + TICK_MS);
+    expect(stepLessons(shown, lessons, D, after, 1000).shown).toBe('dazzle');
+    const read = stepLessons(shown, lessons, D, after, DAZZLE_HINT_MS);
+    expect(stepLessons(read, lessons, D, after, 16).shown).toBeNull();
+  });
+
+  it('counts a lantern lit before the hint was due as learned: the hint never comes', () => {
+    forgetLessons();
+    const lessons = dungeonScene(BURROW_ID)!.lessons!;
+    const room = D.rooms.hollow!;
+    // He walks straight from the light he came in by to a lantern and lights it.
+    const i = room.ground.lamps.findIndex((l) => !l.lit);
+    let run = beginBurrow(tier2(), 2);
+    const start = { shown: null, done: [], off: false };
+    expect(stepLessons(start, lessons, D, run).shown).toBeNull();
+    const tended = tendLamp(run.battle!, placeOf(D, run), run.play, i);
+    run = { ...run, battle: tended.battle, play: tended.play };
+    const state = stepLessons(start, lessons, D, run);
+    expect(state.done).toContain('lantern');
+    // Out in the dark later, with something awake: still nothing shown for it.
+    expect(state.shown).not.toBe('lantern');
   });
 });
 
@@ -661,4 +733,73 @@ describe('a Burrow run kept through a reload', () => {
     expect(cut.battle).toEqual(whole.battle);
     expect(cut.play).toEqual(whole.play);
   });
+});
+
+describe('the Burrow’s own art, as lane B draws it', () => {
+  it('draws every prop and both lanterns by lane B’s own pictures, in lane B’s theme', () => {
+    for (const room of Object.values(D.rooms))
+      for (const p of room.ground.props) expect(dungeonProp2(p.id), p.id).not.toBeNull();
+    expect(lampPicture(true)).not.toBeNull();
+    expect(lampPicture(false)).not.toBeNull();
+    // Drawn in lane B's own theme, its dark by lane B's night ramp.
+    for (const room of Object.values(D.rooms)) expect(room.theme).toBe('burrow');
+  });
+
+  it('shows the king’s own moves where the rules have him doing them (drawing only)', () => {
+    const kind = foeKind('badger_king');
+    const first = beginBurrow(tier2(), 1).battle!.foes.find((f) => f.monster === 'badger_king')!;
+    const king: Foe = { ...first, phase: 2 };
+    // Going under: sinking where he went down for a moment, then only his mound.
+    const dive: Effect = { kind: 'dive', who: king.key, at: king.at, from: 1000 };
+    const under = { ...king, under: true };
+    expect(diveShown(under, 1000, [dive])).toEqual({ at: king.at, frame: 0 });
+    expect(diveShown(under, 1000 + DIVE_SHOWN_MS - 1, [dive])!.frame).toBe(2);
+    expect(diveShown(under, 1000 + DIVE_SHOWN_MS, [dive])).toBeNull();
+    // Coming up: climbing out over the eruption, then himself.
+    const up: Effect = { kind: 'erupt', at: king.at, from: 5000 };
+    const risen = { ...king, struckAt: -99_999 };
+    expect(foePose(risen, 5000, 2800, kind, [up]).special).toBe('erupt');
+    expect(foePose(risen, 5000 + RISE_SHOWN_MS, 2800, kind, [up]).special).toBeUndefined();
+    // Dazzled at a lantern: stunned, looping, its frames wrapped to the two lane B draws.
+    const dazzled = { ...risen, stuck: 9000 };
+    const a = foePose(dazzled, 6000, 2800, kind, []);
+    const b = foePose(dazzled, 6220, 2800, kind, []);
+    expect(a.special).toBe('stunned');
+    expect([a.frame, b.frame].sort()).toEqual([0, 1]);
+    expect(foePose(dazzled, 600_000, 2800, kind, []).frame).toBeLessThan(2);
+    // In his phase, facing his way.
+    expect(a.phase).toBe(2);
+  });
+
+  it('centres the king’s bar and taps on his body (lane B’s `mid`, −9 behind his feet)', () => {
+    expect(bodyMid('badger_king', 'right')).toBe(-9);
+    expect(bodyMid('badger_king', 'left')).toBe(9);
+    expect(foeKind('badger_king').box).toEqual(foeSize2('badger_king')!.box);
+  });
+});
+
+describe('what a fight in the Burrow pays', () => {
+  it('pays experience at tier 2’s rate (`foeXp`): each blow its foe’s `xpPercent`', () => {
+    // The same fight twice, once by the tables' rows (270 a hundred) and once with the rate left
+    // out: the fight is the same, blow for blow; only what each blow pays differs.
+    const rows = burrowMonsters();
+    const cast = ['spore_puff', 'lantern_moth', 'cap_guard', 'bramble_hound', 'badger_king'];
+    for (const id of cast) expect(rows[id]!.xpPercent).toBe(270);
+    const plainRows = Object.fromEntries(
+      Object.entries(rows).map(([id, m]) => [id, { ...m, xpPercent: undefined }]),
+    );
+    const tier = playBurrow(tier2(), 7919, { reactMs: 400, light: true, monsters: rows });
+    const plain = playBurrow(tier2(), 7919, { reactMs: 400, light: true, monsters: plainRows });
+    expect(tier.ms).toBe(plain.ms);
+    expect(tier.kills).toBe(plain.kills);
+    const xp = (o: typeof tier) => o.run.battle!.tally.xp;
+    for (const skill of ['melee', 'defence', 'vitality']) {
+      const paid = xp(tier)[skill]!;
+      const base = xp(plain)[skill]!;
+      expect(base).toBeGreaterThan(1000);
+      // Rounded once a blow: within a blow's rounding of 2.7 times as much.
+      expect(paid / base).toBeGreaterThan(2.68);
+      expect(paid / base).toBeLessThan(2.72);
+    }
+  }, 120_000);
 });

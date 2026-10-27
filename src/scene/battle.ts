@@ -26,6 +26,7 @@ import {
   PLAYER_ATTACK_MS,
   VITALITY,
   XP_PER_DAMAGE,
+  foeXp,
   hitChance,
   playerCombat,
   type PlayerCombat,
@@ -66,6 +67,8 @@ const T = DUNGEON.tile;
 
 /** The rules act every this many ms of the run's clock. Every timer is a whole number of them. */
 export const TICK_MS = 100;
+/** How near a tick a stretch of time must come to reach it: floating point's slack, and no more. */
+const TICK_HAIR = 1e-6;
 /** How near, feet to feet, the hero must be to strike with a weapon in hand. */
 export const MELEE_REACH = far(30);
 /** How far beside his target a hero with a blade stands to strike it. */
@@ -360,6 +363,8 @@ export type Effect =
   | { readonly kind: 'interrupted'; readonly at: Point; readonly from: number }
   /** A charge: from where it began to where it stuck. */
   | { readonly kind: 'charge'; readonly at: Point; readonly to: Point; readonly from: number }
+  /** A boss going down into the ground, here (`who` is its key): drawing only. */
+  | { readonly kind: 'dive'; readonly who: string; readonly at: Point; readonly from: number }
   /** A boss coming up out of the ground, here. */
   | { readonly kind: 'erupt'; readonly at: Point; readonly from: number }
   /** A burrower come up into the light, dazzled: over its head. */
@@ -932,8 +937,10 @@ function strike(w: Work, dice: Dice, foe: Writable<Foe>, hero: Point, place: Pla
     const dealt = Math.min(dice.between(1, me.maxHit), foe.hp);
     foe.hp -= dealt;
     foe.struckAt = w.clock;
-    earn(w, me.skill, XP_PER_DAMAGE * dealt);
-    earn(w, VITALITY, Math.floor((XP_PER_DAMAGE * dealt) / 2));
+    // At the foe's own rate (tier 2's pay more a blow: `foeXp`), as the idle fight pays it.
+    const xp = foeXp(XP_PER_DAMAGE * dealt, def);
+    earn(w, me.skill, xp);
+    earn(w, VITALITY, Math.floor(xp / 2));
     effect(w, { kind: 'hit', at: top, amount: dealt, on: 'foe', from: w.clock });
     // A moth struck as it puts a lantern out starts over.
     const moth = foeKind(foe.monster).seeksLight;
@@ -1014,7 +1021,7 @@ function struck(
   hero: Point,
   place: Place,
 ): void {
-  const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
+  const earned = foeXp(DEFENCE_XP_PER_MAX_HIT * def.maxHit, def);
   earn(w, DEFENCE, earned);
   earn(w, VITALITY, Math.floor(earned / 2));
   let dealt = damage;
@@ -1085,7 +1092,7 @@ function land(
     }
   }
   if (def) {
-    const earned = DEFENCE_XP_PER_MAX_HIT * def.maxHit;
+    const earned = foeXp(DEFENCE_XP_PER_MAX_HIT * def.maxHit, def);
     earn(w, DEFENCE, earned);
     earn(w, VITALITY, Math.floor(earned / 2));
   }
@@ -1953,6 +1960,7 @@ function callHelp(w: Work, place: Place, monster: string, count: number): void {
 
 /** A boss going under the ground, to come up `ms` from now. */
 function goUnder(w: Work, foe: Writable<Foe>, ms: number): void {
+  effect(w, { kind: 'dive', who: foe.key, at: foe.at, from: w.clock });
   foe.under = true;
   foe.heavy = null;
   foe.path = [];
@@ -2149,7 +2157,10 @@ export function advanceBattle(
       moveFoes(w, place, dt);
     }
     left -= dt;
-    if (dt >= toTick) {
+    // Frames that add up to a hair under the tick (16.7 + 16.7 + 16.6 … in floating point) reach
+    // it: left short, the tick would be taken as already passed and lost (`next` above), and the
+    // run would go slower in short frames than in long ones.
+    if (toTick - dt <= TICK_HAIR) {
       w.clock = next;
       p = tick(w, dice, place, p);
     } else {

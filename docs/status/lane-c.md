@@ -1,71 +1,51 @@
 # Lane C: scenes
 
-**Wave 20, in progress:** finishing Thistlewood Burrow so it can open (frame rate, `foeXp`, the
-balance on real tier-2 gear, lane B's art as it lands, the weak list). Not ready to open yet:
-this file says "BURROW READY" in a heading of its own when it is.
+**Next session: Cody's review of Thistlewood Burrow** (wave 21: on lane B's art, balanced on the
+tables, open through the chart once lane A's PR 4 drops `comingSoon`), then the weak list below.
 
-## NUMBERS FOR LANE A
+## BURROW READY
 
-Wave 20, measured on the tables as they are on `main` after your #90 and #93, with a character
-built from the tables (`fighterOf`; Melee, Defence and Vitality 40; salt-iron helm, plate,
-greaves, kite shield and longsword, the red cloak; 20 cooked swordfish), the careful scripted
-player at a person's 0.4 s. 48 seeds each (the twelve fixed ones the test plays, and 36 more);
-one seed's outcome turns on a few dice at the king, so the rates over 48 are what to read.
+For lane A's PR 4 (wave 20, branch `lane-a/w20-burrow-open`): drop `comingSoon`. The `?burrow=1`
+switch and every stand-in are gone (wave 21); the Burrow is a normal dungeon in the registry
+(`dungeons.ts`, `plans.ts`), landed at lane B's `thistlewood_burrow` spot on the chart, and the
+boat rows there only when `mayEnter` says so. Its idle rooms are unchanged (your content case
+holds them to the plan).
 
-**What the real gear changed.** The plate is worn at Defence 30, not 35 as wave 19 assumed, so
-a level-30 character is armoured almost as well as a level-40 one; what is left between them is
-how hard and how often they hit, and 40 hit points. On your current numbers the careful
-level-40 player clears 46 of 48 (8.6 min) and the never-lights player 9 of 48, both on target,
-but **level 30 clears 22 of 48** (target: usually fails), and the days miss: Short Rations 36 of
-48, Thick Caps 42, Swift Hounds 43 (and on the twelve fixed seeds it is not harder than a plain
-day), Fierce Brambles 45 (10 of the fixed 12), Deep Gloom 44.
+## NUMBERS FOR LANE A (wave 21: these replace wave 20's)
 
-1. **The cast: thicker hides, less behind them** (level, attack, max hit, speed and drops as
-   you have them):
+Measured on `main` after lane B's batch 4 (#97, #98), with the hero built from the tables
+(`tier2State`: Melee, Defence and Vitality 40; salt-iron helm, plate, greaves, kite shield and
+longsword, the red cloak; 20 cooked swordfish) and the careful scripted player at a person's
+0.4 s, **over 120 seeds** (the twelve fixed ones and 108 more; two sets of 60 measured apart, both
+given where they disagree). The scene's finished rules and rooms (the dressing props, the
+flagstones) are what was played; the art does not touch a rule.
 
-   | Monster         | Defence (now) | HP (now)  |
-   | --------------- | ------------- | --------- |
-   | `spore_puff`    | 62 (50)       | 23 (25)   |
-   | `lantern_moth`  | 72 (58)       | 17 (18)   |
-   | `cap_guard`     | 82 (66)       | 39 (43)   |
-   | `bramble_hound` | 69 (55)       | 35 (38)   |
-   | `badger_king`   | 90 (72)       | 205 (225) |
+**The cast: no change. Wave 20's ask (PR #96, defence up and hit points down) is withdrawn.** On
+your rows as they are the careful level-40 player clears **113 of 120** (median 9.0 min, lowest
+health 38% on the median run), one who never lights a lantern **24**, a careful level-30 player
+**36**: all on target. (Wave 20 reported 22 of 48 at level 30 on these rows; this session could
+not reproduce it on today's code and rooms, where level 30 fails as it should.)
 
-   Over 48 seeds: careful level 40 clears 46 (median 8.8 min, lowest health 38% on the median
-   run), never-lights 8 (17%), **level 30 14 (29%)**. Hitting through a hide is where ten levels
-   tell; a level-40 run is as long and as dangerous as before.
+**The days** (rewards unchanged in every row):
 
-2. **The days** (the Burrow's own; each still a trade, and harder in the way it says):
+| Day               | As it is on `main`                                                | Clears now | Asked                                                     | Clears asked | Harder, asked           |
+| ----------------- | ----------------------------------------------------------------- | ---------- | --------------------------------------------------------- | ------------ | ----------------------- |
+| `thick_caps`      | foeHealth 1.2, foeSpeed 0.8                                       | 109        | **no change**                                             |              | clear +17% (10.5 min)   |
+| `fierce_brambles` | foeDamage 1.1, **foeHealth 0.95**: loses no more than a plain day | 108        | **`{ foeDamage: 1.08, loot: 1.1 }`** (no foeHealth)       | 105          | lost to blows +9%       |
+| `swift_hounds`    | foeSpeed 1.1, **foeHealth 0.93**: loses less than a plain day     | 109        | **`{ foeSpeed: 1.08, xp: 1.15 }`** (no foeHealth)         | 105          | lost to blows +5%       |
+| `short_rations`   | foodHeals 0.8, foeHealth 0.9 (shared with the grotto)             | 104        | **no change** (no `lean_rations` row needed)              |              | food per hit point +19% |
+| `deep_gloom`      | darker, **heroDamage 0.9**, foeSpeed 0.9                          | **97**     | **heroDamage 0.95** (darker, foeSpeed 0.9, xp, loot kept) | 109          | clear +7% (9.6 min)     |
 
-   | Day               | Now                                   | Asked                              |
-   | ----------------- | ------------------------------------- | ---------------------------------- |
-   | `thick_caps`      | foeHealth 1.2, foeSpeed 0.8           | **foeHealth 1.15**, foeSpeed 0.8   |
-   | `fierce_brambles` | foeDamage 1.1, foeHealth 0.95         | **foeDamage 1.07**, foeHealth 0.95 |
-   | `swift_hounds`    | foeSpeed 1.1, foeHealth 0.93          | **foeSpeed 1.08, no foeHealth**    |
-   | `deep_gloom`      | heroDamage 0.9 (darker, foeSpeed 0.9) | **heroDamage 0.95**                |
-   | `short_rations`   | foodHeals 0.8, foeHealth 0.9 (shared) | see below                          |
+Plain: 113 of 120, lost to blows 712 (mean), clear 8.9 min (mean). Lane A's target is ten of
+twelve, 100 of 120. Fierce Brambles and Swift Hounds as written lose their foes' health faster
+than their blows add up, so on the whole they cost less than a plain day; Deep Gloom at 0.9
+clears 52 of the first 60 and 45 of the next. Until your rows read as asked,
+`tests/scene/burrowRun.test.ts` plays these three as asked (`ASKED`); once they do, it plays your
+rows, which are the same numbers, so either order of merging is green.
 
-   Rewards (xp, loot) unchanged. With the cast above, over 48 seeds: Thick Caps 40 (clear
-   10.1 min against 8.8), Fierce Brambles 41 (more lost to blows), Swift Hounds 40 (lost +5%),
-   Deep Gloom 43 (9.9 min).
-
-   **Short Rations** is shared with the grotto, where it is right. In the Burrow, at 0.8 a fish
-   and 0.9 health, it clears 36 of 48. Asked: **a day of the Burrow's own in its pool in place of
-   `short_rations`**, `lean_rations` (an id with "rations" in it, so lane B's icon rule draws it
-   as the same plate): **foodHeals 0.8, foeHealth 0.75**, loot 1.1. Over 48 seeds: 46 cleared,
-   12 of the fixed 12, food per hit point lost +20% (the stated way). If you would rather not add
-   a row, `short_rations`' foeHealth 0.75 for both dungeons does the same here; the grotto's
-   Short Rations case would still pass (food per hit point is untouched), but its clears would
-   rise.
-
-3. **Idle rooms**: as you have them, matching the plan (`hollow` three puffs; `watch` two
-   guards, two puffs; `gallery` two moths, two puffs, a guard; `run` two hounds, a moth, a puff;
-   `sett` two puffs, a moth, a hound, then the king). No change.
-
-4. **Opening it**: not yet. When this file has a heading **BURROW READY**, flip `comingSoon`.
-
-This lane's balance test switches to reading the tables and the real gear as soon as these
-numbers are on `main` (its cases then are as above); until then it plays the wave 19 stat line.
+The challenges' numbers suit the run as it plays: of 113 careful clears, the median is 9.0 minutes
+(Quick Through the Warren asks eight: a stretch), the median hit points lost to blows 723 (Barely
+Brambled asks 450: a hard one).
 
 ## The cave's map
 
@@ -159,7 +139,9 @@ grotto's, run in this order: `hollow` -> `watch` -> `gallery` -> `run` -> `sett`
 Its mechanic is light (`mechanic: 'light'` on the plan, `src/scene/light.ts`): every room is
 dark but for the pools of lanterns on posts, `Y` burning as the room is written and `Q` waiting
 to be lit. Props: `M` toadstools, `O` root tangle, `U` bramble patch, `V` mossy stone, `F` fallen
-log, `J` the root throne; each solid on its tile, as are the posts. No sand, no tide.
+log, `J` the root throne, `I` a mushroom dwelling, `X` a larder, `Z` a court bench; each solid on
+its tile, as are the posts. Floors: `.` earth, `:` leaf litter, `=` the sett's flagstones (lane
+B's `'burrow'` theme). No tide.
 
 | Room      | Lanterns (lit / to light) | Who                                                   | About                                                         |
 | --------- | ------------------------- | ----------------------------------------------------- | ------------------------------------------------------------- |
@@ -197,6 +179,75 @@ is still paid, as before). Each mask of burning lanterns is its own painted look
 
 ## Done
 
+- **Wave 21: Thistlewood Burrow on lane B's art, balanced on the tables, ready to open.** One PR
+  (#100). The grotto and the cave did not move: `grottoRun`, `caveRun`, `scaleTimeline`,
+  `grottoRules`, `modifierRun` and every grotto and cave test pass with their expectations
+  untouched. Review sheets in `/home/claude/lane-shots/w21-c/` (`balance.txt`, `frames.txt`,
+  `burrow.gif`).
+  - **Taken from wave 20's interrupted branch** (`lane-c/w20-burrow-finish`, read as a quarry):
+    the dark worked out once per look of a room, in the worker with its ground (`DarkLayers`:
+    each pixel's level and the ground as lit), the hero's own pool put together by lookup from it
+    each frame (`OwnLight`, `heroLightPixels`), and a rule for how a room's dark is painted
+    (`NightRule`: `SHIFTED`, the grotto's darker day exactly as wave 18 had it; `BURROW_NIGHT`,
+    lane B's night ramp, a palette a level, lights and glows keeping their colour); figures in the
+    Burrow drawn in the palette of the level at their feet (a creature in the dark is a dim shape
+    with its own small lights, as lane B drew them); props and doors kept across a room's lantern
+    looks (`litPicture`), so lighting a lantern paints again only what its light reaches; the
+    overlay cut into patches (`overlayClusters`, `stage.ts`); lane B's lantern frames (catching,
+    burning, snuffed), spore clouds, mound and eruption; the fungus glow along the walls; the
+    creatures' own moves (swell and burst, block and turn, crouch, charge and stuck, hover and
+    snuff); faces drawn once; `foeXp` for the fight's experience (lane A's ask); the lantern hint
+    counted learned when he lights one unbidden; a hint for the king's dazzle; the dressing props
+    (`I` mushroom dwelling, `X` larder, `Z` court bench), leaf litter and the sett's flagstones;
+    `frameCost.test.ts`. **Dropped**: its experiment switches (`NODARK`, `NOOVER`,
+    `SCRATCH_AIM`, `SCRATCH_GUARD`) and its review-only settling (it was for the preview).
+  - **The king's own moves** (drawing only): lane B's `burrow` as he goes under (a `dive` effect
+    says when and where; then the mound), `erupt` as he comes up over the eruption, then `stunned`,
+    looping, while dazzled; his box and `mid` (−9) from lane B's sizes, so his bar, rings, taps and
+    shadow centre on his body. A looping move's frame is wrapped to its count, so it is a few
+    cached pictures, not a new one every step.
+  - **Every stand-in gone** (`fromLaneB.ts`): the prop and lantern stand-ins, the king's, the
+    "Stand-in art" tag, the guard's code-drawn shield (lane B's guard holds its own).
+  - **The preview switch gone**: `preview.ts` deleted; the chart lands the Burrow at lane B's
+    `thistlewood_burrow` spot and rows there only when lane A's `mayEnter` says so.
+  - **A boss's words kept clear of the top panels**: where they would sit under them (the king by
+    the north wall), they are drawn under his feet with the tail up (`speech`). The dazzle hint is
+    shorter: it was cut off at the end of its box at 844 x 390.
+  - **Balance on the tables** (`burrowRun.test.ts`, `burrowBot.ts`; NUMBERS FOR LANE A above,
+    `balance.txt`): the hero and the cast from the tables; plain, careless and level-30 cases on
+    the twelve fixed seeds; each day against a plain day on 24 seeds (on twelve the medians wander
+    by as much as a day's trade); three days played as asked until lane A's rows read so.
+  - **No tick lost to frames that are not whole milliseconds** (`advanceBattle`, `TICK_HAIR`):
+    frames that came to a hair under a 100 ms tick in floating point (16.7 + 16.7 + 16.6, or a
+    phone's 1000 / 60) had the tick taken as already passed, and lost: at 1000 / 60 about four
+    ticks in ten. Every dungeon's fight in the browser ran at roughly half to two-thirds of the
+    pace its balance tests measure in 100 ms steps (found because the first browser run of the
+    Burrow took 12:16 against the bot's median 9). The same bot stepped in 16.7 ms frames now
+    clears 23 of 24 in a median 8.9 minutes, as in 100 ms steps. A test holds it
+    (`battle.test.ts`, three kinds of frame); every expectation in 100 ms steps is unchanged.
+  - **A landing's name runs inward near the chart's edge** (`NAME_EDGE`, `data-side`): the
+    Burrow's landing is near the left edge and its name was cut off there.
+  - **Frame rate** in the king's fight, 4x CPU throttle, 844 x 390 at 3x (`frames.txt`): 53.5 fps
+    over 160 s (median frame 16.7 ms, 87 frames over 40 ms, 11 over 100 ms); 55 or more in five
+    of eight 20 s windows, down to 46 where his phases turn (help called, lanterns put out, new
+    looks of the room painted). Wave 19 measured 35.6 there. Short of the 55 asked for over the
+    whole fight; a CPU profile puts half the time in the browser's own drawing (software here)
+    and no script function over 3%.
+  - **Played in the browser** (production build of this branch, 844 x 390 at 3x, touch, the
+    scripted player at the controls, with lane A's PR 4 opening and the asked days applied at
+    build time in a scratch build only), after the tick fix:
+    - **A plain day** (the day nulled in the scratch build): cleared in 6:54, 100 health left;
+      every room, lanterns lit and put out, clouds, a hound's charge, a guard's block, the hints
+      (the lantern hint counted learned, as the bot lights unbidden), the king in each phase and
+      each move (slam marked, sinking, mound, eruption marked, climbing out, stunned at the lantern,
+      the third phase's slam), the results card with its first clear and a new challenge.
+    - **Fierce Brambles** (the day by the page's date, as asked of lane A): cleared in 7:52, two
+      challenges new; **reloaded in the gallery** mid-fight: "Back where you were", the same room,
+      health and lanterns, and on to the king after Resume.
+    - Before the fix the same plain run took 12:16, ate all 20 fish and lost 950 (kept in
+      `before-tick-fix/`).
+    - The chart with the Burrow picked (`chart-burrow-*.png`), at 844 x 390 and 390 x 844.
+
 - **Wave 19: Thistlewood Burrow (plan S23), designed and built, still locked.** The second
   dungeon on the general code: a plan module (`burrow.ts`), a registry row (`dungeons.ts`,
   `plans.ts`), its foes' moves as rows (`foes.ts`: `BURROW_KINDS`), light as a reusable,
@@ -207,10 +258,7 @@ is still paid, as before). Each mask of burning lanterns is its own painted look
   are deleted. The grotto and the cave did not move: `grottoRun`, `caveRun`, `scaleTimeline`,
   `grottoRules`, `modifierRun` and every grotto and cave test pass with their expectations
   untouched. Review sheets in `/home/claude/lane-shots/w19-c/` (with `balance.txt`).
-  - **The way in, for now:** `?burrow=1` (`preview.ts`, read once from the address, in one small
-    module) opens its landing on the chart with Row out; without it the landing is the locked
-    silhouette lane A's row makes it. A clear in the preview is never counted cleared (`settle`
-    strips it for a `comingSoon` dungeon), so a review save is not moved on a tier.
+  - **The way in** was a temporary `?burrow=1` switch, deleted in wave 21.
   - **General paths, no grotto-only assumptions left:** statistics, the day's modifier,
     challenges, the results card, the tracker, resume, the HUD's layout and Row out again all take
     the Burrow as they take the grotto. The dark of the darker day is now `isDark(room)` for any
@@ -231,7 +279,7 @@ is still paid, as before). Each mask of burning lanterns is its own painted look
     `balance.txt`), on the cast as this lane asks lane A for it (Needs).
   - **The results card** counts a clear as settling does (`clearCounts`): a review clear of a
     landing to come shows no first-clear or challenge rewards it will not pay.
-  - **Looked at in the browser** (production build, `?burrow=1`, 844 x 390 at 3x, touch, the bot
+  - **Looked at in the browser** (production build, the switch, 844 x 390 at 3x, touch, the bot
     at the controls; 932 x 430 and 667 x 375 to the second room): every room, a lantern lit, a moth
     at a lantern, a cloud, a hound's lane, each of the king's phases, the results, the hints, the
     locked silhouette without the switch. Changed from what they showed: the hero stood behind a
@@ -239,11 +287,7 @@ is still paid, as before). Each mask of burning lanterns is its own painted look
     post (it now hovers beside it), a hound's lane was edged only at its ends (now all round, its
     fill stronger), the floor's sand patches read as light (gone), and the card promised a review
     clear's rewards (no longer).
-  - **Stand-in art, tagged "Stand-in art" on screen** under the hero panel: the grotto's tiles;
-    its lantern for the posts (a cold one for unlit); lane B's sand crab, deckhand, bramble boar,
-    ship's parrot and marsh troll for the puff, guard, hound, moth and king, each only until lane
-    B's picture exists (`fromLaneB.ts`). The marks, clouds, mounds, flames and rings are this
-    lane's code-drawn effects and stay.
+  - **Stand-in art** until lane B's was in (all replaced in wave 21).
   - **The numbers that work** (the asked cast, 20 swordfish, a person's 0.4 s to react; twelve
     fixed seeds, then 60 more as a check):
 
@@ -1534,49 +1578,49 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   depth order, footprints, spots, tap targets grown to a thumb, the panel, day and dusk with the
   sun-and-moon button, the scene driven by the shell's frames.
 
-## Weak spots, honestly (wave 19)
+## Weak spots, honestly (wave 21)
 
-- **The game fights lane A's first-pass cast, not the balanced one.** The tables win (`castOf`), so
-  until lane A takes the asked numbers (Needs), the Burrow behind `?burrow=1` is far too hard: the
-  careful scripted player clears 1 of 12 in about 14 minutes. Every balance case plays the asked
-  numbers (`BURROW_ASKED` in `burrowBot.ts`). The browser playthrough swapped them in from a
-  scratch hook, not from the game.
-- **The level gap is real but not wide.** Over 72 seeds the careful player at level 40 clears 93%
-  and at level 30 36%; the twelve fixed seeds read better (12 and 3). A run's damage varies by a
-  quarter either way from seed to seed, and the food slot (20 fish) is what runs out, so a
-  number that moves the average a little moves a seed or two across the line.
-- **Tier-2 gear is assumed** (not in the tables yet): its stat line is extrapolated from the rungs
-  below, the plate taken to need level 35, the swordfish to heal 40. When lane A's real lines
-  land, the balance cases need re-running; the numbers may move.
-- **Deep Gloom as lane A has it misses the target** (9 of 12); at hero damage 0.9 it meets it
-  (Needs). Swift Hounds as it stands clears exactly 10 of 12: on the line.
-- **The dark is a strong lever.** In it his blows land 0.55 as often and blows find him at 0.35
-  of his defence; a player who never lights a lantern clears 2 of 12. That is the mechanic, but a
-  player who has not understood it will feel it as a wall; the first hint is the only teacher.
-- **Lighting is standing still for 1.2 s**, cut by any blow: fine for a thumb in principle, not
-  tried by one. The bot never misses a tap.
-- **Each mask of lit lanterns is its own painted look** of the room. At most the look shown, the
-  one before and those one lantern away are kept (eight in the sett, about a megabyte each, as the
-  grotto's pools' states), and each lantern lit or put out has the worker paint the looks next to
-  it. Fine in headless Chromium; not measured on a phone.
-- **The king coming up at the lantern lighting him** reads as a rule the bot exploits (it stands
-  in light during his burrow and fights him while dazzled); a person may not see why he came up
-  there. The mound and the eruption's ring say where, not why.
-- **Stand-in art throughout**: the grotto's tiles and lanterns, other dungeons' creatures. The
-  moth as a parrot and the guard as a deckhand read wrongly; the guard's shield is a code-drawn
-  marker over him.
-- **The lantern hint can come late**: lit before it is due (the bot does), it is not counted
-  learned, and shows in the second room instead. A person is very likely to meet it in the first.
-- **A preview run pays its spoils**: kills, loot and experience from a `?burrow=1` run go into the
-  save (only the clear is stripped). A review save is moved on a little.
-- **A moth at a lantern is crowded**: it hovers beside the post now, but the hero striking it stands
-  under it, so post, moth and hero overlap (`moth-snuffing.png`); readable, not clean.
-- **An effect's word can sit under the boss panel** when the king stands by the north wall
-  ("Dazzled!" was cut at its first letters in `boss-dazzled.png`).
-- **Frame rate in the sett**, the king in his second phase, the dark on, 4x CPU throttle: 35.6 fps
-  mean (28.1 ms), median frame 16.7 ms, 95th percentile 50 ms, 7 frames of 712 over 100 ms.
-- Frame rates are headless Chromium in software on a shared sandbox, not a phone. Not checked in
-  Safari.
+- **The king's fight is under 55 fps at 4x** over the whole of it (53.5), dipping to 46 where his
+  phases turn. Half the time is the browser's own drawing in software here; on a phone's GPU it
+  may be better or worse. Not measured on a phone.
+- **Floating point still parts runs a little**: with the tick fix a run in frames comes to the
+  same pace as in 100 ms steps, but positions differ in the last decimal places, so the same taps
+  in frames and in 100 ms steps can part ways late in a run (a seed's outcome, not the
+  balance). Exact equality across cuttings holds only for whole-millisecond cuts, as the tests
+  play.
+- **Every dungeon was slower in the browser than measured until this wave** (the lost ticks): the
+  grotto's and the cave's challenge times and their scripted balance were right; what players
+  felt was not. Their pace in the browser now matches the tests; nobody has played them since.
+- **The chart in landscape** shows the map and needs a scroll for the name and Row out (as it
+  always has: it was laid out for the phone upright).
+- **Swift Hounds' trade is thin**: as asked it loses 5% more to blows than a plain day over 120
+  seeds (2.4% on one set of 60): it is harder in its stated way, but not by much. A quicker swing
+  costs this player little because he is rarely in a hound's reach long.
+- **Twelve seeds tell a day from a plain one badly**: the day cases play 24, so the burrow's
+  balance file is the slowest scene test (about a minute on a laptop's two cores).
+- **The dazzled king stands in the dark**: he comes up at the lantern lighting the hero and puts
+  it out, so he is stunned at level 2 of the night ramp, a face and two eyes (lane B's rule). The
+  hint and the ring say where he is; his stunned frames are hard to see there.
+- **The dark is a strong lever** (from wave 19, still so): one who never lights a lantern clears
+  24 of 120. The first hint is the only teacher.
+- **Lighting is standing still for 1.2 s**, cut by any blow: tried by the bot, not by a thumb.
+- **Each mask of lit lanterns is its own painted look of a room** (at most the look shown, the one
+  before and those one lantern away; about a megabyte each). Props and doors are now kept across
+  the looks, so a new look paints only its ground. Not measured on a phone.
+- **The guard's facing** is now only in lane B's picture (the code-drawn shield is gone): at phone
+  size its cap reads, but which way it faces is a few pixels.
+- **A moth at a lantern is crowded** (from wave 19): post, moth and hero overlap when he strikes it.
+- **The hero's own pool in the Burrow** is a blotchy brown patch at the edge of the night ramp
+  (`moth hint` sheet): it reads as light, not as lane B would draw it.
+- **The overlay's patches** draw the overlay once per patch, each clipped to its own box (only
+  the foes' bars are left out of a patch they are not on): cheaper to copy than one wide canvas,
+  not cheaper to draw.
+- Frame rates are headless Chromium in software on a shared two-core sandbox, not a phone. Not
+  checked in WebKit or Safari, nor on the live site (unreachable from here).
+- **Played only by the scripted player**, in a scratch build that opened the Burrow and applied
+  the asked days by transform (lane A's PR 4 and day rows were not on `main`); "a plain day"
+  does not exist for the Burrow in the game (every day draws one of its five), so the plain run
+  nulled the day in that build.
 
 ## Weak spots, honestly (wave 18)
 
@@ -1619,10 +1663,9 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Deferred
 
-- From wave 19: the Burrow's own art (lane B, wave 20); opening it for real and deleting
-  `preview.ts` (with lane A's row); a lesson that says why the king came up at a lantern; the
-  guard's shield drawn as part of its picture rather than a marker; the Burrow's balance re-run on
-  lane A's real tier-2 gear.
+- From wave 21: the king's stunned frames read in the dark (lane B, if they will); a way for a
+  person to see why the king came up at a lantern beyond the one hint; the Burrow played by a
+  thumb, not a script; the browser runs' gap from the headless bot (Weak spots).
 
 - From wave 18: the chart's "new" medal kept beyond the page (it would need a remembered key a
   medal); a darker day by lane B's own steps (needs a night ramp); a dark day for the cave (it
@@ -1651,52 +1694,21 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Needs from another lane
 
-- **Lane A (wave 19), for the Burrow:**
-  1. **The cast's numbers**, measured by `burrowRun.test.ts` (keep your names, drops and
-     descriptions; level / hp / attack / defence / max hit / speed ms):
-
-     | Monster         | Level | HP  | Attack | Defence | Max hit | Speed ms |
-     | --------------- | ----- | --- | ------ | ------- | ------- | -------- |
-     | `spore_puff`    | 34    | 25  | 65     | 50      | 10      | 2600     |
-     | `lantern_moth`  | 35    | 18  | 66     | 58      | 8       | 2000     |
-     | `cap_guard`     | 37    | 43  | 71     | 66      | 15      | 2800     |
-     | `bramble_hound` | 38    | 38  | 77     | 55      | 15      | 2200     |
-     | `badger_king`   | 44    | 225 | 88     | 72      | 26      | 2800     |
-
-     Your first pass (#82) is far harder against this mechanic: 1 of 12 for the careful player,
-     about 14 minutes. The dark, the guards' blocks and the king's help already cost what the
-     extra hit points and accuracy were for.
-
-  2. **Deep Gloom: hero damage 0.9** instead of 0.85 (9 of 12 as it is; 10 of 12 asked, and still
-     the longest day). The other four days meet your target as they are; Swift Hounds sits on the
-     line (10 of 12).
-  3. **Idle rooms**, in order, with who is in each: `hollow` (3 spore puffs), `watch` (2 cap
-     guards, 2 puffs), `gallery` (2 lantern moths, 2 puffs, 1 cap guard), `run` (2 bramble
-     hounds, 1 moth, 1 puff), `sett` (the king, who calls 2 puffs, then a moth, then a hound).
-  4. **Tier-2 gear**: the balance assumes a salt-iron longsword (+12 attack, +11 strength), helm
-     12, kite shield 18, plate 26 (needing level 35), greaves 14, the hunter's charm, and the
-     swordfish healing 40. When your real lines land, say so and this lane re-runs the cases.
-  5. **Opening it** (wave 20): drop `comingSoon` and this lane deletes `preview.ts`. The challenge
-     times suit the asked cast (6 of 32 careful clears were under eight minutes; median damage
-     taken 655, so 450 is a stretch).
-- **Lane B (wave 19): the Burrow's art brief** (all by id; the scene draws stand-ins until each
-  exists, by `foeSize2` and the prop ids, and then uses yours with no code change):
-  1. **A `burrow` theme**: earthen walls with roots through them, a floor of packed earth and moss,
-     a north wall two tiles tall as the grotto's; meant to be seen mostly dark, so the ramps want a
-     step or two below the cave's darkest (the night ramp asked for in wave 18 would serve both).
-  2. **The lantern on a post**, unlit and lit (`Q`, `Y`), with a few flame frames: a prop of one
-     tile, its foot two pixels above its tile's bottom; its pool is the rules' (`LAMP_POOL`: a
-     half-width of 66 art pixels, 0.62 as tall as wide, its middle 4 below the foot).
-  3. **Props**: toadstools (`M`), root tangle (`O`), bramble patch (`U`), mossy stone (`V`), fallen
-     log (`F`), the root throne (`J`, laid along four tiles behind the king).
-  4. **The cast**, at C scale: `spore_puff` (knee high; idle, creep, swell before bursting, burst),
-     `cap_guard` (a cap wider than itself held in front; turn, swing, staggered), `bramble_hound`
-     (run, charge, stuck in the ground), `lantern_moth` (hovering off the ground; flap, snuffing a
-     flame), `badger_king` (three phases as the grotto's boss has; going under, coming up,
-     dazzled). Their foot boxes as `foeSize2` gives the grotto's.
-  5. **An emblem and a landing** on the chart for the Burrow (it uses `unknown_1`'s spot now).
-     This lane keeps drawing the marks, clouds, mounds, flames and rings in code.
-
+- **Lane A (wave 21), for the Burrow** (NUMBERS FOR LANE A, at the top):
+  1. **Open it**: drop `comingSoon` (your PR 4). Nothing else of this lane's is waited on.
+  2. **Three days** (rewards unchanged): `fierce_brambles` `{ foeDamage: 1.08, loot: 1.1 }`;
+     `swift_hounds` `{ foeSpeed: 1.08, xp: 1.15 }`; `deep_gloom` hero damage 0.95. The cast,
+     Thick Caps and Short Rations stay as they are; no `lean_rations` row.
+  3. **Wave 20's PR #96 asks are withdrawn** (the cast's defence and hit points, the four days,
+     `lean_rations`).
+  4. Unchanged: the plan's foes and the king's calls match your idle rooms; `foeXp` is used for
+     every blow's experience.
+- **Lane B (wave 21)**: nothing blocking; every Burrow piece is yours on screen. From the
+  playthrough, if there is time: (1) the king stunned in the dark is very hard to see (he puts out
+  the lantern he comes up at, so he is at level 2): a little more light in his stunned frames' own
+  sparks, or eyes that read, would help; (2) the guard's facing at phone size; (3) the hero's own
+  small pool is drawn by this lane from your edge palette (`burrowNight(1)`) and reads blotchy: if
+  you would rather own how his light lies, say how and the scene will use it.
 - **Lane A (wave 18)**: (1) The results card now shows the first clear's and each new challenge's
   rewards itself (`runRewards`: `DungeonDef.firstClear` once, `rewardOf` for each challenge met
   for the first time); your reward toasts still cover most of the card on a phone on its side for a
@@ -1745,6 +1757,26 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
 
 ## Notes for this lane's next session
 
+- **Wave 21's pieces:** `grottoArt.ts`'s `DarkLayers`, `OwnLight`/`ownLight`, `heroLightPixels`,
+  `shadeIn`, `NightRule` (`SHIFTED`, `BURROW_NIGHT`, `nightRule`), `litPicture`, `poolsNear`,
+  `tileGlowsOf`, `FIGURE_GLOW_MIN`; `stage.ts`'s `overlayClusters`, `StageExtra.overlayBoxes`
+  and the overlay's `area`; `fightArt.ts`'s `FoeShown.special`, `chargeShownAt`, `diveShown`,
+  `BLOCK_SHOWN_MS`, `CHARGE_SHOWN_MS`, `SNUFF_SHOWN_MS`, `DIVE_SHOWN_MS`, `RISE_SHOWN_MS`,
+  `pieceCanvas` (lane B's Burrow pieces), `speech`'s `minTop`; `battle.ts`'s `dive` effect;
+  `lessons.ts`'s `learnedBy`, `minMs`, the `dazzle` lesson; `face.ts`'s `warmFaces`. Tests:
+  `frameCost.test.ts`; the Burrow's balance plays lane A's three days as asked (`ASKED` in
+  `burrowRun.test.ts`) until their rows read so: delete `ASKED` once they do.
+- **Measuring (wave 21):** a scratch harness outside the repo (nothing committed): a Vitest config
+  whose `include` is the scratch file, `node_modules` linked beside it, and the balance as JSON
+  in an environment variable (a cast or day tweak, which cases, how many seeds; per-run output to
+  compare statistics). In the browser, a scratch Vite config builds the real app from the
+  worktree with a plugin that prepends a hooks module to `main.ts` (a fresh level-40 save once,
+  `?plain=1` to null the day, `?fast=N` to fast-forward to the sett) and puts the bot at the
+  controls in `dungeonView.ts`'s `drive`; for a run before lane A's PR 4 it also opens the Burrow
+  and applies the asked days by transform of `dungeons.ts`. Serve the build folder without
+  emptying it (`emptyOutDir: false`), so a running server keeps serving it. The page's day is
+  shifted by an init script that subclasses `Date`. A kept run comes back behind "Back where you
+  were": tap Resume.
 - **Wave 19's pieces:** `light.ts` (every rule's number, `lampStand`, `hoverSpot`, `lampUnder`,
   `litBy`, `inCloud`); `battle.ts`'s `tendLamp`, `litAt`, `inLight`, `inFrontOf`, `blocks`,
   `Battle.lamps`/`clouds`/`tend`, the `'lane'` mark and the effects `blocked`, `lit`, `snuffed`,
@@ -1752,13 +1784,8 @@ WALK2_STRIDE)`, so the ground moves exactly one stride under the planted foot a 
   fields (`creeps`, `seeksLight`, `hovers`, `guard`, `bursts`, a heavy's `aim: 'charge'`,
   `stuckMs`, `spores`, `smashes`, a boss's `more`, `burrow`, `rage`); `grottoArt.ts`'s
   `lampMask`, `litRoom`, `litRooms`, `heroPoolIn`; `dungeonView.ts`'s `followLamps`;
-  `runCard.ts`'s `clearCounts`; `preview.ts` (temporary). The Burrow's bot is
-  `tests/scene/burrowBot.ts` (`decideBurrow`, `playBurrow`, `tier2`, `BURROW_ASKED`).
-- **Measuring (wave 19):** as wave 18's, with `.shots/hooks.ts` swapping the asked cast in when the
-  page is opened with `&asked=1` (scratch only), and the bot driven in the page (`hh.bot`). The
-  scratch balance harness takes a cast tweak as JSON and other seed sets; 12 seeds are not enough
-  to tell 90% from 70%, so check a change on 60 more before believing it.
-
+  `runCard.ts`'s `clearCounts`. The Burrow's bot is
+  `tests/scene/burrowBot.ts` (`decideBurrow`, `playBurrow`, `tier2`, `tier2State`).
 - **Wave 18's pieces:** `chartShiftY`, `forgetMedalsSeen`, `levelWords` (`chartPanel.ts`);
   `chartSeal`, `pieceFrameAt` (`fromLaneB.ts`); `runRewards`, `rewardWords`, `trackerShown`,
   `TRACKER_LINES` (`runCard.ts`); `modifiedHeals`, `foodShare` (`modifiers.ts`), lane A's

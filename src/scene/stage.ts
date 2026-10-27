@@ -42,6 +42,46 @@ import {
 import { footprintCentreX, thingAt, usable, type Box, type Opens, type Scene } from './things';
 import { cellAt, mapSize, tileOf, type Cell, type Point } from './tileMap';
 
+/** The most canvases a scene's overlay is cut into: past this, the nearest are drawn on one. */
+export const OVERLAY_CANVASES = 4;
+
+const areaOf = (b: Box): number => Math.max(0, b.w) * Math.max(0, b.h);
+const unionOf = (a: Box, b: Box): Box => {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+};
+
+/**
+ * The overlay's boxes gathered into at most `most` boxes to draw on: two are
+ * one where one box round both costs little more than the two (a quarter
+ * more), or where they overlap; past `most`, the two whose box round both
+ * adds least are put together, until no more than `most` are left. Every
+ * box given is inside one returned. Pure.
+ */
+export function overlayClusters(boxes: readonly Box[], most = OVERLAY_CANVASES): Box[] {
+  const out = boxes.filter((b) => b.w > 0 && b.h > 0).map((b) => ({ ...b }));
+  for (;;) {
+    let best: [number, number] | null = null;
+    let bestCost = Infinity;
+    for (let i = 0; i < out.length; i++)
+      for (let j = i + 1; j < out.length; j++) {
+        const a = out[i]!;
+        const b = out[j]!;
+        const added = areaOf(unionOf(a, b)) - areaOf(a) - areaOf(b);
+        const cheap = overlaps(a, b) || added <= 0.25 * (areaOf(a) + areaOf(b));
+        if ((cheap || out.length > most) && added < bestCost) {
+          best = [i, j];
+          bestCost = added;
+        }
+      }
+    if (!best) return out;
+    const [i, j] = best;
+    out[i] = unionOf(out[i]!, out[j]!);
+    out.splice(j, 1);
+  }
+}
+
 /**
  * The longest frame the walk takes in one go. A page coming back from the
  * background gets one huge frame; the walker should carry on from where it was
@@ -278,15 +318,25 @@ export interface StageExtra {
    * Over everything at the screen's own resolution (with the stage's
    * `overlay`): words and thin lines, which an enlarged art pixel would make
    * blocky. Drawn in art-pixel coordinates; `k` is art pixels per CSS pixel,
-   * so a size in CSS pixels times `k` is that size on screen.
+   * so a size in CSS pixels times `k` is that size on screen. `area`, where
+   * given, is the patch of the overlay this canvas covers (`overlayBoxes`):
+   * what lies wholly outside it need not be drawn.
    */
-  overlay?(ctx: CanvasRenderingContext2D, k: number): void;
+  overlay?(ctx: CanvasRenderingContext2D, k: number, area?: Box): void;
   /**
    * Where the overlay draws this frame, in art pixels, generously; null for
    * nothing. The overlay canvas covers only this (a canvas the whole screen's
    * size, changed every frame, cost the browser as much as the scene).
    */
   readonly overlayBox?: Box | null;
+  /**
+   * The overlay's boxes one by one, art pixels, where they lie apart (a bar
+   * over each foe across a room): close ones are drawn on one canvas and far
+   * ones on canvases of their own (`overlayClusters`), so what the browser
+   * copies each frame is the words' own patches, not a screen-wide canvas
+   * between them. Absent, the overlay is one canvas over `overlayBox`.
+   */
+  readonly overlayBoxes?: readonly Box[];
   /** The walker's picture as it should show this frame (a flash when struck). */
   walker?(image: HTMLCanvasElement): HTMLCanvasElement;
   /**
@@ -835,14 +885,21 @@ export function stage(options: StageOptions): View {
     options.seen?.(cam, cssPerArt);
   };
 
-  /** Whether anything was drawn on the overlay last frame, so it is cleared once when there is nothing. */
-  let overlaid = false;
-  let topCtx: CanvasRenderingContext2D | null = null;
+  /**
+   * The overlay's canvases: the first is `top`, the rest made when the
+   * overlay is cut into more patches (`overlayClusters`) and kept, hidden
+   * while not needed. Each is drawn on only while it shows anything.
+   */
+  const tops: {
+    readonly canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D | null;
+    shown: boolean;
+  }[] = top ? [{ canvas: top, ctx: null, shown: false }] : [];
 
   /**
-   * The overlay at the screen's resolution: the same size on the page as the
-   * scene's canvas, a device pixel each; cleared and drawn again each frame
-   * there is anything on it.
+   * The overlay at the screen's resolution: canvases laid over the scene's,
+   * a device pixel each, each covering one patch of what the overlay draws
+   * this frame; cleared and drawn again each frame there is anything on it.
    */
   const drawOverlay = (
     over: HTMLCanvasElement,
@@ -853,35 +910,58 @@ export function stage(options: StageOptions): View {
     const dpr = window.devicePixelRatio || 1;
     const fitted = overlayFit(css, dpr, device, scale);
     const per = fitted.perArt;
-    const box = extra?.overlay ? (extra.overlayBox ?? null) : null;
-    const at = box && overlayRect(box, cam, per, fitted, dpr);
-    if (!at) {
-      if (overlaid) {
-        over.style.visibility = 'hidden';
-        overlaid = false;
+    const drawn = extra?.overlay ? extra : null;
+    const patches = !drawn
+      ? []
+      : drawn.overlayBoxes
+        ? overlayClusters(drawn.overlayBoxes)
+        : drawn.overlayBox
+          ? [drawn.overlayBox]
+          : [];
+    // Left to right, so each canvas keeps to much the same patch from frame to frame.
+    const rects = patches
+      .flatMap((b) => {
+        const at = overlayRect(b, cam, per, fitted, dpr);
+        return at ? [{ ...at, area: b }] : [];
+      })
+      .sort((a, b) => a.x - b.x);
+    while (tops.length < rects.length) {
+      const more = h('canvas', { class: 'scene-overlay', attrs: { 'aria-hidden': 'true' } });
+      (tops.at(-1)?.canvas ?? over).after(more);
+      tops.push({ canvas: more, ctx: null, shown: false });
+    }
+    tops.forEach((t, i) => {
+      const at = rects[i];
+      const c = t.canvas;
+      if (!at) {
+        if (t.shown) {
+          c.style.visibility = 'hidden';
+          t.shown = false;
+        }
+        return;
       }
-      return;
-    }
-    // Grown to fit, never shrunk by a little: a canvas's size changed every frame is new memory every frame.
-    const w = Math.max(at.w, over.width < at.w * 2 ? over.width : 0);
-    const hgt = Math.max(at.h, over.height < at.h * 2 ? over.height : 0);
-    if (over.width !== w || over.height !== hgt) {
-      over.width = w;
-      over.height = hgt;
-      over.style.width = `${w / dpr}px`;
-      over.style.height = `${hgt / dpr}px`;
-    }
-    const place = `translate(${at.x / dpr}px, ${at.y / dpr}px)`;
-    if (over.style.transform !== place) over.style.transform = place;
-    if (over.style.visibility !== '') over.style.visibility = '';
-    topCtx ??= over.getContext('2d');
-    if (!topCtx) return;
-    topCtx.setTransform(1, 0, 0, 1, 0, 0);
-    topCtx.clearRect(0, 0, over.width, over.height);
-    topCtx.setTransform(per, 0, 0, per, -cam.x * per - at.x, -cam.y * per - at.y);
-    topCtx.imageSmoothingEnabled = false;
-    extra!.overlay!(topCtx, fitted.k);
-    overlaid = true;
+      // Grown to fit, never shrunk by a little: a canvas's size changed every frame is new memory every frame.
+      const w = Math.max(at.w, c.width < at.w * 2 ? c.width : 0);
+      const hgt = Math.max(at.h, c.height < at.h * 2 ? c.height : 0);
+      if (c.width !== w || c.height !== hgt) {
+        c.width = w;
+        c.height = hgt;
+        c.style.width = `${w / dpr}px`;
+        c.style.height = `${hgt / dpr}px`;
+      }
+      const place = `translate(${at.x / dpr}px, ${at.y / dpr}px)`;
+      if (c.style.transform !== place) c.style.transform = place;
+      if (c.style.visibility !== '') c.style.visibility = '';
+      t.ctx ??= c.getContext('2d');
+      const tc = t.ctx;
+      if (!tc) return;
+      tc.setTransform(1, 0, 0, 1, 0, 0);
+      tc.clearRect(0, 0, c.width, c.height);
+      tc.setTransform(per, 0, 0, per, -cam.x * per - at.x, -cam.y * per - at.y);
+      tc.imageSmoothingEnabled = false;
+      drawn!.overlay!(tc, fitted.k, rects.length > 1 ? at.area : undefined);
+      t.shown = true;
+    });
   };
 
   /** A number for a still the scene made itself: a new one means the whole view is drawn again. */

@@ -8,17 +8,20 @@
  * clear: what fell, then the door. He never uses an ability. A careless
  * player is the same hero who never lights a lantern (`light: false`).
  *
- * The hero is a stat line, not a save: tier-2 gear is not in the tables yet
- * (lane A's S22), so `tier2` is what its first pass implies (see
- * `docs/status/lane-c.md`, "Balance").
+ * The hero is a character built from the tables (`tier2State`): salt-iron and
+ * the red cloak as the level allows, and cooked swordfish, read through
+ * `fighterOf` as a run reads a save; the cast is the tables' too.
  */
 import type { MonsterDef } from '../../src/core/content';
 import { effectsOf } from '../../src/core/progress';
+import { newGame, type GameState } from '../../src/core/state';
+import { xpForLevel as lvl } from '../../src/core/xp';
 import { CONTENT } from '../../src/data';
 import {
   alive,
   blocks,
   eat,
+  fighterOf,
   foodProblem,
   held,
   inLight,
@@ -62,103 +65,47 @@ export const BURROW_DUNGEON: Dungeon = buildDungeon(BURROW);
 const T = DUNGEON.tile;
 export const BURROW_ORDER = ['hollow', 'watch', 'gallery', 'run', 'sett'];
 
+/** What a level-40 hero wears into the Burrow, by item id: full salt-iron and the red cloak. */
+export const TIER2_GEAR = [
+  'salt_iron_sword',
+  'salt_iron_shield',
+  'salt_iron_helm',
+  'salt_iron_plate',
+  'salt_iron_greaves',
+  'red_cloak',
+] as const;
+
 /**
- * A level-`level` hero (Melee, Defence and Vitality) in the best tier-2 gear
- * he can wear, as the sheet would read, with `fish` cooked swordfish (lane
- * A's tier-2 fish, heals 40). Tier-2 gear is not in the tables yet (lane A's
- * S22 PR 2), so its stat line is assumed from the rungs below it (iron is
- * tier 1's, the grotto's gear tier 1.5): a salt-iron longsword (+12 attack,
- * +11 strength), helm 12, kite shield 18, plate 26 and greaves 14 (70
- * armour), and the hunter's charm (+3 attack, +1 strength). The plate is
- * taken to need level 35 to wear, as tier 1's best needs 18 to 20: under
- * that he wears the captain's coat (+3 attack, 14 armour) in its place.
+ * A character at level `level` in Melee, Defence and Vitality, wearing
+ * whatever of `TIER2_GEAR` the level allows (each in the slot its row
+ * names), with `fish` cooked swordfish: the tables' rows, never a stat line
+ * of this file's own.
  */
-export function tier2(level = 40, fish = 20, heals = 40): Fighter {
-  const plate = level >= 35;
-  const attack = 12 + 3 + (plate ? 0 : 3);
-  const strength = 11 + 1;
-  const armour = 12 + 18 + (plate ? 26 : 14) + 14;
-  const maxHp = 20 + 4 * (level - 1);
+export function tier2State(level = 40, fish = 20): GameState {
+  const skills = { melee: lvl(level), defence: lvl(level), vitality: lvl(level) };
+  const equipment: Record<string, { item: string; qty: number }> = {};
+  for (const id of TIER2_GEAR) {
+    const equip = CONTENT.items[id]?.equip;
+    if (!equip) throw new Error(`no row for ${id}`);
+    const need = equip.requires;
+    if (need && level < need.level) continue;
+    equipment[equip.slot] = { item: id, qty: 1 };
+  }
   return {
-    style: 'melee',
-    skill: 'melee',
-    attack: 10 + level + attack,
-    defence: 10 + level + armour,
-    maxHit: 1 + Math.floor((level + strength) / 2),
-    maxHp,
-    hp: maxHp,
-    food: fish > 0 ? { item: 'cooked_tier2_fish', qty: fish, heals } : null,
-    arrows: 0,
+    ...newGame('Bot', 0),
+    skills,
+    equipment,
+    food: fish > 0 ? { item: 'cooked_swordfish', qty: fish } : null,
   };
 }
 
-/**
- * The cast's numbers this lane measured and asks lane A for (wave 19), as
- * the tables' rows would carry them: what every balance case plays. Lane
- * A's first pass (PR #82: puff 40 hp, moth 36, guard 60, hound 95, king 340)
- * is far harder against this mechanic (1 clear of 12 for the careful
- * player, 14 minutes). Until the tables hold these, the game fights by the
- * tables' rows (`castOf`) and only these cases by the asked ones.
- */
-const asked = (
-  id: string,
-  name: string,
-  level: number,
-  hp: number,
-  attack: number,
-  defence: number,
-  maxHit: number,
-  speedMs: number,
-): [string, MonsterDef] => [
-  id,
-  {
-    id,
-    name,
-    description: '',
-    level,
-    hp,
-    attack,
-    defence,
-    maxHit,
-    speedMs,
-    coins: [0, 0],
-    always: [],
-    rare: [],
-    area: BURROW.id,
-  },
-];
-export const BURROW_ASKED: Readonly<Record<string, MonsterDef>> = Object.fromEntries([
-  asked('spore_puff', 'Spore puff', 34, 25, 65, 50, 10, 2600),
-  asked('lantern_moth', 'Lantern moth', 35, 18, 66, 58, 8, 2000),
-  asked('cap_guard', 'Cap guard', 37, 43, 71, 66, 15, 2800),
-  asked('bramble_hound', 'Bramble hound', 38, 38, 77, 55, 15, 2200),
-  asked('badger_king', 'The Badger King', 44, 225, 88, 72, 26, 2800),
-]);
+/** That character as the fight reads it (`fighterOf`, the tables' gear and fish). */
+export const tier2 = (level = 40, fish = 20): Fighter =>
+  fighterOf(tier2State(level, fish), CONTENT);
 
-/** The rows a balance case fights by: the tables', with the cast's numbers as asked. */
-export const burrowMonsters = (): Readonly<Record<string, MonsterDef>> => {
-  const tables = castOf(CONTENT, BURROW.id);
-  // The tables' own rows (their names, drops), with the asked numbers in them.
-  return {
-    ...tables,
-    ...Object.fromEntries(
-      Object.entries(BURROW_ASKED).map(([id, row]) => [
-        id,
-        tables[id]
-          ? {
-              ...tables[id],
-              hp: row.hp,
-              attack: row.attack,
-              defence: row.defence,
-              maxHit: row.maxHit,
-              speedMs: row.speedMs,
-              level: row.level,
-            }
-          : row,
-      ]),
-    ),
-  };
-};
+/** The rows a balance case fights by: the tables' own (`castOf`). */
+export const burrowMonsters = (): Readonly<Record<string, MonsterDef>> =>
+  castOf(CONTENT, BURROW.id);
 
 export function beginBurrow(
   fighter: Fighter,

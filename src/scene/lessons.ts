@@ -65,6 +65,14 @@ export interface Lesson {
   due(dungeon: Dungeon, run: Run, done: readonly string[]): boolean;
   done(dungeon: Dungeon, run: Run): boolean;
   ring(dungeon: Dungeon, run: Run): LessonRing;
+  /**
+   * Whether the player has already done what it teaches, by themselves,
+   * before it was due (lit a lantern unbidden): it is then learned, as if it
+   * had been shown and done, and never shows.
+   */
+  learnedBy?(dungeon: Dungeon, run: Run): boolean;
+  /** Up at least this long (the page's time) however soon it is done: long enough to read. */
+  readonly minMs?: number;
 }
 
 /** Where a run's lessons stand: the one showing, those done, and whether they were put away. */
@@ -120,7 +128,7 @@ export function stepLessons(
   let next = state;
   if (next.shown) {
     const lesson = lessons.find((l) => l.id === next.shown);
-    if (!lesson || lesson.done(dungeon, run)) {
+    if (!lesson || (lesson.done(dungeon, run) && (next.for ?? 0) >= (lesson.minMs ?? 0))) {
       // Done after the run was let go on without it (`LESSON_GO_ON_MS`), it may have been done by
       // the fight, not the player (a rat walking up into his reach makes itself his target): done
       // for this run, but not learned, so a later run shows it again.
@@ -130,6 +138,12 @@ export function stepLessons(
     } else if (ms > 0) {
       next = { ...next, for: (next.for ?? 0) + ms };
     }
+  }
+  // Done unbidden before it was ever due: learned, and never shown.
+  for (const l of lessons) {
+    if (next.done.includes(l.id) || next.shown === l.id || !l.learnedBy?.(dungeon, run)) continue;
+    remember(learnedKey(run.dungeon, l.id));
+    next = { ...next, done: [...next.done, l.id] };
   }
   if (!next.shown && !run.doorway) {
     const due = lessons.find(
@@ -399,6 +413,33 @@ function mothAtWork(dungeon: Dungeon, run: Run): Foe | null {
   );
 }
 
+/** Whether any lantern written out has been lit (by his hand: nothing else lights one), or he is at it now. */
+function litByHand(dungeon: Dungeon, run: Run): boolean {
+  const b = run.battle!;
+  if (b.tend) return true;
+  return Object.entries(b.lamps ?? {}).some(([room, lit]) =>
+    (dungeon.rooms[room]?.ground.lamps ?? []).some((l, i) => !l.lit && lit[i]),
+  );
+}
+
+/** How long the hint about the king's dazzle stays up at the least: longer than the dazzle, to be read. */
+export const DAZZLE_HINT_MS = 5000;
+
+/** A boss that burrows, up in the room and dazzled by a lantern, if any. */
+function dazzled(dungeon: Dungeon, run: Run): Foe | null {
+  const b = run.battle!;
+  return (
+    standing(dungeon, run).find(
+      (f) =>
+        !!foeKind(f.monster).boss?.burrow &&
+        !f.under &&
+        // A burrower is held fast only by a lantern's dazzle.
+        f.stuck !== undefined &&
+        f.stuck > b.clock,
+    ) ?? null
+  );
+}
+
 /** The cap guards standing in the room. */
 const guards = (dungeon: Dungeon, run: Run): Foe[] =>
   standing(dungeon, run).filter((f) => foeKind(f.monster).guard);
@@ -424,6 +465,8 @@ export const BURROW_LESSONS: readonly Lesson[] = [
       const lit = b.lamps?.[run.room] ?? [];
       return written.some((l, i) => !l.lit && lit[i]) || unlit(dungeon, run).length === 0;
     },
+    // Lit one by hand before the hint was due (he walked straight to it): learned already.
+    learnedBy: (dungeon, run) => litByHand(dungeon, run),
     ring: (dungeon, run) => {
       const hero = run.play.walker.at;
       const lamps = dungeon.rooms[run.room]!.ground.lamps;
@@ -489,6 +532,20 @@ export const BURROW_LESSONS: readonly Lesson[] = [
       const target = guards(dungeon, run).find((g) => g.key === b.target);
       if (melee(run) && cooldownLeft(b, 'second') === 0) return { kind: 'button', which: 'second' };
       return target ? ringFoe(target) : null;
+    },
+  },
+  {
+    // Why the king came up where he did, and what it is worth: told the first time it happens.
+    id: 'dazzle',
+    blocks: false,
+    minMs: DAZZLE_HINT_MS,
+    text: () =>
+      'He came up under the lantern you stood by, and its light dazzled him. Strike while he reels!',
+    due: (dungeon, run) => dazzled(dungeon, run) !== null,
+    done: (dungeon, run) => dazzled(dungeon, run) === null,
+    ring: (dungeon, run) => {
+      const king = dazzled(dungeon, run);
+      return king ? ringFoe(king) : null;
     },
   },
 ];

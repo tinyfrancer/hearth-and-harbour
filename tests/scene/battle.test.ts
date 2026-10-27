@@ -640,4 +640,34 @@ describe('a run with something to fight', () => {
     expect(a.battle!.tally.kills).toBeGreaterThan(0);
     expect(summary(play(20, 100))).not.toEqual(summary(a));
   });
+
+  it('loses no tick to frames that are not whole milliseconds (a phone’s 1000 / 60)', () => {
+    // Frames that come to a hair under a tick (16.67 + 16.67 + … in floating point) reach it: a
+    // tick taken as already passed would be lost, and at 60 frames a second the fight would run
+    // at about half its pace (wave 21).
+    const cut = (frames: readonly number[]): Run => {
+      let r = startRun(GROTTO_DUNGEON, setup(melee({ attack: 60, maxHit: 15, maxHp: 300 }), 99));
+      const crab = r.battle!.foes.find((f) => f.room === r.room && alive(f))!;
+      const aimed = targetFoe(r.battle!, placeOf(GROTTO_DUNGEON, r), r.play, crab.key);
+      r = { ...r, battle: aimed.battle, play: aimed.play };
+      for (let t = 0, i = 0; t < 20_000 - 1e-6; i++) {
+        const ms = frames[i % frames.length]!;
+        r = advanceRun(GROTTO_DUNGEON, r, r.play, ms);
+        t += ms;
+      }
+      return r;
+    };
+    const whole = cut([100]);
+    const ticksOf = (r: Run) => ({
+      hp: r.battle!.hp,
+      kills: r.battle!.tally.kills,
+      foes: r.battle!.foes.map((f) => f.hp),
+    });
+    expect(whole.battle!.foes.some((f) => f.hp < 1000 && f.room === whole.room)).toBe(true);
+    for (const frames of [[1000 / 60], [16.7, 16.7, 16.6], [16.8, 16.6, 16.6]]) {
+      const short = cut(frames);
+      expect(short.battle!.clock).toBeCloseTo(whole.battle!.clock, 6);
+      expect(ticksOf(short), String(frames)).toEqual(ticksOf(whole));
+    }
+  });
 });

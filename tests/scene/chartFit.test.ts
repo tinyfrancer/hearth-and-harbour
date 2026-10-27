@@ -112,6 +112,15 @@ describe('the chart’s panel on a phone', () => {
     expect(chartShiftY(300, 0, 150)).toBe(0);
   });
 
+  it('runs a landing’s name inward near the map’s edge, never off it', () => {
+    // Lane B's Burrow landing is near the map's left edge (B20): its name starts at it.
+    const panel = open(() => me());
+    const side = (id: string) =>
+      panel.el.querySelector<HTMLElement>(`.chart-landing[data-id="${id}"]`)?.dataset.side;
+    expect(side('thistlewood_burrow')).toBe('start');
+    expect(side('tidepool_cave')).not.toBe('start');
+  });
+
   it('keeps the ferryman’s word over the map, and offers no medals for a landing not open', () => {
     const panel = chartPanel({
       content: CONTENT,
