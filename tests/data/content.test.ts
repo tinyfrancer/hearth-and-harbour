@@ -462,6 +462,39 @@ describe('the content tables', () => {
       'badger_king',
     ]);
     expect(dungeonName(burrow)).toBe('Thistlewood Burrow');
+    // Wave 21: lane C's measured hides and health on real tier-2 gear (#96), as
+    // [level, hp, attack, defence, max hit, speed].
+    expect(
+      burrow.cast!.map((foe) => [
+        foe.level,
+        foe.hp,
+        foe.attack,
+        foe.defence,
+        foe.maxHit,
+        foe.speedMs,
+      ]),
+    ).toEqual([
+      [34, 23, 65, 62, 10, 2600],
+      [35, 17, 66, 72, 8, 2000],
+      [37, 39, 71, 82, 15, 2800],
+      [38, 35, 77, 69, 15, 2200],
+      [44, 205, 88, 90, 26, 2800],
+    ]);
+    // Its own days (its own rations day in place of the grotto's), and its challenges' ids,
+    // kept in saves from now on.
+    expect(burrow.modifiers).toEqual([
+      'thick_caps',
+      'fierce_brambles',
+      'swift_hounds',
+      'lean_rations',
+      'deep_gloom',
+    ]);
+    expect(burrow.challenges!.map((c) => c.id)).toEqual([
+      'thistlewood_burrow.swift',
+      'thistlewood_burrow.nearly_unhurt',
+      'thistlewood_burrow.no_food',
+      'thistlewood_burrow.deep_gloom',
+    ]);
     // Wave 20: lane C's idle rooms, room by room (src/scene/burrow.ts), checked against the plan below.
     expect(burrow.idle!.rooms.map((room) => room.foes.length)).toEqual([3, 4, 5, 4, 5]);
     for (const foe of burrow.cast!) {
@@ -477,7 +510,8 @@ describe('the content tables', () => {
   it('draws every dungeon’s days from modifiers the tables hold, each used, kind for the cave and a trade elsewhere', () => {
     const modifiers = Object.values(CONTENT.modifiers!);
     expect(modifiers.length).toBeGreaterThanOrEqual(6);
-    expect(modifiers.length).toBeLessThanOrEqual(12);
+    // Wave 21: thirteen, with the burrow's own rations day.
+    expect(modifiers.length).toBeLessThanOrEqual(14);
     const drawn = new Set<string>();
     for (const dungeon of Object.values(CONTENT.dungeons!)) {
       for (const id of dungeon.modifiers ?? []) {

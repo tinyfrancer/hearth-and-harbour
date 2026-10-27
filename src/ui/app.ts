@@ -30,7 +30,7 @@ import {
 import { equip, unequip, wornItemIds } from '../core/equipment';
 import { fightEnded } from '../core/fight';
 import { drinkPotion } from '../core/potions';
-import { dungeonDef } from '../core/dungeons';
+import { dungeonDef, newlyOpened } from '../core/dungeons';
 import { dailyModifier, newChallenges } from '../core/progress';
 import { alignIdleClock, idleRunEnded, startIdleRun, stopIdleRun } from '../core/idleRun';
 import { remember, remembered } from '../core/remembered';
@@ -890,13 +890,21 @@ export function mountApp(
         state = settleRun(state, spoils, content);
         const said: string[] = [];
         const dungeon = spoils.cleared ? dungeonDef(content, spoils.cleared) : undefined;
+        // What a first clear opened: another landing (the grotto's opens the
+        // burrow). Its tier has its own card on the Skills tab.
+        const opened = newlyOpened(before, state, content).map((next) => next.name);
         if (dungeon && !before.dungeons[dungeon.id] && state.dungeons[dungeon.id]) {
           const reward = firstClearOf(dungeon, content).map(({ item, qty }) =>
             qty === 1 ? `a ${content.items[item]!.name}` : `${qty} ${content.items[item]!.name}`,
           );
           if (reward.length > 0)
             said.push(`First clear of ${dungeon.name}! Into the bank: ${listed(reward)}.`);
+          else if (opened.length > 0) said.push(`First clear of ${dungeon.name}!`);
         }
+        if (opened.length > 0)
+          said.push(
+            `${listed(opened)} ${opened.length === 1 ? 'is' : 'are'} open: the boat at the quay will take you.`,
+          );
         for (const challenge of newChallenges(before, state, content)) {
           said.push(`Challenge done: ${challenge.name}! ${rewardWords(challenge.reward, content)}`);
         }

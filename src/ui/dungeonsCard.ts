@@ -17,7 +17,7 @@ import { tierOf } from '../core/tiers';
 import { bar } from './bar';
 import { button, h, setText } from './dom';
 import { rewardWords } from './dungeonWords';
-import { formatClock, formatNumber } from './format';
+import { formatClock, formatNumber, listed } from './format';
 
 /** What the Dungeons card can ask of the app. */
 export interface DungeonsCardActions {
@@ -184,10 +184,21 @@ function tierLine(state: GameState, dungeon: DungeonDef, content: Content): HTML
   const cleared = (state.dungeons[dungeon.id]?.clears ?? 0) > 0;
   const { tier, brings } = dungeon.opens;
   const built = Object.values(content.actions).some((action) => tierOf(action) === tier);
+  // The landing it opens too (the grotto's clear opens the burrow), once charted.
+  const next = dungeonsInOrder(content)
+    .filter(
+      (other) =>
+        !other.comingSoon && other.unlock.kind === 'cleared' && other.unlock.dungeon === dungeon.id,
+    )
+    .map((other) => other.name);
+  const levels = Object.values(content.actions)
+    .filter((action) => tierOf(action) === tier)
+    .map((action) => action.level);
+  const from = levels.length > 0 ? Math.min(...levels) : 0;
   const text = built
     ? cleared
-      ? `Tier ${tier} unlocked: ${brings}. New things in every skill from level 20, and a new place to fight.`
-      : `Its first clear unlocks tier ${tier}: ${brings}.`
+      ? `Tier ${tier} unlocked, from level ${from}: ${brings}.${next.length > 0 ? ` ${listed(next)} ${next.length === 1 ? 'is' : 'are'} open.` : ''}`
+      : `Its first clear unlocks tier ${tier}, from level ${from}: ${brings}.${next.length > 0 ? ` It opens ${listed(next)} too.` : ''}`
     : cleared
       ? `Tier ${tier} unlocked. It is still being built; when it comes, it brings ${brings}.`
       : `Its first clear unlocks tier ${tier}, still being built: ${brings}.`;

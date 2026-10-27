@@ -85,6 +85,19 @@ export function mayEnter(state: GameState, id: string, content: Content): boolea
   return status === 'open' || status === 'cleared';
 }
 
+/**
+ * The dungeons a change opened (locked before, the boat goes there after), in
+ * chart order: what a first clear (or a level gained) has just made somewhere
+ * to sail to, for the menus to say so.
+ */
+export function newlyOpened(before: GameState, after: GameState, content: Content): DungeonDef[] {
+  return dungeonsInOrder(content).filter(
+    (dungeon) =>
+      dungeonStatus(before, dungeon.id, content)?.state === 'locked' &&
+      mayEnter(after, dungeon.id, content),
+  );
+}
+
 /** Every dungeon in the tables in chart order (`order`, then table order), landings to come among them. */
 export function dungeonsInOrder(content: Content): DungeonDef[] {
   return Object.values(content.dungeons ?? {})

@@ -1,4 +1,5 @@
 import type { Content } from '../core/content';
+import { dungeonsInOrder } from '../core/dungeons';
 import { remembered } from '../core/remembered';
 import type { GameState } from '../core/state';
 import { tierOf, tierUnlocked } from '../core/tiers';
@@ -33,7 +34,8 @@ const levelsText = (levels: readonly number[]): string => {
 
 /**
  * What a tier opened, as short lines: each skill's count of new things and
- * their levels, then where to fight, then the shops. Short so the card fits
+ * their levels, then where to fight, then the shops, then the landing the
+ * same clear opened. Short so the card fits
  * a 360-wide phone in a line a row (wave 20); each skill's page names them.
  */
 export function tierOpenedLines(tier: number, content: Content): { head: string; text: string }[] {
@@ -63,6 +65,18 @@ export function tierOpenedLines(tier: number, content: Content): { head: string;
     Object.values(content.shop ?? {}).some((entry) => tierOf(entry) === tier) && 'bounty shop',
   ].filter((name): name is string => Boolean(name));
   if (shops.length > 0) lines.push({ head: 'Shops', text: `new stock: ${shops.join(', ')}` });
+  // The landing the same clear opened (wave 21: the grotto's opens the burrow), once charted.
+  const openers = Object.values(content.dungeons ?? {})
+    .filter((dungeon) => dungeon.opens?.tier === tier)
+    .map((dungeon) => dungeon.id);
+  for (const dungeon of dungeonsInOrder(content)) {
+    if (dungeon.comingSoon || dungeon.unlock.kind !== 'cleared') continue;
+    if (!openers.includes(dungeon.unlock.dungeon)) continue;
+    lines.push({
+      head: dungeon.name,
+      text: `open · by boat · combat ${dungeon.recommended}`,
+    });
+  }
   return lines;
 }
 

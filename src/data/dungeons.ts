@@ -77,32 +77,50 @@ export const DUNGEON_MODIFIERS = {
     effects: { darker: true, heroDamage: 0.85, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
   },
   // Trades: for Thistlewood Burrow, each the grotto's trade of the same shape
-  // in the burrow's own words (and the grotto's Short Rations, shared).
+  // in the burrow's own words, a little milder (wave 21, lane C's measure on
+  // real tier-2 gear over 48 seeds, #96): the burrow's dark and its king
+  // already cost a careful player more than the grotto's tide, and at the
+  // grotto's strengths its days cleared 36 to 45 of 48 against a plain 46.
+  // Milder, each clears 40 to 46 and is still harder in the way it says.
+  // Rewards are the grotto's.
   thick_caps: {
     id: 'thick_caps',
     name: 'Thick Caps',
     text: 'A wet night: every cap in the warren is plump, tough and slow to get moving.',
-    effects: { foeHealth: 1.2, foeSpeed: 0.8, xp: 1.2, loot: 1.15 },
+    effects: { foeHealth: 1.15, foeSpeed: 0.8, xp: 1.2, loot: 1.15 },
   },
   fierce_brambles: {
     id: 'fierce_brambles',
     name: 'Fierce Brambles',
     text: 'The thorns grew long overnight. Everything in the burrow bites harder and bends easier.',
-    effects: { foeDamage: 1.1, foeHealth: 0.95, loot: 1.1 },
+    effects: { foeDamage: 1.07, foeHealth: 0.95, loot: 1.1 },
   },
   swift_hounds: {
     id: 'swift_hounds',
     name: 'Swift Hounds',
-    text: 'Something has the whole warren running about: quick, careless and easier to knock over.',
-    effects: { foeSpeed: 1.1, foeHealth: 0.93, xp: 1.15 },
+    text: 'Something has the whole warren running about, quick on its feet and quicker to bite.',
+    effects: { foeSpeed: 1.08, xp: 1.15 },
+  },
+  // The burrow's own rations day, in place of the grotto's Short Rations
+  // (which is right there, and stays): the same fish going less far, but a
+  // warren far weaker for it, as the king's long fight would otherwise eat
+  // the larder (36 of 48 at Short Rations' strengths; 46 so). Its id says
+  // "rations" so lane B's icon draws the same plate. It pays in XP, not loot:
+  // weaker foes make a quicker run and less XP a run, and with Short Rations'
+  // extra loot as well an hour by hand earned 1.40 times a plain day's.
+  lean_rations: {
+    id: 'lean_rations',
+    name: 'Lean Rations',
+    text: 'A thin season under the forest. Your food goes less far, and the whole warren is half-starved and wobbly with it.',
+    effects: { foodHeals: 0.8, foeHealth: 0.75, xp: 1.1 },
   },
   deep_gloom: {
     id: 'deep_gloom',
     name: 'Deep Gloom',
     text: 'The moths have had every lamp. Swing carefully; nobody down there can see much either.',
-    // Wave 20: 0.9, not the grotto's 0.85, on lane C's measure: the burrow's dark already
-    // softens his blows, and at 0.85 its careful player cleared 9 of 12 against a target of 10.
-    effects: { darker: true, heroDamage: 0.9, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
+    // Lane C's measure: the burrow's dark already softens his blows, so its own darker day
+    // asks less of them than the grotto's 0.85 (0.9 in wave 20, 0.95 since #96).
+    effects: { darker: true, heroDamage: 0.95, foeSpeed: 0.9, xp: 1.25, loot: 1.1 },
   },
 } satisfies Record<string, ModifierDef>;
 
@@ -340,7 +358,7 @@ export const DUNGEONS = {
         pick: { items: ['captains_coat', 'spyglass'], oneIn: 2 },
       },
     ],
-    // Its first clear opens the next tier of idle content (plan S22, not built yet).
+    // Its first clear opens tier 2 (plan S22) and Thistlewood Burrow (by its `unlock`).
     opens: {
       tier: 2,
       brings:
@@ -430,6 +448,11 @@ export const DUNGEONS = {
   // calls already cost what wave 19's extra health and accuracy were for):
   // level 40 in salt-iron with 20 cooked swordfish clears most seeds in about
   // nine minutes, level 30 about a third (tests/scene/burrowRun.test.ts).
+  // Wave 21 (#96), measured again on real tier-2 gear (the plate is worn at
+  // Defence 30, so a level-30 hero is nearly as well armoured as one at 40):
+  // thicker hides and a little less health, so ten levels tell in how often
+  // a blow gets through. Careful at 40 clears 46 of 48 seeds in a median 8.8
+  // minutes, never lighting a lantern 8, careful at 30 14.
   thistlewood_burrow: {
     id: 'thistlewood_burrow',
     name: 'Thistlewood Burrow',
@@ -460,9 +483,9 @@ export const DUNGEONS = {
         name: 'Spore puff',
         description: 'Knee-high, round and cheerful, right up until it bursts.',
         level: 34,
-        hp: 25,
+        hp: 23,
         attack: 65,
-        defence: 50,
+        defence: 62,
         maxHit: 10,
         speedMs: 2600,
         xpPercent: 270,
@@ -475,9 +498,9 @@ export const DUNGEONS = {
         name: 'Lantern moth',
         description: 'Drawn to every light in the warren, and determined to put it out.',
         level: 35,
-        hp: 18,
+        hp: 17,
         attack: 66,
-        defence: 58,
+        defence: 72,
         maxHit: 8,
         speedMs: 2000,
         xpPercent: 270,
@@ -490,9 +513,9 @@ export const DUNGEONS = {
         name: 'Cap guard',
         description: 'Stands behind its own hat, which is wider than it is, and means business.',
         level: 37,
-        hp: 43,
+        hp: 39,
         attack: 71,
-        defence: 66,
+        defence: 82,
         maxHit: 15,
         speedMs: 2800,
         xpPercent: 270,
@@ -505,9 +528,9 @@ export const DUNGEONS = {
         name: 'Bramble hound',
         description: 'A dog-shaped tangle of thorns that has never once fetched anything back.',
         level: 38,
-        hp: 38,
+        hp: 35,
         attack: 77,
-        defence: 55,
+        defence: 69,
         maxHit: 15,
         speedMs: 2200,
         xpPercent: 270,
@@ -523,9 +546,9 @@ export const DUNGEONS = {
         name: 'The Badger King',
         description: 'Lord of the burrow, by his own decree, and deeply offended by yours.',
         level: 44,
-        hp: 225,
+        hp: 205,
         attack: 88,
-        defence: 72,
+        defence: 90,
         maxHit: 26,
         speedMs: 2800,
         xpPercent: 270,
@@ -564,16 +587,26 @@ export const DUNGEONS = {
       lootPercent: 50,
       activeOnly: ['badger_crown'],
     },
-    modifiers: ['thick_caps', 'fierce_brambles', 'swift_hounds', 'short_rations', 'deep_gloom'],
-    // Real goals, as the grotto's: none expected of a first clear. Their ids
-    // name what lane B's icons draw (a clock, an unhurt hero, an empty plate,
-    // a step aside).
+    modifiers: ['thick_caps', 'fierce_brambles', 'swift_hounds', 'lean_rations', 'deep_gloom'],
+    // Real goals, a ladder of them as the grotto's: none but its own dark day
+    // comes with a first clear. Lane C's careful player (tests/scene/
+    // burrowBot.ts, 20 swordfish, salt-iron and the cloak; measured on the
+    // tables in wave 21, twelve seeds, 48 at level 40) meets Quick Through
+    // the Warren on 1 of 48 at combat 40, 7 of 12 at 50 and 9 at 60 (in the
+    // full kit, cloak and amulet: 4 at 40, 7 at 45); Barely Brambled on 2 of
+    // 48 at 40, 5 of 12 at 50, 8 at 60; Nothing from the Larder, with no fish
+    // at all, once at 60, twice at 65 and 5 times at 70 (tier 3's gear will
+    // bring it nearer); In the Gloom on 43 of 48 such days at 40. Their ids
+    // name what lane B's icons draw (a clock, an unhurt hero, an empty plate).
+    // Wave 21: the fourth was 'badger_dodge' (eight heavy blows stepped out
+    // of), which every careful clear meets many times over (47 to 121): never
+    // in a save, as the burrow paid nothing while it waited, so replaced.
     challenges: [
       {
         id: 'thistlewood_burrow.swift',
         name: 'Quick Through the Warren',
-        text: 'Clear the burrow in eight minutes or less.',
-        rule: { kind: 'atMost', stat: 'timeMs', n: 480_000 },
+        text: 'Clear the burrow in seven minutes or less.',
+        rule: { kind: 'atMost', stat: 'timeMs', n: 420_000 },
         reward: { coins: 12_000, bountyPoints: 10 },
       },
       {
@@ -586,15 +619,15 @@ export const DUNGEONS = {
       {
         id: 'thistlewood_burrow.no_food',
         name: 'Nothing from the Larder',
-        text: 'Clear the burrow without eating a thing. One for a seasoned fighter: combat 60 or so.',
+        text: 'Clear the burrow without eating a thing. One for a seasoned fighter: combat 70 or so.',
         rule: { kind: 'atMost', stat: 'foodEaten', n: 0 },
         reward: { coins: 15_000, bountyPoints: 10 },
       },
       {
-        id: 'thistlewood_burrow.badger_dodge',
-        name: 'Out of the King’s Way',
-        text: 'Clear the burrow having stepped out of eight heavy blows.',
-        rule: { kind: 'atLeast', stat: 'stepOuts', n: 8 },
+        id: 'thistlewood_burrow.deep_gloom',
+        name: 'In the Gloom',
+        text: 'Clear the burrow on a day of Deep Gloom.',
+        rule: { kind: 'withModifier', id: 'deep_gloom' },
         reward: { coins: 8000, bountyPoints: 5 },
       },
     ],

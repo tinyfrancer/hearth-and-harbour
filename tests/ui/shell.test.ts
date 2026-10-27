@@ -182,10 +182,13 @@ describe('the shell a scene is given', () => {
     // Nothing is laid over the scene's results card (wave 18)...
     expect(root.querySelector('.toast')).toBeNull();
     expect(root.querySelector('[data-award]')).toBeNull();
-    // ...it is all said back in the menus: the bounty, and the clear's achievement.
+    // ...it is all said back in the menus: the first clear and the landing it opened (wave 21),
+    // the bounty, and the clear's achievement.
     click('.tab[data-tab="bank"]');
     expect(root.querySelector('.toast')?.textContent).toBe(
-      'Bounty done: 10 Dock rats. Hand it in.',
+      'First clear of Brinebeard’s Grotto! ' +
+        'Thistlewood Burrow is open: the boat at the quay will take you. ' +
+        'Bounty done: 10 Dock rats. Hand it in.',
     );
     expect(root.querySelector('[data-award="grotto_cleared"]')).not.toBeNull();
   });
