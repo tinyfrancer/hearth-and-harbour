@@ -599,7 +599,9 @@ const BRIAR_HAG: Person = {
   },
   own: [b(HAG_HEAD, 'head'), b(HAG_TANGLE, 'head'), ...HAG_STAFF],
   swing: { kind: 'staff', sleeve: { upper: 'mossdye', fore: 'mossdye' } },
-  skin: 'skinpale',
+  // B21: her face's own grey-green (`turtleskin`, tier2Faces), not a person's: drawn pale, her
+  // figure and her face read as two different women side by side on the review sheet.
+  skin: 'turtleskin',
   hair: 'hairgrey',
   // Stooped: a head shorter, taken out of her back and her legs.
   shorter: [24, 28, 32, 36, 47, 52, 57, 62],

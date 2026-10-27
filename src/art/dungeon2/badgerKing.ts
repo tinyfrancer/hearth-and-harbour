@@ -45,6 +45,8 @@ export interface KingPose {
   readonly dive?: boolean;
   readonly down?: boolean;
   readonly sit?: boolean;
+  /** Dazzled (`arms: 'shade'`): how far round his crown the sparks have wheeled, in sixths. */
+  readonly dazzle?: number;
 }
 
 export type KingPhase = 1 | 2 | 3;
@@ -342,6 +344,8 @@ function king(p: KingPose, phase: KingPhase): TGrid {
     }
   };
   for (const side of [-1, 1]) {
+    // Dazzled, his near paw goes over his eyes: drawn after the head (below), else it is lost under it.
+    if (arms === 'shade' && side > 0) continue;
     const [tx, ty, down] = armTo(side);
     const sx = shX + (side < 0 ? -6 : 0);
     const sy = shY + (side < 0 ? 2 : 0);
@@ -356,6 +360,24 @@ function king(p: KingPose, phase: KingPhase): TGrid {
   if (!p.dive) {
     const tilt = phase === 1 ? 0 : phase === 2 ? 0.25 : -0.3;
     crown(g, hx - 8 + (phase === 2 ? 2 : 0), hy - 18 + (phase === 2 ? 1 : 0), phase, tilt);
+  }
+  if (arms === 'shade') {
+    // B21: at true size the stunned frames read as idle (the paw was under the head). Now the
+    // near forearm crosses his face, the paw over his eyes with its claws hanging, and three
+    // sparks wheel round his crown, a sixth of a turn on each frame.
+    rod(g, shX, shY, hx + 4, hy - 2, 9, 'badger', [0, 1, 2, 3, 4]);
+    paw(g, hx + 6, hy - 7, true);
+    const turn = p.dazzle ?? 0;
+    for (let i = 0; i < 3; i++) {
+      const a = ((turn + i * 2) * Math.PI) / 3;
+      sprite(
+        g,
+        Math.round(hx - 4 + Math.cos(a) * 14) - 1,
+        Math.round(hy - 22 + Math.sin(a) * 4) - 1,
+        ['.a.', 'aba', '.a.'],
+        { a: ['gold', 1], b: ['linen', 0] },
+      );
+    }
   }
   // Earth flying.
   const spray = p.spray ?? 0;
@@ -534,6 +556,7 @@ export function kingSpecial(
         arms: 'shade',
         eyes: 'shut',
         open: f === 1,
+        dazzle: f,
         at: { body: [f ? -1 : 1, 0], head: [f ? -2 : 0, 1] },
       },
       ph,

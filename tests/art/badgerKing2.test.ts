@@ -172,6 +172,44 @@ describe('The Burrow on the chart (B20)', () => {
   });
 });
 
+describe('Fixed from the review sheets (B21)', () => {
+  it('shows the king dazzled, not idle: a paw over his eyes and sparks wheeling round his crown', () => {
+    const idle = foePicture2('badger_king', 'idle')!.picture.grid;
+    const frames = [0, 1].map((f) => foeSpecial2('badger_king', 'stunned', 'right', f, 1)!);
+    for (const s of frames) {
+      const g = s.picture.grid;
+      // Sparks over the crown: something drawn above his idle top, and gold among it.
+      expect(top(g)).toBeLessThan(top(idle) - 2);
+      let gold = 0;
+      for (let y = 0; y < top(idle); y++)
+        for (let x = 0; x < g.w; x++) if (matOf(g.d[y * g.w + x]!) === 'gold') gold++;
+      expect(gold).toBeGreaterThan(4);
+      // His eye is covered: no eyeshine (ember) left on his face.
+      expect(Array.from(g.d).some((c) => matOf(c) === 'ember')).toBe(false);
+    }
+    // The sparks move between the two frames.
+    expect(key(frames[0]!.picture.grid)).not.toBe(key(frames[1]!.picture.grid));
+  });
+
+  it('gives the briar hag her face’s skin on her figure', () => {
+    const skins = (d: ArrayLike<number>) =>
+      new Set(
+        Array.from(d)
+          .map(matOf)
+          .filter((m) => m === 'turtleskin' || m === 'skinpale'),
+      );
+    expect(skins(portraitPicture2('briar_hag')!.grid.d)).toEqual(new Set(['turtleskin']));
+    for (const pose of ['idle', 'strike', 'fall'] as const)
+      expect(skins(foePicture2('briar_hag', pose)!.picture.grid.d), pose).toEqual(
+        new Set(['turtleskin']),
+      );
+  });
+
+  it('draws lane C’s Burrow-only rations day (`lean_rations`) as the hungry plate', () => {
+    expect(modifierKind('lean_rations')).toBe('hungry');
+  });
+});
+
 describe('The Burrow in the gallery (B20)', () => {
   it('draws its section on a tap, every picture at whole device pixels', () => {
     const page = artGallery();

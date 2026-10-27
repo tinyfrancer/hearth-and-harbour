@@ -1,7 +1,80 @@
 # Lane B: art
 
-**Next session:** after B20 (Thistlewood Burrow's art, in batches below). Start with Cody's verdict
-on the Burrow and the weak lists below.
+**Next session:** after B21 (batch 4 merged, the review sheets, two fixes). Start with Cody's verdict
+on tier 2 and the Burrow (sheets in `/home/claude/lane-shots/w21-b/`) and the weak list below.
+
+## Batch 4 merged; review sheets for tier 2 and the Burrow; two fixes from them (B21)
+
+**Done**
+
+- **Batch 4 is on `main`** (#97, deployed). Its CI had failed on two B16 assertions in
+  `tests/art/polish2.test.ts` that listed what existed then: the chart's landing keys (now with
+  `thistlewood_burrow`) and "no foe but Old Snapper has a `mid`" (the king's is measured, -9). The
+  landing list gains the Burrow; the `mid` rule is its own test now (a `mid` only on Old Snapper and
+  the king, each 8 or more off its feet, its box centred there from tail to head). No art changed.
+- **Review sheets** in `/home/claude/lane-shots/w21-b/` (cream, every image 7000 px or less):
+  `tier2-gear.png` (the ladder linen to salt-iron in four facings, true size by day and dusk and
+  enlarged; six outfits wearing every tier-2 wearable, four facings true size and enlarged, both
+  blows, the portrait), `tier2-monsters.png` (the seven tier-2 monsters in every pose at dusk beside
+  the knight, idle by day both ways, faces; the five marks' faces), `burrow-cast.png` (the four
+  creatures and the king's three phases in every pose and move on the Burrow floor with the hero,
+  the cast at night levels 0 to 3, the faces), `burrow-room.png` (the sett at phone size in
+  landscape, under the night rule with lanterns lit, out, catching and snuffed, the king erupting,
+  his mound, two spore clouds, the dressing props; and the same room all lit), `burrow-chart.png`
+  (the chart with the Burrow landing open and a route, the landing's corner at 8x, the emblem and
+  its ink silhouette, the seals), `burrow-king.gif` (idle, burrow, the mound travelling, erupt over
+  the eruption, stunned, lit and dark side by side).
+- **Fixed from the sheets** (this PR):
+  - The king's `stunned` frames read as idle at true size: his "paw over his eyes" was drawn under
+    his head. The near forearm now crosses his face with the paw over his eyes (no eyeshine left),
+    and three gold sparks wheel round his crown, moving between the two frames. Canvas, feet and
+    every other frame unchanged.
+  - The briar hag's figure was a pale-skinned woman beside a grey-green face: her figure now wears
+    her face's skin (`turtleskin`). Shape, sizes and every other foe unchanged; `burrow2.test.ts`'s
+    older-foes hash no longer includes her (it holds for the rest, as on `main`).
+  - Tested: `badgerKing2.test.ts` "Fixed from the review sheets (B21)", which also pins lane C's
+    asked `lean_rations` day to the hungry plate (it already was: no code change).
+
+**Needs, lane C** (no door changed by B21; everything as batch 4 lists below):
+
+- Theme `'burrow'` on the Burrow's plans; the king's box from `foeSize2` (74 x 83 drawn, your brief
+  had 60 x 78), `mid` -9 for his bar and sparks (your `bodyMid` already reads it); `burrow` once then
+  `burrowMound2` where he travels, `erupt` over `burrowEruption2`, `stunned` looping while he is
+  dazzled (the frames are new pictures on the same canvas and feet: nothing to change).
+- The spore puff's box is 23 x 22: grow its tap box to a thumb if your taps need it.
+- The lantern's `lighting` and `snuffed` frames (`postLanternFrame2`) are worth playing: drawn with
+  the two prop ids alone it pops on and off.
+- The king at night level 2 is his pale face, two ember eyes and little else (that is the rule):
+  his fights read best when a lantern's pool reaches him.
+
+**Needs, lane A**: nothing new. When lane C says the Burrow is ready, its landing
+(`CHART2_LANDINGS.thistlewood_burrow`), emblem and seals are on `main`; `badger_crown` and every
+Burrow modifier and challenge id (and `lean_rations`, if you add it) have icons.
+
+### Weak spots (honest, tier 2 and the Burrow as they stand)
+
+- **The king**: his walk is a shuffle (feet move three pixels and the body bobs; nothing swings),
+  so at true size he glides; his arms are dark and blocky against the robe when lit, and the
+  windup reads by silhouette more than drawing; burrow frame 1 (half under) is muddy; the stunned
+  sparks are 3 x 3 and small; in the dark at level 2 he is a face and two eyes.
+- **The Burrow's others**: the bramble hound's head is boxy and its `stuck` heap a flat block; the
+  spore puff is knee high and small under a thumb; the moth's raised and lowered wings are weaker
+  than its spread, and its dusty brown is low-contrast on earth; spore clouds read as bright
+  scribbled rings when lit; the mound in the dark is a flat dark heap; a snuffed lantern's smoke is
+  not visible at phone size in the dark.
+- **The room**: flagstones stay bright-ish in the dark next to earth; glowing toadstools repeat in
+  long rows along lane C's walls.
+- **The chart**: the locked emblem's ink silhouette loses the badger (it reads as a spade); the
+  landing sits close to home, its route a few dots along the shore.
+- **Tier 2**: the mossback shield's grey stone merges with iron mail at true size (worn with leather
+  or the ranger's coat it reads); the hobgoblin's cleaver reads as a hammer; the three people share
+  the figure's walk and the hag is crooked only by being shorter; the bear and dire wolf lunge on
+  the grey wolf's bones (no rear-up or swipe); the ogre's and golem's falls are serviceable, not
+  crafted; the red cloak's icon is the plainest of the set; the ranger's hood is the villager's cut
+  dyed; amber is close to the doubloon's silhouette; the tier 3 and 4 badges anticipate rungs not
+  drawn.
+- Nothing has been checked on a phone or in Safari; every sheet is rendered in node. The live site
+  cannot be reached from the art lane's sandbox.
 
 ## Thistlewood Burrow, batch 4: the badger king, his face, the chart, the gallery (B20, fourth PR)
 
