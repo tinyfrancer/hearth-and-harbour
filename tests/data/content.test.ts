@@ -493,7 +493,7 @@ describe('the content tables', () => {
       'thistlewood_burrow.swift',
       'thistlewood_burrow.nearly_unhurt',
       'thistlewood_burrow.no_food',
-      'thistlewood_burrow.deep_gloom',
+      'thistlewood_burrow.king_in_the_dark',
     ]);
     // Wave 20: lane C's idle rooms, room by room (src/scene/burrow.ts), checked against the plan below.
     expect(burrow.idle!.rooms.map((room) => room.foes.length)).toEqual([3, 4, 5, 4, 5]);

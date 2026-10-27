@@ -596,8 +596,9 @@ export const DUNGEONS = {
     // full kit, cloak and amulet: 4 at 40, 7 at 45); Barely Brambled on 2 of
     // 48 at 40, 5 of 12 at 50, 8 at 60; Nothing from the Larder, with no fish
     // at all, once at 60, twice at 65 and 5 times at 70 (tier 3's gear will
-    // bring it nearer); In the Gloom on 43 of 48 such days at 40. Their ids
-    // name what lane B's icons draw (a clock, an unhurt hero, an empty plate).
+    // bring it nearer); The King in the Dark on 43 of 48 such days at 40. Their ids
+    // name what lane B's icons draw (a clock, an unhurt hero, an empty plate,
+    // the king).
     // Wave 21: the fourth was 'badger_dodge' (eight heavy blows stepped out
     // of), which every careful clear meets many times over (47 to 121): never
     // in a save, as the burrow paid nothing while it waited, so replaced.
@@ -624,8 +625,8 @@ export const DUNGEONS = {
         reward: { coins: 15_000, bountyPoints: 10 },
       },
       {
-        id: 'thistlewood_burrow.deep_gloom',
-        name: 'In the Gloom',
+        id: 'thistlewood_burrow.king_in_the_dark',
+        name: 'The King in the Dark',
         text: 'Clear the burrow on a day of Deep Gloom.',
         rule: { kind: 'withModifier', id: 'deep_gloom' },
         reward: { coins: 8000, bountyPoints: 5 },

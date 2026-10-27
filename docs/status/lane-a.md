@@ -24,8 +24,8 @@ the Burrow as a landing to come (Needs, wave 21).
     3, 35 8, 40 12. **Recommended 40 stands.**
   - **Challenges** (ids kept in saves from now): `thistlewood_burrow.swift` now **seven**
     minutes (was eight: a third of first clears at 40 met it); `.nearly_unhurt` (450 lost to
-    blows) and `.no_food` as they were, its words now "combat 70 or so"; **`.deep_gloom`**
-    ("In the Gloom", a clear on a day of Deep Gloom, 8,000 coins and 5 points) replaces
+    blows) and `.no_food` as they were, its words now "combat 70 or so"; **`.king_in_the_dark`**
+    ("The King in the Dark", a clear on a day of Deep Gloom, 8,000 coins and 5 points) replaces
     `.badger_dodge` (eight heavy blows stepped out of), which every careful clear meets 47 to 121
     times. Never in a save: the burrow paid nothing while it waited. Evidence (the bot, twelve
     seeds unless said): seven minutes 1 of 48 at 40, 7 at 50, 9 at 60 (in the full kit with the
@@ -1555,11 +1555,11 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
   the ferryman’s word … no medals for a landing not open"; `harbour.test.ts` "has no Row out for
   a landing to come" (use `unknown_2`). Your bot's `BURROW_ASKED` can go: the tables hold #96's
   numbers. Lean Rations pays XP 1.1, not loot (lane A's economy); your days' cases are about
-  clears and costs, so unaffected. The fourth challenge is `thistlewood_burrow.deep_gloom`
+  clears and costs, so unaffected. The fourth challenge is `thistlewood_burrow.king_in_the_dark`
   (`withModifier`), not `badger_dodge`.
-- **For lane B (wave 21)**: `thistlewood_burrow.deep_gloom` draws your generic challenge picture
-  (no word in the slug matches); a dark/lantern picture for "gloom" would suit it. `lean_rations`
-  draws the rations plate, as asked. Nothing blocking.
+- **For lane B (wave 21)**: nothing blocking. `thistlewood_burrow.king_in_the_dark` draws your
+  boss picture ("king"; your data test wants every challenge matched, so the slug was chosen to
+  match), and `lean_rations` the rations plate, as asked.
 
 - **For lane C (wave 20)**: (1) the cast's numbers and Deep Gloom 0.9 are in the tables, so
   `BURROW_ASKED` and the tables agree; the tier-2 stat line is above (read it from data:
