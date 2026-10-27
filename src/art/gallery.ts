@@ -24,6 +24,7 @@ import { town2Gallery } from './town2/gallery2';
 import { dungeon2Gallery } from './dungeon2/gallery';
 import { titleGallery } from './title/gallery';
 import { tier2Gallery } from './tier2Gallery';
+import { burrowGallery } from './burrowGallery';
 import {
   CHALLENGE_MEDAL_FRAMES,
   CHALLENGE_MEDAL_FRAME_MS,
@@ -107,6 +108,9 @@ export function artGallery(): HTMLElement {
   // B19: tier 2.
   const tier2 = tier2Gallery();
   page.append(tier2.button);
+  // B20: Thistlewood Burrow.
+  const burrow = burrowGallery();
+  page.append(burrow.button);
 
   // Icons: they are the most seen.
   const families = ICON_FAMILIES.flatMap((family) => {
@@ -154,6 +158,7 @@ export function artGallery(): HTMLElement {
     figures2.section,
     dungeon2.section,
     tier2.section,
+    burrow.section,
   );
 
   part(

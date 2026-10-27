@@ -16,7 +16,17 @@
  * scale (one art pixel to one CSS pixel on a 390-wide phone, 3 device
  * pixels each). Words are the scene's, never the picture's.
  */
-import { cell, hash, outlined, put, stamp, tgrid, type Picture2, type TGrid } from './town2/cells';
+import {
+  cell,
+  hash,
+  matOf,
+  outlined,
+  put,
+  stamp,
+  tgrid,
+  type Picture2,
+  type TGrid,
+} from './town2/cells';
 import type { Mat } from './town2/ramps';
 import { noise } from './town2/texture';
 
@@ -33,6 +43,8 @@ export interface ChartPoint2 {
 export const CHART2_LANDINGS: Readonly<Record<string, ChartPoint2>> = {
   tidepool_cave: { x: 239, y: 116 },
   brinebeards_grotto: { x: 106, y: 170 },
+  // B20: ashore under the old forest, in the mouth of the river that runs out of it, west of home.
+  thistlewood_burrow: { x: 52, y: 84 },
   unknown_1: { x: 250, y: 178 },
   // B16: in the open water south of the western islets (it stood on the first islet's edge).
   unknown_2: { x: 42, y: 154 },
@@ -108,8 +120,13 @@ const MAINLAND: readonly (readonly [number, number])[] = [
   [106, 96],
   [98, 80],
   [86, 70],
-  [64, 74],
-  [42, 66],
+  [66, 74],
+  // B20: the river's mouth, a little cove under the old forest.
+  [60, 72],
+  [55, 66],
+  [49, 66],
+  [44, 70],
+  [40, 68],
   [22, 74],
   [-8, 70],
 ];
@@ -453,9 +470,6 @@ export function harbourChart2(): HarbourChart2 {
     }
   };
   for (const [x, y, w] of [
-    [30, 40, 7],
-    [52, 32, 9],
-    [76, 46, 6],
     [200, 40, 8],
     [226, 54, 6],
     [262, 30, 9],
@@ -474,12 +488,47 @@ export function harbourChart2(): HarbourChart2 {
       b: ['pine', 2],
     });
   };
+  // B20, the old forest west of home over Thistlewood Burrow: a darker wash under the trees, a
+  // river winding out of it to the cove where the Burrow's landing is, and the trees close-set.
+  const forest = (x: number, y: number) =>
+    Math.hypot((x - 50) / 40, (y - 38) / 26) + (noise(x, y, 9, 921) - 0.5) * 0.35 < 1;
+  const river = (y: number) => 52 + Math.sin(y * 0.17) * 5 + (y - 66) * 0.12;
+  for (let y = 14; y < 70; y++)
+    for (let x = 12; x < 100; x++) {
+      if (!isLand(x, y) || !forest(x, y)) continue;
+      const i = y * W + x;
+      const c = g.d[i]!;
+      if (matOf(c) === 'ink') continue;
+      g.d[i] = cell('mossdye', noise(x, y, 6, 922) > 0.6 ? 2 : 1);
+    }
+  for (let y = 18; y < 72; y++) {
+    const rx = river(y);
+    const w = 1 + Math.round((y - 18) / 22);
+    for (let x = Math.floor(rx - w); x <= Math.ceil(rx + w); x++) {
+      if (!isLand(x, y)) continue;
+      put(g, x, y, cell('chartsea', 2));
+    }
+    put(g, Math.floor(rx - w) - 1, y, cell('ink', 3));
+    put(g, Math.ceil(rx + w) + 1, y, cell('ink', 3));
+  }
   for (let i = 0; i < 46; i++) {
     const x = 8 + Math.floor(hash(i, 1, 911) * 324);
     const y = 12 + Math.floor(hash(i, 2, 911) * 46);
     if (Math.abs(x - 128) < 30 && y > 40) continue;
+    if (forest(x, y)) continue;
     pine(x, y);
   }
+  // The old forest's trees, close-set in rows, each a little darker pine, clear of the river.
+  for (let y = 18; y < 66; y += 5)
+    for (let x = 14 + (Math.floor((y - 18) / 5) % 2) * 3; x < 98; x += 6) {
+      const px = x + Math.round((hash(x, y, 923) - 0.5) * 2);
+      if (!forest(px, y) || Math.abs(px - river(y)) < 5) continue;
+      if (!isLand(px, y) || !isLand(px, y - 4) || !isLand(px, y + 1)) continue;
+      marks(g, px - 2, y - 5, ['..a..', '.aba.', '.abba', 'abbba', '..a..'], {
+        a: ['ink', 4],
+        b: ['pine', 3],
+      });
+    }
   // Home: the town on the bay, its roofs red and slate, the quay out into the water. B16: half as
   // big again (it was a few pixels of roof): the tavern, the smithy and its chimney, the thatched
   // house up behind them, each with windows and a door, outlined so the pale walls hold on the land.
@@ -873,7 +922,7 @@ export function chartRoute2(
 /**
  * Each dungeon's emblem for its landing, about 18 pixels: the grotto's a
  * skull over crossed cutlasses, the tide-pool cave's a turtle's shell with a
- * starfish. `silhouette` draws it as a flat ink shape (a locked landing).
+ * starfish, the Burrow's the badger king's crowned head. `silhouette` draws it as a flat ink shape (a locked landing).
  * Null for any other id. Its anchor is its middle.
  */
 export function chartEmblem2(id: string, silhouette = false): ChartPiece2 | null {
@@ -944,6 +993,32 @@ const EMBLEMS: Readonly<
       k: ['ink', 5],
       p: ['plum', 2],
       t: ['grass', 4],
+    },
+  },
+  // B20: Thistlewood Burrow's, the badger king's crowned head, its stripes from ear to nose.
+  thistlewood_burrow: {
+    rows: [
+      '.....a.a.a.....',
+      '.....aaaaa.....',
+      '.kk..bbbbb..kk.',
+      'kwwk.wwwww.kwwk',
+      'kkkkkwwwwwkkkkk',
+      '.kkkkwwwwwkkkk.',
+      '.kekkkwwwkkkek.',
+      '..kkkkwwwkkkk..',
+      '..wwkkwwwkkww..',
+      '...wwkwwwkww...',
+      '....wwwnwww....',
+      '.....wnnnw.....',
+      '......www......',
+    ],
+    pins: {
+      a: ['gold', 1],
+      b: ['gold', 3],
+      k: ['hairblack', 4],
+      w: ['plaster', 0],
+      e: ['plaster', 1],
+      n: ['ink', 5],
     },
   },
 };

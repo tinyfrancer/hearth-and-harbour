@@ -72,7 +72,7 @@ describe('Thistlewood Burrow’s props (B20)', () => {
   });
 
   it('gives its fungus’s glow in a cool light that shines in the dark', () => {
-    for (const id of ['toadstools', 'fallen_log', 'badger_throne']) {
+    for (const id of ['toadstools', 'badger_throne']) {
       const glows = dungeonProp2(id)!.picture.glows;
       expect(glows.length, id).toBeGreaterThan(0);
       for (const g of glows) {

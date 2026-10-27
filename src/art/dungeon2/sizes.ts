@@ -433,6 +433,23 @@ export const FOE2_SIZES: Readonly<Record<string, Foe2Size>> = {
     shadow: 11,
     hover: 2,
   },
+  // B20, the badger king: reared up on his hind legs, a head and more over the hero, about two
+  // figures wide with his robe falling behind him. He stands on his near foot, so only his snout
+  // and belly are ahead (front 27, clear of a hero at the stand) and his bulk and robe behind;
+  // his body's middle is 9 behind his feet (`mid`), his box his whole drawn body; his slam reaches 44.
+  badger_king: {
+    w: 100,
+    h: 100,
+    anchor: { x: 55, y: 98 },
+    tall: 83,
+    front: 27,
+    back: 46,
+    strike: 44,
+    box: { w: 74, h: 83 },
+    shadow: 24,
+    hover: 0,
+    mid: -9,
+  },
   bramble_wyrm: {
     w: 96,
     h: 60,
