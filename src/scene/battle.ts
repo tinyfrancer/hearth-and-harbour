@@ -67,6 +67,8 @@ const T = DUNGEON.tile;
 
 /** The rules act every this many ms of the run's clock. Every timer is a whole number of them. */
 export const TICK_MS = 100;
+/** How near a tick a stretch of time must come to reach it: floating point's slack, and no more. */
+const TICK_HAIR = 1e-6;
 /** How near, feet to feet, the hero must be to strike with a weapon in hand. */
 export const MELEE_REACH = far(30);
 /** How far beside his target a hero with a blade stands to strike it. */
@@ -2155,7 +2157,10 @@ export function advanceBattle(
       moveFoes(w, place, dt);
     }
     left -= dt;
-    if (dt >= toTick) {
+    // Frames that add up to a hair under the tick (16.7 + 16.7 + 16.6 … in floating point) reach
+    // it: left short, the tick would be taken as already passed and lost (`next` above), and the
+    // run would go slower in short frames than in long ones.
+    if (toTick - dt <= TICK_HAIR) {
       w.clock = next;
       p = tick(w, dice, place, p);
     } else {
