@@ -185,9 +185,7 @@ describe('the harbour chart, opened in town', () => {
   it('has no Row out for a landing to come: what opens it instead', () => {
     const view = shown(shellSpy(['chart']));
     wait(view, 100);
-    chart(view)!
-      .querySelector<HTMLButtonElement>('.chart-landing[data-id="thistlewood_burrow"]')!
-      .click();
+    chart(view)!.querySelector<HTMLButtonElement>('.chart-landing[data-id="unknown_2"]')!.click();
     expect(chart(view)!.querySelector('.chart-detail h3')!.textContent).toBe('Uncharted waters');
     expect(chart(view)!.querySelector('.chart-unlock')!.textContent!.length).toBeGreaterThan(0);
     expect(

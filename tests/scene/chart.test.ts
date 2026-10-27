@@ -38,7 +38,11 @@ describe('the harbour chart', () => {
     const l = byId(fresh());
     expect(l.tidepool_cave).toMatchObject({ state: 'open', rowable: true, recommended: 1 });
     expect(l.brinebeards_grotto).toMatchObject({ state: 'open', rowable: true });
-    for (const id of ['thistlewood_burrow', 'unknown_2', 'unknown_3']) {
+    // The Burrow is charted and named, but locked until the grotto is first cleared.
+    expect(l.thistlewood_burrow).toMatchObject({ state: 'locked', rowable: false });
+    expect(l.thistlewood_burrow!.name).not.toBeNull();
+    expect(l.thistlewood_burrow!.unlock.length).toBeGreaterThan(0);
+    for (const id of ['unknown_2', 'unknown_3']) {
       expect(l[id]).toMatchObject({ state: 'soon', name: null, description: null, rowable: false });
       expect(l[id]!.unlock.length).toBeGreaterThan(0);
     }
@@ -81,10 +85,11 @@ describe('the harbour chart', () => {
     expect(l.tidepool_cave!.state).toBe('cleared');
     expect(l.brinebeards_grotto!.state).toBe('cleared');
     expect(levelWarning(state, l.brinebeards_grotto!)).toBeNull();
-    // Landings to come stay silhouettes, whatever is done.
-    expect(l.thistlewood_burrow).toMatchObject({ state: 'soon', rowable: false, name: null });
-    // Nothing open and never cleared: the chart opens on the last it can row to.
-    expect(firstPick(landings(state, CONTENT, map))).toBe('brinebeards_grotto');
+    // The grotto's first clear opens the Burrow; landings to come stay silhouettes, whatever is done.
+    expect(l.thistlewood_burrow).toMatchObject({ state: 'open', rowable: true });
+    expect(l.unknown_2).toMatchObject({ state: 'soon', rowable: false, name: null });
+    // The Burrow is open and never cleared, so the chart opens on it.
+    expect(firstPick(landings(state, CONTENT, map))).toBe('thistlewood_burrow');
   });
 
   it('draws a route out from home to a landing over ROUTE_MS, the same every time', () => {
