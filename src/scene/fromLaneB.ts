@@ -37,6 +37,9 @@ export {
   sporeCloud2,
   type BurrowPiece2,
   type PostLanternState,
+  FOE2_SPECIALS,
+  foeSpecial2,
+  foeSpecialSprite2,
 } from '../art/dungeonArt2';
 import * as markers2 from '../art/town2/markers';
 import {

@@ -75,7 +75,7 @@ import {
   type Lesson,
   type LessonRing,
 } from './lessons';
-import { wholeFace } from './face';
+import { warmFaces, wholeFace } from './face';
 import { abilityPicture, bodyMid, foeKind } from './foes';
 import { foeSize2 } from '../art/dungeonArt2';
 import {
@@ -1027,6 +1027,7 @@ export function dungeonView(options: DungeonViewOptions): View {
     // Everyone this room may show drawn now, in the dark of the door (or as the boat rows out),
     // so no creature's first picture is drawn in the middle of a fight.
     warmFoes(castIn(here), themeOf(here).palette);
+    warmFaces(castIn(here));
     // Rooms behind are let go; this one and the next are kept and painted ahead, and the first
     // always (wave 18): Row out again from the results goes straight back to it, never to a room
     // painted again behind the card.

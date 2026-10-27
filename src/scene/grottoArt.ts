@@ -327,17 +327,14 @@ export function lightsOf(room: Room): Light2[] {
 /** Every glow in a room, in its pixels: what lights whoever stands near a lantern. */
 export function glowsOf(room: Room): Glow[] {
   const k = lightKeptIn(room);
-  return [
-    ...propsOf(room).flatMap((p) =>
-      p.art.picture.glows.map((g) => ({
-        ...g,
-        x: g.x + p.topLeft.x,
-        y: g.y + p.topLeft.y,
-        ...(k === 1 ? {} : { radius: g.radius * k }),
-      })),
-    ),
-    ...tileGlowsOf(room),
-  ];
+  return propsOf(room).flatMap((p) =>
+    p.art.picture.glows.map((g) => ({
+      ...g,
+      x: g.x + p.topLeft.x,
+      y: g.y + p.topLeft.y,
+      ...(k === 1 ? {} : { radius: g.radius * k }),
+    })),
+  );
 }
 
 const tileGlowLists = new WeakMap<object, Glow[]>();
@@ -345,7 +342,8 @@ const tileGlowLists = new WeakMap<object, Glow[]>();
 /**
  * What glows in a room's tiles themselves, placed: the Burrow's fungus along
  * its walls' feet (lane B, B20), lighting them faintly in the dark. The
- * tiles of the room as written (the tide never reaches a wall's face).
+ * tiles of the room as written (the tide never reaches a wall's face). Laid
+ * on the ground only (`steadyGlows`): it lights the walls, not who walks by.
  */
 export function tileGlowsOf(room: Room): Glow[] {
   if (themeOf(room).theme !== 'burrow') return [];
@@ -1206,7 +1204,10 @@ export function groundPixels(
 
 /** The lanterns' glows on the ground at their weakest; the rest flickers over it (`flicker`). */
 export function steadyGlows(room: Room): Glow[] {
-  return glowsOf(room).map((g) => ({ ...g, strength: g.strength * (1 - flickerOf(room, g)) }));
+  return [
+    ...glowsOf(room).map((g) => ({ ...g, strength: g.strength * (1 - flickerOf(room, g)) })),
+    ...tileGlowsOf(room),
+  ];
 }
 
 /** Works out a room's ground at a state of the tide, somewhere, and hands it back. */
@@ -1325,13 +1326,18 @@ function stateOf(room: Room, level: number, warn: boolean): TideState {
 
 const looks = new WeakMap<Room, RoomLook>();
 
+/** The least reach of a glow that lights figures and the props about it (`RoomLook.glows`). */
+export const FIGURE_GLOW_MIN = 12;
+
 /** How a room looks, painted by `painter` (on the spot unless told otherwise); made once and kept. */
 export function roomLook(room: Room, painter: GroundPainter = groundOnTheSpot): RoomLook {
   let made = looks.get(room);
   if (made) return made;
   const lock = { map: room.map };
   const palette = themeOf(room).palette;
-  const glows = glowsOf(room);
+  // What lights whoever walks by: a lantern's glow, not a toadstool's own faint shine (it lights
+  // only its own picture, and a figure repainted for it at every step cost a frame its budget).
+  const glows = glowsOf(room).filter((g) => g.radius >= FIGURE_GLOW_MIN);
   const props = propsOf(room);
   const dark = isDark(room);
   const lights = lightsOf(room);
