@@ -53,10 +53,25 @@ describe('Old Snapper’s middle (B16)', () => {
     expect(s.mid! + s.box.w / 2).toBeLessThanOrEqual(s.front + 1);
     // Reach as before: the fight's numbers do not move.
     expect([s.front, s.back, s.strike, s.anchor]).toEqual([27, 56, 47, { x: 60, y: 64 }]);
-    // Every other foe stands over its middle: no `mid`.
-    for (const [id, size] of Object.entries(FOE2_SIZES))
-      if (id !== 'old_snapper') expect(size.mid, id).toBeUndefined();
     expect(measureFoe2('old_snapper')).toEqual(s);
+  });
+
+  it('gives a `mid` only to a foe whose body sits well off its feet, and centres its box there', () => {
+    // Every foe's sizes are measured (dungeonArt2, tier2), so a `mid` is a drawing's fact. Only
+    // Old Snapper and the badger king (B20: robe and bulk behind his feet) have one; a new foe
+    // that grows one is a choice for lane C's bars and sparks, so this list changes on purpose.
+    const withMid = Object.entries(FOE2_SIZES)
+      .filter(([, size]) => size.mid !== undefined)
+      .map(([id]) => id)
+      .sort();
+    expect(withMid).toEqual(['badger_king', 'old_snapper']);
+    for (const id of withMid) {
+      const s = FOE2_SIZES[id]!;
+      expect(Math.abs(s.mid!), id).toBeGreaterThanOrEqual(8);
+      expect(s.mid! - s.box.w / 2, id).toBeLessThanOrEqual(-s.back);
+      expect(s.mid! + s.box.w / 2, id).toBeGreaterThanOrEqual(s.front);
+      expect(s.mid! + s.box.w / 2, id).toBeLessThanOrEqual(s.front + 1);
+    }
   });
 });
 
@@ -125,7 +140,14 @@ describe('the chart’s home and the western landing (B16)', () => {
 
   it('keeps the landings’ keys, the western one moved clear of its islet', () => {
     expect(Object.keys(CHART2_LANDINGS).sort()).toEqual(
-      ['brinebeards_grotto', 'tidepool_cave', 'unknown_1', 'unknown_2', 'unknown_3'].sort(),
+      [
+        'brinebeards_grotto',
+        'thistlewood_burrow',
+        'tidepool_cave',
+        'unknown_1',
+        'unknown_2',
+        'unknown_3',
+      ].sort(),
     );
     expect(CHART2_LANDINGS.unknown_2).not.toEqual({ x: 52, y: 133 });
   });
