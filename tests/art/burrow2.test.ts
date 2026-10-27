@@ -85,7 +85,8 @@ const FOES_BEFORE = [
   'hobgoblin',
   'dire_wolf',
   'hill_ogre',
-  'briar_hag',
+  // B21: the briar hag left this list on purpose (her skin now her face's; tested in
+  // badgerKing2.test.ts's B21 case); every other foe is hashed as before.
   'moss_golem',
 ];
 
@@ -128,7 +129,7 @@ describe('Thistlewood Burrow’s look (B20)', () => {
     expect(new Hash().add(lightGround2(room.grid, room.lights, 'tidepool').d).hex).toBe('2b932dbf');
     const foes = new Hash();
     for (const id of FOES_BEFORE) foes.add(foePicture2(id, 'strike', 'left', 0, 1)!.picture.grid.d);
-    expect(foes.hex).toBe('29a5181d');
+    expect(foes.hex).toBe('971c8342');
     expect(new Hash().add(CAVE_TIDEPOOL.rgb.subarray(0, 423 * 24)).hex).toBe('e952ca0');
   });
 

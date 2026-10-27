@@ -1083,7 +1083,10 @@ lantern light against a cold blue-green dark.
     under (phase 2), and in phase 3 his fur up in tufts, his hem torn, his teeth bared and his
     eyes red. Telegraph: both fists raised high over the crown (tested: 8 rows over his idle top);
     the strike brings them down before him. Moves: burrow (sinking through his own heap of earth),
-    erupt (bursting up through it), stunned (reeling, dazzled, feet where they stand).
+    erupt (bursting up through it), stunned (reeling, dazzled, feet where they stand: a paw over
+    his eyes across his face and sparks wheeling round his crown, B21; a paw under the head was lost).
+- **A figure and its face are one creature** (B21): the same skin, hair and colours in both, checked
+  side by side on a sheet (the briar hag's figure had a person's skin under a grey-green face).
 - **Faces** (`dungeon2/burrowFaces.ts`): the puff puffed up and indignant, the guard grim on duty
   under its brim, the hound snarling with a slit-pupilled ember eye, the moth rapt with two great
   glowing eyes and its wings spread behind, the king crowned and haughty, his stripes running up
