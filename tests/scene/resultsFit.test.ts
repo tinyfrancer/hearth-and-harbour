@@ -41,8 +41,8 @@ describe('the results card', () => {
     expect(runRewards(CONTENT, run, again)).toEqual([]);
     // A run that did not clear earns nothing on top.
     expect(runRewards(CONTENT, { ...run, ending: 'fell' }, fresh)).toEqual([]);
-    // Nor a clear of a landing still to come, rowed to for its review (`?burrow=1`): settling
-    // never counts it cleared, so the card promises nothing it will not pay.
+    // Nor a clear of a landing still to come (`comingSoon`): settling never counts it cleared,
+    // so the card promises nothing it will not pay.
     const soon = Object.values(CONTENT.dungeons!).find((d) => d.comingSoon)!;
     expect(clearCounts(CONTENT, run)).toBe(true);
     expect(clearCounts(CONTENT, { ...run, dungeon: soon.id })).toBe(false);

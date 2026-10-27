@@ -22,6 +22,7 @@ import {
   TICK_MS,
   useAbility,
   type Battle,
+  type Effect,
   type Foe,
   type Telegraph,
 } from '../../src/scene/battle';
@@ -29,10 +30,19 @@ import { BURROW, BURROW_ID } from '../../src/scene/burrow';
 import { advanceRun, groundNow, placeOf, type Run } from '../../src/scene/dungeon';
 import { dungeonById, dungeonScene, DUNGEON_IDS } from '../../src/scene/dungeons';
 import { far } from '../../src/scene/dungeonMetrics';
-import { FIGHT_COLOURS, fightArtFor, fightExtra, foePose, liftOf } from '../../src/scene/fightArt';
+import {
+  DIVE_SHOWN_MS,
+  FIGHT_COLOURS,
+  RISE_SHOWN_MS,
+  diveShown,
+  fightArtFor,
+  fightExtra,
+  foePose,
+  liftOf,
+} from '../../src/scene/fightArt';
 import { DAZZLE_HINT_MS, forgetLessons, lessonBlocks, stepLessons } from '../../src/scene/lessons';
-import { foeKind } from '../../src/scene/foes';
-import { burrowStandIns, foeArtId } from '../../src/scene/fromLaneB';
+import { bodyMid, foeKind } from '../../src/scene/foes';
+import { foeArtId, lampPicture } from '../../src/scene/fromLaneB';
 import { standable } from '../../src/scene/ground';
 import { groundPixels, lampMask, litRoom, roomLook } from '../../src/scene/grottoArt';
 import {
@@ -50,7 +60,7 @@ import {
   poolMiddle,
   LAMP_POOL,
 } from '../../src/scene/light';
-import { DUNGEON2_LIGHT, foeSize2 } from '../../src/art/dungeonArt2';
+import { DUNGEON2_LIGHT, dungeonProp2, foeSize2 } from '../../src/art/dungeonArt2';
 import { POOL_EDGE } from '../../src/scene/grottoArt';
 import { WALK_SPEED } from '../../src/scene/walker';
 import { restoreRun, snapshotRun } from '../../src/scene/runSave';
@@ -156,11 +166,13 @@ describe('the Burrow as written', () => {
     expect(run.battle!.lamps!.hollow).toEqual(D.rooms.hollow!.ground.lamps.map((l) => l.lit));
   });
 
-  it('draws its creatures with stand-ins of about their size until lane B draws them', () => {
-    expect(dungeonScene(BURROW_ID)!.standIn).toBeTruthy();
-    // Each has a picture to be drawn by, its own or a stand-in's, and sizes as data.
-    for (const id of ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king'])
-      expect(foeSize2(foeArtId(id)), id).not.toBeNull();
+  it('draws its creatures as lane B draws them, no stand-in left', () => {
+    expect(dungeonScene(BURROW_ID)!.standIn).toBeUndefined();
+    // Each by its own picture and sizes, as data.
+    for (const id of ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king']) {
+      expect(foeArtId(id), id).toBe(id);
+      expect(foeSize2(id), id).not.toBeNull();
+    }
   });
 });
 
@@ -548,13 +560,17 @@ describe('the cast', () => {
     expect(r.battle!.lamps!.sett![lit]).toBe(false);
     expect(king.stuck! - r.battle!.clock).toBeGreaterThan(DAZZLE_MS - 2 * TICK_MS);
 
-    // Taught on screen: he reels where he stands (hurt and not, by turns), the lantern he came up
-    // under flares as it goes out, and the first time, a hint says why he came up there.
+    // Taught on screen: he stands stunned where he came up (lane B's two frames, by turns), the
+    // lantern he came up under flares as it goes out, and the first time, a hint says why.
     const kind = foeKind('badger_king');
-    const poses = new Set(
-      [0, 220, 440, 660].map((dt) => foePose(king, r.battle!.clock + dt, 2800, kind).pose),
+    const up = r.battle!.effects.find((e) => e.kind === 'erupt')!;
+    // First climbing out over the eruption, then stunned.
+    expect(foePose(king, up.from, 2800, kind, r.battle!.effects).special).toBe('erupt');
+    const stunned = [0, 220, 440].map((dt) =>
+      foePose(king, up.from + RISE_SHOWN_MS + dt, 2800, kind, r.battle!.effects),
     );
-    expect(poses).toEqual(new Set(['hurt', 'idle']));
+    for (const s of stunned) expect(s.special).toBe('stunned');
+    expect(new Set(stunned.map((s) => s.frame))).toEqual(new Set([0, 1]));
     const look = roomLook(litRoom(sett, lampMask(r.battle!.lamps!.sett!)));
     const extra = fightExtra(D, r, look, fightArtFor(look));
     const flame = lampFoot(sett.ground.lamps[lit]!.cell);
@@ -720,16 +736,45 @@ describe('a Burrow run kept through a reload', () => {
 });
 
 describe('the Burrow’s own art, as lane B draws it', () => {
-  it('is tagged a stand-in only while some piece of it is one', () => {
-    const left = burrowStandIns();
-    // Every creature without lane B's sizes, and nothing lane B has drawn.
-    for (const id of ['spore_puff', 'cap_guard', 'bramble_hound', 'lantern_moth', 'badger_king'])
-      expect(left.includes(id)).toBe(!foeSize2(id));
-    for (const id of ['toadstools', 'root_tangle', 'post_lantern', 'post_lantern_out'])
-      expect(left.includes(id)).toBe(false);
-    expect(dungeonScene(BURROW_ID)!.standIn).toBe(left.length > 0 ? 'Stand-in art' : undefined);
+  it('draws every prop and both lanterns by lane B’s own pictures, in lane B’s theme', () => {
+    for (const room of Object.values(D.rooms))
+      for (const p of room.ground.props) expect(dungeonProp2(p.id), p.id).not.toBeNull();
+    expect(lampPicture(true)).not.toBeNull();
+    expect(lampPicture(false)).not.toBeNull();
     // Drawn in lane B's own theme, its dark by lane B's night ramp.
-    expect(D.rooms.hollow!.theme).toBe('burrow');
+    for (const room of Object.values(D.rooms)) expect(room.theme).toBe('burrow');
+  });
+
+  it('shows the king’s own moves where the rules have him doing them (drawing only)', () => {
+    const kind = foeKind('badger_king');
+    const first = beginBurrow(tier2(), 1).battle!.foes.find((f) => f.monster === 'badger_king')!;
+    const king: Foe = { ...first, phase: 2 };
+    // Going under: sinking where he went down for a moment, then only his mound.
+    const dive: Effect = { kind: 'dive', who: king.key, at: king.at, from: 1000 };
+    const under = { ...king, under: true };
+    expect(diveShown(under, 1000, [dive])).toEqual({ at: king.at, frame: 0 });
+    expect(diveShown(under, 1000 + DIVE_SHOWN_MS - 1, [dive])!.frame).toBe(2);
+    expect(diveShown(under, 1000 + DIVE_SHOWN_MS, [dive])).toBeNull();
+    // Coming up: climbing out over the eruption, then himself.
+    const up: Effect = { kind: 'erupt', at: king.at, from: 5000 };
+    const risen = { ...king, struckAt: -99_999 };
+    expect(foePose(risen, 5000, 2800, kind, [up]).special).toBe('erupt');
+    expect(foePose(risen, 5000 + RISE_SHOWN_MS, 2800, kind, [up]).special).toBeUndefined();
+    // Dazzled at a lantern: stunned, looping, its frames wrapped to the two lane B draws.
+    const dazzled = { ...risen, stuck: 9000 };
+    const a = foePose(dazzled, 6000, 2800, kind, []);
+    const b = foePose(dazzled, 6220, 2800, kind, []);
+    expect(a.special).toBe('stunned');
+    expect([a.frame, b.frame].sort()).toEqual([0, 1]);
+    expect(foePose(dazzled, 600_000, 2800, kind, []).frame).toBeLessThan(2);
+    // In his phase, facing his way.
+    expect(a.phase).toBe(2);
+  });
+
+  it('centres the king’s bar and taps on his body (lane B’s `mid`, −9 behind his feet)', () => {
+    expect(bodyMid('badger_king', 'right')).toBe(-9);
+    expect(bodyMid('badger_king', 'left')).toBe(9);
+    expect(foeKind('badger_king').box).toEqual(foeSize2('badger_king')!.box);
   });
 });
 

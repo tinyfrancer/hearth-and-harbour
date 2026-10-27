@@ -13,9 +13,9 @@
  *
  * Cut as the grotto's are: 34 tiles across on the C scale's 24-pixel tiles
  * (a little over two sideways screens: the camera travels), the north wall
- * two rocks deep so its face stands two tiles tall. Until lane B draws the
- * Burrow (wave 20), it is drawn in the grotto's tiles with stand-in props and
- * creatures (`fromLaneB.ts`), and tagged so in a corner of the screen.
+ * two rocks deep so its face stands two tiles tall. Drawn in lane B's
+ * `'burrow'` theme (B20): its tiles, props, lanterns, creatures and the dark
+ * by its night ramp.
  */
 import type { SayLine } from './battle';
 import type { DungeonPlan } from './dungeon';

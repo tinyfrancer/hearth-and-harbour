@@ -629,9 +629,8 @@ export function townView(state: GameState, content: Content, shell?: Shell): Vie
     kept = null;
     // A clear is the boss down and the end reached: the run ended by itself, cleared. With what
     // the run did (its time to the boss's fall is the dungeon's best time), and the day's bonus.
-    // Its modifier's rewards are paid by settling, never here. A landing still to come, rowed to
-    // by `?burrow=1` for its review (`preview.ts`), is never counted cleared: a review save is not
-    // moved on a tier by it.
+    // Its modifier's rewards are paid by settling, never here. A landing still to come
+    // (`comingSoon`: a run kept from before its row was taken back) is never counted cleared.
     shell?.settleRun(runSpoils(run, clearCounts(content, run)));
     shell?.keepRun?.(null);
   };

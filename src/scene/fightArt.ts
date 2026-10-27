@@ -293,13 +293,6 @@ export function foePose(
   const since = clock - foe.struckAt;
   if (since < FLASH_MS) return shown('flash');
   if (since < HURT_MS) return shown('hurt');
-  // Dazzled by a lantern (a burrower held fast where it came up): lane B's `stunned`, looping;
-  // where it has none, reeling, by turns hurt and not.
-  if (kind.boss?.burrow && foe.stuck !== undefined && foe.stuck > clock)
-    return (
-      special('stunned', Math.floor(clock / 220)) ??
-      shown(Math.floor(clock / 220) % 2 === 0 ? 'hurt' : 'idle')
-    );
   // Just come up out of the ground (lane B's `erupt`, over its eruption).
   if (kind.boss?.burrow && hasSpecial(foe.monster, 'erupt')) {
     const up = effects.find(
@@ -317,6 +310,13 @@ export function foePose(
       )!;
     }
   }
+  // Dazzled by a lantern (a burrower held fast where it came up): lane B's `stunned`, looping;
+  // where it has none, reeling, by turns hurt and not.
+  if (kind.boss?.burrow && foe.stuck !== undefined && foe.stuck > clock)
+    return (
+      special('stunned', Math.floor(clock / 220)) ??
+      shown(Math.floor(clock / 220) % 2 === 0 ? 'hurt' : 'idle')
+    );
   // A hound running down its lane, the first moment after the charge.
   if (chargeShownAt(foe, clock, effects))
     return (

@@ -248,8 +248,8 @@ export interface RunReward {
  * did not clear. Read from the character as the run ended, before settling.
  */
 /**
- * Whether a run's clear counts: cleared, and not a landing still to come rowed
- * to for its review (`preview.ts`), which settling never counts cleared.
+ * Whether a run's clear counts: cleared, and not of a landing still to come
+ * (`comingSoon`), which settling never counts cleared.
  */
 export const clearCounts = (content: Content, run: Run): boolean =>
   run.ending === 'cleared' && !chartRow(content, run.dungeon)?.comingSoon;

@@ -16,7 +16,6 @@ import { buildDungeon, type Dungeon, type DungeonPlan } from './dungeon';
 import { BADGER_SAYS, BURROW_ID } from './burrow';
 import { CAPTAIN_SAYS } from './grottoWords';
 import { BURROW_LESSONS, CAVE_LESSONS, type Lesson } from './lessons';
-import { burrowStandIns } from './fromLaneB';
 import { DUNGEON_PLANS } from './plans';
 import { TIDEPOOL_ID, TIDEPOOL_SAYS } from './tidepool';
 
@@ -95,10 +94,6 @@ export const DUNGEON_SCENES: Readonly<Record<string, DungeonScene>> = {
   [BURROW_ID]: {
     plan: DUNGEON_PLANS[BURROW_ID]!,
     lessons: BURROW_LESSONS,
-    // Tagged on screen only while any of its pieces is still a stand-in (`burrowStandIns`).
-    get standIn() {
-      return burrowStandIns().length > 0 ? 'Stand-in art' : undefined;
-    },
     words: {
       cleared: {
         title: 'The burrow is quiet',

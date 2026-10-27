@@ -332,14 +332,8 @@ export const BOAT_LANTERN: StandInPiece = placed(
 /** The Old Snapper's picture until lane B draws it: the giant crab's, by the art lane's id. */
 export function foeArtId(monster: string): string {
   if (monster === 'old_snapper' && !foeSize2('old_snapper')) return 'giant_crab';
-  // The Badger King until lane B's picture of him is on `main` (B20, batch 4): a creature of
-  // about his size. The one stand-in left in the Burrow; it goes by itself once he is drawn.
-  if (monster === 'badger_king' && !foeSize2('badger_king')) return 'marsh_troll';
   return monster;
 }
-
-/** Whether anything of Thistlewood Burrow is still drawn by a stand-in (only ever the king). */
-export const burrowStandIns = (): string[] => (foeSize2('badger_king') ? [] : ['badger_king']);
 
 /** Lane B's ids for the Burrow's lantern on a post, burning and out (B20, batch 2). */
 export const LAMP_ART = { lit: 'post_lantern', out: 'post_lantern_out' } as const;
