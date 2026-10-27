@@ -23,6 +23,22 @@ export function faceScale(dpr: number, most = FACE_MOST): number {
   return Math.max(1, Math.floor((most * dpr) / PORTRAIT2_SIZE + 1e-9));
 }
 
+/**
+ * Each face's picture, drawn once (the art lane draws a portrait from its
+ * parts each time it is asked): a panel shows a new face whenever the foe
+ * fought changes kind, which in a room of several kinds is often.
+ */
+const portraits = new Map<string, ReturnType<typeof portraitPicture2>>();
+function portraitOf(id: string): ReturnType<typeof portraitPicture2> {
+  if (!portraits.has(id)) portraits.set(id, portraitPicture2(id));
+  return portraits.get(id)!;
+}
+
+/** Each of these faces drawn now, where a pause cannot be seen (a door's dark): kept for the page. */
+export function warmFaces(ids: Iterable<string>): void {
+  for (const id of ids) portraitOf(id);
+}
+
 const ratio = (): number =>
   typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
 
@@ -32,7 +48,7 @@ const ratio = (): number =>
  * the name beside it says who it is.
  */
 export function wholeFace(id: string, most = FACE_MOST): HTMLElement | null {
-  const pic = portraitPicture2(id);
+  const pic = portraitOf(id);
   if (!pic) return null;
   const dpr = ratio();
   const scale = faceScale(dpr, most);

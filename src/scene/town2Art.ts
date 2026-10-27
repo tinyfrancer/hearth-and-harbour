@@ -206,11 +206,16 @@ export class Painted {
     return this.figure;
   }
 
-  /** The town's lights, to light them by at dusk. */
+  /**
+   * The lights to light them by at dusk (the town's, or a room's). Their
+   * plain pictures are kept (no light is in them), and their lit ones too,
+   * each kept by the glows that light it: a lantern lit or put out in a
+   * room, which changes its lights, paints again only where it reaches.
+   */
   lightBy(lights: readonly Glow[]): void {
     if (lights === this.lights) return;
     this.lights = lights;
-    this.forget();
+    this.last.key = '';
   }
 
   /** Lets every picture go. */
@@ -278,7 +283,9 @@ export class Painted {
     }
     const plain = this.plain.get(plainKey)!;
     if (time === 'day') return plain;
-    const key = `${plainKey} ${x} ${y}`;
+    const box = { x: x - anchorOf(pose), y: y - FIGURE2_SOLE_Y, w: FIGURE2_W, h: FIGURE2_H };
+    const local = glowsIn(this.lights, box, palette2(time));
+    const key = `${plainKey} ${x} ${y} ${local.map((g) => `${g.x},${g.y},${g.radius},${g.strength},${g.rgb?.join('/') ?? ''}`).join(';')}`;
     if (this.lit.has(key)) {
       const kept = this.lit.get(key)!;
       // Shown again: last to go.
@@ -286,8 +293,6 @@ export class Painted {
       this.lit.set(key, kept);
       return kept ?? plain;
     }
-    const box = { x: x - anchorOf(pose), y: y - FIGURE2_SOLE_Y, w: FIGURE2_W, h: FIGURE2_H };
-    const local = glowsIn(this.lights, box, palette2(time));
     let spare: HTMLCanvasElement | undefined;
     if (this.lit.size >= LIT_KEPT) {
       const oldest = this.lit.keys().next().value!;

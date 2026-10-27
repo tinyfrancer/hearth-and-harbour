@@ -24,6 +24,7 @@
 import {
   CAVE_DUSK,
   type CavePalette,
+  FOE2_POSES,
   FOE2_SIZES,
   FUSE_LIGHT2,
   dungeonPropSprite2,
@@ -35,6 +36,7 @@ import {
   foeSize2,
   type Foe2Pose,
   type Foe2Size,
+  type Light2,
 } from '../art/dungeonArt2';
 import { STRIKE2_FRAMES, STRIKE2_HIT_FRAME, WALK2_STRIDE, type Facing2 } from '../art/character2';
 import { addGlow, type Glow } from '../art/raster';
@@ -44,7 +46,6 @@ import {
   SAY_MS,
   TICK_MS,
   alive,
-  blocks,
   held,
   inReach,
   laneDistance,
@@ -57,7 +58,7 @@ import {
   type Telegraph,
 } from './battle';
 import { shownApart, type Figure } from './apart';
-import type { Placed, Standing } from './draw';
+import { overlaps, type Placed, type Standing } from './draw';
 import { placeOf, type Door, type Dungeon, type Room, type Run } from './dungeon';
 import { DUNGEON, far } from './dungeonMetrics';
 import { breathFrame, type Pose2 } from './figures2';
@@ -70,16 +71,41 @@ import {
   heroPoolIn,
   isDark,
   lightsOf,
+  glowSig,
+  HERO_POOL_RISE,
+  litPicture,
   litness,
+  nightRule,
+  ownLight,
+  shadeIn,
   paintCells,
-  shadeAt,
   IN_THE_DARK,
   NIGHT_RGB,
   perchLift,
   type RoomLook,
 } from './grottoArt';
 import { sayingOf } from './dungeons';
-import { foeArtId, lampPicture } from './fromLaneB';
+import {
+  BURROW_ERUPTION2_FRAMES,
+  BURROW_ERUPTION2_FRAME_MS,
+  BURROW_MOUND2_FRAMES,
+  POST_LANTERN2_FRAMES,
+  POST_LANTERN2_FRAME_MS,
+  SPORE_CLOUD2_FRAMES,
+  SPORE_CLOUD2_FRAME_MS,
+  burrowEruption2,
+  burrowMound2,
+  FOE2_SPECIALS,
+  foeArtId,
+  foeSpecial2,
+  foeSpecialSprite2,
+  lampPicture,
+  postLanternFrame2,
+  postLanternShines,
+  sporeCloud2,
+  type BurrowPiece2,
+  type PostLanternState,
+} from './fromLaneB';
 import { LIGHT_MS, lampFoot, type Cloud } from './light';
 import type { Facing } from './play';
 import type { StageExtra } from './stage';
@@ -169,6 +195,59 @@ export interface FoeShown {
   readonly frame: number;
   readonly facing: Facing;
   readonly phase: number;
+  /** One of its own moves beyond the common poses (lane B's `FOE2_SPECIALS`), shown in their place. */
+  readonly special?: string;
+}
+
+/** Whether lane B draws a foe's special move. */
+const hasSpecial = (monster: string, move: string): boolean =>
+  !!FOE2_SPECIALS[foeArtId(monster)]?.[move];
+
+/** How long a guard is shown braced behind its shield after a blow glances off it. */
+export const BLOCK_SHOWN_MS = 350;
+/** How long a hound is shown running down its lane after a charge (it is at the end by the rules). */
+export const CHARGE_SHOWN_MS = 280;
+/** How long a moth is shown wrapping a flame before it goes out. */
+export const SNUFF_SHOWN_MS = 1000;
+/** How long a burrowing boss is shown sinking as it goes under, before only its mound is left. */
+export const DIVE_SHOWN_MS = 420;
+/** How long it is shown climbing out where it comes up, over lane B's eruption. */
+export const RISE_SHOWN_MS = 360;
+
+/**
+ * A burrowing boss's sinking as it goes under, if it is still being shown:
+ * where it went down and the frame of lane B's `burrow` (0 to 2). The rules
+ * have it under at once; this is drawing only.
+ */
+export function diveShown(
+  foe: Foe,
+  clock: number,
+  effects: readonly Effect[],
+): { at: Point; frame: number } | null {
+  if (!hasSpecial(foe.monster, 'burrow')) return null;
+  const e = effects.find((x) => x.kind === 'dive' && x.who === foe.key);
+  if (!e || e.kind !== 'dive' || clock - e.from >= DIVE_SHOWN_MS) return null;
+  const n = FOE2_SPECIALS[foeArtId(foe.monster)]!.burrow!;
+  return { at: e.at, frame: Math.min(n - 1, Math.floor(((clock - e.from) / DIVE_SHOWN_MS) * n)) };
+}
+
+/**
+ * Where a foe is drawn this frame, if not at its feet: a hound in the first
+ * moment after its charge lands, still running down its lane to where the
+ * rules have put it. Drawing only.
+ */
+export function chargeShownAt(foe: Foe, clock: number, effects: readonly Effect[]): Point | null {
+  if (!hasSpecial(foe.monster, 'charge')) return null;
+  const e = effects.find(
+    (x) =>
+      x.kind === 'charge' &&
+      clock - x.from < CHARGE_SHOWN_MS &&
+      Math.abs(x.to.x - foe.at.x) < 1 &&
+      Math.abs(x.to.y - foe.at.y) < 1,
+  );
+  if (!e || e.kind !== 'charge') return null;
+  const k = Math.max(0, Math.min(1, (clock - e.from) / CHARGE_SHOWN_MS));
+  return { x: e.at.x + (e.to.x - e.at.x) * k, y: e.at.y + (e.to.y - e.at.y) * k };
 }
 
 /** Whether a foe walks on legs like the hero's (people), or is a creature with its own few frames. */
@@ -185,17 +264,106 @@ const isPerson = (monster: string): boolean => {
  * stride of ground, people by the hero's stride); otherwise standing and
  * breathing. Facing as it faces; the captain in his phase.
  */
-export function foePose(foe: Foe, clock: number, speedMs: number, kind: FoeKind): FoeShown {
+export function foePose(
+  foe: Foe,
+  clock: number,
+  speedMs: number,
+  kind: FoeKind,
+  effects: readonly Effect[] = [],
+): FoeShown {
   const facing = foe.facing;
   const phase = Math.max(1, foe.phase);
   const frames = foeFrames2(foeArtId(foe.monster));
   const count = (pose: Foe2Pose): number => Math.max(1, frames?.[pose] ?? 1);
   const shown = (pose: Foe2Pose, frame = 0): FoeShown => ({ pose, frame, facing, phase });
-  if (foe.diedAt !== null) return shown('fall', clock - foe.diedAt < FALL_MS / 3 ? 0 : 1);
+  // Its frame wrapped to the move's own count, so a looping move is the same few pictures.
+  const special = (move: string, frame = 0): FoeShown | null => {
+    const n = FOE2_SPECIALS[foeArtId(foe.monster)]?.[move];
+    return n ? { pose: 'idle', frame: ((frame % n) + n) % n, facing, phase, special: move } : null;
+  };
+  // The Burrow's creatures' own moves (lane B, B20), each where the rules have it doing the thing.
+  if (foe.diedAt !== null) {
+    // A puff bursts as it falls (its cloud is the rules'), then lies a husk.
+    const burst =
+      kind.bursts &&
+      special('burst', Math.min(2, Math.floor(((clock - foe.diedAt) / FALL_MS) * 3)));
+    if (burst) return burst;
+    return shown('fall', clock - foe.diedAt < FALL_MS / 3 ? 0 : 1);
+  }
   const since = clock - foe.struckAt;
   if (since < FLASH_MS) return shown('flash');
   if (since < HURT_MS) return shown('hurt');
-  if (foe.heavy) return shown('windup');
+  // Dazzled by a lantern (a burrower held fast where it came up): lane B's `stunned`, looping;
+  // where it has none, reeling, by turns hurt and not.
+  if (kind.boss?.burrow && foe.stuck !== undefined && foe.stuck > clock)
+    return (
+      special('stunned', Math.floor(clock / 220)) ??
+      shown(Math.floor(clock / 220) % 2 === 0 ? 'hurt' : 'idle')
+    );
+  // Just come up out of the ground (lane B's `erupt`, over its eruption).
+  if (kind.boss?.burrow && hasSpecial(foe.monster, 'erupt')) {
+    const up = effects.find(
+      (e) =>
+        e.kind === 'erupt' &&
+        clock - e.from < RISE_SHOWN_MS &&
+        Math.abs(e.at.x - foe.at.x) < 1 &&
+        Math.abs(e.at.y - foe.at.y) < 1,
+    );
+    if (up) {
+      const n = FOE2_SPECIALS[foeArtId(foe.monster)]!.erupt!;
+      return special(
+        'erupt',
+        Math.min(n - 1, Math.floor(((clock - up.from) / RISE_SHOWN_MS) * n)),
+      )!;
+    }
+  }
+  // A hound running down its lane, the first moment after the charge.
+  if (chargeShownAt(foe, clock, effects))
+    return (
+      special('charge', Math.floor(clock / 70)) ??
+      shown('walk', Math.floor(clock / 70) % count('walk'))
+    );
+  // Stuck fast where its charge ended.
+  if (foe.stuck !== undefined && foe.stuck > clock) {
+    const stuck = special('stuck', Math.floor(clock / 260));
+    if (stuck) return stuck;
+  }
+  // A guard braced as a blow glances off its shield, or turning to face him.
+  if (kind.guard) {
+    const top = foe.at.y - kind.box.h;
+    const blocked = effects.some(
+      (e) =>
+        e.kind === 'blocked' &&
+        clock - e.from < BLOCK_SHOWN_MS &&
+        Math.abs(e.at.x - foe.at.x) < 1 &&
+        Math.abs(e.at.y - top) < 1,
+    );
+    if (blocked && !foe.heavy) return special('block') ?? shown('idle');
+    if (foe.turnAt !== undefined && foe.turnAt > clock && !foe.heavy) {
+      const k = 1 - (foe.turnAt - clock) / kind.guard.turnMs;
+      const turn = special('turn', k < 0.5 ? 0 : 1);
+      if (turn) return turn;
+    }
+  }
+  if (foe.heavy) {
+    const t = foe.heavy;
+    const k = Math.max(0, Math.min(0.999, (clock - t.from) / Math.max(1, t.lands - t.from)));
+    // A puff swelling round as its cloud comes; a hound crouched to run down its lane.
+    const own =
+      (kind.bursts && special('swell', Math.floor(k * 3))) ||
+      (t.shape === 'lane' && special('crouch', Math.floor(clock / 200)));
+    if (own) return own;
+    return shown('windup');
+  }
+  // A moth at a lantern: beating beside the flame, and wrapping it in its last second.
+  if (kind.seeksLight && foe.snuff) {
+    const left = foe.snuff.until - clock;
+    const moth =
+      left < SNUFF_SHOWN_MS
+        ? special('snuff', Math.floor(((SNUFF_SHOWN_MS - Math.max(0, left)) / SNUFF_SHOWN_MS) * 3))
+        : special('hover', Math.floor(clock / 90));
+    if (moth) return moth;
+  }
   const heavy = kind.heavy;
   const landed = heavy && foe.aware && heavy.everyMs - foe.heavyMs < STRIKE_MS;
   const blow = foe.engaged && speedMs - foe.blowMs < STRIKE_MS;
@@ -362,13 +530,24 @@ const LIT_KEPT = 32;
  * pose and place (to `LIGHT_STEP`), the last few kept.
  */
 export class FoePictures {
-  private readonly lit = new Map<string, Map<string, HTMLCanvasElement | null>>();
+  private readonly lit: Map<string, Map<string, HTMLCanvasElement | null>>;
   private readonly glows: readonly Glow[];
   private readonly palette: CavePalette;
-  /** Lit by `glows`, in a cave's palette (the grotto's dusk unless said). */
-  constructor(glows: readonly Glow[], palette: CavePalette = CAVE_DUSK) {
+  /**
+   * Lit by `glows`, in a cave's palette (the grotto's dusk unless said).
+   * `kept`, where given, is where its lit pictures are kept, shared with the
+   * other looks of the room by its lanterns: each picture is keyed by the
+   * glows that light it, so a lantern lit or put out paints again only the
+   * foes its light reaches.
+   */
+  constructor(
+    glows: readonly Glow[],
+    palette: CavePalette = CAVE_DUSK,
+    kept?: Map<string, Map<string, HTMLCanvasElement | null>>,
+  ) {
     this.glows = glows;
     this.palette = palette;
+    this.lit = kept ?? new Map();
   }
 
   /** The foe drawn as `shown` with its feet at `feet`: its canvas and where its feet are on it. */
@@ -377,31 +556,44 @@ export class FoePictures {
     key: string,
     shown: FoeShown,
     feet: Point,
+    // A level of the dark's own palette (a room painted by palettes, `NightRule`): its own pictures.
+    inPalette: CavePalette = this.palette,
   ): { image: HTMLCanvasElement; feet: Point; glows: readonly Glow[] } | null {
     const art = foeArtId(monster);
-    const pic = foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
+    const pic = shown.special
+      ? foeSpecial2(art, shown.special, shown.facing, shown.frame, shown.phase)
+      : foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
     if (!pic) return null;
-    const plain = foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, this.palette);
+    const plain = shown.special
+      ? foeSpecialSprite2(art, shown.special, shown.facing, shown.frame, shown.phase, inPalette)
+      : foeSprite2(art, shown.pose, shown.facing, shown.frame, shown.phase, inPalette);
     if (!plain) return null;
     const qx = Math.round(feet.x / LIGHT_STEP) * LIGHT_STEP;
     const qy = Math.round(feet.y / LIGHT_STEP) * LIGHT_STEP;
     const { w, h } = pic.picture.grid;
     const box = { x: qx - pic.feet.x, y: qy - pic.feet.y, w, h };
-    const local = glowsIn(this.glows, box, this.palette);
+    const local = glowsIn(this.glows, box, inPalette);
     if (local.length === 0) return { image: plain, feet: pic.feet, glows: pic.picture.glows };
     let mine = this.lit.get(key);
     if (!mine) {
       mine = new Map();
       this.lit.set(key, mine);
     }
-    const k = `${shown.pose} ${shown.facing} ${shown.frame} ${shown.phase} ${qx} ${qy}`;
+    const k = `${monster} ${shown.special ?? shown.pose} ${shown.facing} ${shown.frame} ${shown.phase} ${qx} ${qy} ${glowSig(local)} ${inPalette.key ?? inPalette.name}`;
     let image = mine.get(k);
     if (image === undefined) {
-      if (mine.size >= LIT_KEPT) mine.delete(mine.keys().next().value!);
+      // The least lately shown goes, and lends its canvas to this one: a new canvas a step was
+      // new memory and a new context each time a foe walked by a light.
+      let spare: HTMLCanvasElement | undefined;
+      if (mine.size >= LIT_KEPT) {
+        const oldest = mine.keys().next().value!;
+        spare = mine.get(oldest) ?? undefined;
+        mine.delete(oldest);
+      }
       image = paintCells(
         { grid: pic.picture.grid, glows: [...pic.picture.glows, ...local] },
-        undefined,
-        this.palette,
+        spare,
+        inPalette,
       );
       mine.set(k, image);
     } else {
@@ -411,6 +603,56 @@ export class FoePictures {
     }
     return { image: image ?? plain, feet: pic.feet, glows: pic.picture.glows };
   }
+}
+
+/**
+ * Every picture of each of `monsters` drawn now (every pose, frame, facing
+ * and, for a boss drawn by phase, phase), so none is first drawn mid-fight:
+ * drawing a creature's frame is the art lane's work, and a big one's first
+ * frames cost a slow phone a tenth of a second each. Called where a pause
+ * cannot be seen (a door's dark, the boat rowing out). Kept by the art lane.
+ */
+export function warmFoes(monsters: Iterable<string>, palette: CavePalette = CAVE_DUSK): void {
+  const done = new Set<string>();
+  for (const monster of monsters) {
+    const art = foeArtId(monster);
+    if (done.has(art)) continue;
+    done.add(art);
+    const frames = foeFrames2(art);
+    if (!frames) continue;
+    const phases = art === 'brinebeard' ? [1, 2, 3] : [1];
+    for (const pose of FOE2_POSES)
+      for (let f = 0; f < (frames[pose] ?? 0); f++)
+        for (const facing of ['right', 'left'] as const)
+          for (const phase of phases) foeSprite2(art, pose, facing, f, phase, palette);
+    for (const [move, n] of Object.entries(FOE2_SPECIALS[art] ?? {}))
+      for (let f = 0; f < n; f++)
+        for (const facing of ['right', 'left'] as const)
+          for (const phase of phases) foeSpecialSprite2(art, move, facing, f, phase, palette);
+  }
+}
+
+/** The monsters a room may show: who waits in it, and whom its boss calls in each phase. */
+export function castIn(room: Room): string[] {
+  const out = new Set<string>();
+  for (const f of room.foes) {
+    out.add(f.monster);
+    const boss = foeKind(f.monster).boss;
+    if (boss) {
+      out.add(boss.calls.monster);
+      for (const m of boss.more ?? []) out.add(m.monster);
+    }
+  }
+  return [...out];
+}
+
+/** Whether a foe drawn so carries a light of its own (the powder monkey's fuse): it is lit by it. */
+function carriesLight(monster: string, shown: FoeShown): boolean {
+  const art = foeArtId(monster);
+  const pic = shown.special
+    ? foeSpecial2(art, shown.special, shown.facing, shown.frame, shown.phase)
+    : foePicture2(art, shown.pose, shown.facing, shown.frame, shown.phase);
+  return !!pic && pic.picture.glows.length > 0;
 }
 
 /* ----- Drawing in whole art pixels ----- */
@@ -483,18 +725,29 @@ function oval(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number,
   for (const [dy, from, length] of runs) ctx.fillRect(x0 + from, y0 + dy, length, 1);
 }
 
-/** Whether a pixel is inside an arc's wedge (an angle within half its spread of its facing). */
-function inWedge(dx: number, dy: number, facing: number, half: number): boolean {
-  const turn = Math.atan2(dy, dx) - facing;
-  return Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn))) <= half;
-}
-
 /** A wedge's rows: for each, where a run of its pixels starts and how long it is. */
-type Spans = readonly (readonly [dy: number, from: number, length: number])[];
+export type Spans = readonly (readonly [dy: number, from: number, length: number])[];
 
 /** Wedges worked out already, by their shape: a swing draws the same few every frame. */
 const spansMade = new Map<string, Spans>();
 const SPANS_KEPT = 96;
+
+/** Each pixel's distance and angle from a disc's middle, by its whole radius: worked out once a size. */
+const discTables = new Map<number, { dist: Float64Array; angle: Float64Array }>();
+function discTable(R: number): { dist: Float64Array; angle: Float64Array } {
+  let t = discTables.get(R);
+  if (!t) {
+    const n = 2 * R + 1;
+    t = { dist: new Float64Array(n * n), angle: new Float64Array(n * n) };
+    for (let dy = -R; dy <= R; dy++)
+      for (let dx = -R; dx <= R; dx++) {
+        t.dist[(dy + R) * n + dx + R] = Math.hypot(dx, dy);
+        t.angle[(dy + R) * n + dx + R] = Math.atan2(dy, dx);
+      }
+    discTables.set(R, t);
+  }
+  return t;
+}
 
 function wedgeSpans(r: number, facing: number, half: number, inner: number): Spans {
   const key = `${r} ${facing.toFixed(4)} ${half.toFixed(4)} ${inner}`;
@@ -502,12 +755,20 @@ function wedgeSpans(r: number, facing: number, half: number, inner: number): Spa
   if (spans) return spans;
   const out: [number, number, number][] = [];
   const R = Math.ceil(r);
+  const n = 2 * R + 1;
+  const table = discTable(R);
+  const TURN = 2 * Math.PI;
   for (let dy = -R; dy <= R; dy++) {
     // Where the current stretch of the row began; null between stretches.
     let run: number | null = null;
     for (let dx = -R; dx <= R + 1; dx++) {
-      const d = Math.hypot(dx, dy);
-      const inside = dx <= R && d <= r && d >= inner && inWedge(dx, dy, facing, half);
+      const at = (dy + R) * n + dx + R;
+      const d = dx <= R ? table.dist[at]! : Infinity;
+      // The angle off its facing, folded into a half turn either way (as `inWedge` has it), from
+      // the pixel's own angle worked out once a size.
+      let turn = d <= r && d >= inner ? table.angle[at]! - facing : 0;
+      turn -= TURN * Math.round(turn / TURN);
+      const inside = d <= r && d >= inner && Math.abs(turn) <= half + 1e-12;
       if (inside && run === null) run = dx;
       if (!inside && run !== null) {
         out.push([dy, run, dx - run]);
@@ -660,12 +921,18 @@ function drawSporeCircle(ctx: CanvasRenderingContext2D, t: Telegraph, clock: num
   ring(ctx, t.at.x, t.at.y, t.radius + 1, 1);
 }
 
+/** How many lanes' shapes are kept: a room has a hound or two, each charging a few times. */
+const LANES_KEPT = 24;
 /** Each lane's rows, worked out once while it is marked: a charge's ground is the same all along it. */
-const laneRows = new WeakMap<Telegraph, Spans>();
+const laneRows = new Map<string, Spans>();
 
 /** A lane's pixels as rows of runs, inside its edge (`radius` either side of its middle line). */
+/** A lane's shape as text: what its pixels depend on (a battle's tick makes its marks anew). */
+const laneKey = (t: Telegraph): string =>
+  `${t.at.x},${t.at.y},${t.to?.x ?? t.at.x},${t.to?.y ?? t.at.y},${t.radius}`;
+
 function laneSpans(t: Telegraph): Spans {
-  let spans = laneRows.get(t);
+  let spans = laneRows.get(laneKey(t));
   if (spans) return spans;
   const to = t.to ?? t.at;
   const r = t.radius;
@@ -686,34 +953,92 @@ function laneSpans(t: Telegraph): Spans {
     }
   }
   spans = out;
-  laneRows.set(t, spans);
+  if (laneRows.size >= LANES_KEPT) laneRows.delete(laneRows.keys().next().value!);
+  laneRows.set(laneKey(t), spans);
   return spans;
 }
 
 /** Each lane's edge pixels, all round (long sides as well as ends), worked out once. */
-const laneEdges = new WeakMap<Telegraph, readonly (readonly [x: number, y: number])[]>();
+const laneEdges = new Map<string, readonly (readonly [x: number, y: number])[]>();
 
 function laneEdge(t: Telegraph): readonly (readonly [x: number, y: number])[] {
-  let edge = laneEdges.get(t);
+  let edge = laneEdges.get(laneKey(t));
   if (edge) return edge;
-  const inside = new Set<string>();
+  // Its pixels marked on a grid over its box, a pixel's border round it: an edge pixel is one
+  // with a side not in the lane (a grid, not a set of names: a new lane is drawn in its frame).
   const spans = laneSpans(t);
-  for (const [y, x, n] of spans) for (let i = 0; i < n; i++) inside.add(`${x + i},${y}`);
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const [y, x, n] of spans) {
+    x0 = Math.min(x0, x);
+    x1 = Math.max(x1, x + n - 1);
+    y0 = Math.min(y0, y);
+    y1 = Math.max(y1, y);
+  }
+  const w = x1 - x0 + 3;
+  const inside = new Uint8Array(Math.max(0, w * (y1 - y0 + 3)));
+  const at = (x: number, y: number): number => (y - y0 + 1) * w + (x - x0 + 1);
+  for (const [y, x, n] of spans) inside.fill(1, at(x, y), at(x, y) + n);
   const out: [number, number][] = [];
   for (const [y, x, n] of spans)
     for (let i = 0; i < n; i++) {
       const px = x + i;
-      if (
-        !inside.has(`${px - 1},${y}`) ||
-        !inside.has(`${px + 1},${y}`) ||
-        !inside.has(`${px},${y - 1}`) ||
-        !inside.has(`${px},${y + 1}`)
-      )
-        out.push([px, y]);
+      const k = at(px, y);
+      if (!inside[k - 1] || !inside[k + 1] || !inside[k - w] || !inside[k + w]) out.push([px, y]);
     }
   edge = out;
-  laneEdges.set(t, edge);
+  if (laneEdges.size >= LANES_KEPT) laneEdges.delete(laneEdges.keys().next().value!);
+  laneEdges.set(laneKey(t), edge);
   return edge;
+}
+
+/** A lane's edge as runs along its rows (`laneEdge`'s pixels, joined), worked out once: two fills a run. */
+const laneEdgeRows = new Map<string, Spans>();
+function laneEdgeRuns(t: Telegraph): Spans {
+  let runs = laneEdgeRows.get(laneKey(t));
+  if (runs) return runs;
+  const sorted = [...laneEdge(t)].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const out: [number, number, number][] = [];
+  for (const [x, y] of sorted) {
+    const last = out.at(-1);
+    if (last && last[0] === y && last[1] + last[2] === x) last[2] += 1;
+    else out.push([y, x, 1]);
+  }
+  runs = out;
+  if (laneEdgeRows.size >= LANES_KEPT) laneEdgeRows.delete(laneEdgeRows.keys().next().value!);
+  laneEdgeRows.set(laneKey(t), runs);
+  return runs;
+}
+
+/**
+ * The part of a lane filled as its charge comes (`k` of the way, 0 to 1,
+ * from the charger's end): every pixel of it whose middle is no further
+ * along than `k`, as runs along its rows. How far along a pixel is grows
+ * steadily along its row, so what is filled of a row is one stretch from
+ * the end nearer the charger, found by sum: one fill a row.
+ */
+export function laneFill(t: Telegraph, k: number): Spans {
+  const to = t.to ?? t.at;
+  const dx = to.x - t.at.x;
+  const dy = to.y - t.at.y;
+  const per = Math.hypot(dx, dy) ** 2 || 1;
+  const step = dx / per;
+  const out: [number, number, number][] = [];
+  for (const [y, x, n] of laneSpans(t)) {
+    const first = ((x + 0.5 - t.at.x) * dx + (y + 0.5 - t.at.y) * dy) / per;
+    if (step === 0) {
+      if (first <= k) out.push([y, x, n]);
+    } else if (step > 0) {
+      const m = Math.max(0, Math.min(n, Math.floor((k - first) / step + 1e-9) + 1));
+      if (m > 0) out.push([y, x, m]);
+    } else {
+      const from = Math.max(0, Math.min(n, Math.ceil((k - first) / step - 1e-9)));
+      if (from < n) out.push([y, x + from, n - from]);
+    }
+  }
+  return out;
 }
 
 /**
@@ -734,19 +1059,15 @@ function drawLane(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): v
   const length = Math.hypot(dx, dy) || 1;
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = C.red;
-  for (const [y, x, n] of spans)
-    for (let i = 0; i < n; i++) {
-      const along = ((x + i + 0.5 - t.at.x) * dx + (y + 0.5 - t.at.y) * dy) / (length * length);
-      if (along <= k) ctx.fillRect(x + i, y, 1, 1);
-    }
+  for (const [y, x, n] of laneFill(t, k)) ctx.fillRect(x, y, n, 1);
   ctx.globalAlpha = 1;
   // The edge, all the way round: dark under, bright on top, so it reads on any floor.
   const late = t.lands - clock <= 300;
-  const edge = laneEdge(t);
+  const edge = laneEdgeRuns(t);
   ctx.fillStyle = C.ink;
-  for (const [x, y] of edge) ctx.fillRect(x, y + 1, 1, 1);
+  for (const [y, x, n] of edge) ctx.fillRect(x, y + 1, n, 1);
   ctx.fillStyle = late && Math.floor(clock / 75) % 2 === 0 ? C.fire1 : C.fire2;
-  for (const [x, y] of edge) ctx.fillRect(x, y, 1, 1);
+  for (const [y, x, n] of edge) ctx.fillRect(x, y, n, 1);
   // Chevrons along the middle, marching the way it will run.
   const ux = dx / length;
   const uy = dy / length;
@@ -772,6 +1093,71 @@ function drawMark(ctx: CanvasRenderingContext2D, t: Telegraph, clock: number): v
   else if (t.shape === 'lane') drawLane(ctx, t, clock);
   else if (t.spores) drawSporeCircle(ctx, t, clock);
   else drawCircle(ctx, t, clock);
+}
+
+/**
+ * Lane B's Burrow pieces (B20), each drawn once by a key naming the piece and
+ * its frame (the art lane draws one afresh each time it is asked: a cloud's
+ * spores every frame were a tenth of the frame's budget), and painted once
+ * in each palette.
+ */
+const pieces = new Map<string, BurrowPiece2>();
+const pieceCanvases = new Map<string, HTMLCanvasElement | null>();
+function pieceOf(key: string, piece: () => BurrowPiece2): BurrowPiece2 {
+  let made = pieces.get(key);
+  if (!made) {
+    made = piece();
+    pieces.set(key, made);
+  }
+  return made;
+}
+function pieceCanvas(
+  key: string,
+  piece: () => BurrowPiece2,
+  palette: CavePalette,
+): { image: HTMLCanvasElement; anchor: Point } | null {
+  const made = pieceOf(key, piece);
+  const k = `${key} ${palette.key ?? palette.name}`;
+  if (!pieceCanvases.has(k)) pieceCanvases.set(k, paintCells(made.picture, undefined, palette));
+  const image = pieceCanvases.get(k);
+  return image ? { image, anchor: made.anchor } : null;
+}
+
+/** Where a piece drawn at `at` (its anchor) lies, art pixels: for what must be drawn again. */
+function pieceBox(key: string, piece: () => BurrowPiece2, at: Point): Box {
+  const p = pieceOf(key, piece);
+  return {
+    x: Math.round(at.x - p.anchor.x) - 1,
+    y: Math.round(at.y - p.anchor.y) - 1,
+    w: p.picture.grid.w + 2,
+    h: p.picture.grid.h + 2,
+  };
+}
+
+/**
+ * A cloud of spores as lane B draws it (B20: a haze the floor shows through,
+ * drifting a frame at a time), fading as it settles, its edge kept solid in
+ * a pixel's line so where it hurts is never in doubt; one burning off in a
+ * lantern's light goes warm at the edge.
+ */
+function drawCloudArt(
+  ctx: CanvasRenderingContext2D,
+  c: Cloud,
+  clock: number,
+  palette: CavePalette,
+): void {
+  const r = Math.round(c.radius);
+  const frame = Math.floor((clock - c.from) / SPORE_CLOUD2_FRAME_MS) % SPORE_CLOUD2_FRAMES;
+  const art = pieceCanvas(`cloud ${r} ${frame}`, () => sporeCloud2(r, frame), palette);
+  if (!art) return drawCloud(ctx, c, clock);
+  const left = Math.max(0, c.until - clock);
+  const fade = Math.min(1, left / 600);
+  ctx.globalAlpha = (c.burning ? 0.6 : 1) * fade;
+  ctx.drawImage(art.image, Math.round(c.at.x - art.anchor.x), Math.round(c.at.y - art.anchor.y));
+  ctx.globalAlpha = 0.85 * fade;
+  ctx.fillStyle = c.burning ? C.fire2 : C.spore1;
+  ring(ctx, c.at.x, c.at.y, c.radius, 1);
+  ctx.globalAlpha = 1;
 }
 
 /**
@@ -806,6 +1192,32 @@ function flameOf(cell: Cell): Point {
   const pic = lampPicture(true);
   if (!pic?.light) return { x: foot.x, y: foot.y - 44 };
   return { x: foot.x - pic.foot + pic.light.x, y: foot.y - pic.base + pic.light.y };
+}
+
+/** How long a lantern flares as the king comes up into its light and is dazzled by it. */
+export const FLARE_MS = 900;
+
+/**
+ * A lantern flaring as the king comes up under it: a burst of light from its
+ * flame, rays shooting out and fading, so where the dazzle came from (and
+ * that the lantern went out with it) is seen. Art pixels.
+ */
+function drawFlare(ctx: CanvasRenderingContext2D, at: Point, age: number): void {
+  const t = Math.min(1, Math.max(0, age / FLARE_MS));
+  const x0 = Math.round(at.x);
+  const y0 = Math.round(at.y);
+  // The flash: a disc of white then gold, shrinking.
+  ctx.globalAlpha = 1 - t;
+  ctx.fillStyle = t < 0.3 ? C.white : C.gold;
+  disc(ctx, x0, y0, 7 * (1 - t) + 2);
+  // Eight rays, out from the flame.
+  const reach = 8 + 22 * t;
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4 + Math.PI / 8;
+    for (let r = 4 + 14 * t; r < reach; r += 1)
+      ctx.fillRect(Math.round(x0 + Math.cos(a) * r), Math.round(y0 + Math.sin(a) * r * 0.8), 2, 2);
+  }
+  ctx.globalAlpha = 1;
 }
 
 /** A boss under the ground: a mound of earth heaving where it is, a few clods flying off it. */
@@ -1004,6 +1416,9 @@ function drawFoeOver(
   }
 }
 
+/** The module's `label`, by another name where a function shadows it. */
+const drawLabel = (...a: Parameters<typeof label>): void => label(...a);
+
 /** A number, a word or a glint over someone, drawn at the screen's resolution. */
 function drawEffectOver(
   ctx: CanvasRenderingContext2D,
@@ -1013,7 +1428,16 @@ function drawEffectOver(
   heroTall: number,
   k: number,
   nudge = 0,
+  top = -Infinity,
 ): void {
+  // A word is never put higher than `top` (art pixels): clear of the panels along the top.
+  const label = (
+    c: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    ...rest: [number, string, number, string?]
+  ): void => drawLabel(c, text, x, Math.max(y, top + rest[0] * rest[2]), ...rest);
   const age = clock - e.from;
   const t = age / EFFECT_MS;
   const rise = Math.round(t * 18);
@@ -1325,9 +1749,17 @@ export interface FightArt {
 }
 
 /** What a fight in a room draws with, made once for the room's look. */
+/** Foes' lit pictures kept for every look of a room by its lanterns (they share its ground). */
+const foesKept = new WeakMap<object, Map<string, Map<string, HTMLCanvasElement | null>>>();
+
 export function fightArtFor(look: RoomLook): FightArt {
+  let kept = foesKept.get(look.room.ground);
+  if (!kept) {
+    kept = new Map();
+    foesKept.set(look.room.ground, kept);
+  }
   return {
-    foes: new FoePictures(look.glows, look.theme.palette),
+    foes: new FoePictures(look.glows, look.theme.palette, kept),
     shadows: new Map(),
     loot: lootArt(),
     doorsDrawn: { opening: -1, shown: null },
@@ -1617,13 +2049,64 @@ export function fightExtra(
         ...(opening > 0 ? doorPieces(seenRoom).flatMap((d) => (d.light ? [d.light] : [])) : []),
       ]
     : [];
+  // The room's rule for its dark, and its pools with his own light among them (for a figure's level).
+  const rule = nightRule(seenRoom);
+  const poolsAndHero: Light2[] = dark
+    ? [
+        ...pools,
+        {
+          x: hero.x,
+          y: hero.y - HERO_POOL_RISE,
+          drop: 0,
+          pool: heroPool,
+          radius: 0,
+          strength: 0,
+          flicker: 0,
+        },
+      ]
+    : [];
+  // The room's dark layers (shut doors only: an open door's light is not in them) and his own light.
+  const layers = dark && opening === 0 ? look.darkAt(state.level, state.warn) : null;
+  const own = layers ? ownLight(heroPool) : null;
+  own?.placeAt(hero);
   // A boss under the ground is a heaving mound, not a body; what it is about to do is marked.
   const mounds: Point[] = [];
   for (const foe of here) {
     if (foe.under && alive(foe)) {
-      mounds.push(foe.at);
-      boxes.push(around(foe.at, 30));
       if (foe.heavy) boxes.push(markBox(foe.heavy));
+      // Sinking out of sight where it went down (lane B's `burrow`), and then only its mound.
+      const dive = diveShown(foe, clock, battle.effects);
+      const sinking =
+        dive &&
+        art.foes.at(
+          foe.monster,
+          foe.key,
+          {
+            pose: 'idle',
+            frame: dive.frame,
+            facing: foe.facing,
+            phase: Math.max(1, foe.phase),
+            special: 'burrow',
+          },
+          { x: Math.round(dive.at.x), y: Math.round(dive.at.y) },
+          // In the dark, as dark as where it went down (as any figure: by the level at its feet).
+          dark && rule.palette(1)
+            ? (rule.palette(Math.min(rule.levelAt(poolsAndHero, dive.at.x, dive.at.y), 3)) ??
+                look.theme.palette)
+            : look.theme.palette,
+        );
+      if (dive && sinking) {
+        const x = Math.round(dive.at.x) - sinking.feet.x;
+        const y = Math.round(dive.at.y) - sinking.feet.y;
+        actors.push({ image: sinking.image, x, y, base: Math.round(dive.at.y) });
+        boxes.push({ x: x - 1, y: y - 1, w: sinking.image.width + 2, h: sinking.image.height + 2 });
+        continue;
+      }
+      mounds.push(foe.at);
+      boxes.push(
+        around(foe.at, 30),
+        pieceBox('mound 0', () => burrowMound2(0), foe.at),
+      );
       continue;
     }
     // A fallen foe blinks out at the last.
@@ -1631,17 +2114,36 @@ export function fightExtra(
       continue;
     const def = battle.monsters[foe.monster];
     const kind = foeKind(foe.monster);
-    const shown = foePose(foe, clock, def?.speedMs ?? 2000, kind);
+    const shown = foePose(foe, clock, def?.speedMs ?? 2000, kind, battle.effects);
     const lift = liftOf(room, foe);
-    const feet = { x: Math.round(shownX(foe)), y: Math.round(foe.at.y) - lift };
-    const drawn = art.foes.at(foe.monster, foe.key, shown, feet);
+    // A hound still running down its lane is drawn on its way (it is at the end by the rules).
+    const running = chargeShownAt(foe, clock, battle.effects);
+    const feet = running
+      ? { x: Math.round(running.x), y: Math.round(running.y) - lift }
+      : { x: Math.round(shownX(foe)), y: Math.round(foe.at.y) - lift };
+    // In a room painted by palettes (the Burrow), a figure is drawn in the palette of the level of
+    // the dark at its feet (its own light, if it carries one, keeps it lit).
+    const level =
+      dark && rule.palette(1) && !carriesLight(foe.monster, shown)
+        ? Math.min(rule.levelAt(poolsAndHero, foe.at.x, foe.at.y), 3)
+        : 0;
+    const drawn = art.foes.at(
+      foe.monster,
+      foe.key,
+      shown,
+      feet,
+      level > 0 ? rule.palette(level)! : look.theme.palette,
+    );
     const size = sizeOf(foe.monster);
     if (drawn) {
       // A bird on its perch sorts in front of the post it sits on.
       const base = lift > 0 && foe.flight?.mode === 'perch' ? Math.round(foe.at.y) + 11 : feet.y;
       // Out of every pool of light on a darker day, a dim shape (one carrying a light is lit by
       // it); what it is about to do is drawn on the ground and over it, never dimmed.
-      const shade = dark && drawn.glows.length === 0 ? litness(pools, hero, foe.at, heroPool) : 0;
+      const shade =
+        dark && !rule.palette(1) && drawn.glows.length === 0
+          ? litness(pools, hero, foe.at, heroPool)
+          : 0;
       actors.push({
         image: shade ? inTheDark(drawn.image, shade) : drawn.image,
         x: feet.x - drawn.feet.x,
@@ -1670,7 +2172,17 @@ export function fightExtra(
       }
       // Under the middle of its body, not its front feet (`bodyMid`).
       const under = { x: Math.round(midX(foe)), y: feet.y };
-      // On a darker day as dark as the ground it falls on.
+      // On a darker day as dark as the ground it falls on: by the room's dark layers, painted
+      // again for his light only while it reaches the shadow.
+      const ry = Math.max(2, Math.round(size.shadow / 4));
+      const near =
+        own &&
+        own.reaches({
+          x: under.x - size.shadow,
+          y: under.y - ry,
+          w: 2 * size.shadow + 1,
+          h: 2 * ry + 1,
+        });
       const placed = shadow.at(
         cells,
         kinds,
@@ -1678,10 +2190,17 @@ export function fightExtra(
         under,
         size.shadow,
         look.theme.palette,
-        dark ? (x, y) => shadeAt(pools, x, y, hero, heroPool) : undefined,
-        dark
-          ? `${Math.round(hero.x)} ${Math.round(hero.y)} ${opening > 0} ${seenRoom.lit ?? ''}`
-          : '',
+        layers && own
+          ? (x, y) => shadeIn(layers, own, x, y)
+          : dark
+            ? (x, y) => Math.min(rule.levelAt(poolsAndHero, x, y), 3)
+            : undefined,
+        layers
+          ? `${near ? `${Math.round(hero.x)} ${Math.round(hero.y)}` : '-'} ${seenRoom.lit ?? ''}`
+          : dark
+            ? `${Math.round(hero.x)} ${Math.round(hero.y)} ${opening > 0} ${seenRoom.lit ?? ''}`
+            : '',
+        rule,
       );
       if (placed) {
         shadows.push(placed);
@@ -1718,7 +2237,13 @@ export function fightExtra(
   for (const t of battle.volleys) boxes.push(markBox(t));
   // Clouds of spores hanging in the room, and the Burrow's lanterns being lit or put out.
   const clouds = (battle.clouds ?? []).filter((c) => c.room === run.room);
-  for (const c of clouds) boxes.push(around(c.at, c.radius + 12));
+  for (const c of clouds) {
+    const r = Math.round(c.radius);
+    boxes.push(
+      around(c.at, c.radius + 12),
+      pieceBox(`cloud ${r} 0`, () => sporeCloud2(r, 0), c.at),
+    );
+  }
   const lamps = room.ground.lamps;
   /** A lantern with a ring on it: being lit (gold, filling), or a moth at it (violet, emptying). */
   const rings: { at: Point; k: number; how: 'lighting' | 'snuff' }[] = [];
@@ -1729,6 +2254,64 @@ export function fightExtra(
       k: 1 - Math.max(0, tend.until - clock) / LIGHT_MS,
       how: 'lighting',
     });
+  // The lanterns on posts as lane B draws them doing what they do (B20): catching while he lights
+  // one, the flame wavering while it burns, a wisp of smoke once it is put out. Drawn over the
+  // painted room where each stands, lit and darkened as the room paints its props.
+  const lampLit = battle.lamps?.[run.room] ?? [];
+  lamps.forEach((l, i) => {
+    const foot = lampFoot(l.cell);
+    let state: PostLanternState | null = null;
+    let frame = 0;
+    if (tend && tend.lamp === i && tend.until !== null) {
+      state = 'lighting';
+      frame = Math.floor(
+        (1 - Math.max(0, tend.until - clock) / LIGHT_MS) * POST_LANTERN2_FRAMES.lighting,
+      );
+    } else if (lampLit[i]) {
+      state = 'lit';
+      frame = Math.floor(clock / POST_LANTERN2_FRAME_MS.lit);
+    } else {
+      const out = battle.effects.find(
+        (e) =>
+          e.kind === 'snuffed' &&
+          Math.abs(e.at.x - foot.x) < 1 &&
+          Math.abs(e.at.y - foot.y) < 1 &&
+          clock - e.from < POST_LANTERN2_FRAMES.snuffed * POST_LANTERN2_FRAME_MS.snuffed,
+      );
+      if (out) {
+        state = 'snuffed';
+        frame = Math.floor((clock - out.from) / POST_LANTERN2_FRAME_MS.snuffed);
+      }
+    }
+    if (!state) return;
+    const art = postLanternFrame2(state, frame);
+    const { w, h } = art.picture.grid;
+    const box = { x: foot.x - art.foot, y: foot.y - art.base, w, h };
+    const image = litPicture(
+      seenRoom,
+      `lamp ${i} ${state} ${frame % POST_LANTERN2_FRAMES[state]}`,
+      art.picture,
+      box,
+      look.glows,
+      dark && !postLanternShines(state, frame) ? pools : null,
+      look.theme.palette,
+    );
+    if (!image) return;
+    actors.push({ image, x: box.x, y: box.y, base: foot.y });
+    boxes.push({ x: box.x - 1, y: box.y - 1, w: w + 2, h: h + 2 });
+  });
+  // The king dazzled: the lantern he came up under flares (it goes out as he comes up).
+  const flares: { at: Point; from: number }[] = [];
+  for (const e of battle.effects) {
+    if (e.kind !== 'dazzled' || clock - e.from >= FLARE_MS || lamps.length === 0) continue;
+    const near = lamps
+      .map((l) => flameOf(l.cell))
+      .sort(
+        (a, b) => Math.hypot(a.x - e.at.x, a.y - e.at.y) - Math.hypot(b.x - e.at.x, b.y - e.at.y),
+      )[0]!;
+    flares.push({ at: near, from: e.from });
+    boxes.push(around(near, 36));
+  }
   for (const foe of here) {
     const s = foe.snuff;
     const moth = foeKind(foe.monster).seeksLight;
@@ -1749,7 +2332,11 @@ export function fightExtra(
     else if (e.kind === 'swing') boxes.push(around(e.at, e.radius + 3));
     else if (e.kind === 'lit' || e.kind === 'snuffed')
       boxes.push(around({ x: e.at.x, y: e.at.y - 44 }, 36));
-    else if (e.kind === 'erupt') boxes.push(around(e.at, 40));
+    else if (e.kind === 'erupt')
+      boxes.push(
+        around(e.at, 40),
+        pieceBox('erupt 0', () => burrowEruption2(0), e.at),
+      );
     else if (e.kind === 'charge') {
       const x = Math.floor(Math.min(e.at.x, e.to.x)) - 6;
       const y = Math.floor(Math.min(e.at.y, e.to.y)) - 16;
@@ -1819,10 +2406,13 @@ export function fightExtra(
   // Where the overlay draws: every health bar and what is over it, every number and word, the
   // captain's words. Generous; the overlay canvas covers this and nothing more.
   const over: Box[] = [];
+  const barBox = (foe: Foe): Box => {
+    const top = foe.at.y - liftOf(room, foe) - standsOf(foe.monster);
+    return { x: midX(foe) - 44, y: top - 44, w: 92, h: 52 };
+  };
   for (const foe of here) {
     if (!alive(foe) || held(battle, place, foe)) continue;
-    const top = foe.at.y - liftOf(room, foe) - standsOf(foe.monster);
-    over.push({ x: midX(foe) - 44, y: top - 44, w: 92, h: 52 });
+    over.push(barBox(foe));
   }
   for (const e of battle.effects) {
     if (e.kind === 'hit' || e.kind === 'miss' || e.kind === 'heal' || e.kind === 'empty') {
@@ -1862,6 +2452,13 @@ export function fightExtra(
     const y = barredSay.cell.row * T;
     over.push({ x: x - 60, y: y - 50, w: 120, h: 60 });
   }
+  // A word kept below the top panels (`wordsTop`) is drawn lower than it would be: its box reaches it.
+  const view = options.view;
+  if (view)
+    for (let i = 0; i < over.length; i++) {
+      const b = over[i]!;
+      if (b.y < view.y + 2) over[i] = { ...b, h: Math.max(b.h, view.y + 40 - b.y) };
+    }
   let overlayBox: Box | null = null;
   for (const b of over) {
     if (!overlayBox) overlayBox = b;
@@ -1881,6 +2478,7 @@ export function fightExtra(
     actors,
     boxes,
     overlayBox,
+    overlayBoxes: over,
     walkerOffset: apart.get('hero') ?? 0,
     walker: (image) => {
       if (flashing(battle.struckAt, clock)) return flashOf(image, C.white);
@@ -1929,7 +2527,18 @@ export function fightExtra(
           oval(ctx, midX(foe), feet, rx + 2, 5);
         }
       }
-      for (const at of mounds) drawMound(ctx, at, clock);
+      for (const at of mounds) {
+        // Lane B's mound (B20), heaving a frame at a time; this lane's own where none is drawn.
+        const frame = Math.floor(clock / 140) % BURROW_MOUND2_FRAMES;
+        const art = pieceCanvas(`mound ${frame}`, () => burrowMound2(frame), look.theme.palette);
+        if (art)
+          ctx.drawImage(
+            art.image,
+            Math.round(at.x - art.anchor.x),
+            Math.round(at.y - art.anchor.y),
+          );
+        else drawMound(ctx, at, clock);
+      }
       for (const foe of here)
         if (foe.heavy && foe.heavy.shape !== 'circle') drawMark(ctx, foe.heavy, clock);
       for (const t of battle.volleys) drawMark(ctx, t, clock);
@@ -1987,7 +2596,7 @@ export function fightExtra(
           ctx.fillRect(x, y - 3, 1, 1);
         }
       }
-      for (const c of clouds) drawCloud(ctx, c, clock);
+      for (const c of clouds) drawCloudArt(ctx, c, clock, look.theme.palette);
       for (const foe of here) {
         if (foe.stuck === undefined || foe.stuck <= clock || !alive(foe)) continue;
         // Stuck fast: three stars wheeling over its head.
@@ -1999,7 +2608,32 @@ export function fightExtra(
           ctx.fillRect(Math.round(cx + Math.cos(a) * 10), Math.round(cy + Math.sin(a) * 4), 2, 2);
         }
       }
-      for (const e of battle.effects) drawEffectArt(ctx, e, clock);
+      for (const e of battle.effects) {
+        if (e.kind === 'erupt') {
+          // Up out of the ground (lane B's eruption, B20): its last frame the hole he leaves.
+          const frame = Math.min(
+            BURROW_ERUPTION2_FRAMES - 1,
+            Math.floor((clock - e.from) / BURROW_ERUPTION2_FRAME_MS),
+          );
+          const art = pieceCanvas(
+            `erupt ${frame}`,
+            () => burrowEruption2(frame),
+            look.theme.palette,
+          );
+          if (art) {
+            ctx.globalAlpha = Math.max(0, Math.min(1, (EFFECT_MS - (clock - e.from)) / 200));
+            ctx.drawImage(
+              art.image,
+              Math.round(e.at.x - art.anchor.x),
+              Math.round(e.at.y - art.anchor.y),
+            );
+            ctx.globalAlpha = 1;
+            continue;
+          }
+        }
+        drawEffectArt(ctx, e, clock);
+      }
+      for (const f of flares) drawFlare(ctx, f.at, clock - f.from);
       if (battle.braceUntil > clock) {
         // Braced: a small shield over his head.
         const x = Math.round(hero.x);
@@ -2013,8 +2647,10 @@ export function fightExtra(
         ctx.fillRect(x, y, 1, 9);
       }
     },
-    overlay(ctx, k) {
+    overlay(ctx, k, area) {
       way.draw(ctx, k);
+      // Words kept below what the controls cover along the top (the boss's panel among them).
+      const wordsTop = options.view ? options.view.y + 2 : -Infinity;
       if (barredSay) {
         const x = barredSay.cell.col * T + T / 2 - outward(barredSay) * 6;
         const shake = Math.round(Math.sin(((clock - tapped!.at) / 60) * Math.PI) * 2 * k * 0.5);
@@ -2022,20 +2658,9 @@ export function fightExtra(
       }
       for (const foe of here)
         if (alive(foe) && !held(battle, place, foe) && !foe.under) {
+          // On a canvas of its own patch, only what lies on that patch.
+          if (area && !overlaps(area, barBox(foe))) continue;
           drawFoeOver(ctx, battle, foe, midX(foe), liftOf(room, foe), foe.key === battle.target, k);
-          // A guard's cap up toward him: a small shield on the side it faces, over its bar.
-          if (blocks(battle, foe, hero)) {
-            const side = foe.facing === 'right' ? 1 : -1;
-            const top = Math.round(foe.at.y - standsOf(foe.monster) - 8);
-            const x =
-              midX(foe) +
-              side * (Math.max(24, Math.min(54, foeKind(foe.monster).box.w)) / 2 + 6 * k);
-            ctx.fillStyle = C.ink;
-            ctx.fillRect(x - 5 * k, top - 2 * k, 10 * k, 11 * k);
-            ctx.fillStyle = C.metal2;
-            ctx.fillRect(x - 4 * k, top - k, 8 * k, 6 * k);
-            ctx.fillRect(x - 2 * k, top + 5 * k, 4 * k, 3 * k);
-          }
         }
       // A lantern being lit (gold, filling round) or put out by a moth (violet, running down).
       for (const r of rings) {
@@ -2059,7 +2684,7 @@ export function fightExtra(
           nudge = together.get(key) ?? 0;
           together.set(key, nudge + 1);
         }
-        drawEffectOver(ctx, e, clock, hero, HERO_TALL, k, nudge * 14);
+        drawEffectOver(ctx, e, clock, hero, HERO_TALL, k, nudge * 14, wordsTop);
       }
       // What a boss shouts, over its head: the dungeon's own words for it.
       for (const e of battle.effects) {
