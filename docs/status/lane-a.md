@@ -1,12 +1,68 @@
 # Lane A: idle rules
 
-**Next: wave 20's last PR, opening Thistlewood Burrow** (branch `lane-a/w20-burrow-open`), the
-moment lane C writes "BURROW READY" and lane B's five faces are on `main`; then Cody's review.
+**Next: Cody's review of tier 2 and Thistlewood Burrow** (open since wave 21), then S25 (tier 3)
+when the plan says so. Waiting on lane C for one thing: its five scene expectations that read
+the Burrow as a landing to come (Needs, wave 21).
 
 ## Done
 
-- Wave 20, PR 4: Thistlewood Burrow opened (branch `lane-a/w20-burrow-open`). **Save version
-  unchanged (12).**
+- Wave 21: Thistlewood Burrow opened, finished (branch `lane-a/w21-burrow-open`: wave 20's PR 4,
+  rebased, and this wave's commit on top). **Save version unchanged (12).**
+  - **PR #96's numbers, exactly**: the cast's hides and health (defence / hp): spore puff 62 / 23,
+    lantern moth 72 / 17, cap guard 82 / 39, bramble hound 69 / 35, the Badger King 90 / 205;
+    levels, attacks, max hits, speeds and drops unchanged. The days a little milder: Thick Caps
+    foe health 1.15, Fierce Brambles foe damage 1.07, Swift Hounds foe speed 1.08 and no foe
+    health (its words follow), Deep Gloom hero damage 0.95. **`lean_rations`**, the burrow's own,
+    replaces Short Rations in its pool (Short Rations stays the grotto's): food heals 0.8, foe
+    health 0.75, and it pays **XP 1.1 rather than loot 1.1** (lane C's ask kept its loot; with it
+    an hour by hand earned 1.40 times a plain day's, past the 1.3 the grotto's days are held
+    to). Modifiers: 13 (the bound 12 → 14).
+  - **Reproduced before applying**: lane C's careful player on the tables' cast and real gear
+    (sword, kite shield, helm, plate, greaves, cloak; 20 swordfish), 48 seeds at 40: plain 46
+    cleared, median 8.8 min; Thick Caps 40, Fierce Brambles 41, Swift Hounds 40, Lean Rations
+    46, Deep Gloom 43, Short Rations 34 (why it left the pool). Twelve seeds by level: 30 clears
+    3, 35 8, 40 12. **Recommended 40 stands.**
+  - **Challenges** (ids kept in saves from now): `thistlewood_burrow.swift` now **seven**
+    minutes (was eight: a third of first clears at 40 met it); `.nearly_unhurt` (450 lost to
+    blows) and `.no_food` as they were, its words now "combat 70 or so"; **`.deep_gloom`**
+    ("In the Gloom", a clear on a day of Deep Gloom, 8,000 coins and 5 points) replaces
+    `.badger_dodge` (eight heavy blows stepped out of), which every careful clear meets 47 to 121
+    times. Never in a save: the burrow paid nothing while it waited. Evidence (the bot, twelve
+    seeds unless said): seven minutes 1 of 48 at 40, 7 at 50, 9 at 60 (in the full kit with the
+    amulet: 4 at 40, 7 at 45); 450 lost 2 of 48 at 40, 5 at 50, 8 at 60; no food (no fish
+    carried) 0 at 55, 1 at 60, 2 at 65, 5 at 70; Deep Gloom 43 of 48 at 40.
+  - **The unlock, said**: `newlyOpened(before, after, content)` (`src/core/dungeons.ts`): the
+    landings a change opened. Settling a run toasts it once back in the menus: "First clear of
+    Brinebeard’s Grotto! Thistlewood Burrow is open: the boat at the quay will take you." (the
+    first clear named now even with nothing to pay). The Town tab's dot comes on by the existing
+    rule (an open landing never seen on the chart). Tier 2's card on the Skills tab ends with
+    "Thistlewood Burrow · open · by boat · combat 40". The grotto's line on the Dungeons card
+    says what is open: "Its first clear unlocks tier 2, from level 20: …. It opens Thistlewood
+    Burrow too." and once cleared "Tier 2 unlocked, from level 20: …. Thistlewood Burrow is
+    open." (was "New things in every skill from level 20, and a new place to fight.").
+  - **The economy** (pacing, all reading the tables' cast through `BURROW_CAST`, whatever lane
+    C's bot defaults to), level 40 in the full kit: **by hand** 11 of 12 cleared, median 7.8
+    min, 73,151 XP and 191,001 coins earned an hour after fish (the grotto re-run 50,207 and
+    151,210; the best fight for money, the hobgoblin, 165,264); a run is worth 31,285 coins and
+    9,788 XP (was 10,665: thinner foes). **Idle** 5 runs an hour, 57,616 XP (0.79 of by hand),
+    49,574 earned after 32,936 of fish; the best idle fight 190,055 XP. A night at 38 and 40
+    with fish to spare is never knocked out and pays for its fish. **The days by hand** against
+    a plain day (XP, earned, mean), a new case held as the grotto's: Thick Caps 1.28 / 1.13 /
+    1.20, Fierce Brambles 0.97 / 1.14 / 1.05, Swift Hounds 1.14 / 0.99 / 1.06, Lean Rations 1.01
+    / 1.27 / 1.14, Deep Gloom 1.09 / 0.99 / 1.04.
+  - **Tests changed on purpose**: pins `IDLE_BURROW` [6, 64077, 69589] → [5, 57616, 49574], the
+    burrow run's XP 10,665 → 9,788; the grotto's tier line (`dungeonReplay`) to the new words;
+    the tier card's lines gain the burrow; the shell's grotto clear says the first clear and the
+    burrow before the bounty; the modifier bound. New: `newlyOpened` (core), the burrow's cast,
+    pool and challenge ids pinned (content), the burrow's days by hand (pacing).
+  - **Checked** at 390 × 844 and 360 × 740, 3x (`/home/claude/lane-shots/w21-a/`): the Burrow
+    locked, open (and its challenges) and cleared; the grotto's tier line; the unlock toast and
+    the Town dot after a grotto first clear; tier 2's card, the bounty board, Mining's tier
+    badges; the away report after eight hours of idle Burrow runs, with 300 swordfish (out of
+    fish after 20 runs, knocked out, said in red) and 1,000 (49 runs, 669 eaten).
+
+- Wave 20, PR 4: Thistlewood Burrow opened (branch `lane-a/w20-burrow-open`, shipped in wave 21
+  above). **Save version unchanged (12).**
   - **Charted**: `comingSoon` is gone from its row. It is locked, named, until the grotto is
     cleared ("Clear Brinebeard’s Grotto."), then open; the Dungeons card, the chart, the day's
     modifier (its five days), challenges, first-clear reward (10 amber, 10 cooked swordfish),
@@ -1490,6 +1546,21 @@ utcOffset)`, `stopIdleRun`, `alignIdleClock`, `advanceIdleRun` inside `advance`,
 
 ## Needs from another lane
 
+- **For lane C (wave 21)**: five of your expectations read the Burrow as a landing to come or
+  its pool as having Short Rations, and fail on lane A's branch for that alone (nothing else in
+  `tests/scene` does): `burrowRun.test.ts` "has five days" (the pool is now `thick_caps`,
+  `fierce_brambles`, `swift_hounds`, `lean_rations`, `deep_gloom`); `chart.test.ts` "for a new
+  save: … the rest silhouettes" and "all cleared: … the next landing to come" (the burrow is
+  locked and named, then rowable; the next to come is `unknown_2`); `chartFit.test.ts` "keeps
+  the ferryman’s word … no medals for a landing not open"; `harbour.test.ts` "has no Row out for
+  a landing to come" (use `unknown_2`). Your bot's `BURROW_ASKED` can go: the tables hold #96's
+  numbers. Lean Rations pays XP 1.1, not loot (lane A's economy); your days' cases are about
+  clears and costs, so unaffected. The fourth challenge is `thistlewood_burrow.deep_gloom`
+  (`withModifier`), not `badger_dodge`.
+- **For lane B (wave 21)**: `thistlewood_burrow.deep_gloom` draws your generic challenge picture
+  (no word in the slug matches); a dark/lantern picture for "gloom" would suit it. `lean_rations`
+  draws the rations plate, as asked. Nothing blocking.
+
 - **For lane C (wave 20)**: (1) the cast's numbers and Deep Gloom 0.9 are in the tables, so
   `BURROW_ASKED` and the tables agree; the tier-2 stat line is above (read it from data:
   `fighterOf(characterAt(40, { tier2: true, food: 20 }), CONTENT)` gives it; since PR 3 the same
@@ -1690,6 +1761,26 @@ was picked up with it (nothing is settled until the run ends).
   scene. Reloading to dodge a blow gets the snapshot at most a few seconds old, with the same
   dice: the same taps give the same blow.
 - **Size**: a battle is a few dozen foes and piles; well under the cap.
+
+### Weak list (wave 21)
+
+- **The branch is red until lane C's five expectations move** (Needs): lane A's PR merges
+  after them, or lane C's goes on top of it.
+- **A night idle in the Burrow lifts combat far into tier 3's levels**: eight hours at 40 with
+  fish enough took Melee 40 → 55, Defence 40 → 62, Vitality 40 → 58 (49 runs, 669 swordfish).
+  The best idle fight at 40 pays more XP still (tier 2's foes pay 270%). Tier 3 (S25) has to be
+  paced from there, or tier 2's rate eased past 40.
+- **Idle eats a lot**: about 20 swordfish a run at 40 (100 an hour); a phone left overnight with
+  300 runs dry after 20 runs and he is knocked out. Honest, and said, but a player may not
+  expect it.
+- **No Food is far off**: "combat 70 or so" in salt-iron; tier 3's gear should bring it nearer,
+  unmeasured.
+- **Lean Rations is quick**: weaker foes make it the shortest day (median 7.3 min against 8.8),
+  so it nearly gives Quick Through the Warren away on such a day (19 of 46 clears under seven
+  minutes at 40). Kept: it is a day's luck, as the Spring Tide is the grotto's.
+- The in-browser shots build a save with the game's own code; achievements earned "while away"
+  in the away shot are that save's backlog, not the night's.
+- `docs/tier2-manifest.md` still says the cloak is worn at the neck (outside this wave's files).
 
 ### Weak list (wave 20)
 
