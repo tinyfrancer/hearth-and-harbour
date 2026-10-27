@@ -15,8 +15,7 @@ the Burrow as a landing to come (Needs, wave 21).
     Brambles `{ foeDamage: 1.08, loot: 1.1 }` (its foe health 0.95 gone, so its words lose
     "bends easier"), Swift Hounds `{ foeSpeed: 1.08, xp: 1.15 }` (foe health 0.93 gone, words
     likewise), Deep Gloom hero damage 0.9 → 0.95. Thick Caps' difficulty as it was; **its XP 1.2
-    → 1.1** (lane A's economy: tougher caps already pay more XP a run, and at 1.2 an hour by hand
-    paid 1.39 times a plain day's XP). Modifiers: 12, as before.
+    → 1.1** (lane A's economy: tougher caps already pay more XP a run, and at 1.2 an hour by hand paid 1.39 times a plain day's XP, past the 1.3 held). Modifiers: 12, as before.
   - **Recommended 40 stands**: lane C's careful player on the tables (sword, kite shield, helm,
     plate, greaves, cloak; 20 swordfish), twelve seeds: level 30 clears 5, 35 11, 40 12; 48
     seeds at 40: 46 (median 8.6 min).
@@ -41,15 +40,12 @@ the Burrow as a landing to come (Needs, wave 21).
     Burrow too." and once cleared "Tier 2 unlocked, from level 20: …. Thistlewood Burrow is
     open." (was "New things in every skill from level 20, and a new place to fight.").
   - **The economy** (pacing, all fighting the tables' cast through `BURROW_CAST`, whatever lane
-    C's bot defaults to), level 40 in the full kit: **by hand** 12 of 12 cleared, 74,711 XP and
-    186,557 coins earned an hour after fish (the grotto re-run 50,207 and 151,210; the best fight
+    C's bot defaults to), level 40 in the full kit: **by hand** 12 of 12 cleared, 76,834 XP and 191,858 coins earned an hour after fish (the grotto re-run 50,207 and 151,210; the best fight
     for money, the hobgoblin, 165,264); a run is worth 31,285 coins and 10,665 XP. **Idle** 6 runs
-    an hour, 64,077 XP (0.86 of by hand), 69,589 earned after 29,356 of fish; the best idle fight
+    an hour, 64,077 XP (0.83 of by hand), 69,589 earned after 29,356 of fish; the best idle fight
     190,055 XP. A night at 38 and 40 with fish to spare is never knocked out and pays for its
     fish. **The days by hand** against a plain day (XP, earned, mean), a new case held as the
-    grotto's (each 0.9 to 1.3, the mean 1.0 to 1.3): Thick Caps 1.27 / 1.13 / 1.20, Fierce
-    Brambles 1.00 / 1.08 / 1.04, Swift Hounds 1.13 / 0.93 / 1.03, Short Rations 1.00 / 1.21 /
-    1.10, Deep Gloom 1.24 / 1.10 / 1.17.
+    grotto's (each 0.9 to 1.3, the mean 1.0 to 1.3): Thick Caps 1.22 / 1.07 / 1.15, Fierce Brambles 1.00 / 1.09 / 1.05, Swift Hounds 1.13 / 0.94 / 1.04, Short Rations 1.05 / 1.25 / 1.15, Deep Gloom 1.22 / 1.08 / 1.15 (on lane C's finished scene, #100).
   - **Tests changed on purpose**: the grotto's tier line (`dungeonReplay`) to the new words; the
     tier card's lines gain the burrow; the shell's grotto clear says the first clear and the
     burrow before the bounty. New: `newlyOpened` (core), the burrow's cast, pool and challenge ids
