@@ -162,6 +162,9 @@ export function levelWords(recommended: number, level: number): string {
   return `Level ${recommended} · you ${level}`;
 }
 
+/** How near an edge of the map, CSS pixels, a landing's name runs inward instead of centred. */
+export const NAME_EDGE = 80;
+
 export function chartPanel(o: ChartPanelOptions): ChartPanel {
   const map = harbourChart();
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
@@ -267,6 +270,10 @@ export function chartPanel(o: ChartPanelOptions): ChartPanel {
     );
     // Its middle a little above the landing: over the marker standing on it.
     b.style.left = `${Math.round(l.at.x * k - LANDING_CSS / 2)}px`;
+    // Near an edge of the map as it shows (slid by `shift`), its name runs inward, never off it
+    // (the Burrow's landing is near the left edge).
+    const seenAt = l.at.x * k - shift;
+    b.dataset.side = seenAt < NAME_EDGE ? 'start' : seenAt > boxW - NAME_EDGE ? 'end' : 'mid';
     b.style.top = `${Math.round((l.at.y - 8) * k - LANDING_CSS / 2)}px`;
     return b;
   };
